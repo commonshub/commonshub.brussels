@@ -27,20 +27,30 @@ export function Hero() {
   useEffect(() => {
     const interval = setInterval(() => {
       setRevealProgress(0);
-      setPhraseIndex((prev) => (prev + 1) % rotatingPhrases.length);
+      const nextIndex = (phraseIndex + 1) % rotatingPhrases.length;
+      setPhraseIndex(nextIndex);
+
+      // Calculate animation duration based on text length
+      // Longer text = more time to reveal at consistent speed
+      const textLength = rotatingPhrases[nextIndex].length;
+      const baseSpeed = 40; // ms per character
+      const totalDuration = textLength * baseSpeed;
+      const steps = 25; // number of animation steps
+      const stepDuration = totalDuration / steps;
+      const progressIncrement = 100 / steps;
 
       let progress = 0;
       const revealInterval = setInterval(() => {
-        progress += 4;
-        setRevealProgress(progress);
+        progress += progressIncrement;
+        setRevealProgress(Math.min(progress, 100));
         if (progress >= 100) {
           clearInterval(revealInterval);
         }
-      }, 30);
+      }, stepDuration);
     }, 3500);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [phraseIndex]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
@@ -61,7 +71,7 @@ export function Hero() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground leading-tight max-w-5xl mx-auto">
           <span className="block">A space for</span>
-          <span className="block h-[1.3em] relative w-[300px] sm:w-[400px] md:w-[600px] mx-auto">
+          <span className="h-[1.3em] relative w-full flex items-center justify-center">
             <span
               className="text-primary whitespace-nowrap inline-block"
               style={{
@@ -104,28 +114,30 @@ export function Hero() {
           </Button>
         </div>
 
-        <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
-          {[
-            {
-              number: stats?.communityMembers || "–",
-              label: "Community Members",
-            },
-            {
-              number: stats?.partnerOrganizations || "–",
-              label: "Partner Organizations",
-            },
-            { number: stats?.events || "–", label: "Upcoming Events" },
-            { number: stats?.commonSpaces || 1, label: "Common Space" },
-          ].map((stat, i) => (
-            <div key={i} className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-primary">
-                {stat.number}
+        <div className="mt-20 w-full">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+            {[
+              {
+                number: stats?.communityMembers || "–",
+                label: "Community Members",
+              },
+              {
+                number: stats?.partnerOrganizations || "–",
+                label: "Partner Organizations",
+              },
+              { number: stats?.events || "–", label: "Upcoming Events" },
+              { number: stats?.commonSpaces || 1, label: "Common Space" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center w-40">
+                <div className="text-3xl sm:text-4xl font-bold text-primary">
+                  {stat.number}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  {stat.label}
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                {stat.label}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>

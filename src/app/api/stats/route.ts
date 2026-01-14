@@ -23,52 +23,30 @@ async function fetchDiscordMemberCount(): Promise<number> {
 
 async function fetchEventCount(): Promise<number> {
   try {
-    const response = await fetch(settings.luma.icalUrl)
+    // Use the events API endpoint which consolidates all event sources
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const response = await fetch(`${baseUrl}/api/events`, {
+      next: { revalidate: 3600 } // Cache for 1 hour
+    })
+
     if (!response.ok) return 0
 
-    const icsText = await response.text()
+    const data = await response.json()
+    const events = data.events || []
 
     const now = new Date()
     const threeMonthsFromNow = new Date()
     threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3)
 
-    // Parse events and filter by date
-    const eventBlocks = icsText.split("BEGIN:VEVENT")
-    let count = 0
+    // Count upcoming events within the next 3 months
+    const upcomingEvents = events.filter((event: any) => {
+      const eventDate = new Date(event.start_at)
+      return eventDate >= now && eventDate <= threeMonthsFromNow
+    })
 
-    for (let i = 1; i < eventBlocks.length; i++) {
-      const block = eventBlocks[i]
-      const dtStartMatch = block.match(/DTSTART(?:;[^:]*)?:(\d{8}T?\d{0,6}Z?)/)
-
-      if (dtStartMatch) {
-        const dateStr = dtStartMatch[1]
-        let eventDate: Date
-
-        if (dateStr.includes("T")) {
-          // DateTime format: 20241215T180000Z
-          const year = Number.parseInt(dateStr.substring(0, 4))
-          const month = Number.parseInt(dateStr.substring(4, 6)) - 1
-          const day = Number.parseInt(dateStr.substring(6, 8))
-          const hour = Number.parseInt(dateStr.substring(9, 11)) || 0
-          const minute = Number.parseInt(dateStr.substring(11, 13)) || 0
-          eventDate = new Date(Date.UTC(year, month, day, hour, minute))
-        } else {
-          // Date only format: 20241215
-          const year = Number.parseInt(dateStr.substring(0, 4))
-          const month = Number.parseInt(dateStr.substring(4, 6)) - 1
-          const day = Number.parseInt(dateStr.substring(6, 8))
-          eventDate = new Date(year, month, day)
-        }
-
-        if (eventDate >= now && eventDate <= threeMonthsFromNow) {
-          count++
-        }
-      }
-    }
-
-    return count
+    return upcomingEvents.length
   } catch (error) {
-    console.error("[v0] Error fetching event count:", error)
+    console.error("[stats] Error fetching event count:", error)
     return 0
   }
 }
