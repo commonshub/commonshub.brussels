@@ -1,0 +1,118 @@
+[
+  {
+    "name": "Apus et les Cocottes Volantes",
+    "type": "vendor",
+    "logo": "/images/partners/apus-cocottes.png",
+    "website": "https://apusetlescocottesvolantes.com/",
+    "description": "Creative collective bringing art and community together through collaborative projects."
+  },
+  {
+    "name": "BeImpact",
+    "type": "organisation",
+    "logo": "/images/partners/beimpact.png",
+    "website": "https://www.be-impact.org",
+    "description": "National platform for impact entrepreneurs in Belgium, helping them fundraise, access opportunities, and gain visibility.",
+    "featured": true
+  },
+  {
+    "name": "BeDonut",
+    "type": "organisation",
+    "logo": "/images/partners/bedonut.avif",
+    "website": "https://bedonut.be",
+    "description": "Bringing Doughnut Economics to Belgium, promoting a regenerative and distributive economy.",
+    "featured": true
+  },
+  {
+    "name": "BeesCoop",
+    "type": "organisation",
+    "logo": "/images/partners/beescoop.avif",
+    "website": "https://bees-coop.be",
+    "description": "Brussels' first participative supermarket, a social cooperative managed by and for its members."
+  },
+  {
+    "name": "Commons Lab",
+    "type": "organisation",
+    "logo": "/images/partners/commonslab.avif",
+    "website": "https://commonslab.be",
+    "description": "Research and practice lab dedicated to developing and studying commons-based initiatives.",
+    "featured": true
+  },
+  {
+    "name": "DAO.brussels",
+    "type": "community",
+    "logo": "/images/partners/daobrussels.avif",
+    "website": "https://dao.brussels",
+    "description": "Crypto community exploring decentralized autonomous organizations and Web3 governance in Brussels.",
+    "featured": true
+  },
+  {
+    "name": "Fondation Mycelium",
+    "type": "organisation",
+    "logo": "/images/partners/fondationmycelium.avif",
+    "website": "https://fondation-mycelium.be",
+    "description": "Foundation supporting regenerative initiatives and interconnected community projects."
+  },
+  {
+    "name": "Inflights",
+    "type": "organisation",
+    "logo": "/images/partners/inflights.avif",
+    "website": "https://inflights.com",
+    "description": "Community of drone pilots in 130 different countries."
+  },
+  {
+    "name": "Innerpreneurs",
+    "type": "community",
+    "logo": "/images/partners/innerpreneurs.avif",
+    "website": "https://innerpreneurs.org",
+    "description": "Community of entrepreneurial leaders who embody leadership from within, serving current and future generations.",
+    "featured": true
+  },
+  {
+    "name": "North Star AGI",
+    "type": "community",
+    "logo": "/images/partners/northstar.avif",
+    "website": "https://www.ns2agi.com",
+    "description": "AI & robotics education through hackathons and community events across Belgium.",
+    "featured": true
+  },
+  {
+    "name": "Open Collective",
+    "type": "organisation",
+    "logo": "/images/partners/opencollective.png",
+    "website": "https://opencollective.com",
+    "description": "Platform enabling communities to collect and spend money transparently.",
+    "featured": true
+  },
+  {
+    "name": "RCR2",
+    "type": "organisation",
+    "logo": "/images/partners/rcr2.avif",
+    "website": "https://asblrcr.be/",
+    "description": "RCR² - Réseau de Collectifs en Recherche de Résilience.",
+    "featured": true
+  },
+  {
+    "name": "Rebel",
+    "type": "community",
+    "logo": "/images/partners/rebel.avif",
+    "website": "https://rebel.studio",
+    "description": "Creative community initiative driving social and cultural innovation in Belgium.",
+    "featured": true
+  },
+  {
+    "name": "Regens Unite",
+    "type": "community",
+    "logo": "/images/partners/regensunite.avif",
+    "website": "https://regensunite.earth",
+    "description": "Global community uniting regenerators to heal the planet and build regenerative systems.",
+    "featured": true
+  },
+  {
+    "name": "Steward Owned",
+    "type": "organisation",
+    "logo": "/images/partners/stewardowned.avif",
+    "website": "https://purpose-economy.org/en/",
+    "description": "Promoting purpose-driven ownership models where companies serve their mission, not shareholders.",
+    "featured": true
+  }
+]

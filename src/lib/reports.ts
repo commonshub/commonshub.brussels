@@ -1,0 +1,1132 @@
+/**
+ * Report aggregation functions for yearly and monthly reports
+ * Aggregates data from Discord messages and financial transactions
+ */
+
+import * as fs from "fs";
+import * as path from "path";
+import settings from "@/settings/settings.json";
+import type { CachedMessage } from "./discord-cache";
+import { getLocalImagePath } from "./discord-cache";
+import type { StripeTransaction } from "./stripe";
+import type { TokenTransfer } from "./etherscan";
+import { parseTokenValue } from "./etherscan";
+import { getProxiedDiscordImage } from "./image-proxy";
+
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+
+// ========== Type Definitions ==========
+
+export interface UserInfo {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatar: string | null;
+}
+
+export interface PopularPhoto {
+  url: string;
+  proxyUrl: string;
+  id: string;
+  author: UserInfo;
+  reactions: Array<{ emoji: string; count: number }>;
+  totalReactions: number;
+  message: string;
+  timestamp: string;
+  channelId: string;
+  messageId: string;
+}
+
+export interface TokenData {
+  minted: number;
+  burnt: number;
+  net: number;
+  transactionCount: number;
+  activeAccounts: number;
+}
+
+export interface FinancialData {
+  income: number;
+  expenses: number;
+  net: number;
+  tokens: TokenData;
+  byAccount: Array<{
+    slug: string;
+    name: string;
+    provider: string;
+    income: number;
+    expenses: number;
+    net: number;
+  }>;
+}
+
+export interface MonthlyReportData {
+  year: string;
+  month: string;
+  activeMembers: {
+    count: number;
+    userIds: string[];
+    users: UserInfo[];
+  };
+  photos: PopularPhoto[];
+  financials: FinancialData;
+}
+
+export interface YearlyReportData {
+  year: string;
+  activeMembers: {
+    count: number;
+    userIds: string[];
+    users: UserInfo[];
+  };
+  photos: PopularPhoto[];
+  financials: {
+    totalIncome: number;
+    totalExpenses: number;
+    net: number;
+    totalTokensMinted: number;
+    totalTokensBurnt: number;
+    monthlyBreakdown: Array<{
+      month: string;
+      income: number;
+      expenses: number;
+      activeMembers: number;
+      tokensMinted: number;
+      tokensBurnt: number;
+    }>;
+  };
+  months: string[];
+}
+
+// ========== File System Utilities ==========
+
+/**
+ * Get all available years with data
+ */
+export function getAvailableYears(): string[] {
+  try {
+    if (!fs.existsSync(DATA_DIR)) return [];
+
+    const years = fs
+      .readdirSync(DATA_DIR, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory() && /^\d{4}$/.test(dirent.name))
+      .map((dirent) => dirent.name)
+      .sort();
+
+    return years;
+  } catch (error) {
+    console.error("Error reading available years:", error);
+    return [];
+  }
+}
+
+/**
+ * Get all available months with data for a specific year
+ */
+export function getAvailableMonths(year: string): string[] {
+  try {
+    const yearPath = path.join(DATA_DIR, year);
+    if (!fs.existsSync(yearPath)) return [];
+
+    return fs
+      .readdirSync(yearPath, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory() && /^\d{2}$/.test(dirent.name))
+      .map((dirent) => dirent.name)
+      .sort();
+  } catch (error) {
+    console.error(`Error reading available months for ${year}:`, error);
+    return [];
+  }
+}
+
+// ========== Discord Data Functions ==========
+
+/**
+ * Read all Discord messages for a specific month
+ */
+export function readDiscordMessages(
+  year: string,
+  month: string
+): CachedMessage[] {
+  const discordDir = path.join(DATA_DIR, year, month, "discord");
+
+  if (!fs.existsSync(discordDir)) {
+    return [];
+  }
+
+  const allMessages: CachedMessage[] = [];
+
+  try {
+    // Get all channel directories
+    const channelDirs = fs
+      .readdirSync(discordDir, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
+
+    for (const channelId of channelDirs) {
+      const messagesPath = path.join(discordDir, channelId, "messages.json");
+
+      if (!fs.existsSync(messagesPath)) continue;
+
+      const content = fs.readFileSync(messagesPath, "utf-8");
+      const data = JSON.parse(content) as { messages: CachedMessage[] };
+
+      if (data.messages && Array.isArray(data.messages)) {
+        // Add channel_id to each message
+        const messagesWithChannel = data.messages.map((msg) => ({
+          ...msg,
+          channel_id: channelId,
+        }));
+        allMessages.push(...messagesWithChannel);
+      }
+    }
+  } catch (error) {
+    console.error(
+      `Error reading Discord messages for ${year}-${month}:`,
+      error
+    );
+  }
+
+  return allMessages;
+}
+
+/**
+ * Get active members from messages (authors + mentioned users)
+ */
+export function getActiveMembers(messages: CachedMessage[]): {
+  count: number;
+  userIds: string[];
+  users: UserInfo[];
+} {
+  const userMap = new Map<string, UserInfo>();
+
+  for (const msg of messages) {
+    // Add message author
+    userMap.set(msg.author.id, {
+      id: msg.author.id,
+      username: msg.author.username,
+      displayName: msg.author.global_name,
+      avatar: msg.author.avatar,
+    });
+
+    // Add mentioned users
+    if (msg.mentions && Array.isArray(msg.mentions)) {
+      for (const mention of msg.mentions) {
+        userMap.set(mention.id, {
+          id: mention.id,
+          username: mention.username,
+          displayName: mention.global_name,
+          avatar: mention.avatar,
+        });
+      }
+    }
+  }
+
+  const users = Array.from(userMap.values());
+
+  return {
+    count: users.length,
+    userIds: users.map((u) => u.id),
+    users,
+  };
+}
+
+/**
+ * Get popular photos ranked by reaction count
+ */
+export function getPopularPhotos(
+  messages: CachedMessage[],
+  limit: number = 12
+): PopularPhoto[] {
+  const photos: PopularPhoto[] = [];
+
+  for (const msg of messages) {
+    // Only include Discord attachments (uploaded images), not external embed images
+    const imageAttachments =
+      msg.attachments?.filter(
+        (att) =>
+          att.content_type?.startsWith("image/") ||
+          att.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+      ) || [];
+
+    // Skip if no image attachments
+    if (imageAttachments.length === 0) continue;
+
+    // Get image URL from attachment - prefer local path if available
+    const attachment = imageAttachments[0];
+    const localPath = getLocalImagePath(
+      attachment.id,
+      attachment.url,
+      msg.timestamp
+    );
+    const imageUrl = localPath || attachment.url;
+    if (!imageUrl) continue;
+
+    // Calculate total reactions with weighted stars (⭐ = 3x weight)
+    const reactions = msg.reactions || [];
+    const totalReactions = reactions.reduce((sum, r) => {
+      // Check if emoji is a star (⭐ or star)
+      const isStarEmoji =
+        r.emoji.name === "⭐" ||
+        r.emoji.name === "star" ||
+        r.emoji.name === "⭐️";
+      const weight = isStarEmoji ? 3 : 1;
+      return sum + r.count * weight;
+    }, 0);
+
+    // Generate proxy URL
+    const proxyUrl = getProxiedDiscordImage(
+      msg.channel_id || "",
+      msg.id,
+      attachment.id,
+      msg.timestamp
+    );
+
+    photos.push({
+      url: proxyUrl,
+      proxyUrl: proxyUrl,
+      id: attachment.id,
+      author: {
+        id: msg.author.id,
+        username: msg.author.username,
+        displayName: msg.author.global_name,
+        avatar: msg.author.avatar,
+      },
+      reactions: reactions.map((r) => ({
+        emoji: r.emoji.name,
+        count: r.count,
+        me: r.me || false,
+      })),
+      totalReactions,
+      message: msg.content,
+      timestamp: msg.timestamp,
+      channelId: msg.channel_id || "",
+      messageId: msg.id,
+    });
+  }
+
+  // Sort by total reactions (descending) and take top N
+  return photos
+    .sort((a, b) => b.totalReactions - a.totalReactions)
+    .slice(0, limit);
+}
+
+/**
+ * Get all photos in reverse chronological order (newest first)
+ */
+export function getAllPhotos(messages: CachedMessage[]): PopularPhoto[] {
+  const photos: PopularPhoto[] = [];
+
+  for (const msg of messages) {
+    // Only include Discord attachments (uploaded images), not external embed images
+    const imageAttachments =
+      msg.attachments?.filter(
+        (att) =>
+          att.content_type?.startsWith("image/") ||
+          att.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+      ) || [];
+
+    // Skip if no image attachments
+    if (imageAttachments.length === 0) continue;
+
+    // Calculate total reactions with weighted stars (⭐ = 3x weight)
+    const reactions = msg.reactions || [];
+    const totalReactions = reactions.reduce((sum, r) => {
+      // Check if emoji is a star (⭐ or star)
+      const isStarEmoji =
+        r.emoji.name === "⭐" ||
+        r.emoji.name === "star" ||
+        r.emoji.name === "⭐️";
+      const weight = isStarEmoji ? 3 : 1;
+      return sum + r.count * weight;
+    }, 0);
+
+    // Process ALL image attachments, not just the first one
+    for (const attachment of imageAttachments) {
+      // Get image URL from attachment - prefer local path if available
+      const localPath = getLocalImagePath(
+        attachment.id,
+        attachment.url,
+        msg.timestamp
+      );
+      const imageUrl = localPath || attachment.url;
+      if (!imageUrl) continue;
+
+      // Generate proxy URL with all required metadata
+      const proxyUrl = getProxiedDiscordImage(
+        msg.channel_id || "",
+        msg.id,
+        attachment.id,
+        msg.timestamp
+      );
+
+      photos.push({
+        url: proxyUrl,
+        proxyUrl: proxyUrl,
+        id: attachment.id,
+        author: {
+          id: msg.author.id,
+          username: msg.author.username,
+          displayName: msg.author.global_name,
+          avatar: msg.author.avatar,
+        },
+        reactions: reactions.map((r) => ({
+          emoji: r.emoji.name,
+          count: r.count,
+          me: r.me || false,
+        })),
+        totalReactions,
+        message: msg.content,
+        timestamp: msg.timestamp,
+        channelId: msg.channel_id || "",
+        messageId: msg.id,
+      });
+    }
+  }
+
+  // Sort by timestamp (descending - newest first)
+  return photos.sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+}
+
+// ========== Message Visibility Functions ==========
+
+export interface UserSession {
+  userId?: string;
+  roles?: string[];
+}
+
+/**
+ * Check if a message is less than one week old
+ */
+export function isMessageRecent(timestamp: string): boolean {
+  const messageDate = new Date(timestamp);
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  return messageDate > oneWeekAgo;
+}
+
+/**
+ * Check if user has the member role
+ */
+export function isUserMember(session: UserSession | null): boolean {
+  if (!session || !session.roles) return false;
+  const memberRoleId = settings.discord.roles.member;
+  return session.roles.includes(memberRoleId);
+}
+
+/**
+ * Check if user is an admin
+ */
+export function isUserAdmin(session: UserSession | null): boolean {
+  if (!session || !session.roles) return false;
+  // Check for admin or moderator roles (if configured in settings)
+  const roles = settings.discord.roles as Record<string, string>;
+  const adminRoles = [roles.admin, roles.moderator].filter(Boolean);
+
+  // If no admin roles configured, no one is admin
+  if (adminRoles.length === 0) return false;
+
+  return session.roles.some((role) => adminRoles.includes(role));
+}
+
+/**
+ * Check if user is the author of a message
+ */
+export function isMessageAuthor(
+  message: CachedMessage,
+  session: UserSession | null
+): boolean {
+  if (!session || !session.userId) return false;
+  return message.author.id === session.userId;
+}
+
+/**
+ * Check if user is mentioned in a message
+ */
+export function isUserMentioned(
+  message: CachedMessage,
+  session: UserSession | null
+): boolean {
+  if (!session || !session.userId) return false;
+  if (!message.mentions || !Array.isArray(message.mentions)) return false;
+  return message.mentions.some((mention) => mention.id === session.userId);
+}
+
+/**
+ * Check if a message has the remove emoji (❌)
+ */
+export function hasRemoveEmoji(message: CachedMessage): boolean {
+  if (!message.reactions || !Array.isArray(message.reactions)) return false;
+  return message.reactions.some(
+    (r) =>
+      r.emoji.name === "❌" || r.emoji.name === "x" || r.emoji.name === "❎"
+  );
+}
+
+/**
+ * Check if a message should be visible to the user
+ */
+export function isMessageVisible(
+  message: CachedMessage,
+  session: UserSession | null
+): boolean {
+  const isAdmin = isUserAdmin(session);
+  const isMember = isUserMember(session);
+  const isAuthor = isMessageAuthor(message, session);
+  const isMentioned = isUserMentioned(message, session);
+  const isRemoved = hasRemoveEmoji(message);
+  const isRecent = isMessageRecent(message.timestamp);
+
+  // If message is removed (has ❌ emoji)
+  if (isRemoved) {
+    // Only show to admin, author, or mentioned users
+    return isAdmin || isAuthor || isMentioned;
+  }
+
+  // If message is recent (< 1 week old)
+  if (isRecent) {
+    // Only show to members (or admins who are also members)
+    return isMember;
+  }
+
+  // Otherwise, message is visible to everyone
+  return true;
+}
+
+/**
+ * Filter messages based on visibility rules
+ */
+export function filterVisibleMessages(
+  messages: CachedMessage[],
+  session: UserSession | null
+): CachedMessage[] {
+  return messages.filter((msg) => isMessageVisible(msg, session));
+}
+
+/**
+ * Filter photos based on their parent message visibility
+ */
+export function filterVisiblePhotos(
+  photos: PopularPhoto[],
+  messages: CachedMessage[],
+  session: UserSession | null
+): PopularPhoto[] {
+  // Create a map of message visibility
+  const messageVisibility = new Map<string, boolean>();
+
+  for (const msg of messages) {
+    messageVisibility.set(msg.id, isMessageVisible(msg, session));
+  }
+
+  // Filter photos whose parent messages are visible
+  return photos.filter((photo) => {
+    const isVisible = messageVisibility.get(photo.messageId);
+    return isVisible === true;
+  });
+}
+
+// ========== Financial Data Functions ==========
+
+/**
+ * Get tracked account addresses (for detecting internal transfers)
+ */
+function getTrackedAddresses(): Set<string> {
+  const addresses = new Set<string>();
+
+  for (const account of settings.finance.accounts) {
+    if (account.address) {
+      addresses.add(account.address.toLowerCase());
+    }
+  }
+
+  return addresses;
+}
+
+/**
+ * Check if a transaction is an internal transfer
+ */
+function isInternalTransfer(
+  transaction: StripeTransaction | TokenTransfer,
+  trackedAddresses: Set<string>
+): boolean {
+  // Stripe transactions are never internal transfers (all external)
+  if ("reporting_category" in transaction) {
+    return false;
+  }
+
+  // Etherscan token transfer
+  const tokenTransfer = transaction as TokenTransfer;
+  const fromAddr = tokenTransfer.from?.toLowerCase();
+  const toAddr = tokenTransfer.to?.toLowerCase();
+
+  // If both from and to are in tracked addresses, it's internal
+  return (
+    fromAddr !== undefined &&
+    toAddr !== undefined &&
+    trackedAddresses.has(fromAddr) &&
+    trackedAddresses.has(toAddr)
+  );
+}
+
+/**
+ * Read financial transactions for a specific month
+ */
+function readFinancialTransactions(
+  year: string,
+  month: string
+): {
+  stripe: StripeTransaction[];
+  etherscan: Map<string, TokenTransfer[]>;
+} {
+  const result = {
+    stripe: [] as StripeTransaction[],
+    etherscan: new Map<string, TokenTransfer[]>(),
+  };
+
+  // Read Stripe transactions
+  // Get accountId from settings
+  const stripeAccount = settings.finance.accounts.find(
+    (a) => a.provider === "stripe"
+  );
+  if (stripeAccount && stripeAccount.accountId) {
+    const stripePath = path.join(
+      DATA_DIR,
+      year,
+      month,
+      "finance",
+      "stripe",
+      `${stripeAccount.accountId}.json`
+    );
+    if (fs.existsSync(stripePath)) {
+      try {
+        const content = fs.readFileSync(stripePath, "utf-8");
+        const data = JSON.parse(content) as {
+          transactions: StripeTransaction[];
+        };
+        result.stripe = data.transactions || [];
+      } catch (error) {
+        console.error(
+          `Error reading Stripe transactions for ${year}-${month}:`,
+          error
+        );
+      }
+    }
+  }
+
+  // Read blockchain transactions (Gnosis, Celo, etc.)
+  // New structure: data/{year}/{month}/finance/{chain}/{slug}.{tokenSymbol}.json
+  for (const account of settings.finance.accounts) {
+    if (account.provider === "etherscan" && account.chain && account.token) {
+      const accountFilePath = path.join(
+        DATA_DIR,
+        year,
+        month,
+        "finance",
+        account.chain,
+        `${account.slug}.${account.token.symbol}.json`
+      );
+
+      if (fs.existsSync(accountFilePath)) {
+        try {
+          const content = fs.readFileSync(accountFilePath, "utf-8");
+          const data = JSON.parse(content) as { transactions: TokenTransfer[] };
+          result.etherscan.set(account.slug, data.transactions || []);
+        } catch (error) {
+          console.error(
+            `Error reading ${account.chain} transactions for ${account.slug} in ${year}-${month}:`,
+            error
+          );
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Read CHT (ContributionToken) transactions for a specific month
+ */
+function readCHTTransactions(year: string, month: string): TokenTransfer[] {
+  // New path structure: data/{year}/{month}/finance/celo/CHT.json
+  const chtPath = path.join(
+    DATA_DIR,
+    year,
+    month,
+    "finance",
+    "celo",
+    "CHT.json"
+  );
+
+  if (!fs.existsSync(chtPath)) {
+    return [];
+  }
+
+  try {
+    const content = fs.readFileSync(chtPath, "utf-8");
+    const data = JSON.parse(content) as { transactions: TokenTransfer[] };
+    return data.transactions || [];
+  } catch (error) {
+    console.error(
+      `Error reading CHT transactions for ${year}-${month}:`,
+      error
+    );
+    return [];
+  }
+}
+
+/**
+ * Calculate token minting and burning for a specific month from CHT transactions
+ * Filters out outlier transactions (3+ orders of magnitude different) if they sum to zero
+ */
+function calculateTokenActivity(chtTransactions: TokenTransfer[]): TokenData {
+  const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+  // First pass: calculate all values and find median for outlier detection
+  const allValues: number[] = [];
+  const transactionData: Array<{
+    tx: TokenTransfer;
+    value: number;
+    toAddr: string;
+    fromAddr: string;
+  }> = [];
+
+  for (const tx of chtTransactions) {
+    const value = parseTokenValue(tx.value, parseInt(tx.tokenDecimal));
+    const toAddr = tx.to?.toLowerCase();
+    const fromAddr = tx.from?.toLowerCase();
+
+    allValues.push(value);
+    transactionData.push({ tx, value, toAddr, fromAddr });
+  }
+
+  // Calculate median value for outlier detection
+  const sortedValues = [...allValues].sort((a, b) => a - b);
+  const median =
+    sortedValues.length > 0
+      ? sortedValues[Math.floor(sortedValues.length / 2)]
+      : 0;
+
+  // Identify outliers (3+ orders of magnitude = 1000x different from median)
+  const OUTLIER_THRESHOLD = 1000;
+  const outlierIndices = new Set<number>();
+  let outlierSum = 0;
+
+  transactionData.forEach((data, index) => {
+    const { value, toAddr, fromAddr } = data;
+
+    // Only check mint/burn transactions for outliers
+    const isMintOrBurn =
+      fromAddr === ZERO_ADDRESS.toLowerCase() ||
+      toAddr === ZERO_ADDRESS.toLowerCase();
+
+    if (isMintOrBurn && median > 0) {
+      const ratio = value / median;
+      if (ratio >= OUTLIER_THRESHOLD || ratio <= 1 / OUTLIER_THRESHOLD) {
+        outlierIndices.add(index);
+
+        // Add to outlier sum with sign (minted positive, burnt negative)
+        if (fromAddr === ZERO_ADDRESS.toLowerCase()) {
+          outlierSum += value;
+        } else if (toAddr === ZERO_ADDRESS.toLowerCase()) {
+          outlierSum -= value;
+        }
+      }
+    }
+  });
+
+  // Only filter outliers if they sum to approximately zero (within 0.1%)
+  const shouldFilterOutliers =
+    outlierIndices.size > 0 &&
+    Math.abs(outlierSum) < Math.max(...allValues) * 0.001;
+
+  if (shouldFilterOutliers) {
+    console.log(
+      `Filtering ${outlierIndices.size} outlier transactions (sum: ${outlierSum.toFixed(2)})`
+    );
+  }
+
+  // Second pass: calculate totals, excluding outliers if appropriate
+  let totalMinted = 0;
+  let totalBurnt = 0;
+  let filteredTransactionCount = 0;
+  const activeAccountsSet = new Set<string>();
+
+  transactionData.forEach((data, index) => {
+    const { value, toAddr, fromAddr } = data;
+
+    // Skip outliers if they sum to zero
+    if (shouldFilterOutliers && outlierIndices.has(index)) {
+      return;
+    }
+
+    filteredTransactionCount++;
+
+    // Track active accounts (exclude zero address)
+    if (fromAddr && fromAddr !== ZERO_ADDRESS.toLowerCase()) {
+      activeAccountsSet.add(fromAddr);
+    }
+    if (toAddr && toAddr !== ZERO_ADDRESS.toLowerCase()) {
+      activeAccountsSet.add(toAddr);
+    }
+
+    // Minted tokens (from zero address)
+    if (fromAddr === ZERO_ADDRESS.toLowerCase()) {
+      totalMinted += value;
+    }
+    // Burnt tokens (to zero address)
+    if (toAddr === ZERO_ADDRESS.toLowerCase()) {
+      totalBurnt += value;
+    }
+  });
+
+  return {
+    minted: totalMinted,
+    burnt: totalBurnt,
+    net: totalMinted - totalBurnt,
+    transactionCount: filteredTransactionCount,
+    activeAccounts: activeAccountsSet.size,
+  };
+}
+
+/**
+ * Calculate financial data for a specific month
+ */
+export function calculateMonthlyFinancials(
+  year: string,
+  month: string
+): FinancialData {
+  const transactions = readFinancialTransactions(year, month);
+  const trackedAddresses = getTrackedAddresses();
+  const byAccount: Map<
+    string,
+    {
+      slug: string;
+      name: string;
+      provider: string;
+      income: number;
+      expenses: number;
+    }
+  > = new Map();
+
+  let totalIncome = 0;
+  let totalExpenses = 0;
+
+  // Calculate token activity from CHT transactions
+  const chtTransactions = readCHTTransactions(year, month);
+  const tokens = calculateTokenActivity(chtTransactions);
+
+  // Process Stripe transactions
+  const stripeAccount = settings.finance.accounts.find(
+    (a) => a.provider === "stripe"
+  );
+  if (stripeAccount) {
+    const stripeData = {
+      slug: stripeAccount.slug,
+      name: stripeAccount.name,
+      provider: "stripe",
+      income: 0,
+      expenses: 0,
+    };
+
+    for (const tx of transactions.stripe) {
+      // Convert cents to euros
+      const amount = tx.net / 100;
+
+      if (amount > 0) {
+        stripeData.income += amount;
+        totalIncome += amount;
+      } else if (amount < 0) {
+        stripeData.expenses += Math.abs(amount);
+        totalExpenses += Math.abs(amount);
+      }
+    }
+
+    byAccount.set(stripeAccount.slug, stripeData);
+  }
+
+  // Process Etherscan transactions
+  for (const [accountSlug, txList] of transactions.etherscan.entries()) {
+    const account = settings.finance.accounts.find(
+      (a) => a.slug === accountSlug
+    );
+    if (!account || !account.address) continue;
+
+    const accountData = {
+      slug: account.slug,
+      name: account.name,
+      provider: "etherscan",
+      income: 0,
+      expenses: 0,
+    };
+
+    const accountAddress = account.address.toLowerCase();
+
+    for (const tx of txList) {
+      // Skip internal transfers
+      if (isInternalTransfer(tx, trackedAddresses)) {
+        continue;
+      }
+
+      const value = parseTokenValue(tx.value, parseInt(tx.tokenDecimal));
+      const toAddr = tx.to?.toLowerCase();
+      const fromAddr = tx.from?.toLowerCase();
+
+      // Incoming transaction
+      if (toAddr === accountAddress && fromAddr !== accountAddress) {
+        accountData.income += value;
+        totalIncome += value;
+      }
+      // Outgoing transaction
+      else if (fromAddr === accountAddress && toAddr !== accountAddress) {
+        accountData.expenses += value;
+        totalExpenses += value;
+      }
+    }
+
+    byAccount.set(account.slug, accountData);
+  }
+
+  return {
+    income: totalIncome,
+    expenses: totalExpenses,
+    net: totalIncome - totalExpenses,
+    tokens,
+    byAccount: Array.from(byAccount.values()).map((acc) => ({
+      ...acc,
+      net: acc.income - acc.expenses,
+    })),
+  };
+}
+
+// ========== Report Generation Functions ==========
+
+/**
+ * Generate monthly report data
+ */
+/**
+ * Read user token data from contributors.json cache file
+ * Supports both old format (users array) and new format (contributors array)
+ */
+function readUserTokenData(
+  year: string,
+  month: string
+): Map<
+  string,
+  { address: string | null; tokensReceived: number; tokensSpent: number }
+> {
+  const userTokenData = new Map();
+  const contributorsFile = path.join(DATA_DIR, year, month, "contributors.json");
+
+  if (!fs.existsSync(contributorsFile)) {
+    return userTokenData;
+  }
+
+  try {
+    const data = JSON.parse(fs.readFileSync(contributorsFile, "utf-8"));
+
+    // New format: contributors array with nested structure
+    if (data.contributors && Array.isArray(data.contributors)) {
+      for (const contributor of data.contributors) {
+        // New format includes id at the top level
+        if (!contributor.id) continue;
+
+        userTokenData.set(contributor.id, {
+          address: contributor.address || null,
+          tokensReceived: contributor.tokens?.in || 0,
+          tokensSpent: contributor.tokens?.out || 0,
+        });
+      }
+    }
+    // Old format: users array with direct properties
+    else if (data.users && Array.isArray(data.users)) {
+      for (const user of data.users) {
+        userTokenData.set(user.id, {
+          address: user.address || null,
+          tokensReceived: user.tokensReceived || 0,
+          tokensSpent: user.tokensSpent || 0,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`Error reading user token data for ${year}-${month}:`, error);
+  }
+
+  return userTokenData;
+}
+
+export function getMonthlyReportData(
+  year: string,
+  month: string
+): MonthlyReportData {
+  const messages = readDiscordMessages(year, month);
+  const activeMembers = getActiveMembers(messages);
+  const photos = getPopularPhotos(messages);
+  const financials = calculateMonthlyFinancials(year, month);
+
+  // Merge user token data and sort by tokens received (descending)
+  const userTokenData = readUserTokenData(year, month);
+  const enrichedUsers = activeMembers.users
+    .map((user) => {
+      const tokenData = userTokenData.get(user.id);
+      return {
+        ...user,
+        address: tokenData?.address || null,
+        tokensReceived: tokenData?.tokensReceived || 0,
+        tokensSpent: tokenData?.tokensSpent || 0,
+      };
+    })
+    .sort((a, b) => b.tokensReceived - a.tokensReceived);
+
+  return {
+    year,
+    month,
+    activeMembers: {
+      count: activeMembers.count,
+      users: enrichedUsers,
+    },
+    photos,
+    financials,
+  };
+}
+
+/**
+ * Generate yearly report data
+ */
+export function getYearlyReportData(year: string): YearlyReportData {
+  const months = getAvailableMonths(year);
+
+  // Build map of month -> contributor count from monthly contributors.json files
+  const monthContributorMap = new Map<string, number>();
+  for (const month of months) {
+    const contributorsPath = path.join(
+      DATA_DIR,
+      year,
+      month,
+      "contributors.json"
+    );
+    if (fs.existsSync(contributorsPath)) {
+      try {
+        const content = fs.readFileSync(contributorsPath, "utf-8");
+        const data = JSON.parse(content) as {
+          summary?: { totalContributors: number };
+          userCount?: number;
+          contributors?: Array<{ id: string }>;
+          users?: Array<{ id: string }>;
+        };
+        // Support new format (summary.totalContributors) and old formats
+        const count =
+          data.summary?.totalContributors ||
+          data.userCount ||
+          data.contributors?.length ||
+          data.users?.length ||
+          0;
+        monthContributorMap.set(month, count);
+      } catch (error) {
+        console.error(
+          `Error reading ${year}/${month}/contributors.json:`,
+          error
+        );
+      }
+    }
+  }
+
+  // Aggregate data from all months
+  const allMessages: CachedMessage[] = [];
+  const monthlyBreakdown: Array<{
+    month: string;
+    income: number;
+    expenses: number;
+    activeMembers: number;
+    tokensMinted: number;
+    tokensBurnt: number;
+  }> = [];
+
+  let totalIncome = 0;
+  let totalExpenses = 0;
+  let totalTokensMinted = 0;
+  let totalTokensBurnt = 0;
+  const yearlyActiveMembers = new Set<string>();
+
+  // Read unique contributors from monthly contributors.json files
+  for (const month of months) {
+    const contributorsPath = path.join(
+      DATA_DIR,
+      year,
+      month,
+      "contributors.json"
+    );
+    if (fs.existsSync(contributorsPath)) {
+      try {
+        const content = fs.readFileSync(contributorsPath, "utf-8");
+        const data = JSON.parse(content) as {
+          contributors?: Array<{ id: string }>;
+          users?: Array<{ id: string }>;
+        };
+        // Track unique user IDs across the year (support both formats)
+        const usersList = data.contributors || data.users || [];
+        for (const user of usersList) {
+          yearlyActiveMembers.add(user.id);
+        }
+      } catch (error) {
+        console.error(
+          `Error reading ${year}/${month}/contributors.json:`,
+          error
+        );
+      }
+    }
+  }
+
+  for (const month of months) {
+    // Get messages for photos
+    const messages = readDiscordMessages(year, month);
+    allMessages.push(...messages);
+
+    // Get financials for monthly breakdown
+    const financials = calculateMonthlyFinancials(year, month);
+    totalIncome += financials.income;
+    totalExpenses += financials.expenses;
+    totalTokensMinted += financials.tokens.minted;
+    totalTokensBurnt += financials.tokens.burnt;
+
+    // Get active members count from activity grid
+    const monthlyActiveMembersCount = monthContributorMap.get(month) || 0;
+
+    monthlyBreakdown.push({
+      month,
+      income: financials.income,
+      expenses: financials.expenses,
+      activeMembers: monthlyActiveMembersCount,
+      tokensMinted: financials.tokens.minted,
+      tokensBurnt: financials.tokens.burnt,
+    });
+  }
+
+  // Get active members and popular photos from all messages
+  const activeMembers = getActiveMembers(allMessages);
+
+  // Override count with aggregated unique users from monthly contributors.json files
+  activeMembers.count =
+    yearlyActiveMembers.size > 0
+      ? yearlyActiveMembers.size
+      : activeMembers.count;
+
+  const photos = getPopularPhotos(allMessages, 24); // More photos for yearly
+
+  return {
+    year,
+    activeMembers,
+    photos,
+    financials: {
+      totalIncome,
+      totalExpenses,
+      net: totalIncome - totalExpenses,
+      totalTokensMinted,
+      totalTokensBurnt,
+      monthlyBreakdown,
+    },
+    months,
+  };
+}

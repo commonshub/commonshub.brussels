@@ -1,0 +1,163 @@
+{
+  "luma": {
+    "calendarId": "cal-kWlIiw3HsJFhs25"
+  },
+  "calendars": {
+    "google": "https://calendar.google.com/calendar/ical/c_336112114c844a0d6ed178f0bfcbea8b69253b3f2c83b5ce3ed2c230e1b7a298%40group.calendar.google.com/public/basic.ics",
+    "luma": "https://api2.luma.com/ics/get?entity=calendar&id=cal-kWlIiw3HsJFhs25"
+  },
+  "newsletter": {
+    "rssUrl": "https://api.paragraph.com/blogs/rss/%40commonshub_bxl",
+    "subscribeUrl": "https://paragraph.com/@commonshub_bxl"
+  },
+  "socials": {
+    "instagram": "https://www.instagram.com/commonshub_bxl/",
+    "linkedin": "https://be.linkedin.com/company/commonshub-brussels/",
+    "twitter": "https://x.com/commonshub_bxl",
+    "discord": "https://discord.commonshub.brussels"
+  },
+  "email": {
+    "from": "hello@commonshub.brussels",
+    "to": "hello@commonshub.brussels"
+  },
+  "discord": {
+    "guildId": "1280532848604086365",
+    "roles": {
+      "member": "1280559675292778617"
+    },
+    "channels": {
+      "general": "1280532849287495726",
+      "introductions": "1380592679364329522",
+      "requests": "1443603372967198883",
+      "contributions": "1297965144579637248",
+      "rooms": {
+        "angel": "1443322374396051660",
+        "mushroom": "1443322284160057455",
+        "ostrom": "1443322327159803945",
+        "satoshi": "1443322243949137971",
+        "coworking": "1443323751134531695"
+      },
+      "activities": {
+        "potluck": "1443604342077919313",
+        "heartbeat": "1443604524307583099",
+        "parkCleaning": "1443603954142548192",
+        "tokens": "1280924924625682484",
+        "shifts": "1443604838255427584",
+        "contributions": "1297965144579637248"
+      }
+    }
+  },
+  "contributionToken": {
+    "chain": "celo",
+    "chainId": 42220,
+    "rpcUrl": "https://forno.celo.org",
+    "explorerUrl": "https://celoscan.io",
+    "address": "0x65dd32834927de9e57e72a3e2130a19f81c6371d",
+    "name": "Commons Hub Token",
+    "symbol": "CHT",
+    "decimals": 6
+  },
+  "finance": {
+    "accounts": [
+      {
+        "name": "🏦 Monerium Savings Account",
+        "slug": "savings",
+        "provider": "etherscan",
+        "chain": "gnosis",
+        "chainId": 100,
+        "address": "0x6fDF0AaE33E313d9C98D2Aa19Bcd8EF777912CBf",
+        "token": {
+          "address": "0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430",
+          "name": "EURe",
+          "symbol": "EURe",
+          "decimals": 18
+        }
+      },
+      {
+        "name": "💶 Monerium Checking Account",
+        "slug": "checking",
+        "provider": "etherscan",
+        "chain": "gnosis",
+        "chainId": 100,
+        "address": "0xD578e7cd845e1ecD979b04784e77068D5eBd8716",
+        "token": {
+          "address": "0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430",
+          "name": "EURe",
+          "symbol": "EURe",
+          "decimals": 18
+        }
+      },
+      {
+        "name": "💶 Monerium CHB Safe",
+        "slug": "chb-safe",
+        "provider": "etherscan",
+        "chain": "gnosis",
+        "chainId": 100,
+        "address": "0x646C32CF6843540CEF790F764952a959FB9c49f5",
+        "token": {
+          "address": "0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430",
+          "name": "EURe",
+          "symbol": "EURe",
+          "decimals": 18
+        }
+      },
+      {
+        "name": "💳 Stripe Account",
+        "slug": "stripe",
+        "accountId": "acct_1Nn0FaFAhaWeDyow",
+        "provider": "stripe",
+        "currency": "EUR"
+      },
+      {
+        "name": "🍻 Fridge",
+        "slug": "fridge",
+        "provider": "etherscan",
+        "chain": "gnosis",
+        "chainId": 100,
+        "address": "0x0492b5c6bd2564826ead6eeec9e1a9756603825e",
+        "token": {
+          "address": "0x5815E61eF72c9E6107b5c5A05FD121F334f7a7f1",
+          "name": "EURb",
+          "symbol": "EURb",
+          "decimals": 6
+        }
+      },
+      {
+        "name": "☕️ Coffee",
+        "slug": "coffee",
+        "provider": "etherscan",
+        "chain": "gnosis",
+        "chainId": 100,
+        "address": "0xab33f1bc3a9d35fe6dad14dd2947e774cf58bc78",
+        "token": {
+          "address": "0x5815E61eF72c9E6107b5c5A05FD121F334f7a7f1",
+          "name": "EURb",
+          "symbol": "EURb",
+          "decimals": 6
+        }
+      }
+    ],
+    "collectives": {
+      "commonshub": {
+        "name": "Commons Hub",
+        "icon": "/favicon.png"
+      },
+      "regensunite": {
+        "name": "Regens Unite",
+        "icon": "/images/partners/regensunite.avif"
+      },
+      "openletter": {
+        "name": "Open Letter",
+        "icon": "/images/collectives/openletter.png"
+      },
+      "genesis": {
+        "name": "Genesis",
+        "icon": "/images/collectives/genesis.png"
+      }
+    },
+    "categories": {
+      "credit": ["rental", "membership", "coworking", "catering", "services", "other"],
+      "debit": ["taxes", "catering", "services", "rent", "maintenance", "cleaning", "software", "hardware", "drinks", "salary", "consulting", "accounting", "groceries", "fees", "other"]
+    }
+  }
+}

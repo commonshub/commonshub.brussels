@@ -1,0 +1,142 @@
+{
+  "rooms": [
+    {
+      "id": "ostrom",
+      "name": "Ostrom Room",
+      "slug": "ostrom",
+      "capacity": 80,
+      "description": "Our largest and most versatile space, named after Nobel laureate Elinor Ostrom. Perfect for events, big circles, panels, fishbowls, facilitation workshops, and community gatherings.",
+      "shortDescription": "Perfect for events, big circles, panels, fishbowls, facilitation...",
+      "pricePerHour": 100,
+      "tokensPerHour": 3,
+      "heroImage": "/images/img-2144.jpeg",
+      "features": [
+        "Flexible seating arrangements",
+        "Large windows with natural light",
+        "Sound system with speakers",
+        "TV/Monitor for presentations",
+        "Colorful floor cushions",
+        "Indoor plants",
+        "Air conditioning"
+      ],
+      "idealFor": [
+        "Large community events",
+        "Workshops and trainings",
+        "Panel discussions",
+        "Fishbowl conversations",
+        "Dance and movement",
+        "Ceremonies and celebrations"
+      ]
+    },
+    {
+      "id": "satoshi",
+      "name": "Satoshi Room",
+      "slug": "satoshi",
+      "capacity": 15,
+      "description": "A professional meeting room named after Bitcoin's mysterious creator. Ideal for focused meetings, strategy sessions, and collaborative work.",
+      "shortDescription": "Perfect for larger meetings",
+      "pricePerHour": 50,
+      "tokensPerHour": 1.5,
+      "heroImage": "/images/satoshi-room.jpg",
+      "features": [
+        "Long conference table",
+        "Comfortable office chairs",
+        "Flipchart stand",
+        "TV/Monitor",
+        "Whiteboard",
+        "Natural light",
+        "Indoor plants"
+      ],
+      "idealFor": [
+        "Board meetings",
+        "Strategy sessions",
+        "Team meetings",
+        "Workshops (up to 15 people)",
+        "Presentations",
+        "Video conferences"
+      ]
+    },
+    {
+      "id": "angel",
+      "name": "Angel Room",
+      "slug": "angel",
+      "capacity": 12,
+      "description": "A cozy and intimate space perfect for circle conversations, small workshops, and community gatherings. Features comfortable seating and a warm atmosphere.",
+      "shortDescription": "Perfect for circles",
+      "pricePerHour": 35,
+      "tokensPerHour": 1,
+      "heroImage": "/images/angel-room.jpeg",
+      "features": [
+        "Rattan lounge chairs",
+        "Scandinavian-style seating",
+        "Colorful geometric rug",
+        "Multiple indoor plants",
+        "Natural light",
+        "Cozy atmosphere"
+      ],
+      "idealFor": [
+        "Circle conversations",
+        "Small group facilitation",
+        "Intimate workshops",
+        "Coaching sessions",
+        "Reading groups",
+        "Support circles"
+      ]
+    },
+    {
+      "id": "mushroom",
+      "name": "Mush Room",
+      "slug": "mushroom",
+      "capacity": 10,
+      "description": "A bright and functional workspace perfect for small meetings and collaborative work. Named after the mycelium networks that connect forest ecosystems.",
+      "shortDescription": "Perfect for small meetings",
+      "pricePerHour": 25,
+      "tokensPerHour": 1,
+      "heroImage": "/images/mush-room.jpg",
+      "features": [
+        "Flexible table arrangement",
+        "Office chairs",
+        "Whiteboard",
+        "Natural light",
+        "Indoor plants",
+        "Red cube pouf for casual seating"
+      ],
+      "idealFor": [
+        "Small team meetings",
+        "Working sessions",
+        "One-on-ones",
+        "Brainstorming",
+        "Study groups",
+        "Interview sessions"
+      ]
+    },
+    {
+      "id": "coworking",
+      "name": "Coworking Space",
+      "slug": "coworking",
+      "capacity": 30,
+      "description": "Our open coworking area where community members come together to work, connect, and collaborate. Available for members and day-pass visitors.",
+      "shortDescription": "Open workspace for the community",
+      "pricePerHour": 0,
+      "tokensPerHour": 0,
+      "heroImage": "/images/chb-facade.avif",
+      "features": [
+        "Hot desks",
+        "High-speed WiFi",
+        "Power outlets",
+        "Community kitchen access",
+        "Coffee and tea",
+        "Quiet zones"
+      ],
+      "idealFor": [
+        "Remote work",
+        "Freelancing",
+        "Studying",
+        "Networking",
+        "Casual meetings",
+        "Community connection"
+      ],
+      "membershipRequired": true
+    }
+  ]
+}

@@ -1,0 +1,1281 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { InlineDescriptionEditor } from "@/components/inline-description-editor";
+import type { TokenTransfer } from "@/lib/etherscan";
+import type { MoneriumOrder } from "@/lib/monerium-node";
+import settings from "@/settings/settings.json";
+
+interface TransactionWithMonerium extends TokenTransfer {
+  moneriumOrder?: MoneriumOrder;
+}
+
+interface TransactionMetadata {
+  collective: string;
+  project: string | null;
+  event: string | null;
+  category: string;
+  tags: string[];
+  description: string;
+}
+
+interface CounterpartyMetadata {
+  description: string;
+  type: "organisation" | "individual" | null;
+}
+
+interface EnrichedTransaction extends TransactionWithMonerium {
+  transactionId: string;
+  transactionMetadata?: TransactionMetadata;
+  counterpartyId?: string;
+  counterpartyMetadata?: CounterpartyMetadata;
+  accountName?: string;
+  accountSlug?: string;
+  normalizedAmount?: number; // in cents
+  type?: "CREDIT" | "DEBIT";
+  timestamp?: number;
+}
+
+interface FinanceTransactionTableProps {
+  transactions: EnrichedTransaction[];
+  accountAddress: string;
+  accountName: string;
+  tokenSymbol: string;
+  tokenDecimals: number;
+  chain: string;
+  isAdmin: boolean;
+  showAccountColumn?: boolean;
+  showExportButton?: boolean;
+  useNormalizedAmount?: boolean;
+}
+
+function formatAmount(
+  value: string,
+  decimals: number,
+  tokenSymbol: string,
+  showDecimals: boolean = true
+): string {
+  const num = BigInt(value);
+  const divisor = BigInt(10 ** decimals);
+  const integerPart = num / divisor;
+  const fractionalPart = num % divisor;
+
+  const fractionalStr = fractionalPart.toString().padStart(decimals, "0");
+  const trimmedFractional = fractionalStr.replace(/0+$/, "");
+
+  const integerStr = integerPart
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  let formattedNumber;
+  if (!showDecimals || trimmedFractional === "") {
+    formattedNumber = integerStr;
+  } else {
+    formattedNumber = `${integerStr}.${trimmedFractional}`;
+  }
+
+  const isEuro =
+    tokenSymbol === "EUR" || tokenSymbol === "EURe" || tokenSymbol === "EURb";
+
+  if (isEuro) {
+    return `€${formattedNumber}`;
+  }
+
+  return formattedNumber;
+}
+
+function formatNormalizedAmount(
+  amountInCents: number,
+  tokenSymbol: string
+): string {
+  // Handle absolute value for formatting
+  const absAmount = Math.abs(amountInCents);
+  const euros = absAmount / 100;
+
+  const formattedNumber = euros.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const isEuro =
+    tokenSymbol === "EUR" || tokenSymbol === "EURe" || tokenSymbol === "EURb";
+
+  if (isEuro) {
+    return `€${formattedNumber}`;
+  }
+
+  return formattedNumber;
+}
+
+function shortenAddress(address: string): string {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+export function FinanceTransactionTable({
+  transactions,
+  accountAddress,
+  tokenSymbol,
+  tokenDecimals,
+  chain,
+  isAdmin,
+  showAccountColumn = false,
+  showExportButton = false,
+  useNormalizedAmount = false,
+}: FinanceTransactionTableProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
+    new Set()
+  );
+  const [batchCollective, setBatchCollective] = useState("");
+  const [batchCategory, setBatchCategory] = useState("");
+  const [batchNote, setBatchNote] = useState("");
+  const [isBatchUpdating, setIsBatchUpdating] = useState(false);
+  const [counterpartFilter, setCounterpartFilter] = useState<string>("all");
+  const [minAmount, setMinAmount] = useState<string>("");
+  const [maxAmount, setMaxAmount] = useState<string>("");
+  const [collectiveFilter, setCollectiveFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [accountFilter, setAccountFilter] = useState<string>("all");
+
+  // Initialize filters from URL on mount
+  useEffect(() => {
+    const counterpart = searchParams.get("counterpart");
+    const min = searchParams.get("minAmount");
+    const max = searchParams.get("maxAmount");
+    const collective = searchParams.get("collective");
+    const category = searchParams.get("category");
+    const type = searchParams.get("type");
+    const month = searchParams.get("month");
+
+    if (counterpart) setCounterpartFilter(counterpart);
+    if (min) setMinAmount(min);
+    if (max) setMaxAmount(max);
+    if (collective) setCollectiveFilter(collective);
+    if (category) setCategoryFilter(category);
+    if (type) setTypeFilter(type);
+    if (month) setMonthFilter(month);
+  }, [searchParams]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // Update or remove each filter param
+    if (counterpartFilter !== "all") {
+      params.set("counterpart", counterpartFilter);
+    } else {
+      params.delete("counterpart");
+    }
+
+    if (minAmount) {
+      params.set("minAmount", minAmount);
+    } else {
+      params.delete("minAmount");
+    }
+
+    if (maxAmount) {
+      params.set("maxAmount", maxAmount);
+    } else {
+      params.delete("maxAmount");
+    }
+
+    if (collectiveFilter !== "all") {
+      params.set("collective", collectiveFilter);
+    } else {
+      params.delete("collective");
+    }
+
+    if (categoryFilter !== "all") {
+      params.set("category", categoryFilter);
+    } else {
+      params.delete("category");
+    }
+
+    if (typeFilter !== "all") {
+      params.set("type", typeFilter);
+    } else {
+      params.delete("type");
+    }
+
+    if (monthFilter !== "all") {
+      params.set("month", monthFilter);
+    } else {
+      params.delete("month");
+    }
+
+    const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+    router.replace(newUrl, { scroll: false });
+  }, [
+    counterpartFilter,
+    minAmount,
+    maxAmount,
+    collectiveFilter,
+    categoryFilter,
+    typeFilter,
+    monthFilter,
+    router,
+  ]);
+
+  // Get collectives and categories from settings
+  const collectivesObj = (settings.finance as any).collectives || {};
+  const collectives = Object.keys(collectivesObj);
+  const categoriesObj = (settings.finance as any).categories || {};
+
+  // Extract unique values for filter dropdowns
+  const uniqueCounterparts = useMemo(() => {
+    const counterparts = new Set<string>();
+    transactions.forEach((tx) => {
+      if (tx.moneriumOrder?.counterpart?.details?.name) {
+        counterparts.add(tx.moneriumOrder.counterpart.details.name);
+      }
+    });
+    return Array.from(counterparts).sort();
+  }, [transactions]);
+
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set<string>();
+    const allCategories = [
+      ...(categoriesObj.credit || []),
+      ...(categoriesObj.debit || []),
+    ];
+    allCategories.forEach((cat) => categories.add(cat));
+    return Array.from(categories).sort();
+  }, [categoriesObj]);
+
+  const uniqueMonths = useMemo(() => {
+    const months = new Set<string>();
+    transactions.forEach((tx) => {
+      const timestamp = tx.timestamp || parseInt(tx.timeStamp);
+      const date = new Date(timestamp * 1000);
+      const monthYear = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+      });
+      months.add(monthYear);
+    });
+    return Array.from(months).sort((a, b) => {
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [transactions]);
+
+  const uniqueAccounts = useMemo(() => {
+    const accounts = new Set<string>();
+    transactions.forEach((tx) => {
+      if (tx.accountName) {
+        accounts.add(tx.accountName);
+      }
+    });
+    return Array.from(accounts).sort();
+  }, [transactions]);
+
+  // Calculate counts for each filter option
+  const filterCounts = useMemo(() => {
+    const counts = {
+      months: new Map<string, number>(),
+      accounts: new Map<string, number>(),
+      types: { in: 0, out: 0 },
+      collectives: new Map<string, number>(),
+      categories: new Map<string, number>(),
+      counterparts: new Map<string, number>(),
+    };
+
+    transactions.forEach((tx) => {
+      // Check if transaction matches all filters EXCEPT the one we're counting for
+      const isIncoming = useNormalizedAmount
+        ? tx.type === "CREDIT"
+        : tx.to?.toLowerCase() === accountAddress?.toLowerCase();
+
+      // Get transaction values
+      const amount =
+        useNormalizedAmount && tx.normalizedAmount !== undefined
+          ? tx.normalizedAmount / 100
+          : Number(BigInt(tx.value) / BigInt(10 ** tokenDecimals));
+
+      const timestamp = tx.timestamp || parseInt(tx.timeStamp);
+      const date = new Date(timestamp * 1000);
+      const monthYear = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+      });
+      const txCounterpart = tx.moneriumOrder?.counterpart?.details?.name;
+      const txCollective = tx.transactionMetadata?.collective || "commonshub";
+      const txCategory = tx.transactionMetadata?.category || "other";
+      const txAccount = tx.accountName;
+
+      // Helper to check if tx matches all filters except one
+      const matchesFiltersExcept = (exceptFilter: string) => {
+        if (
+          exceptFilter !== "counterpart" &&
+          counterpartFilter !== "all" &&
+          txCounterpart !== counterpartFilter
+        )
+          return false;
+        if (
+          exceptFilter !== "amount" &&
+          minAmount &&
+          amount < parseFloat(minAmount)
+        )
+          return false;
+        if (
+          exceptFilter !== "amount" &&
+          maxAmount &&
+          amount > parseFloat(maxAmount)
+        )
+          return false;
+        if (
+          exceptFilter !== "collective" &&
+          collectiveFilter !== "all" &&
+          txCollective !== collectiveFilter
+        )
+          return false;
+        if (
+          exceptFilter !== "category" &&
+          categoryFilter !== "all" &&
+          txCategory !== categoryFilter
+        )
+          return false;
+        if (exceptFilter !== "type" && typeFilter !== "all") {
+          if (typeFilter === "in" && !isIncoming) return false;
+          if (typeFilter === "out" && isIncoming) return false;
+        }
+        if (
+          exceptFilter !== "month" &&
+          monthFilter !== "all" &&
+          monthYear !== monthFilter
+        )
+          return false;
+        if (
+          exceptFilter !== "account" &&
+          accountFilter !== "all" &&
+          txAccount !== accountFilter
+        )
+          return false;
+        return true;
+      };
+
+      // Count for month filter
+      if (matchesFiltersExcept("month")) {
+        counts.months.set(monthYear, (counts.months.get(monthYear) || 0) + 1);
+      }
+
+      // Count for account filter
+      if (txAccount && matchesFiltersExcept("account")) {
+        counts.accounts.set(
+          txAccount,
+          (counts.accounts.get(txAccount) || 0) + 1
+        );
+      }
+
+      // Count for type filter
+      if (matchesFiltersExcept("type")) {
+        if (isIncoming) {
+          counts.types.in++;
+        } else {
+          counts.types.out++;
+        }
+      }
+
+      // Count for collective filter
+      if (matchesFiltersExcept("collective")) {
+        counts.collectives.set(
+          txCollective,
+          (counts.collectives.get(txCollective) || 0) + 1
+        );
+      }
+
+      // Count for category filter
+      if (matchesFiltersExcept("category")) {
+        counts.categories.set(
+          txCategory,
+          (counts.categories.get(txCategory) || 0) + 1
+        );
+      }
+
+      // Count for counterpart filter
+      if (txCounterpart && matchesFiltersExcept("counterpart")) {
+        counts.counterparts.set(
+          txCounterpart,
+          (counts.counterparts.get(txCounterpart) || 0) + 1
+        );
+      }
+    });
+
+    return counts;
+  }, [
+    transactions,
+    counterpartFilter,
+    minAmount,
+    maxAmount,
+    collectiveFilter,
+    categoryFilter,
+    typeFilter,
+    monthFilter,
+    accountFilter,
+    tokenDecimals,
+    accountAddress,
+    useNormalizedAmount,
+  ]);
+
+  // Filter transactions based on all filters
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      // Determine if transaction is incoming
+      const isIncoming = useNormalizedAmount
+        ? tx.type === "CREDIT"
+        : tx.to?.toLowerCase() === accountAddress?.toLowerCase();
+
+      // Filter by counterpart
+      if (counterpartFilter !== "all") {
+        const txCounterpart = tx.moneriumOrder?.counterpart?.details?.name;
+        if (txCounterpart !== counterpartFilter) return false;
+      }
+
+      // Filter by amount
+      const amount =
+        useNormalizedAmount && tx.normalizedAmount !== undefined
+          ? tx.normalizedAmount / 100
+          : Number(BigInt(tx.value) / BigInt(10 ** tokenDecimals));
+      if (minAmount && amount < parseFloat(minAmount)) return false;
+      if (maxAmount && amount > parseFloat(maxAmount)) return false;
+
+      // Filter by collective
+      if (collectiveFilter !== "all") {
+        const txCollective = tx.transactionMetadata?.collective || "commonshub";
+        if (txCollective !== collectiveFilter) return false;
+      }
+
+      // Filter by category
+      if (categoryFilter !== "all") {
+        const txCategory = tx.transactionMetadata?.category || "other";
+        if (txCategory !== categoryFilter) return false;
+      }
+
+      // Filter by type
+      if (typeFilter !== "all") {
+        if (typeFilter === "in" && !isIncoming) return false;
+        if (typeFilter === "out" && isIncoming) return false;
+      }
+
+      // Filter by month
+      if (monthFilter !== "all") {
+        const timestamp = tx.timestamp || parseInt(tx.timeStamp);
+        const date = new Date(timestamp * 1000);
+        const monthYear = date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+        });
+        if (monthYear !== monthFilter) return false;
+      }
+
+      // Filter by account
+      if (accountFilter !== "all") {
+        if (tx.accountName !== accountFilter) return false;
+      }
+
+      return true;
+    });
+  }, [
+    transactions,
+    counterpartFilter,
+    minAmount,
+    maxAmount,
+    collectiveFilter,
+    categoryFilter,
+    typeFilter,
+    monthFilter,
+    accountFilter,
+    tokenDecimals,
+    accountAddress,
+    useNormalizedAmount,
+  ]);
+
+  // Calculate totals for filtered transactions
+  const totals = useMemo(() => {
+    let totalIn = 0;
+    let totalOut = 0;
+
+    filteredTransactions.forEach((tx) => {
+      const isIncoming = useNormalizedAmount
+        ? tx.type === "CREDIT"
+        : tx.to?.toLowerCase() === accountAddress?.toLowerCase();
+
+      const amount =
+        useNormalizedAmount && tx.normalizedAmount !== undefined
+          ? tx.normalizedAmount / 100
+          : Number(BigInt(tx.value) / BigInt(10 ** tokenDecimals));
+
+      if (isIncoming) {
+        totalIn += amount;
+      } else {
+        totalOut += amount;
+      }
+    });
+
+    return {
+      count: filteredTransactions.length,
+      totalIn,
+      totalOut,
+      net: totalIn - totalOut,
+    };
+  }, [
+    filteredTransactions,
+    useNormalizedAmount,
+    accountAddress,
+    tokenDecimals,
+  ]);
+
+  const toggleTransaction = (txId: string) => {
+    const newSelected = new Set(selectedTransactions);
+    if (newSelected.has(txId)) {
+      newSelected.delete(txId);
+    } else {
+      newSelected.add(txId);
+    }
+    setSelectedTransactions(newSelected);
+  };
+
+  const toggleAll = () => {
+    if (selectedTransactions.size === filteredTransactions.length) {
+      setSelectedTransactions(new Set());
+    } else {
+      setSelectedTransactions(
+        new Set(filteredTransactions.map((tx) => tx.transactionId))
+      );
+    }
+  };
+
+  const selectedTotal = useMemo(() => {
+    let total = BigInt(0);
+    transactions.forEach((tx) => {
+      if (selectedTransactions.has(tx.transactionId)) {
+        const isIncoming =
+          tx.to?.toLowerCase() === accountAddress?.toLowerCase();
+        const value = BigInt(tx.value);
+        total += isIncoming ? value : -value;
+      }
+    });
+    return total;
+  }, [selectedTransactions, transactions, accountAddress]);
+
+  const handleBatchUpdate = async () => {
+    if (selectedTransactions.size < 2) return;
+
+    setIsBatchUpdating(true);
+    try {
+      const updates: Partial<TransactionMetadata> = {};
+      if (batchCollective) updates.collective = batchCollective;
+      if (batchCategory) updates.category = batchCategory;
+      if (batchNote) updates.description = batchNote;
+
+      // Update all selected transactions
+      await Promise.all(
+        Array.from(selectedTransactions).map(async (txId) => {
+          const response = await fetch(
+            `/api/transactions/${encodeURIComponent(txId)}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updates),
+            }
+          );
+          if (!response.ok) {
+            throw new Error(`Failed to update transaction ${txId}`);
+          }
+        })
+      );
+
+      // Reload the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error("Error batch updating transactions:", error);
+      alert("Failed to update transactions");
+    } finally {
+      setIsBatchUpdating(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    // Prepare CSV headers
+    const headers = [
+      "Date",
+      ...(showAccountColumn ? ["Account"] : []),
+      "Type",
+      "Amount",
+      ...(isAdmin
+        ? ["Collective", "Category", "Description", "Counterparty"]
+        : []),
+      "Transaction Hash",
+    ];
+
+    // Prepare CSV rows
+    const rows = filteredTransactions.map((tx) => {
+      const date = new Date(parseInt(tx.timeStamp) * 1000);
+      const dateStr = date.toLocaleDateString("en-GB");
+      const timeStr = date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const isIncoming = tx.to?.toLowerCase() === accountAddress?.toLowerCase();
+      const amount = formatAmount(tx.value, tokenDecimals, tokenSymbol);
+
+      const row = [
+        `${dateStr} ${timeStr}`,
+        ...(showAccountColumn ? [tx.accountName || ""] : []),
+        isIncoming ? "In" : "Out",
+        `${isIncoming ? "+" : "-"}${amount}`,
+      ];
+
+      if (isAdmin) {
+        const collective = tx.transactionMetadata?.collective || "commonshub";
+        const category = tx.transactionMetadata?.category || "other";
+        const description =
+          tx.transactionMetadata?.description ||
+          tx.counterpartyMetadata?.description ||
+          "";
+        const counterparty =
+          tx.counterpartyMetadata?.description ||
+          (isIncoming ? tx.from : tx.to);
+
+        row.push(collective, category, description, counterparty);
+      }
+
+      row.push(tx.hash);
+
+      return row;
+    });
+
+    // Convert to CSV string
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row
+          .map((cell) => {
+            // Escape cells that contain commas, quotes, or newlines
+            const cellStr = String(cell);
+            if (
+              cellStr.includes(",") ||
+              cellStr.includes('"') ||
+              cellStr.includes("\n")
+            ) {
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          })
+          .join(",")
+      ),
+    ].join("\n");
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `${new Date().toISOString().split("T")[0]}-transactions.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      {showExportButton && (
+        <div className="flex justify-end mb-4">
+          <Button onClick={exportToCSV} variant="outline" size="sm">
+            Export to CSV
+          </Button>
+        </div>
+      )}
+      <table className="w-full">
+        <thead className="border-b bg-muted/30">
+          <tr className="text-xs text-muted-foreground">
+            {isAdmin && (
+              <th className="text-left py-2 px-4 font-medium w-8">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedTransactions.size === filteredTransactions.length &&
+                    filteredTransactions.length > 0
+                  }
+                  onChange={toggleAll}
+                  className="cursor-pointer"
+                />
+              </th>
+            )}
+            <th className="text-left py-2 px-4 font-medium">Date</th>
+            {showAccountColumn && (
+              <th className="text-left py-2 px-4 font-medium">Account</th>
+            )}
+            <th className="text-left py-2 px-4 font-medium">Type</th>
+            <th className="text-left py-2 px-4 font-medium">Amount</th>
+            {isAdmin && (
+              <>
+                <th className="text-left py-2 px-4 font-medium">Collective</th>
+                <th className="text-left py-2 px-4 font-medium">Category</th>
+              </>
+            )}
+            <th className="text-left py-2 px-4 font-medium">Counterpart</th>
+            <th className="text-left py-2 px-4 font-medium">Details</th>
+          </tr>
+          {/* Filter row */}
+          <tr className="bg-muted/10 border-b">
+            {isAdmin && <th className="py-2 px-4"></th>}
+            <th className="py-2 px-4">
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className="h-7 text-xs w-full">
+                  <SelectValue placeholder="All months" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">
+                    All months ({totals.count})
+                  </SelectItem>
+                  {uniqueMonths.map((month) => (
+                    <SelectItem key={month} value={month} className="text-xs">
+                      {month} ({filterCounts.months.get(month) || 0})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </th>
+            {showAccountColumn && (
+              <th className="py-2 px-4">
+                <Select value={accountFilter} onValueChange={setAccountFilter}>
+                  <SelectTrigger className="h-7 text-xs w-full">
+                    <SelectValue placeholder="All accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">
+                      All accounts ({totals.count})
+                    </SelectItem>
+                    {uniqueAccounts.map((account) => (
+                      <SelectItem
+                        key={account}
+                        value={account}
+                        className="text-xs"
+                      >
+                        {account} ({filterCounts.accounts.get(account) || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </th>
+            )}
+            <th className="py-2 px-4">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="h-7 text-xs w-full">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">
+                    All ({totals.count})
+                  </SelectItem>
+                  <SelectItem value="in" className="text-xs">
+                    In ({filterCounts.types.in})
+                  </SelectItem>
+                  <SelectItem value="out" className="text-xs">
+                    Out ({filterCounts.types.out})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </th>
+            <th className="py-2 px-4">
+              <div className="flex gap-1">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  className="h-7 text-xs w-16"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                  className="h-7 text-xs w-16"
+                />
+              </div>
+            </th>
+            {isAdmin && (
+              <>
+                <th className="py-2 px-4">
+                  <Select
+                    value={collectiveFilter}
+                    onValueChange={setCollectiveFilter}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-full">
+                      <SelectValue placeholder="All collectives" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs">
+                        All collectives ({totals.count})
+                      </SelectItem>
+                      {collectives.map((slug) => (
+                        <SelectItem key={slug} value={slug} className="text-xs">
+                          {collectivesObj[slug]?.name || slug} (
+                          {filterCounts.collectives.get(slug) || 0})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </th>
+                <th className="py-2 px-4">
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={setCategoryFilter}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-full">
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs">
+                        All categories ({totals.count})
+                      </SelectItem>
+                      {uniqueCategories.map((cat) => (
+                        <SelectItem key={cat} value={cat} className="text-xs">
+                          {cat} ({filterCounts.categories.get(cat) || 0})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </th>
+              </>
+            )}
+            <th className="py-2 px-4">
+              <Select
+                value={counterpartFilter}
+                onValueChange={setCounterpartFilter}
+              >
+                <SelectTrigger className="h-7 text-xs w-full">
+                  <SelectValue placeholder="All counterparts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">
+                    All counterparts ({totals.count})
+                  </SelectItem>
+                  {uniqueCounterparts.map((name) => (
+                    <SelectItem key={name} value={name} className="text-xs">
+                      {name} ({filterCounts.counterparts.get(name) || 0})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </th>
+            <th className="py-2 px-4"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {filteredTransactions.map((tx, index) => {
+            // Determine if transaction is incoming based on mode
+            const isIncoming = useNormalizedAmount
+              ? tx.type === "CREDIT"
+              : tx.to?.toLowerCase() === accountAddress?.toLowerCase();
+
+            // Use appropriate timestamp field based on mode
+            const timestamp =
+              useNormalizedAmount && tx.timestamp
+                ? tx.timestamp
+                : parseInt(tx.timeStamp || "0");
+            const date = new Date(timestamp * 1000);
+            const dateStr = date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            const timeStr = date.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            const categories = isIncoming
+              ? categoriesObj.credit || ["other"]
+              : categoriesObj.debit || ["other"];
+
+            return (
+              <tr
+                key={`${tx.hash}-${index}`}
+                className={`hover:bg-muted/20 transition-colors text-sm ${
+                  selectedTransactions.has(tx.transactionId)
+                    ? "bg-muted/30"
+                    : ""
+                }`}
+                onClick={(e) => {
+                  // Don't toggle if clicking on interactive elements
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.tagName === "INPUT" ||
+                    target.tagName === "SELECT" ||
+                    target.tagName === "BUTTON" ||
+                    target.tagName === "A" ||
+                    target.closest("button") ||
+                    target.closest("a") ||
+                    target.closest(".select-trigger")
+                  ) {
+                    return;
+                  }
+                  if (isAdmin) {
+                    toggleTransaction(tx.transactionId);
+                  }
+                }}
+                style={{ cursor: isAdmin ? "pointer" : "default" }}
+              >
+                {isAdmin && (
+                  <td className="py-2.5 px-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedTransactions.has(tx.transactionId)}
+                      onChange={() => toggleTransaction(tx.transactionId)}
+                      className="cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </td>
+                )}
+                <td className="py-2.5 px-4">
+                  <a
+                    href={`https://gnosisscan.io/tx/${tx.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                  >
+                    <div className="font-medium">{dateStr}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {timeStr}
+                    </div>
+                  </a>
+                </td>
+                {showAccountColumn && (
+                  <td className="py-2.5 px-4">
+                    <Badge variant="outline" className="text-xs">
+                      {tx.accountName}
+                    </Badge>
+                  </td>
+                )}
+                <td className="py-2.5 px-4">
+                  <Badge
+                    variant={isIncoming ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {isIncoming ? "In" : "Out"}
+                  </Badge>
+                </td>
+                <td className="py-2.5 px-4">
+                  <div
+                    className={`font-semibold text-base ${isIncoming ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {isIncoming ? "+" : "-"}
+                    {useNormalizedAmount && tx.normalizedAmount !== undefined
+                      ? formatNormalizedAmount(tx.normalizedAmount, tokenSymbol)
+                      : formatAmount(tx.value, tokenDecimals, tokenSymbol)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {tokenSymbol}
+                  </div>
+                </td>
+                {isAdmin && (
+                  <>
+                    <td
+                      className="py-2.5 px-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Select
+                        value={
+                          tx.transactionMetadata?.collective || "commonshub"
+                        }
+                        onValueChange={async (value) => {
+                          const response = await fetch(
+                            `/api/transactions/${encodeURIComponent(tx.transactionId)}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ collective: value }),
+                            }
+                          );
+                          if (response.ok) {
+                            window.location.reload();
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[140px] h-8 text-xs select-trigger">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {collectives.map((slug) => (
+                            <SelectItem
+                              key={slug}
+                              value={slug}
+                              className="text-xs"
+                            >
+                              {collectivesObj[slug]?.name || slug}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td
+                      className="py-2.5 px-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Select
+                        value={tx.transactionMetadata?.category || "other"}
+                        onValueChange={async (value) => {
+                          const response = await fetch(
+                            `/api/transactions/${encodeURIComponent(tx.transactionId)}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ category: value }),
+                            }
+                          );
+                          if (response.ok) {
+                            window.location.reload();
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[120px] h-8 text-xs select-trigger">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat: string) => (
+                            <SelectItem
+                              key={cat}
+                              value={cat}
+                              className="text-xs"
+                            >
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                  </>
+                )}
+                <td className="py-2.5 px-4">
+                  <div className="flex flex-col gap-1">
+                    {tx.moneriumOrder?.counterpart ? (
+                      <div
+                        className="font-medium"
+                        title={
+                          tx.moneriumOrder.counterpart.identifier.iban ||
+                          undefined
+                        }
+                      >
+                        {tx.moneriumOrder.counterpart.details.name}
+                      </div>
+                    ) : (
+                      <a
+                        href={`https://gnosisscan.io/address/${isIncoming ? tx.from : tx.to}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs hover:underline text-muted-foreground"
+                      >
+                        {shortenAddress(isIncoming ? tx.from : tx.to)}
+                      </a>
+                    )}
+                    {isAdmin && tx.counterpartyId && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <InlineDescriptionEditor
+                          value={tx.counterpartyMetadata?.description || ""}
+                          onSave={async (value) => {
+                            const response = await fetch(
+                              `/api/counterparties/${encodeURIComponent(tx.counterpartyId!)}`,
+                              {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ description: value }),
+                              }
+                            );
+                            if (!response.ok) {
+                              throw new Error("Failed to update counterparty");
+                            }
+                          }}
+                          placeholder="add note"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="py-2.5 px-4">
+                  <div className="flex flex-col gap-1">
+                    {tx.moneriumOrder?.memo && (
+                      <div className="text-xs text-muted-foreground italic">
+                        {tx.moneriumOrder.memo?.length > 30
+                          ? tx.moneriumOrder.memo.slice(0, 30) + "..."
+                          : tx.moneriumOrder.memo}
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <InlineDescriptionEditor
+                          value={tx.transactionMetadata?.description || ""}
+                          onSave={async (value) => {
+                            const response = await fetch(
+                              `/api/transactions/${encodeURIComponent(tx.transactionId)}`,
+                              {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ description: value }),
+                              }
+                            );
+                            if (!response.ok) {
+                              throw new Error("Failed to update transaction");
+                            }
+                          }}
+                          placeholder="add note"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot className="bg-muted/20 border-t-2 border-gray-300 font-semibold">
+          <tr>
+            {isAdmin && <td className="py-3 px-4"></td>}
+            <td className="py-3 px-4" colSpan={showAccountColumn ? 2 : 1}>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">
+                  {totals.count} transaction{totals.count !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </td>
+            {showAccountColumn && <td className="py-3 px-4"></td>}
+            <td className="py-3 px-4"></td>
+            <td className="py-3 px-4">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600">
+                    +€
+                    {totals.totalIn.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-red-600">
+                    -€
+                    {totals.totalOut.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <span
+                    className={
+                      totals.net >= 0 ? "text-green-600" : "text-red-600"
+                    }
+                  >
+                    {totals.net >= 0 ? "+" : ""}€
+                    {Math.abs(totals.net).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                  <span className="text-xs text-muted-foreground">net</span>
+                </div>
+              </div>
+            </td>
+            {isAdmin && (
+              <>
+                <td className="py-3 px-4"></td>
+                <td className="py-3 px-4"></td>
+              </>
+            )}
+            <td className="py-3 px-4"></td>
+            <td className="py-3 px-4"></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Batch editing footer */}
+      {isAdmin && selectedTransactions.size >= 2 && (
+        <div className="mt-4 p-4 bg-muted/30 border-t flex items-center gap-4">
+          <div className="font-medium">
+            {selectedTransactions.size} transactions selected (total{" "}
+            <span
+              className={
+                selectedTotal >= BigInt(0) ? "text-green-600" : "text-red-600"
+              }
+            >
+              {selectedTotal >= BigInt(0) ? "+" : "-"}
+              {formatAmount(
+                selectedTotal.toString().replace("-", ""),
+                tokenDecimals,
+                tokenSymbol,
+                false
+              )}
+            </span>
+            )
+          </div>
+          <Select value={batchCollective} onValueChange={setBatchCollective}>
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue placeholder="Collective" />
+            </SelectTrigger>
+            <SelectContent>
+              {collectives.map((slug) => (
+                <SelectItem key={slug} value={slug} className="text-xs">
+                  {collectivesObj[slug]?.name || slug}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={batchCategory} onValueChange={setBatchCategory}>
+            <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {(selectedTotal >= BigInt(0)
+                ? categoriesObj.credit || ["other"]
+                : categoriesObj.debit || ["other"]
+              ).map((cat: string) => (
+                <SelectItem key={cat} value={cat} className="text-xs">
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input
+            type="text"
+            value={batchNote}
+            onChange={(e) => setBatchNote(e.target.value)}
+            placeholder="note"
+            className="text-xs border rounded px-2 py-1 h-8 flex-1 max-w-[200px]"
+          />
+          <button
+            onClick={handleBatchUpdate}
+            disabled={
+              isBatchUpdating ||
+              (!batchCollective && !batchCategory && !batchNote)
+            }
+            className="text-xs bg-primary text-primary-foreground px-4 py-1 h-8 rounded hover:bg-primary/90 disabled:opacity-50"
+          >
+            {isBatchUpdating ? "Updating..." : "Update"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
