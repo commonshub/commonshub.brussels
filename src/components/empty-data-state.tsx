@@ -2,7 +2,13 @@
 
 import { AlertCircle, Database, Terminal } from "lucide-react";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 
 interface EmptyDataStateProps {
   title?: string;
@@ -16,7 +22,7 @@ interface EmptyDataStateProps {
  */
 export function EmptyDataState({
   title = "No Data Available",
-  message = "The data directory is empty. Data needs to be fetched before the website can display content.",
+  message = `The data directory ${process.env.DATA_DIR || "./data"} is empty. Data needs to be fetched before the website can display content.`,
   showInstructions = true,
 }: EmptyDataStateProps) {
   return (
@@ -42,9 +48,12 @@ export function EmptyDataState({
                   <Database className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-2">Quick Start (Recommended)</h3>
+                  <h3 className="font-semibold mb-2">
+                    Quick Start (Recommended)
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Fetch recent data (current and previous month) to get started quickly:
+                    Fetch recent data (current and previous month) to get
+                    started quickly:
                   </p>
                   <div className="bg-muted p-3 rounded-md">
                     <code className="text-sm">
@@ -79,7 +88,9 @@ export function EmptyDataState({
             </div>
 
             <div className="pt-4 border-t">
-              <h3 className="font-semibold mb-3">What happens when you fetch data?</h3>
+              <h3 className="font-semibold mb-3">
+                What happens when you fetch data?
+              </h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-0.5">✓</span>
