@@ -1466,8 +1466,9 @@ async function generateYearlyUsers(year: string): Promise<void> {
 
 async function main() {
   console.log(
-    "🚀 Generating derived data files from cached Discord messages...\n"
+    "🚀 Generating derived data files from cached Discord messages..."
   );
+  console.log(`📂 DATA_DIR: ${DATA_DIR}\n`);
 
   const years = getAvailableYears();
   if (years.length === 0) {

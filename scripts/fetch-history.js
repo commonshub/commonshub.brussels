@@ -9,12 +9,27 @@
  */
 
 const { execSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+
+// Get DATA_DIR from environment or default
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+
+// Verify we're running from project root
+const packageJsonPath = path.join(process.cwd(), "package.json");
+if (!fs.existsSync(packageJsonPath)) {
+  console.error("❌ Error: Must run from project root directory");
+  console.error("   Current directory:", process.cwd());
+  process.exit(1);
+}
 
 // Get month range from command line arguments
 const args = process.argv.slice(2).join(" ");
 const monthFilter = args || "(all months)";
 
-console.log(`\n📅 Fetching historical data: ${monthFilter}\n`);
+console.log(`\n📅 Fetching historical data: ${monthFilter}`);
+console.log(`📂 DATA_DIR: ${DATA_DIR}`);
+console.log(`📂 Working directory: ${process.cwd()}\n`);
 console.log("⚠️  Warning: This may take a long time for the first run!\n");
 
 // List of scripts to run
@@ -33,7 +48,13 @@ for (const script of scripts) {
   console.log(`${"=".repeat(60)}\n`);
 
   try {
-    execSync(script.cmd, { stdio: "inherit" });
+    execSync(script.cmd, {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        DATA_DIR: DATA_DIR, // Ensure DATA_DIR is passed to child processes
+      },
+    });
   } catch (error) {
     console.error(`\n✗ Error running ${script.name}`);
     process.exit(1);
@@ -50,7 +71,13 @@ console.log("▶ Generating aggregated data files...");
 console.log(`${"=".repeat(60)}\n`);
 
 try {
-  execSync("tsx scripts/generate-data-files.ts", { stdio: "inherit" });
+  execSync("tsx scripts/generate-data-files.ts", {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      DATA_DIR: DATA_DIR,
+    },
+  });
 } catch (error) {
   console.error("\n✗ Error generating data files");
   process.exit(1);

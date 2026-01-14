@@ -232,6 +232,7 @@ async function main() {
   }
 
   console.log("🪙 Fetching CHT (ContributionToken) transactions from CELO...");
+  console.log(`📂 DATA_DIR: ${DATA_DIR}`);
   console.log(`Token: ${CHT_CONFIG.symbol} (${CHT_CONFIG.name})`);
   console.log(`Address: ${CHT_CONFIG.address}`);
   console.log(`Chain: ${CHT_CONFIG.chain} (chainId: ${CHT_CONFIG.chainId})`);

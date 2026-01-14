@@ -57,6 +57,9 @@ async function main() {
     const { startMonth, endMonth } = parseArgs();
     const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
+    console.log("🚀 Starting transaction cache warmup...");
+    console.log(`📂 DATA_DIR: ${dataDir}\n`);
+
     await warmupTransactionCache({
       dataDir,
       stripeSecretKey: process.env.STRIPE_SECRET_KEY,

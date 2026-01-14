@@ -596,7 +596,8 @@ async function fetchLumaForMonth(year: string, month: string) {
  * Main execution
  */
 async function main() {
-  console.log("Starting events fetch...\n");
+  console.log("📅 Starting events fetch...");
+  console.log(`📂 DATA_DIR: ${DATA_DIR}\n`);
 
   // Fetch calendar URLs from settings
   const calendars = (settings as any).calendars || {};

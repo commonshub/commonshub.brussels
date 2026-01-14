@@ -617,7 +617,17 @@ async function fetchLatestMessages(channelId, channelName) {
  * Main function - CLI entry point
  */
 async function main() {
-  console.log("🚀 Starting Discord message cache warmup...\n");
+  console.log("🚀 Starting Discord message cache warmup...");
+  console.log(`📂 DATA_DIR: ${DATA_DIR}`);
+
+  // Verify that discord-cache is using the same DATA_DIR
+  // (discord-cache reads DATA_DIR at module import time)
+  if (!process.env.DATA_DIR) {
+    console.log(`⚠️  WARNING: DATA_DIR not set in environment`);
+    console.log(`   To use a custom directory, run: DATA_DIR=/path npm run fetch-discord\n`);
+  } else {
+    console.log(`✓ DATA_DIR is set in environment\n`);
+  }
 
   if (!process.env.DISCORD_BOT_TOKEN) {
     console.error(
