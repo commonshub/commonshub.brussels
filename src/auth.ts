@@ -132,11 +132,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
+      // Ensure session.user exists before setting properties
+      if (session?.user && token) {
         session.user.discordId = token.discordId as string
         session.user.username = token.username as string
         session.user.discriminator = token.discriminator as string
-        session.user.avatar = token.avatar as string
+        // Handle avatar being null/undefined
+        session.user.avatar = (token.avatar as string) || undefined
         session.user.roles = (token.roles as string[]) || []
         session.user.roleDetails = (token.roleDetails as Array<{ id: string; name: string }>) || []
         session.user.accessToken = token.accessToken as string

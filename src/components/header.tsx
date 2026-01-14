@@ -134,7 +134,7 @@ export function Header() {
               </Button>
 
               {/* Auth section for mobile */}
-              {session ? (
+              {session?.user ? (
                 <div className="flex flex-col gap-3 pt-2">
                   <Link
                     href={`/members/${session.user.username}`}

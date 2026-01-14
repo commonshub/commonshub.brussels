@@ -28,7 +28,7 @@ export function AuthButton() {
     )
   }
 
-  if (session) {
+  if (session?.user) {
     const avatarUrl = session.user.avatar
       ? `https://cdn.discordapp.com/avatars/${session.user.discordId}/${session.user.avatar}.png`
       : null
