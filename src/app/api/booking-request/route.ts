@@ -3,8 +3,6 @@ import { NextResponse } from "next/server"
 import { createDiscordThread } from "@/lib/discord"
 import settings from "@/settings/settings.json"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const roomNames: Record<string, string> = {
   mush: "Mush Room",
   angel: "Angel Room",
@@ -14,6 +12,9 @@ const roomNames: Record<string, string> = {
 
 export async function POST(request: Request) {
   try {
+    // Initialize Resend client at runtime, not at build time
+    const resend = new Resend(process.env.RESEND_API_KEY)
+
     const data = await request.json()
 
     const {

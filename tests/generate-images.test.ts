@@ -4,14 +4,20 @@ import path from "path";
 
 describe("Images Generation", () => {
   const channelId = "1443604524307583099";
+  const TEST_YEAR = "2025";
+  const TEST_MONTH = "11";
   const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "tests/data");
   const messagesPath = path.join(
     DATA_DIR,
-    `latest/discord/${channelId}/messages.json`
+    TEST_YEAR,
+    TEST_MONTH,
+    `discord/${channelId}/messages.json`
   );
   const imagesPath = path.join(
     DATA_DIR,
-    `latest/discord/${channelId}/images.json`
+    TEST_YEAR,
+    TEST_MONTH,
+    `discord/${channelId}/images.json`
   );
 
   test("messages.json exists for test channel", () => {
@@ -31,7 +37,7 @@ describe("Images Generation", () => {
     expect(data).toHaveProperty("images");
 
     expect(data.channelId).toBe(channelId);
-    expect(data.source).toBe("latest");
+    expect(data.source).toBe(`${TEST_YEAR}-${TEST_MONTH}`);
     expect(Array.isArray(data.images)).toBe(true);
     expect(typeof data.count).toBe("number");
   });

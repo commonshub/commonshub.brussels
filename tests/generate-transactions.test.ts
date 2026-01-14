@@ -1,12 +1,13 @@
 import { describe, it, expect } from "@jest/globals";
 import * as fs from "fs";
 import * as path from "path";
+import type { TransactionsFile, Transaction } from "../src/types/transactions";
 import settings from "../src/settings/settings.json";
 
 describe("generate-transactions", () => {
   const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "tests/data");
   const TEST_YEAR = "2025";
-  const TEST_MONTH = "10";
+  const TEST_MONTH = "11";
 
   it("should generate transactions.json with all accounts", () => {
     const transactionsPath = path.join(
@@ -19,7 +20,7 @@ describe("generate-transactions", () => {
     expect(fs.existsSync(transactionsPath)).toBe(true);
 
     const content = fs.readFileSync(transactionsPath, "utf-8");
-    const data = JSON.parse(content);
+    const data: TransactionsFile = JSON.parse(content);
 
     expect(data.transactions).toBeDefined();
     expect(Array.isArray(data.transactions)).toBe(true);

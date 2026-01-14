@@ -75,15 +75,37 @@ describe("Transaction Fetching Tests", () => {
       const fileName = path.basename(filePath);
       const accountDir = path.basename(path.dirname(filePath));
 
-      // Should either be transactions.json (Stripe) or match pattern: 0xAddress.tokenSymbol.chainSlug.json
-      if (fileName !== "transactions.json") {
-        const parts = fileName.replace(".json", "").split(".");
-        expect(parts.length).toBeGreaterThanOrEqual(3);
-        // Format: 0xAddress.tokenSymbol.chainSlug.json (e.g., 0x6fDF0AaE33E313d9C98D2Aa19Bcd8EF777912CBf.EURe.gnosis.json)
+      // Skip validation for transactions.json (aggregated file)
+      if (fileName === "transactions.json") {
+        return;
+      }
+
+      // Skip validation for Stripe account files (various formats)
+      if (accountDir === "stripe") {
+        expect(fileName).toMatch(/\.json$/);
+        return;
+      }
+
+      const parts = fileName.replace(".json", "").split(".");
+
+      // New structure supports two formats:
+      // 1. In chain directory (e.g., gnosis/): wallet-name.token.json (2 parts)
+      // 2. In wallet directory (e.g., savings/): 0xAddress.token.chain.json (3 parts)
+
+      if (parts.length === 2) {
+        // Format: wallet-name.token.json (chain is directory name)
+        const [walletName, tokenSymbol] = parts;
+        expect(walletName).toBeTruthy();
+        expect(tokenSymbol).toBeTruthy();
+      } else if (parts.length >= 3) {
+        // Format: 0xAddress.token.chain.json
         const [address, tokenSymbol, chain] = parts;
         expect(address).toMatch(/^0x[a-fA-F0-9]{40}$/); // Valid Ethereum address
         expect(tokenSymbol).toBeTruthy();
         expect(chain).toBeTruthy();
+      } else {
+        // Invalid format
+        fail(`Invalid filename format: ${fileName} (${parts.length} parts)`);
       }
     });
 

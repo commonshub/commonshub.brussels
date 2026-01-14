@@ -7,7 +7,8 @@ import { Resend } from "resend"
 import settings from "@/settings/settings.json"
 import { createThread, sendMessage, isDiscordConfigured } from "@/lib/discord"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 export interface EmailOptions {
   to: string
@@ -25,9 +26,20 @@ export interface DiscordThreadOptions {
 
 /**
  * Send an email using Resend
+ * If RESEND_API_KEY is not set, logs a warning instead
  */
 export async function sendEmail(options: EmailOptions) {
   const { to, subject, html, cc, replyTo } = options
+
+  if (!resend) {
+    console.warn(`⚠️  Email not sent (RESEND_API_KEY not set): ${subject}`);
+    console.log(`   To: ${to}`);
+    console.log(`   Subject: ${subject}`);
+    return {
+      id: 'mock-email-id',
+      error: null,
+    };
+  }
 
   return resend.emails.send({
     from: `Commons Hub <${settings.email.from}>`,

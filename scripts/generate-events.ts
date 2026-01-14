@@ -224,6 +224,7 @@ function loadLumaEvents(year: string, month: string): Map<string, LumaEvent> {
     DATA_DIR,
     year,
     month,
+    "calendars",
     "luma",
     `${calendarId}.json`
   );

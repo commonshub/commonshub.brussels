@@ -1,4 +1,6 @@
 /**
+ * @jest-environment jsdom
+ *
  * useTokenBalance Hook Tests
  * Tests the token balance hook that fetches CHT balance from the API
  */
@@ -11,7 +13,7 @@ jest.mock("next-auth/react", () => ({
   useSession: jest.fn(),
 }))
 
-import { useTokenBalance } from "../../hooks/use-token-balance"
+import { useTokenBalance } from "../../src/hooks/use-token-balance"
 import { useSession } from "next-auth/react"
 
 describe("useTokenBalance", () => {

@@ -33,7 +33,7 @@ describe("Notification Services", () => {
       global.fetch = mockFetch as any
 
       // Import after setting up mocks
-      const { createDiscordThread } = await import("../lib/services/notifications")
+      const { createDiscordThread } = await import("../src/lib/services/notifications")
 
       await createDiscordThread({
         channelId: "channel-123",
@@ -69,7 +69,7 @@ describe("Notification Services", () => {
       } as Response)
       global.fetch = mockFetch as any
 
-      const { createDiscordThread } = await import("../lib/services/notifications")
+      const { createDiscordThread } = await import("../src/lib/services/notifications")
 
       const longName = "A".repeat(150)
       await createDiscordThread({
@@ -87,7 +87,7 @@ describe("Notification Services", () => {
 
       // Force re-import
       jest.resetModules()
-      const { createDiscordThread } = await import("../lib/services/notifications")
+      const { createDiscordThread } = await import("../src/lib/services/notifications")
 
       const result = await createDiscordThread({
         channelId: "channel-123",
@@ -144,14 +144,14 @@ describe("Notification Services", () => {
 
 describe("Settings Configuration", () => {
   test("settings has required Discord channel IDs", async () => {
-    const settings = await import("../settings/settings.json")
+    const settings = await import("../src/settings/settings.json")
 
     expect(settings.discord.channels.requests).toBeDefined()
     expect(typeof settings.discord.channels.requests).toBe("string")
   })
 
   test("settings has email configuration", async () => {
-    const settings = await import("../settings/settings.json")
+    const settings = await import("../src/settings/settings.json")
 
     expect(settings.email.from).toBeDefined()
     expect(settings.email.to).toBeDefined()

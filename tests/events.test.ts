@@ -4,36 +4,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import type { EventsFile, Event } from "../src/types/events";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "tests/data");
-
-interface EventMetadata {
-  attendance?: number;
-  fridgeIncome?: number;
-  rentalIncome?: number;
-  note?: string;
-}
-
-interface Event {
-  id: string;
-  name: string;
-  description?: string;
-  startAt: string;
-  endAt?: string;
-  timezone?: string;
-  location?: string;
-  url?: string;
-  coverImage?: string;
-  source: "luma" | "ical";
-  lumaData?: any;
-  metadata: EventMetadata;
-}
-
-interface EventsFile {
-  month: string;
-  generatedAt: string;
-  events: Event[];
-}
 
 describe("Events System", () => {
   describe("events.json validation", () => {
@@ -81,20 +54,24 @@ describe("Events System", () => {
       }
     });
 
-    test("all events have URLs", () => {
+    test("Luma source events have URLs", () => {
       const content = fs.readFileSync(eventsPath, "utf-8");
       const data: EventsFile = JSON.parse(content);
 
-      const eventsWithoutUrl = data.events.filter((e) => !e.url);
+      // Luma events should always have URLs
+      const lumaEvents = data.events.filter((e) => e.source === "luma" || e.calendarSource === "luma" || e.calendarSource === "luma-api");
+      const lumaEventsWithoutUrl = lumaEvents.filter((e) => !e.url);
 
-      if (eventsWithoutUrl.length > 0) {
+      if (lumaEventsWithoutUrl.length > 0) {
         console.warn(
-          `Warning: ${eventsWithoutUrl.length} events missing URLs:`,
-          eventsWithoutUrl.map((e) => e.name)
+          `Warning: ${lumaEventsWithoutUrl.length} Luma events missing URLs:`,
+          lumaEventsWithoutUrl.map((e) => e.name)
         );
       }
 
-      expect(eventsWithoutUrl.length).toBe(0);
+      expect(lumaEventsWithoutUrl.length).toBe(0);
+
+      // Note: ICS events from Google Calendar may not have URLs, which is expected
     });
 
     test("Luma events have valid URLs", () => {

@@ -1,4 +1,7 @@
 /**
+ * @jest-environment jsdom
+ */
+/**
  * Test to ensure the Ostrom room gallery loads correctly
  * This test prevents regressions where images.json files aren't generated for latest Discord data
  */

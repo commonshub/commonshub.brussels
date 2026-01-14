@@ -7,13 +7,16 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   testMatch: ["<rootDir>/tests/**/*.test.ts", "<rootDir>/tests/**/*.test.tsx"],
+  testPathIgnorePatterns: ["/node_modules/", "/tests/e2e/"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   transformIgnorePatterns: [
     "node_modules/(?!(next-auth)/)",
   ],
-  testEnvironment: "node", // Default to node for API tests
+  // Default to node environment for server-side tests
+  // React component tests (.tsx) should add @jest-environment jsdom at the top
+  testEnvironment: "node",
   testEnvironmentOptions: {
     customExportConditions: ["node"],
   },

@@ -1,4 +1,7 @@
 /**
+ * @jest-environment jsdom
+ */
+/**
  * Test to ensure image proxy rejects recursive proxying attempts
  */
 

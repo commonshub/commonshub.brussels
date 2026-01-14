@@ -1,4 +1,7 @@
 /**
+ * @jest-environment jsdom
+ */
+/**
  * Test to ensure image URL sharing functionality works
  */
 
