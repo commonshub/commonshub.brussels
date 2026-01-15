@@ -19,6 +19,8 @@
     "fetch-users": "tsx scripts/warmup-users-cache.ts",
     "fetch-monerium": "tsx scripts/fetch-monerium.ts",
     "lint": "eslint .",
+    "logs": "sudo journalctl -u commonshub.brussels -f -n 100",
+    "restart": "sudo systemctl restart commonshub.brussels",
     "start": "next start",
     "test": "jest",
     "test:ci": "jest --ci --coverage",

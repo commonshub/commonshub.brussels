@@ -112,6 +112,7 @@ If the data directory is empty, the website will display a helpful empty data st
 ## Documentation
 
 - **[Deployment Guide](docs/deployment.md)** - Complete Docker deployment instructions
+- **[Webhook Setup](docs/WEBHOOK_SETUP.md)** - Automated deployment via GitHub webhooks
 - **[CLAUDE.md](CLAUDE.md)** - Technical architecture and component documentation
 
 ## Project Structure
@@ -137,6 +138,8 @@ If the data directory is empty, the website will display a helpful empty data st
 | `npm run fetch-recent` | Fetch current and previous month data + auto-generate files |
 | `npm run fetch-history` | Fetch all historical data + auto-generate files |
 | `npm run generate-data` | Manually regenerate all aggregated data files |
+| `npm run restart` | Restart the systemd service |
+| `npm run logs` | View application logs (last 100 lines + follow) |
 
 ## Environment Variables
 

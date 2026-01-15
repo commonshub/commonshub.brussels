@@ -102,16 +102,23 @@ export interface YearlyReportData {
 
 /**
  * Get all available years with data
+ * @param excludeFuture - If true, exclude years in the future (default: true for UI display)
  */
-export function getAvailableYears(): string[] {
+export function getAvailableYears(excludeFuture: boolean = true): string[] {
   try {
     if (!fs.existsSync(DATA_DIR)) return [];
 
-    const years = fs
+    let years = fs
       .readdirSync(DATA_DIR, { withFileTypes: true })
       .filter((dirent) => dirent.isDirectory() && /^\d{4}$/.test(dirent.name))
       .map((dirent) => dirent.name)
       .sort();
+
+    // Filter out future years if requested
+    if (excludeFuture) {
+      const currentYear = new Date().getFullYear();
+      years = years.filter((year) => parseInt(year, 10) <= currentYear);
+    }
 
     return years;
   } catch (error) {
@@ -122,17 +129,39 @@ export function getAvailableYears(): string[] {
 
 /**
  * Get all available months with data for a specific year
+ * @param year - The year to get months for
+ * @param excludeFuture - If true, exclude months in the future (default: false)
  */
-export function getAvailableMonths(year: string): string[] {
+export function getAvailableMonths(year: string, excludeFuture: boolean = false): string[] {
   try {
     const yearPath = path.join(DATA_DIR, year);
     if (!fs.existsSync(yearPath)) return [];
 
-    return fs
+    let months = fs
       .readdirSync(yearPath, { withFileTypes: true })
       .filter((dirent) => dirent.isDirectory() && /^\d{2}$/.test(dirent.name))
       .map((dirent) => dirent.name)
       .sort();
+
+    // Filter out future months if requested
+    if (excludeFuture) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-indexed
+
+      months = months.filter((month) => {
+        const monthNum = parseInt(month, 10);
+        const yearNum = parseInt(year, 10);
+
+        // Keep months that are in the past or current
+        if (yearNum < currentYear) return true;
+        if (yearNum > currentYear) return false;
+        // Same year - compare months
+        return monthNum <= currentMonth;
+      });
+    }
+
+    return months;
   } catch (error) {
     console.error(`Error reading available months for ${year}:`, error);
     return [];
@@ -1004,7 +1033,7 @@ export function getMonthlyReportData(
  * Generate yearly report data
  */
 export function getYearlyReportData(year: string): YearlyReportData {
-  const months = getAvailableMonths(year);
+  const months = getAvailableMonths(year, true); // Exclude future months
 
   // Build map of month -> contributor count from monthly contributors.json files
   const monthContributorMap = new Map<string, number>();
