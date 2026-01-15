@@ -5,7 +5,7 @@ import Image from "next/image";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { ImageLightbox, ImageLightboxHandle } from "./image-lightbox";
-import { getProxiedDiscordImage } from "@/lib/image-proxy";
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 import settings from "@/settings/settings.json";
 
 interface ActivityImage {
@@ -59,18 +59,9 @@ export function CommunityActivityGallery({
   // Map images to ActivityImage format
   const allImages: ActivityImage[] = (data?.images || []).map((image) => ({
     id: image.id,
-    imageUrl: getProxiedDiscordImage(
-      channelId,
-      image.messageId,
-      image.id,
-      image.timestamp
-    ),
-    thumbnailUrl: getProxiedDiscordImage(
-      channelId,
-      image.messageId,
-      image.id,
-      image.timestamp
-    ),
+    // Use regular image proxy with local data path for better performance
+    imageUrl: getProxiedImageUrl(image.filePath, "lg"),
+    thumbnailUrl: getProxiedImageUrl(image.filePath, "sm"),
     author: {
       displayName: image.author.displayName || image.author.username,
       avatar: image.author.avatar
