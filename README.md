@@ -109,6 +109,11 @@ npm run fetch-history
 
 If the data directory is empty, the website will display a helpful empty data state page with fetching instructions.
 
+## Status
+
+- **`/status`** - HTML page showing application status, git info, and uptime
+- **`/status.json`** - JSON API for programmatic access
+
 ## Documentation
 
 - **[Deployment Guide](docs/deployment.md)** - Complete Docker deployment instructions
@@ -140,6 +145,7 @@ If the data directory is empty, the website will display a helpful empty data st
 | `npm run generate-data` | Manually regenerate all aggregated data files |
 | `npm run restart` | Restart the systemd service |
 | `npm run logs` | View application logs (last 100 lines + follow) |
+| `npm run status` | Check application status, git info, and uptime |
 
 ## Environment Variables
 

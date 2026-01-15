@@ -92,6 +92,12 @@ export WEBHOOK_SECRET=your_webhook_secret
 # Manual deployment test from GitHub
 # Go to GitHub Settings > Webhooks > Your webhook > Recent Deliveries
 # Click "Redeliver" on any delivery to test
+
+# Verify deployment status
+curl https://commonshub.brussels/status.json | jq .
+
+# Or view in browser
+open https://commonshub.brussels/status
 ```
 
 ## Security
@@ -123,6 +129,46 @@ The endpoint responds with deployment status:
   "pusher": "username"
 }
 ```
+
+## Verify Deployment
+
+After deployment, you can check the application status:
+
+```bash
+# JSON API
+curl https://commonshub.brussels/status.json
+
+# Or view HTML page in browser
+open https://commonshub.brussels/status
+```
+
+This returns:
+```json
+{
+  "status": "ok",
+  "deployment": {
+    "sha": "abc1234567890...",
+    "shortSha": "abc1234",
+    "message": "Update homepage",
+    "commitDate": "2024-01-15 14:30:00 +0100",
+    "commitDateFormatted": "01/15/2024, 14:30:00"
+  },
+  "uptime": {
+    "started": "2024-01-15T13:00:00.000Z",
+    "startedFormatted": "01/15/2024, 14:00:00",
+    "uptime": "1h 30m 15s",
+    "uptimeSeconds": 5415
+  },
+  "server": {
+    "time": "2024-01-15T13:30:15.000Z",
+    "timeFormatted": "01/15/2024, 14:30:15",
+    "timezone": "Europe/Brussels"
+  },
+  "environment": "production"
+}
+```
+
+The `deployment.shortSha` should match the commit you just deployed.
 
 ## Troubleshooting
 
