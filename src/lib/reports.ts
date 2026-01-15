@@ -236,7 +236,8 @@ export function getActiveMembers(messages: CachedMessage[]): {
  */
 export function getPopularPhotos(
   messages: CachedMessage[],
-  limit: number = 12
+  limit: number = 12,
+  options?: { relative?: boolean }
 ): PopularPhoto[] {
   const photos: PopularPhoto[] = [];
 
@@ -279,7 +280,9 @@ export function getPopularPhotos(
       msg.channel_id || "",
       msg.id,
       attachment.id,
-      msg.timestamp
+      msg.timestamp,
+      undefined,
+      options
     );
 
     photos.push({
@@ -314,7 +317,10 @@ export function getPopularPhotos(
 /**
  * Get all photos in reverse chronological order (newest first)
  */
-export function getAllPhotos(messages: CachedMessage[]): PopularPhoto[] {
+export function getAllPhotos(
+  messages: CachedMessage[],
+  options?: { relative?: boolean }
+): PopularPhoto[] {
   const photos: PopularPhoto[] = [];
 
   for (const msg of messages) {
@@ -357,7 +363,9 @@ export function getAllPhotos(messages: CachedMessage[]): PopularPhoto[] {
         msg.channel_id || "",
         msg.id,
         attachment.id,
-        msg.timestamp
+        msg.timestamp,
+        undefined,
+        options
       );
 
       photos.push({

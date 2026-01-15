@@ -7,6 +7,10 @@ import {
   parseTokenValue,
   getMonthKey,
 } from "@/lib/etherscan"
+import {
+  getCachedWalletAddress,
+  setCachedWalletAddress,
+} from "@/lib/wallet-address-cache"
 import settings from "@/settings/settings.json"
 
 interface MonthlyActivity {
@@ -72,10 +76,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   const { userId } = await params
 
   try {
-    const [walletAddress, discordActiveDays] = await Promise.all([
-      getAccountAddressFromDiscordUserId(userId),
+    // Check cache first for wallet address
+    let walletAddress = getCachedWalletAddress(userId);
+    let walletAddressPromise: Promise<string | null>;
+
+    if (walletAddress === undefined) {
+      // Not in cache, fetch from blockchain
+      walletAddressPromise = getAccountAddressFromDiscordUserId(userId).then((addr) => {
+        setCachedWalletAddress(userId, addr);
+        return addr;
+      });
+    } else {
+      // Already in cache
+      walletAddressPromise = Promise.resolve(walletAddress);
+    }
+
+    const [resolvedWalletAddress, discordActiveDays] = await Promise.all([
+      walletAddressPromise,
       fetchDiscordContributions(userId),
-    ])
+    ]);
+
+    walletAddress = resolvedWalletAddress;
 
     console.log(`[v0] tokens API: userId=${userId} walletAddress=${walletAddress}`)
 

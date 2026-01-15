@@ -13,6 +13,20 @@ const BASE_URL =
 export type ImageSize = "xs" | "sm" | "md" | "lg";
 
 /**
+ * Check if a URL is from the same host (local resource)
+ */
+function isLocalResource(url: string): boolean {
+  if (url.startsWith('/')) return true; // Already relative
+  try {
+    const urlObj = new URL(url);
+    const baseUrlObj = new URL(BASE_URL);
+    return urlObj.hostname === baseUrlObj.hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate a proxied image URL using Discord message metadata (NEW API)
  *
  * @param channelId - Discord channel ID
@@ -20,6 +34,8 @@ export type ImageSize = "xs" | "sm" | "md" | "lg";
  * @param attachmentId - Discord attachment ID
  * @param timestamp - Message timestamp (Date object or ISO string)
  * @param size - Optional size parameter (xs|sm|md|lg) for image resizing
+ * @param options - Optional configuration
+ * @param options.relative - If true, returns relative URL (for static files). Default: false
  * @returns Proxied image URL
  */
 export function getProxiedDiscordImage(
@@ -27,7 +43,8 @@ export function getProxiedDiscordImage(
   messageId: string,
   attachmentId: string,
   timestamp: string | Date,
-  size?: ImageSize
+  size?: ImageSize,
+  options?: { relative?: boolean }
 ): string {
   const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
 
@@ -48,7 +65,10 @@ export function getProxiedDiscordImage(
     params.set("size", size);
   }
 
-  return `${BASE_URL}/api/discord-image-proxy?${params.toString()}`;
+  const path = `/api/discord-image-proxy?${params.toString()}`;
+
+  // Return relative URL for static files, absolute for runtime
+  return options?.relative ? path : `${BASE_URL}${path}`;
 }
 
 /**
@@ -56,14 +76,30 @@ export function getProxiedDiscordImage(
  *
  * @param url - The image URL to proxy
  * @param size - Optional size parameter (xs|sm|md|lg) for image resizing
+ * @param options - Optional configuration
+ * @param options.relative - If true, returns relative URL when possible. Default: false
  * @returns Proxied image URL
  */
-export function getProxiedImageUrl(url: string, size?: ImageSize): string {
+export function getProxiedImageUrl(
+  url: string,
+  size?: ImageSize,
+  options?: { relative?: boolean }
+): string {
   if (!url) return "";
   // Check if it's already a proxy URL (relative or absolute)
   if (url.includes("/api/image-proxy") || url.includes("/api/discord-image-proxy")) return url;
-  // External URLs need to be proxied
 
+  // If it's a local resource and we want relative URLs, make it relative
+  if (options?.relative && isLocalResource(url)) {
+    try {
+      const urlObj = new URL(url);
+      url = urlObj.pathname + urlObj.search;
+    } catch {
+      // Already relative or invalid, use as-is
+    }
+  }
+
+  // External URLs or local data paths need to be proxied
   const params = new URLSearchParams({
     url: url,
   });
@@ -72,5 +108,8 @@ export function getProxiedImageUrl(url: string, size?: ImageSize): string {
     params.set("size", size);
   }
 
-  return `${BASE_URL}/api/image-proxy?${params.toString()}`;
+  const path = `/api/image-proxy?${params.toString()}`;
+
+  // Return relative URL for static files, absolute for runtime
+  return options?.relative ? path : `${BASE_URL}${path}`;
 }

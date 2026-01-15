@@ -5,3 +5,4 @@ node_modules
 .env.*
 */private/*
 data/
+!src/app/data

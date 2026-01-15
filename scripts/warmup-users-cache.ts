@@ -26,6 +26,10 @@ import * as path from "path";
 import dotenv from "dotenv";
 import { getAccountAddressFromDiscordUserId } from "../src/lib/citizenwallet";
 import { parseTokenValue } from "../src/lib/etherscan";
+import {
+  getCachedWalletAddress,
+  setCachedWalletAddress,
+} from "../src/lib/wallet-address-cache";
 import settings from "../src/settings/settings.json";
 
 dotenv.config();
@@ -257,8 +261,14 @@ async function processMonth(year: string, month: string): Promise<boolean> {
     }
 
     try {
-      // Get wallet address for Discord user
-      const walletAddress = await getAccountAddressFromDiscordUserId(userId);
+      // Get wallet address for Discord user (check cache first)
+      let walletAddress = getCachedWalletAddress(userId);
+
+      if (walletAddress === undefined) {
+        // Not in cache, fetch from blockchain
+        walletAddress = await getAccountAddressFromDiscordUserId(userId);
+        setCachedWalletAddress(userId, walletAddress);
+      }
 
       if (walletAddress && walletAddress !== ZERO_ADDRESS) {
         withAddressCount++;

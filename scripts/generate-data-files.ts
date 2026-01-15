@@ -41,6 +41,12 @@ import { getGuildMembers, getGuildRoles, isDiscordConfigured } from "../src/lib/
 import { getProxiedDiscordImage } from "../src/lib/image-proxy";
 import { getAccountAddressFromDiscordUserId } from "../src/lib/citizenwallet";
 import { parseTokenValue } from "../src/lib/etherscan";
+import {
+  getCachedWalletAddress,
+  setCachedWalletAddress,
+  setBatchCachedWalletAddresses,
+  getWalletCacheStats,
+} from "../src/lib/wallet-address-cache";
 import settings from "../src/settings/settings.json";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -65,7 +71,7 @@ interface ActivityGridData {
 function generateMonthImages(year: string, month: string): number {
   try {
     const messages = readDiscordMessages(year, month);
-    const images = getAllPhotos(messages);
+    const images = getAllPhotos(messages, { relative: true });
 
     // Sort by total reactions descending (for popularity)
     images.sort((a, b) => b.totalReactions - a.totalReactions);
@@ -137,12 +143,14 @@ function generateChannelImages(year: string, month: string): void {
           const ext = path.extname(urlWithoutQuery) || ".jpg";
           const filePath = `/data/${year}/${month}/discord/images/${attachment.id}${ext}`;
 
-          // Generate proxy URL with all required metadata
+          // Generate proxy URL with all required metadata (relative for static files)
           const proxyUrl = getProxiedDiscordImage(
             channelId,
             msg.id,
             attachment.id,
-            msg.timestamp
+            msg.timestamp,
+            undefined,
+            { relative: true }
           );
 
           channelImages.push({
@@ -257,12 +265,14 @@ function generateLatestImages(): number {
           const month = String(msgDate.getMonth() + 1).padStart(2, "0");
           const filePath = `/data/${year}/${month}/discord/images/${attachment.id}${ext}`;
 
-          // Generate proxy URL with all required metadata
+          // Generate proxy URL with all required metadata (relative for static files)
           const proxyUrl = getProxiedDiscordImage(
             channelId,
             msg.id,
             attachment.id,
-            msg.timestamp
+            msg.timestamp,
+            undefined,
+            { relative: true }
           );
 
           const imageData = {
@@ -694,8 +704,14 @@ async function generateMonthContributors(
       }
 
       try {
-        // Get wallet address
-        const walletAddress = await getAccountAddressFromDiscordUserId(userId);
+        // Get wallet address (check cache first)
+        let walletAddress = getCachedWalletAddress(userId);
+
+        if (walletAddress === undefined) {
+          // Not in cache, fetch from blockchain
+          walletAddress = await getAccountAddressFromDiscordUserId(userId);
+          setCachedWalletAddress(userId, walletAddress);
+        }
 
         // Calculate token stats
         let tokensIn = 0;
@@ -1027,6 +1043,42 @@ async function generateContributors(): Promise<number> {
     const contributors = Array.from(contributorMap.values())
       .sort((a: any, b: any) => b.contributionCount - a.contributionCount)
       .slice(0, 24);
+
+    // Fetch wallet addresses for contributors (with caching)
+    console.log(`  ℹ Fetching wallet addresses for ${contributors.length} contributors...`);
+    let cachedCount = 0;
+    let fetchedCount = 0;
+    const addressPromises = contributors.map(async (contributor: any) => {
+      // Check cache first
+      const cachedAddress = getCachedWalletAddress(contributor.id);
+
+      if (cachedAddress !== undefined) {
+        // Found in cache
+        cachedCount++;
+        contributor.walletAddress = cachedAddress;
+        return;
+      }
+
+      // Not in cache, fetch from blockchain
+      try {
+        const address = await getAccountAddressFromDiscordUserId(contributor.id);
+        contributor.walletAddress = address;
+        setCachedWalletAddress(contributor.id, address);
+        fetchedCount++;
+      } catch (error) {
+        console.warn(
+          `  ⚠️  Error fetching wallet for ${contributor.username}:`,
+          error
+        );
+        contributor.walletAddress = null;
+        setCachedWalletAddress(contributor.id, null);
+      }
+    });
+
+    await Promise.all(addressPromises);
+    console.log(
+      `  ✓ Wallet addresses: ${cachedCount} from cache, ${fetchedCount} fetched`
+    );
 
     // Total unique contributors (authors + mentioned)
     const activeCommoners = contributorMap.size;
