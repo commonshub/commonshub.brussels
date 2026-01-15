@@ -80,7 +80,7 @@ export function DiscordImageGallery({
       // Prefetch all images
       images.forEach((post) => {
         const img = new window.Image()
-        img.src = getProxiedImageUrl(post.imageUrl)
+        img.src = getProxiedImageUrl(post.imageUrl, undefined, { relative: true })
         // Don't append to DOM, just load in memory
       })
     }
@@ -112,7 +112,7 @@ export function DiscordImageGallery({
             onClick={() => lightboxRef.current?.openLightbox(index)}
           >
             <Image
-              src={getProxiedImageUrl(post.imageUrl) || "/placeholder.svg"}
+              src={getProxiedImageUrl(post.imageUrl, undefined, { relative: true }) || "/placeholder.svg"}
               alt={`Contribution by ${post.author.displayName}`}
               fill
               className="object-cover group-hover:scale-110 transition-transform duration-300"

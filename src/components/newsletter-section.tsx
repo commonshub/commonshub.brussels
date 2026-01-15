@@ -47,7 +47,7 @@ export function NewsletterSection() {
                 {issue.coverImage && (
                   <div className="relative h-48 w-full overflow-hidden">
                     <Image
-                      src={getProxiedImageUrl(issue.coverImage) || "/placeholder.svg"}
+                      src={getProxiedImageUrl(issue.coverImage, undefined, { relative: true }) || "/placeholder.svg"}
                       alt={issue.title}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"

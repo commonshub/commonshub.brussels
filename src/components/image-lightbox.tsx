@@ -206,7 +206,7 @@ export const ImageLightbox = forwardRef<
     useEffect(() => {
       if (selectedIndex !== null && selectedIndex < images.length - 1) {
         const nextImage = images[selectedIndex + 1];
-        const nextImageUrl = getProxiedImageUrl(nextImage.url);
+        const nextImageUrl = getProxiedImageUrl(nextImage.url, undefined, { relative: true });
         const img = new window.Image();
         img.src = nextImageUrl;
       }
@@ -263,7 +263,7 @@ export const ImageLightbox = forwardRef<
                 >
                   <Image
                     src={
-                      getProxiedImageUrl(image.thumbnailUrl || image.url) ||
+                      getProxiedImageUrl(image.thumbnailUrl || image.url, undefined, { relative: true }) ||
                       "/placeholder.svg"
                     }
                     alt={image.caption || "Image"}
@@ -375,7 +375,7 @@ export const ImageLightbox = forwardRef<
                         <Image
                           key={`image-${selectedIndex}`}
                           src={
-                            getProxiedImageUrl(currentImage.url) ||
+                            getProxiedImageUrl(currentImage.url, undefined, { relative: true }) ||
                             "/placeholder.svg"
                           }
                           alt={currentImage.caption || "Image"}

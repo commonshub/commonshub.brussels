@@ -56,12 +56,18 @@ export function CommunityActivityGallery({
     }>;
   }>(`/data/latest/discord/${channelId}/images.json`, fetcher);
 
+  console.log(
+    ">>> Loading image: ",
+    `/data/latest/discord/${channelId}/images.json`,
+    data?.images[0].filePath
+  );
   // Map images to ActivityImage format
   const allImages: ActivityImage[] = (data?.images || []).map((image) => ({
     id: image.id,
     // Use regular image proxy with local data path for better performance
-    imageUrl: getProxiedImageUrl(image.filePath, "lg"),
-    thumbnailUrl: getProxiedImageUrl(image.filePath, "sm"),
+    // Use relative URLs for client-side rendering to work on any port
+    imageUrl: getProxiedImageUrl(image.filePath, "lg", { relative: true }),
+    thumbnailUrl: getProxiedImageUrl(image.filePath, "sm", { relative: true }),
     author: {
       displayName: image.author.displayName || image.author.username,
       avatar: image.author.avatar

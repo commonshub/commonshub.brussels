@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import useSWR from "swr";
 import { Logo } from "@/components/logo";
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 
 interface NewsletterIssue {
   title: string;
@@ -17,16 +18,6 @@ interface NewsletterIssue {
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-function getProxiedImageUrl(url: string): string {
-  if (!url) return "";
-  const baseUrl =
-    process.env.NEXT_PUBLIC_VERCEL_URL ||
-    process.env.BASE_URL ||
-    "http://localhost:3000";
-  const protocol = baseUrl.startsWith("http") ? "" : "https://";
-  return `${protocol}${baseUrl}/api/image-proxy?url=${encodeURIComponent(url)}`;
-}
 
 export default function NewsletterPage() {
   const { data, isLoading } = useSWR<{
@@ -133,7 +124,7 @@ export default function NewsletterPage() {
                       <div className="aspect-video relative overflow-hidden bg-muted">
                         <Image
                           src={
-                            getProxiedImageUrl(issue.coverImage) ||
+                            getProxiedImageUrl(issue.coverImage, undefined, { relative: true }) ||
                             "/placeholder.svg"
                           }
                           alt={issue.title}
