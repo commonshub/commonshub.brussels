@@ -262,7 +262,8 @@ export async function fetchStripeTransactions(
   currency?: string,
   startMonth?: string,
   endMonth?: string,
-  accountId?: string
+  accountId?: string,
+  force: boolean = false
 ): Promise<StripeTransaction[]> {
   const currentMonth = getCurrentMonthKey();
   const existingMonths = getExistingCacheMonths(
@@ -282,7 +283,8 @@ export async function fetchStripeTransactions(
 
   // Smart date filtering: If we have cached months and no explicit date filter,
   // only fetch the current month to avoid unnecessary API calls
-  if (!shouldFetchAll && !startMonth && !endMonth) {
+  // Skip this optimization if force mode is enabled
+  if (!force && !shouldFetchAll && !startMonth && !endMonth) {
     startMonth = currentMonth;
     endMonth = currentMonth;
     console.log(
@@ -301,9 +303,15 @@ export async function fetchStripeTransactions(
     console.log(
       `  Cached months: ${Array.from(existingMonths).sort().join(", ")}`
     );
-    console.log(
-      `  Will fetch all transactions and skip already-cached historical months\n`
-    );
+    if (force) {
+      console.log(
+        `  Force mode enabled: Will re-fetch all transactions\n`
+      );
+    } else {
+      console.log(
+        `  Will fetch all transactions and skip already-cached historical months\n`
+      );
+    }
   }
 
   const headers = {
@@ -468,7 +476,8 @@ export async function fetchAllEtherscanTransactions(
   etherscanApiKey: string,
   dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
   startMonth?: string,
-  endMonth?: string
+  endMonth?: string,
+  force: boolean = false
 ): Promise<TokenTransfer[]> {
   const { chainId, token, address } = account;
   const currentMonth = getCurrentMonthKey();
@@ -484,11 +493,11 @@ export async function fetchAllEtherscanTransactions(
   );
 
   // Smart optimization: If we have cached months and no explicit date filter,
-  // only fetch current month
+  // only fetch current month (skip this optimization in force mode)
   let effectiveStartMonth = startMonth;
   let effectiveEndMonth = endMonth;
 
-  if (existingMonths.size > 0 && !startMonth && !endMonth) {
+  if (!force && existingMonths.size > 0 && !startMonth && !endMonth) {
     effectiveStartMonth = currentMonth;
     effectiveEndMonth = currentMonth;
     console.log(
@@ -499,6 +508,16 @@ export async function fetchAllEtherscanTransactions(
     );
     console.log(
       `  Will only fetch current month (${currentMonth}) to avoid redundant API calls\n`
+    );
+  } else if (force && existingMonths.size > 0) {
+    console.log(
+      `Found ${existingMonths.size} existing cache month(s) for ${account.slug}`
+    );
+    console.log(
+      `  Cached months: ${Array.from(existingMonths).sort().join(", ")}`
+    );
+    console.log(
+      `  Force mode enabled: Will re-fetch all transactions\n`
     );
   }
 
@@ -692,7 +711,8 @@ export async function processStripeAccount(
       currency,
       startMonth,
       endMonth,
-      account.accountId
+      account.accountId,
+      force
     );
 
     // Get last transaction timestamp from existing cache or new transactions
@@ -823,7 +843,8 @@ export async function processEtherscanAccount(
       etherscanApiKey,
       dataDir,
       startMonth,
-      endMonth
+      endMonth,
+      force
     );
 
     if (transactions.length === 0) {

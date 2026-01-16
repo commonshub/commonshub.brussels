@@ -125,6 +125,12 @@ npm run fetch-history -- --force
 
 The `--force` flag will re-fetch and overwrite cached transaction data even if it already exists.
 
+**What to expect when using `--force`:**
+- The script will fetch ALL transactions from the API, not just the current month
+- Cached data will be overwritten with fresh data from the API
+- Console output will show: `Force mode enabled: Will re-fetch all transactions`
+- This is useful for fixing corrupted data or after API configuration changes
+
 **Alternative: Manual deletion (if you prefer)**
 
 You can also delete the cache files manually before re-fetching:
