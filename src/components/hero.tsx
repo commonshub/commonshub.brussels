@@ -10,11 +10,10 @@ import { useState, useEffect } from "react";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const rotatingPhrases = [
-  "your community",
-  "building community",
-  "rediscovering the commons",
   "rebuilding the commons",
   "building relationships",
+  "building community",
+  "your community",
   "you",
 ];
 

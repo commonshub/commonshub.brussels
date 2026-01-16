@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Clock, Star, Rss, Mail } from "lucide-react";
 import Link from "next/link";
 import settings from "@/settings/settings.json";
+import { displayUrl } from "@/lib/utils";
 interface EventTag {
   name: string;
   color: string;
@@ -57,10 +58,17 @@ function EventCard({
   const isLarge = size === "large";
   const eventUrl = event.isExternal ? event.externalUrl : event.url;
 
-  // Get first 2 lines of description (roughly 150 chars)
+  // Helper function to shorten URLs in text
+  const shortenUrlsInText = (text: string): string => {
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    return text.replace(urlRegex, (url) => displayUrl(url, 40));
+  };
+
+  // Get first 2 lines of description (roughly 150 chars) and shorten any URLs
   const shortDescription = event.description
-    ? event.description.substring(0, 150).replace(/\n/g, " ").trim() +
-      (event.description.length > 150 ? "..." : "")
+    ? shortenUrlsInText(
+        event.description.substring(0, 150).replace(/\n/g, " ").trim()
+      ) + (event.description.length > 150 ? "..." : "")
     : "";
 
   return (
@@ -98,7 +106,7 @@ function EventCard({
           </div>
         </div>
         <CardHeader className="pb-2">
-          <CardTitle className={`${isLarge ? "text-xl" : ""} line-clamp-2`}>
+          <CardTitle className={`${isLarge ? "text-xl" : ""} line-clamp-2 break-words`}>
             {event.name}
           </CardTitle>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -107,9 +115,9 @@ function EventCard({
               {formatTime(event.start_at)}
             </span>
             {event.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
-                {event.location}
+              <span className="flex items-center gap-1 break-words">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="break-words">{event.location}</span>
               </span>
             )}
           </div>
@@ -139,7 +147,7 @@ function EventCard({
         </CardHeader>
         <CardContent className="pt-0">
           {shortDescription && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
+            <p className="text-sm text-muted-foreground line-clamp-2 break-words">
               {shortDescription}
             </p>
           )}
