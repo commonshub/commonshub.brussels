@@ -118,6 +118,7 @@ If the data directory is empty, the website will display a helpful empty data st
 
 - **[Deployment Guide](docs/deployment.md)** - Complete Docker deployment instructions
 - **[Webhook Setup](docs/WEBHOOK_SETUP.md)** - Automated deployment via GitHub webhooks
+- **[Fetching Transactions](docs/fetch-transactions.md)** - Guide to fetching and managing transaction data
 - **[CLAUDE.md](CLAUDE.md)** - Technical architecture and component documentation
 
 ## Project Structure
@@ -142,6 +143,7 @@ If the data directory is empty, the website will display a helpful empty data st
 | `npm run build` | Build for production (fetches recent data and generates files) |
 | `npm run fetch-recent` | Fetch current and previous month data + auto-generate files |
 | `npm run fetch-history` | Fetch all historical data + auto-generate files |
+| `npm run fetch-transactions` | Fetch transaction data only (supports `--month`, `--force` flags) |
 | `npm run generate-data` | Manually regenerate all aggregated data files |
 | `npm run restart` | Restart the systemd service |
 | `npm run logs` | View application logs (last 100 lines + follow) |

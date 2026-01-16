@@ -34,6 +34,7 @@ export interface TransactionCacheOptions {
   etherscanApiKey?: string;
   startMonth?: string; // Format: YYYY-MM (e.g., "2025-11")
   endMonth?: string; // Format: YYYY-MM (e.g., "2025-11")
+  force?: boolean; // Force re-fetch even if cache exists
 }
 
 /**
@@ -542,7 +543,8 @@ export function cacheTransactionsByMonth(
   currency?: string,
   startMonth?: string,
   endMonth?: string,
-  accountId?: string
+  accountId?: string,
+  force: boolean = false
 ): void {
   const currentMonth = getCurrentMonthKey();
 
@@ -596,8 +598,9 @@ export function cacheTransactionsByMonth(
       return;
     }
 
-    // Skip historical months that already have cache files (unless it's the current month)
+    // Skip historical months that already have cache files (unless it's the current month or force is enabled)
     if (
+      !force &&
       monthKey !== currentMonth &&
       cacheFileExists(
         monthKey,
@@ -672,7 +675,8 @@ export async function processStripeAccount(
   stripeSecretKey: string,
   dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
   startMonth?: string,
-  endMonth?: string
+  endMonth?: string,
+  force: boolean = false
 ): Promise<AccountData> {
   try {
     console.log(
@@ -695,7 +699,7 @@ export async function processStripeAccount(
     let lastTransactionTimestamp: number | null = null;
 
     if (transactions.length > 0) {
-      // Group by month and cache (skipping existing historical months)
+      // Group by month and cache (skipping existing historical months unless force is enabled)
       cacheTransactionsByMonth(
         account.slug,
         transactions,
@@ -707,7 +711,8 @@ export async function processStripeAccount(
         currency,
         startMonth,
         endMonth,
-        account.accountId
+        account.accountId,
+        force
       );
       lastTransactionTimestamp = transactions[0].created; // Already sorted by most recent first
     } else {
@@ -801,7 +806,8 @@ export async function processEtherscanAccount(
   etherscanApiKey: string,
   dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
   startMonth?: string,
-  endMonth?: string
+  endMonth?: string,
+  force: boolean = false
 ): Promise<AccountData> {
   try {
     console.log(
@@ -825,7 +831,7 @@ export async function processEtherscanAccount(
       return { slug: account.slug, balance: 0, lastTransactionTimestamp: null };
     }
 
-    // Group by month and cache (skipping existing historical months)
+    // Group by month and cache (skipping existing historical months unless force is enabled)
     cacheTransactionsByMonth(
       account.slug,
       transactions,
@@ -836,7 +842,9 @@ export async function processEtherscanAccount(
       account.token.symbol,
       undefined,
       startMonth,
-      endMonth
+      endMonth,
+      undefined,
+      force
     );
 
     // Get last transaction timestamp
@@ -928,6 +936,7 @@ export async function warmupTransactionCache(
     etherscanApiKey = process.env.ETHERSCAN_API_KEY,
     startMonth,
     endMonth,
+    force = false,
   } = options;
 
   try {
@@ -965,7 +974,8 @@ export async function warmupTransactionCache(
             stripeSecretKey,
             dataDir,
             startMonth,
-            endMonth
+            endMonth,
+            force
           );
           accountData.push({
             slug: result.slug,
@@ -989,7 +999,8 @@ export async function warmupTransactionCache(
             etherscanApiKey,
             dataDir,
             startMonth,
-            endMonth
+            endMonth,
+            force
           );
           accountData.push({
             slug: result.slug,

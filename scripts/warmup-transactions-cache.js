@@ -8,10 +8,19 @@
  * - Skips historical months that already have cache files
  * - Always fetches/updates the current month (new transactions may have occurred)
  * - Handles both Stripe and Etherscan accounts
+ * - Supports force mode to re-fetch cached data
  *
  * Usage:
  *   node scripts/warmup-transactions-cache.js
  *   node scripts/warmup-transactions-cache.js --month=2025-11
+ *   node scripts/warmup-transactions-cache.js --month=2025-11 --force
+ *   node scripts/warmup-transactions-cache.js --start-month=2024-01 --end-month=2024-12 --force
+ *
+ * Options:
+ *   --month=YYYY-MM        Fetch specific month
+ *   --start-month=YYYY-MM  Start of date range
+ *   --end-month=YYYY-MM    End of date range
+ *   --force                Force re-fetch even if cache exists
  *
  * Environment variables:
  *   STRIPE_SECRET_KEY - Your Stripe secret key (required for Stripe accounts)
@@ -32,6 +41,7 @@ function parseArgs() {
   const args = process.argv.slice(2);
   let startMonth = undefined;
   let endMonth = undefined;
+  let force = false;
 
   for (const arg of args) {
     if (arg.startsWith("--month=")) {
@@ -43,10 +53,12 @@ function parseArgs() {
       startMonth = arg.split("=")[1];
     } else if (arg.startsWith("--end-month=")) {
       endMonth = arg.split("=")[1];
+    } else if (arg === "--force") {
+      force = true;
     }
   }
 
-  return { startMonth, endMonth };
+  return { startMonth, endMonth, force };
 }
 
 /**
@@ -54,11 +66,15 @@ function parseArgs() {
  */
 async function main() {
   try {
-    const { startMonth, endMonth } = parseArgs();
+    const { startMonth, endMonth, force } = parseArgs();
     const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
     console.log("🚀 Starting transaction cache warmup...");
-    console.log(`📂 DATA_DIR: ${dataDir}\n`);
+    console.log(`📂 DATA_DIR: ${dataDir}`);
+    if (force) {
+      console.log(`⚠️  FORCE MODE: Will re-fetch all data even if cache exists`);
+    }
+    console.log("");
 
     await warmupTransactionCache({
       dataDir,
@@ -66,6 +82,7 @@ async function main() {
       etherscanApiKey: process.env.ETHERSCAN_API_KEY,
       startMonth,
       endMonth,
+      force,
     });
   } catch (error) {
     console.error("\n✗ Error during cache warmup:", error);

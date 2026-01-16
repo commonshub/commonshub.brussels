@@ -4,8 +4,10 @@
  *
  * Usage: node scripts/fetch-history.js
  *
- * Optional: Specify a date range
+ * Optional: Specify a date range or force re-fetch
  *   node scripts/fetch-history.js --start-month=2024-01 --end-month=2024-12
+ *   node scripts/fetch-history.js --force
+ *   node scripts/fetch-history.js --start-month=2024-01 --end-month=2024-12 --force
  */
 
 const { execSync } = require("child_process");
