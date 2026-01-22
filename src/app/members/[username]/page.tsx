@@ -125,41 +125,9 @@ interface MemberPageProps {
   params: Promise<{ username: string }>;
 }
 
-// Allow dynamic params (usernames not in the static list)
-export const dynamicParams = true;
+// Force dynamic rendering - required because root layout uses auth() which reads cookies
+export const dynamic = 'force-dynamic';
 
-// Generate static params for known members at build time
-export async function generateStaticParams() {
-  try {
-    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-    const contributorsPath = path.join(dataDir, "contributors.json");
-
-    console.log(`[generateStaticParams] Reading contributors from: ${contributorsPath}`);
-
-    if (!fs.existsSync(contributorsPath)) {
-      console.error(`[generateStaticParams] Contributors file not found`);
-      return [];
-    }
-
-    const contributorsData = fs.readFileSync(contributorsPath, "utf-8");
-    const data: DiscordData = JSON.parse(contributorsData);
-
-    console.log(
-      `[generateStaticParams] Generating static params for ${data.contributors.length} contributors`
-    );
-
-    // Generate params for all contributors
-    return data.contributors.map((contributor) => ({
-      username: contributor.username,
-    }));
-  } catch (error) {
-    console.error(
-      "[generateStaticParams] Error generating static params:",
-      error
-    );
-    return [];
-  }
-}
 
 export default async function MemberProfilePage({ params }: MemberPageProps) {
   const { username } = await params;
