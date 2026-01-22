@@ -30,8 +30,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install curl and su-exec (for entrypoint user switching)
-RUN apk add --no-cache curl su-exec
+# Install curl, git, and su-exec (for entrypoint user switching)
+RUN apk add --no-cache curl git su-exec
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
