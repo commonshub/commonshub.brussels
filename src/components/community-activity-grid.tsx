@@ -3,26 +3,25 @@
 import { useEffect, useState } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
+interface MonthData {
+  month: string
+  contributorCount: number
+  photoCount: number
+}
+
+interface YearData {
+  year: string
+  months: MonthData[]
+}
+
+interface ActivityGridData {
+  years: YearData[]
+}
+
 interface MonthlyActivity {
   month: string
-  uniqueContributors: number
-  discordContributors: number
-  tokenRecipients: number
+  contributorCount: number
   score: number
-  contributors: string[]
-}
-
-interface UserInfo {
-  id: string
-  username: string
-  displayName: string
-  avatar: string | null
-}
-
-interface CommunityActivityData {
-  monthlyActivity: MonthlyActivity[]
-  firstActivityDate: string | null
-  userMap: Record<string, UserInfo>
 }
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -32,7 +31,8 @@ interface CommunityActivityGridProps {
 }
 
 export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridProps) {
-  const [data, setData] = useState<CommunityActivityData | null>(null)
+  const [monthlyActivity, setMonthlyActivity] = useState<MonthlyActivity[]>([])
+  const [firstActivityDate, setFirstActivityDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
@@ -40,10 +40,30 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/community/activity`)
+        const res = await fetch(`/data/activitygrid.json`)
         if (!res.ok) throw new Error("Failed to fetch")
-        const json = await res.json()
-        setData(json)
+        const json: ActivityGridData = await res.json()
+
+        // Transform the data into monthly activity format
+        const activity: MonthlyActivity[] = []
+        let earliest: string | null = null
+
+        for (const yearData of json.years || []) {
+          for (const monthData of yearData.months || []) {
+            const monthKey = `${yearData.year}-${monthData.month}`
+            activity.push({
+              month: monthKey,
+              contributorCount: monthData.contributorCount,
+              score: monthData.contributorCount,
+            })
+            if (!earliest || monthKey < earliest) {
+              earliest = monthKey
+            }
+          }
+        }
+
+        setMonthlyActivity(activity)
+        setFirstActivityDate(earliest ? `${earliest}-01` : null)
       } catch (err) {
         setError("Could not load community activity data")
         console.error(err)
@@ -67,17 +87,11 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
     )
   }
 
-  if (error || !data) {
+  if (error || monthlyActivity.length === 0) {
     return null
   }
 
-  const hasActivity = data.monthlyActivity.length > 0
-
-  if (!hasActivity) {
-    return null
-  }
-
-  const activityMap = new Map(data.monthlyActivity.map((m) => [m.month, m]))
+  const activityMap = new Map(monthlyActivity.map((m) => [m.month, m]))
 
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -86,12 +100,12 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
   let startYear = currentYear
   let startMonth = 0
 
-  if (data.firstActivityDate) {
-    const firstDate = new Date(data.firstActivityDate)
+  if (firstActivityDate) {
+    const firstDate = new Date(firstActivityDate)
     startYear = firstDate.getFullYear()
     startMonth = firstDate.getMonth()
-  } else if (data.monthlyActivity.length > 0) {
-    const earliest = data.monthlyActivity[0].month
+  } else if (monthlyActivity.length > 0) {
+    const earliest = monthlyActivity[0].month
     const [y, m] = earliest.split("-").map(Number)
     startYear = y
     startMonth = m - 1
@@ -102,7 +116,7 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
     years.push(y)
   }
 
-  const maxScore = Math.max(...data.monthlyActivity.map((m) => m.score), 1)
+  const maxScore = Math.max(...monthlyActivity.map((m) => m.score), 1)
 
   const getIntensity = (score: number): string => {
     if (score === 0) return "bg-muted"
@@ -117,11 +131,8 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
     const newSelectedMonth = selectedMonth === monthKey ? null : monthKey
     setSelectedMonth(newSelectedMonth)
 
-    const activity = activityMap.get(monthKey)
-    const contributors = activity?.contributors || []
-
     if (onMonthSelect) {
-      onMonthSelect(newSelectedMonth, contributors)
+      onMonthSelect(newSelectedMonth, [])
     }
   }
 
@@ -144,9 +155,7 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
               {MONTH_LABELS.map((_, monthIndex) => {
                 const monthKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`
                 const activity = activityMap.get(monthKey)
-                const uniqueContributors = activity?.uniqueContributors || 0
-                const discordCount = activity?.discordContributors || 0
-                const tokenCount = activity?.tokenRecipients || 0
+                const contributorCount = activity?.contributorCount || 0
                 const score = activity?.score || 0
 
                 const isFuture = year > currentYear || (year === currentYear && monthIndex > currentMonth)
@@ -165,7 +174,7 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
                         className={`w-6 h-6 rounded cursor-pointer transition-all ${getIntensity(score)} ${
                           isSelected ? "ring-2 ring-primary ring-offset-2" : ""
                         }`}
-                        aria-label={`${MONTH_LABELS[monthIndex]} ${year}: ${uniqueContributors} contributors`}
+                        aria-label={`${MONTH_LABELS[monthIndex]} ${year}: ${contributorCount} contributors`}
                         onClick={() => handleMonthClick(monthKey)}
                       />
                     </TooltipTrigger>
@@ -176,7 +185,7 @@ export function CommunityActivityGrid({ onMonthSelect }: CommunityActivityGridPr
                         </p>
                         {score > 0 ? (
                           <p className="text-sm font-semibold mt-1">
-                            {uniqueContributors} contributor{uniqueContributors !== 1 ? "s" : ""}
+                            {contributorCount} contributor{contributorCount !== 1 ? "s" : ""}
                           </p>
                         ) : (
                           <p className="text-muted-foreground">No activity</p>

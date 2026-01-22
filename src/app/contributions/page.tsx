@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { DiscordImageGallery } from "@/components/discord-image-gallery"
 import { CommunityActivityGrid } from "@/components/community-activity-grid"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemberCard } from "@/components/member-card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
@@ -105,13 +105,15 @@ export default function ContributionsPage() {
 
   const displayedImages = useMemo(() => {
     if (!data || !data.images) return []
-    return selectedMonth
+    const filtered = selectedMonth
       ? data.images.filter(img => {
           const imgDate = new Date(img.timestamp)
           const imgMonth = `${imgDate.getFullYear()}-${String(imgDate.getMonth() + 1).padStart(2, '0')}`
           return imgMonth === selectedMonth
         })
       : data.images
+    // Limit to max 20 images
+    return filtered.slice(0, 24)
   }, [data, selectedMonth])
 
   const getTitle = () => {
@@ -174,30 +176,20 @@ export default function ContributionsPage() {
               <h2 className="text-xl font-semibold text-foreground mb-6">
                 {selectedMonth ? `Active in ${getTitle().replace('Contributions in ', '')}` : 'Active Contributors'}
               </h2>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
                 {displayedContributors.map((contributor) => (
-                  <Link
+                  <MemberCard
                     key={contributor.id}
-                    href={`/members/${contributor.username}`}
-                    className="flex flex-col items-center gap-2 group"
-                  >
-                    <div className="relative">
-                      <Avatar className="w-12 h-12 ring-2 ring-transparent group-hover:ring-primary/50 transition-all">
-                        <AvatarImage src={contributor.avatar || undefined} alt={contributor.displayName} />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                          {contributor.displayName.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      {contributor.contributionCount > 0 && (
-                        <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-background">
-                          {contributor.contributionCount}
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center truncate w-full">
-                      {contributor.displayName}
-                    </p>
-                  </Link>
+                    member={{
+                      id: contributor.id,
+                      username: contributor.username,
+                      displayName: contributor.displayName,
+                      avatar: contributor.avatar,
+                    }}
+                    size="sm"
+                    showTokens={false}
+                    showContributionCount={true}
+                  />
                 ))}
               </div>
             </div>

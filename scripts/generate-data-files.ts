@@ -418,29 +418,24 @@ function generateActivityGrid(): ActivityGridData {
         const messages = readDiscordMessages(year, month);
         const photos = getAllPhotos(messages);
 
-        // Get contributor count from monthly contributors.json file
-        let contributorCount = 0;
-        const contributorsPath = path.join(
-          DATA_DIR,
-          year,
-          month,
-          "contributors.json"
-        );
-        if (fs.existsSync(contributorsPath)) {
-          try {
-            const content = fs.readFileSync(contributorsPath, "utf-8");
-            const data = JSON.parse(content) as {
-              userCount?: number;
-              users?: Array<{ id: string }>;
-            };
-            contributorCount = data.userCount || data.users?.length || 0;
-          } catch (error) {
-            console.error(
-              `  ⚠️  Error reading ${year}/${month}/contributors.json:`,
-              error
-            );
+        // Count unique contributors from Discord messages
+        // Contributors are: message authors + mentioned users
+        const contributorIds = new Set<string>();
+        for (const message of messages) {
+          // Add message author
+          if (message.author?.id) {
+            contributorIds.add(message.author.id);
+          }
+          // Add mentioned users
+          if (message.mentions && Array.isArray(message.mentions)) {
+            for (const mention of message.mentions) {
+              if (mention.id) {
+                contributorIds.add(mention.id);
+              }
+            }
           }
         }
+        const contributorCount = contributorIds.size;
 
         yearData.months.push({
           month,

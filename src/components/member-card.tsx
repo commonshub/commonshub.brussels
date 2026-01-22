@@ -14,6 +14,7 @@ export interface MemberCardData {
   avatar: string | null;
   tokensReceived?: number;
   tokensSpent?: number;
+  contributionCount?: number;
   address?: string | null;
   description?: string;
   roles?: string[];
@@ -24,6 +25,7 @@ interface MemberCardProps {
   member: MemberCardData;
   size?: "sm" | "md" | "lg";
   showTokens?: boolean;
+  showContributionCount?: boolean;
 }
 
 function getAvatarUrl(avatar: string | null, userId: string): string {
@@ -35,7 +37,7 @@ function getAvatarUrl(avatar: string | null, userId: string): string {
   return `/api/image-proxy?url=${encodeURIComponent(url)}`;
 }
 
-export function MemberCard({ member, size = "md", showTokens = true }: MemberCardProps) {
+export function MemberCard({ member, size = "md", showTokens = true, showContributionCount = false }: MemberCardProps) {
   const [imageError, setImageError] = useState(false);
 
   const sizeClasses = {
@@ -63,8 +65,10 @@ export function MemberCard({ member, size = "md", showTokens = true }: MemberCar
   const displayName = member.displayName || member.username;
   const hasTokenActivity =
     showTokens &&
+    !showContributionCount &&
     ((member.tokensReceived !== undefined && member.tokensReceived > 0) ||
       (member.tokensSpent !== undefined && member.tokensSpent > 0));
+  const hasContributions = showContributionCount && member.contributionCount !== undefined && member.contributionCount > 0;
 
   // Get introduction/description
   const introduction =
@@ -80,22 +84,24 @@ export function MemberCard({ member, size = "md", showTokens = true }: MemberCar
           href={`/members/${member.username}`}
           className={`flex flex-col items-center gap-2 ${classes.container} rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group`}
         >
-          <div className={`relative ${classes.avatar} rounded-full overflow-hidden bg-muted`}>
-            {!imageError ? (
-              <Image
-                src={getAvatarUrl(member.avatar, member.id)}
-                alt={displayName}
-                fill
-                className="object-cover"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <Avatar className={classes.avatar}>
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {displayName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            )}
+          <div className="relative">
+            <div className={`relative ${classes.avatar} rounded-full overflow-hidden bg-muted`}>
+              {!imageError ? (
+                <Image
+                  src={getAvatarUrl(member.avatar, member.id)}
+                  alt={displayName}
+                  fill
+                  className="object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <Avatar className={classes.avatar}>
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
           </div>
           <div className="text-center w-full space-y-1">
             <p className={`${classes.name} font-medium truncate px-1`}>{displayName}</p>
@@ -147,23 +153,31 @@ export function MemberCard({ member, size = "md", showTokens = true }: MemberCar
               </div>
             )}
 
-            {hasTokenActivity && (
-              <div className="pt-1 border-t border-border">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Tokens:</span>
-                  <div className="flex items-center gap-2">
-                    {member.tokensReceived !== undefined && member.tokensReceived > 0 && (
-                      <span className="text-green-600 font-medium">
-                        +{Math.round(member.tokensReceived)}
-                      </span>
-                    )}
-                    {member.tokensSpent !== undefined && member.tokensSpent > 0 && (
-                      <span className="text-orange-600 font-medium">
-                        -{Math.round(member.tokensSpent)}
-                      </span>
-                    )}
+            {(hasTokenActivity || hasContributions) && (
+              <div className="pt-1 border-t border-border space-y-1">
+                {hasContributions && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Contributions:</span>
+                    <span className="font-medium">{member.contributionCount}</span>
                   </div>
-                </div>
+                )}
+                {hasTokenActivity && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Tokens:</span>
+                    <div className="flex items-center gap-2">
+                      {member.tokensReceived !== undefined && member.tokensReceived > 0 && (
+                        <span className="text-green-600 font-medium">
+                          +{Math.round(member.tokensReceived)}
+                        </span>
+                      )}
+                      {member.tokensSpent !== undefined && member.tokensSpent > 0 && (
+                        <span className="text-orange-600 font-medium">
+                          -{Math.round(member.tokensSpent)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
