@@ -30,12 +30,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install curl
-RUN apk add --no-cache curl
+# Install curl and su-exec (for entrypoint user switching)
+RUN apk add --no-cache curl su-exec
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Copy necessary files
 COPY --from=builder /app/public ./public
@@ -53,14 +57,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 
 # Create data directory with proper permissions
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
-
-USER nextjs
+RUN mkdir -p /data && chown nextjs:nodejs /data
 
 EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Use entrypoint to fix /data permissions then switch to nextjs user
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start the application
 CMD ["node", "server.js"]
