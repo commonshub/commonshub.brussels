@@ -998,6 +998,51 @@ async function generateContributors(): Promise<number> {
       }
     }
 
+    // Also check introduction messages from all time to get accurate joinedAt
+    const introductionsChannelId = settings.discord.channels.introductions;
+    const allYears = getAvailableYears().filter((y) => /^\d{4}$/.test(y));
+
+    for (const year of allYears) {
+      const months = getAvailableMonths(year);
+      for (const month of months) {
+        const introsPath = path.join(
+          DATA_DIR,
+          year,
+          month,
+          "discord",
+          introductionsChannelId,
+          "messages.json"
+        );
+
+        if (!fs.existsSync(introsPath)) continue;
+
+        try {
+          const content = fs.readFileSync(introsPath, "utf-8");
+          const data = JSON.parse(content) as { messages: CachedMessage[] };
+
+          for (const message of data.messages || []) {
+            if (isDeletedUser(message.author)) continue;
+            if (message.author.username.toLowerCase().includes("bot")) continue;
+
+            const authorId = message.author.id;
+            const existing = contributorMap.get(authorId);
+
+            if (existing) {
+              // Update joinedAt if this introduction is earlier
+              if (
+                !existing.joinedAt ||
+                new Date(message.timestamp) < new Date(existing.joinedAt)
+              ) {
+                existing.joinedAt = message.timestamp;
+              }
+            }
+          }
+        } catch (error) {
+          // Silently skip errors reading introduction files
+        }
+      }
+    }
+
     // Fetch guild members to get guild-specific profiles
     let guildMemberMap: Map<string, any> = new Map();
     let totalMembers = 0;
@@ -1167,7 +1212,7 @@ async function generateUserProfiles() {
         imagesByMonth: {},
       };
 
-      // Determine the start date (when they joined)
+      // Determine the start date (when they joined) - used for contributions/images only
       const joinedDate = contributor.joinedAt
         ? new Date(contributor.joinedAt)
         : null;
@@ -1179,20 +1224,13 @@ async function generateUserProfiles() {
         const months = getAvailableMonths(year);
 
         for (const month of months) {
-          // Skip months before they joined
-          if (joinedDate) {
-            const monthDate = new Date(`${year}-${month}-01`);
-            if (
-              monthDate <
-              new Date(joinedDate.getFullYear(), joinedDate.getMonth(), 1)
-            ) {
-              continue;
-            }
-          }
-
           const yearMonthKey = `${year}-${month}`;
+          const monthDate = new Date(`${year}-${month}-01`);
 
-          // Process introductions
+          // Check if this month is before joinedAt (for contributions/images filtering)
+          const isBeforeJoined = joinedDate && monthDate < new Date(joinedDate.getFullYear(), joinedDate.getMonth(), 1);
+
+          // Process introductions (always, regardless of joinedAt - someone might introduce themselves before contributing)
           const introsPath = path.join(
             DATA_DIR,
             year,
@@ -1219,6 +1257,11 @@ async function generateUserProfiles() {
                 channelId: introductionsChannelId,
               });
             }
+          }
+
+          // Skip contributions and images for months before they joined
+          if (isBeforeJoined) {
+            continue;
           }
 
           // Process contributions
