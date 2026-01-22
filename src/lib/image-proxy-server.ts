@@ -3,8 +3,8 @@ import path from "path";
 import sharp from "sharp";
 import { NextResponse } from "next/server";
 
-// Cache images for 24 hours
-export const CACHE_DURATION = 60 * 60 * 24;
+// Cache images for 30 days
+export const CACHE_DURATION = 60 * 60 * 24 * 30;
 
 // Size configurations
 export const SIZE_CONFIG = {

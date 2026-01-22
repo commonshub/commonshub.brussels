@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, Star, Rss, Mail } from "lucide-react";
+import { Calendar, MapPin, Star, Rss, Mail } from "lucide-react";
 import Link from "next/link";
 import settings from "@/settings/settings.json";
 import { displayUrl } from "@/lib/utils";
@@ -101,51 +101,47 @@ function EventCard({
               <Calendar className="w-12 h-12 text-primary/40" />
             </div>
           )}
-          <div className="absolute top-4 left-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-            {formatDate(event.start_at)}
+          <div className="absolute top-4 left-4 flex flex-col items-start gap-2">
+            <div className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+              {formatDate(event.start_at)} · {formatTime(event.start_at)}
+            </div>
+            {event.tags && event.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {event.tags
+                  .filter((tag) => tag.name.toLowerCase() !== "featured")
+                  .map((tag) => (
+                    <span
+                      key={tag.name}
+                      className="px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-80 shadow-sm"
+                      style={{
+                        backgroundColor: tag.color || "#6b7280",
+                        color: isLightColor(tag.color) ? "#000" : "#fff",
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onTagClick(tag.name);
+                      }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
-        <CardHeader className="pb-2">
+        <CardHeader className="py-3 pb-0">
           <CardTitle className={`${isLarge ? "text-xl" : ""} line-clamp-2 break-words`}>
             {event.name}
           </CardTitle>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              {formatTime(event.start_at)}
-            </span>
-            {event.location && (
-              <span className="flex items-center gap-1 break-words">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span className="break-words">{event.location}</span>
-              </span>
-            )}
-          </div>
-          {event.tags && event.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {event.tags
-                .filter((tag) => tag.name.toLowerCase() !== "featured")
-                .map((tag) => (
-                  <span
-                    key={tag.name}
-                    className="px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-80"
-                    style={{
-                      backgroundColor: tag.color || "#6b7280",
-                      color: isLightColor(tag.color) ? "#000" : "#fff",
-                    }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onTagClick(tag.name);
-                    }}
-                  >
-                    {tag.name}
-                  </span>
-                ))}
+          {event.location && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              <span className="break-words">{event.location}</span>
             </div>
           )}
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-1 pb-3">
           {shortDescription && (
             <p className="text-sm text-muted-foreground line-clamp-2 break-words">
               {shortDescription}

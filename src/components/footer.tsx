@@ -29,14 +29,6 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="/#about"
-                  className="text-background/70 hover:text-background transition-colors text-sm"
-                >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/#events"
                   className="text-background/70 hover:text-background transition-colors text-sm"
                 >
@@ -61,10 +53,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/membership"
+                  href="/members"
                   className="text-background/70 hover:text-background transition-colors text-sm"
                 >
-                  Membership
+                  Community
                 </Link>
               </li>
               <li>
@@ -73,6 +65,25 @@ export function Footer() {
                   className="text-background/70 hover:text-background transition-colors text-sm"
                 >
                   Finances
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="https://paragraph.com/@commonshub_bxl?modal=subscribe"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-background/70 hover:text-background transition-colors text-sm"
+                >
+                  Newsletter
+                </a>
+              </li>
+
+              <li>
+                <Link
+                  href="/#about"
+                  className="text-background/70 hover:text-background transition-colors text-sm"
+                >
+                  About
                 </Link>
               </li>
               <li>

@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 export function EconomySection() {
   return (
-    <section id="economy" className="py-20 bg-background">
+    <section id="economy" className="py-20 bg-primary/5">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">

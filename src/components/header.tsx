@@ -52,7 +52,15 @@ export function Header() {
               href="/members"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              Members
+              Community
+            </Link>
+            <Link
+              href="https://paragraph.com/@commonshub_bxl?modal=subscribe"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Newsletter
             </Link>
             <Link
               href="/contact"
@@ -110,7 +118,16 @@ export function Header() {
               className="text-muted-foreground hover:text-foreground transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Members
+              Community
+            </Link>
+            <Link
+              href="https://paragraph.com/@commonshub_bxl?modal=subscribe"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Newsletter
             </Link>
             <Link
               href="#footer"
@@ -192,7 +209,7 @@ export function Header() {
                 </div>
               ) : (
                 <Button
-                  variant="default"
+                  variant="outline"
                   className="w-full"
                   onClick={() => signIn("discord")}
                 >
