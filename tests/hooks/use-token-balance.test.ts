@@ -7,14 +7,10 @@
 
 import { describe, test, expect, jest, beforeEach } from "@jest/globals"
 import { renderHook, waitFor } from "@testing-library/react"
-
-// Mock next-auth before importing the hook
-jest.mock("next-auth/react", () => ({
-  useSession: jest.fn(),
-}))
-
 import { useTokenBalance } from "../../src/hooks/use-token-balance"
 import { useSession } from "next-auth/react"
+
+// next-auth/react is mocked globally in jest.setup.js
 
 describe("useTokenBalance", () => {
   const mockDiscordId = "123456789"

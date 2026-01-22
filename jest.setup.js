@@ -1,5 +1,17 @@
 import "@testing-library/jest-dom";
 
+// Mock next-auth/react globally to avoid ESM import issues
+jest.mock("next-auth/react", () => ({
+  useSession: jest.fn(() => ({
+    data: null,
+    status: "unauthenticated",
+    update: jest.fn(),
+  })),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  SessionProvider: ({ children }) => children,
+}));
+
 // Polyfill fetch for Node.js test environment
 // jest-environment-jsdom should provide fetch, but ensure it's available
 if (typeof global.fetch === "undefined") {

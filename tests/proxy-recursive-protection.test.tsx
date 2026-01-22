@@ -1,18 +1,24 @@
 /**
- * @jest-environment jsdom
+ * @jest-environment node
  */
 /**
  * Test to ensure image proxy rejects recursive proxying attempts
+ * Tests the route handler directly without requiring a running server
  */
+
+import { GET } from "../src/app/api/image-proxy/route";
+import { NextRequest } from "next/server";
 
 describe("Image Proxy Recursive Protection", () => {
   it("should reject discord-proxy URLs being passed to image-proxy", async () => {
     const proxyUrl =
       "http://localhost:3000/api/discord-image-proxy?channelId=123&messageId=456&attachmentId=789&timestamp=20251127";
 
-    const response = await fetch(
+    const request = new NextRequest(
       `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(proxyUrl)}`
     );
+
+    const response = await GET(request);
 
     expect(response.status).toBe(400);
     const data = await response.json();
@@ -23,9 +29,11 @@ describe("Image Proxy Recursive Protection", () => {
     const proxyUrl =
       "http://localhost:3000/api/image-proxy?url=https://example.com/image.jpg";
 
-    const response = await fetch(
+    const request = new NextRequest(
       `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(proxyUrl)}`
     );
+
+    const response = await GET(request);
 
     expect(response.status).toBe(400);
     const data = await response.json();

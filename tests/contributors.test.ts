@@ -41,19 +41,19 @@ describe("Contributors Data", () => {
     expect(xdamman?.profile.name).toBe("Xavier");
   });
 
-  test("contributors are sorted by token count", () => {
+  test("contributors are sorted by tokens received (tokens.in)", () => {
     const content = fs.readFileSync(contributorsPath, "utf-8");
     const data: ContributorsFile = JSON.parse(content);
 
-    // Get contributors with tokens
+    // Get contributors with tokens received
     const contributorsWithTokens = data.contributors.filter(
-      (c) => c.tokens.out > 0
+      (c) => c.tokens.in > 0
     );
 
-    // Check that they're sorted descending by tokens.out
+    // Check that they're sorted descending by tokens.in (tokens received)
     for (let i = 0; i < contributorsWithTokens.length - 1; i++) {
-      expect(contributorsWithTokens[i].tokens.out).toBeGreaterThanOrEqual(
-        contributorsWithTokens[i + 1].tokens.out
+      expect(contributorsWithTokens[i].tokens.in).toBeGreaterThanOrEqual(
+        contributorsWithTokens[i + 1].tokens.in
       );
     }
   });

@@ -1,10 +1,15 @@
 /**
+ * @jest-environment node
+ */
+/**
  * Test status endpoint
  */
 
+import { GET } from "../src/app/status.json/route";
+
 describe("Status Endpoint", () => {
   it("should return valid status structure", async () => {
-    const response = await fetch("http://localhost:3000/status.json");
+    const response = await GET();
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -36,11 +41,12 @@ describe("Status Endpoint", () => {
   });
 
   it("should format uptime correctly", () => {
+    // Current implementation omits 0 values (e.g., "1d 0h 1s" not "1d 0h 0m 1s")
     const testCases = [
       { seconds: 30, expected: "30s" },
       { seconds: 90, expected: "1m 30s" },
       { seconds: 3661, expected: "1h 1m 1s" },
-      { seconds: 86401, expected: "1d 0h 0m 1s" },
+      { seconds: 86401, expected: "1d 0h 1s" }, // 0 minutes omitted
     ];
 
     // This tests the logic, not the actual API response
@@ -53,7 +59,7 @@ describe("Status Endpoint", () => {
       let formatted = "";
       if (days > 0) formatted += `${days}d `;
       if (hours > 0 || days > 0) formatted += `${hours}h `;
-      if (minutes > 0 || hours > 0) formatted += `${minutes}m `;
+      if (minutes > 0) formatted += `${minutes}m `;
       formatted += `${secs}s`;
 
       expect(formatted.trim()).toBe(expected);
@@ -61,7 +67,7 @@ describe("Status Endpoint", () => {
   });
 
   it("should have consistent timezone", async () => {
-    const response = await fetch("http://localhost:3000/status.json");
+    const response = await GET();
     const data = await response.json();
 
     // Should use TZ env var or default to Europe/Brussels

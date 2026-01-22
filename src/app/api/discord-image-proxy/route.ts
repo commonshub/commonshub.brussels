@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
+    const dataDir = path.resolve(process.env.DATA_DIR || path.join(process.cwd(), "data"));
 
     // Try to find the image file
     // We need to check for the file extension since we don't know it from the parameters
