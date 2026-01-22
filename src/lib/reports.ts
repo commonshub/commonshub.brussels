@@ -171,6 +171,110 @@ export function getAvailableMonths(year: string, excludeFuture: boolean = false)
 // ========== Discord Data Functions ==========
 
 /**
+ * Read photos from pre-generated yearly images.json file
+ * These files are created by generate-data-files.ts and contain all photos for the year
+ */
+export function readYearlyImages(year: string): PopularPhoto[] {
+  const imagesPath = path.join(DATA_DIR, year, "images.json");
+
+  if (!fs.existsSync(imagesPath)) {
+    return [];
+  }
+
+  try {
+    const content = fs.readFileSync(imagesPath, "utf-8");
+    const data = JSON.parse(content) as {
+      images: Array<{
+        url: string;
+        proxyUrl: string;
+        id: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatar: string | null;
+        };
+        reactions: Array<{ emoji: string; count: number; me?: boolean }>;
+        totalReactions: number;
+        message: string;
+        timestamp: string;
+        channelId: string;
+        messageId: string;
+      }>;
+    };
+
+    // Map to PopularPhoto format (remove 'me' from reactions)
+    return (data.images || []).map((img) => ({
+      url: img.url,
+      proxyUrl: img.proxyUrl,
+      id: img.id,
+      author: img.author,
+      reactions: img.reactions.map((r) => ({ emoji: r.emoji, count: r.count })),
+      totalReactions: img.totalReactions,
+      message: img.message,
+      timestamp: img.timestamp,
+      channelId: img.channelId,
+      messageId: img.messageId,
+    }));
+  } catch (error) {
+    console.error(`Error reading yearly images.json for ${year}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Read photos from pre-generated images.json file for a specific month
+ * These files are created by generate-data-files.ts and contain processed photo data
+ */
+export function readGeneratedImages(year: string, month: string): PopularPhoto[] {
+  const imagesPath = path.join(DATA_DIR, year, month, "discord", "images.json");
+
+  if (!fs.existsSync(imagesPath)) {
+    return [];
+  }
+
+  try {
+    const content = fs.readFileSync(imagesPath, "utf-8");
+    const data = JSON.parse(content) as {
+      images: Array<{
+        url: string;
+        proxyUrl: string;
+        id: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatar: string | null;
+        };
+        reactions: Array<{ emoji: string; count: number; me?: boolean }>;
+        totalReactions: number;
+        message: string;
+        timestamp: string;
+        channelId: string;
+        messageId: string;
+      }>;
+    };
+
+    // Map to PopularPhoto format (remove 'me' from reactions)
+    return (data.images || []).map((img) => ({
+      url: img.url,
+      proxyUrl: img.proxyUrl,
+      id: img.id,
+      author: img.author,
+      reactions: img.reactions.map((r) => ({ emoji: r.emoji, count: r.count })),
+      totalReactions: img.totalReactions,
+      message: img.message,
+      timestamp: img.timestamp,
+      channelId: img.channelId,
+      messageId: img.messageId,
+    }));
+  } catch (error) {
+    console.error(`Error reading images.json for ${year}-${month}:`, error);
+    return [];
+  }
+}
+
+/**
  * Read all Discord messages for a specific month
  */
 export function readDiscordMessages(
@@ -1000,7 +1104,7 @@ export function getMonthlyReportData(
 ): MonthlyReportData {
   const messages = readDiscordMessages(year, month);
   const activeMembers = getActiveMembers(messages);
-  const photos = getPopularPhotos(messages);
+  const photos = getPopularPhotos(messages, 12, { relative: true });
   const financials = calculateMonthlyFinancials(year, month);
 
   // Merge user token data and sort by tokens received (descending)
@@ -1071,7 +1175,6 @@ export function getYearlyReportData(year: string): YearlyReportData {
   }
 
   // Aggregate data from all months
-  const allMessages: CachedMessage[] = [];
   const monthlyBreakdown: Array<{
     month: string;
     income: number;
@@ -1116,12 +1219,22 @@ export function getYearlyReportData(year: string): YearlyReportData {
     }
   }
 
-  for (const month of months) {
-    // Get messages for photos
-    const messages = readDiscordMessages(year, month);
-    allMessages.push(...messages);
+  // Get photos from pre-generated yearly images.json (created by generate-data-files.ts)
+  // This file contains all photos for the year, already sorted by reactions
+  let allPhotos = readYearlyImages(year);
 
-    // Get financials for monthly breakdown
+  // Fallback: if yearly file doesn't exist, collect from monthly files
+  if (allPhotos.length === 0) {
+    for (const month of months) {
+      const monthPhotos = readGeneratedImages(year, month);
+      allPhotos.push(...monthPhotos);
+    }
+    // Sort by reactions if we loaded from monthly files
+    allPhotos.sort((a, b) => b.totalReactions - a.totalReactions);
+  }
+
+  // Collect financials for each month
+  for (const month of months) {
     const financials = calculateMonthlyFinancials(year, month);
     totalIncome += financials.income;
     totalExpenses += financials.expenses;
@@ -1141,16 +1254,14 @@ export function getYearlyReportData(year: string): YearlyReportData {
     });
   }
 
-  // Get active members and popular photos from all messages
-  const activeMembers = getActiveMembers(allMessages);
+  // Build active members from contributors data (already collected above)
+  const activeMembers = {
+    count: yearlyActiveMembers.size,
+    users: [] as UserInfo[], // Users are loaded separately if needed
+  };
 
-  // Override count with aggregated unique users from monthly contributors.json files
-  activeMembers.count =
-    yearlyActiveMembers.size > 0
-      ? yearlyActiveMembers.size
-      : activeMembers.count;
-
-  const photos = getPopularPhotos(allMessages, 24); // More photos for yearly
+  // Take top 24 photos
+  const photos = allPhotos.slice(0, 24);
 
   return {
     year,

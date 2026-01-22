@@ -28,8 +28,8 @@ export async function GET(
     // Get all Discord messages for the month
     const messages = readDiscordMessages(year, month);
 
-    // Get all photos in chronological order
-    const photos = getAllPhotos(messages);
+    // Get all photos in chronological order (use relative URLs)
+    const photos = getAllPhotos(messages, { relative: true });
 
     // Get active members for userMap
     const activeMembers = getActiveMembers(messages);

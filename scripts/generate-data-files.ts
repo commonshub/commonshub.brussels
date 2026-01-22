@@ -394,6 +394,57 @@ function getAllChannelIds(): string[] {
 }
 
 /**
+ * Generate yearly images.json by aggregating all monthly images
+ * Creates data/{year}/images.json with top images sorted by reactions
+ */
+function generateYearlyImages(year: string): number {
+  const months = getAvailableMonths(year).sort();
+  const allImages: any[] = [];
+
+  for (const month of months) {
+    const imagesPath = path.join(DATA_DIR, year, month, "discord", "images.json");
+
+    if (!fs.existsSync(imagesPath)) continue;
+
+    try {
+      const content = fs.readFileSync(imagesPath, "utf-8");
+      const data = JSON.parse(content) as { images: any[] };
+
+      if (data.images && Array.isArray(data.images)) {
+        allImages.push(...data.images);
+      }
+    } catch (error) {
+      console.error(`  ⚠️  Error reading ${year}/${month}/discord/images.json:`, error);
+    }
+  }
+
+  if (allImages.length === 0) {
+    return 0;
+  }
+
+  // Sort by totalReactions descending
+  allImages.sort((a, b) => (b.totalReactions || 0) - (a.totalReactions || 0));
+
+  // Write yearly images file
+  const outputPath = path.join(DATA_DIR, year, "images.json");
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(
+    outputPath,
+    JSON.stringify(
+      {
+        year,
+        count: allImages.length,
+        images: allImages,
+      },
+      null,
+      2
+    )
+  );
+
+  return allImages.length;
+}
+
+/**
  * Generate activity grid data for all time (excluding "latest")
  */
 function generateActivityGrid(): ActivityGridData {
@@ -1602,6 +1653,18 @@ async function main() {
   console.log(
     `  ✓ Generated ${totalMonths} monthly images.json file(s) with ${totalImages} total images\n`
   );
+
+  // Generate yearly images.json files (aggregating monthly images)
+  console.log("📸 Generating yearly images.json files...");
+  for (const year of years) {
+    if (!/^\d{4}$/.test(year)) continue; // Only numeric years
+
+    const yearlyImageCount = generateYearlyImages(year);
+    if (yearlyImageCount > 0) {
+      console.log(`  ✓ ${year}: ${yearlyImageCount} image(s)`);
+    }
+  }
+  console.log();
 
   // Generate monthly contributors.json files
   console.log("👥 Generating monthly contributors.json files...");

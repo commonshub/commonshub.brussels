@@ -54,8 +54,8 @@ export async function GET(
     // Collect all messages from all months
     const allMessages = months.flatMap((month) => readDiscordMessages(year, month));
 
-    // Get all photos in chronological order
-    const allPhotos = getAllPhotos(allMessages);
+    // Get all photos in chronological order (use relative URLs)
+    const allPhotos = getAllPhotos(allMessages, { relative: true });
 
     // Filter photos based on user session and visibility rules
     const photos = filterVisiblePhotos(allPhotos, allMessages, userSession);
