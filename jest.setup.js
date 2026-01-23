@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom";
+import path from "path";
+
+// Set DATA_DIR to tests/data for all tests
+process.env.DATA_DIR = path.join(process.cwd(), "tests/data");
 
 // Mock next-auth/react globally to avoid ESM import issues
 jest.mock("next-auth/react", () => ({

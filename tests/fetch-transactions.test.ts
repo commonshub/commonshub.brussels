@@ -12,11 +12,14 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Skip these tests in CI when API keys are not available
+const hasApiKeys = Boolean(process.env.STRIPE_SECRET_KEY || process.env.ETHERSCAN_API_KEY);
+
 describe("Transaction Fetching Tests", () => {
   const testDataDir = path.join(process.cwd(), "tests", "data");
   const testMonth = "2025-11";
 
-  test("fetches transactions for 2025/11 and stores in correct structure", async () => {
+  (hasApiKeys ? test : test.skip)("fetches transactions for 2025/11 and stores in correct structure", async () => {
     console.log("\n🧪 Fetching test transactions for 2025/11");
     console.log(`📁 Test data directory: ${testDataDir}`);
 
@@ -88,11 +91,16 @@ describe("Transaction Fetching Tests", () => {
 
       const parts = fileName.replace(".json", "").split(".");
 
-      // New structure supports two formats:
-      // 1. In chain directory (e.g., gnosis/): wallet-name.token.json (2 parts)
-      // 2. In wallet directory (e.g., savings/): 0xAddress.token.chain.json (3 parts)
+      // New structure supports multiple formats:
+      // 1. Token aggregate file (e.g., celo/): CHT.json (1 part - just token symbol)
+      // 2. In chain directory (e.g., gnosis/): wallet-name.token.json (2 parts)
+      // 3. In wallet directory (e.g., savings/): 0xAddress.token.chain.json (3 parts)
 
-      if (parts.length === 2) {
+      if (parts.length === 1) {
+        // Format: TOKEN.json (token aggregate file)
+        const [tokenSymbol] = parts;
+        expect(tokenSymbol).toBeTruthy();
+      } else if (parts.length === 2) {
         // Format: wallet-name.token.json (chain is directory name)
         const [walletName, tokenSymbol] = parts;
         expect(walletName).toBeTruthy();
@@ -105,7 +113,7 @@ describe("Transaction Fetching Tests", () => {
         expect(chain).toBeTruthy();
       } else {
         // Invalid format
-        fail(`Invalid filename format: ${fileName} (${parts.length} parts)`);
+        throw new Error(`Invalid filename format: ${fileName} (${parts.length} parts)`);
       }
     });
 

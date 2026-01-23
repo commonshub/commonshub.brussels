@@ -12,10 +12,10 @@ const dmSans = DM_Sans({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Commons Hub Brussels | Community Space",
+  title: "Commons Hub Brussels",
   description:
-    "A collaborative space in Brussels for communities to gather, create, and grow together. Book our space or become a member today.",
-  generator: "v0.app",
+    "A common space for your community to meet, dream and work. A space to rediscover the commons. Come visit us in front of Central Station.",
+  generator: "xavier@commonshub.brussels",
   icons: {
     icon: [
       {
