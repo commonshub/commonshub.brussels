@@ -59,7 +59,7 @@ export function CommunityActivityGallery({
   console.log(
     ">>> Loading image: ",
     `/data/latest/discord/${channelId}/images.json`,
-    data?.images[0].filePath
+    data?.images?.[0]?.filePath
   );
   // Map images to ActivityImage format
   const allImages: ActivityImage[] = (data?.images || []).map((image) => ({

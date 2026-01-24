@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Building2, Users } from "lucide-react";
-import { Gamepad2, Home, Coins, Calendar } from "lucide-react";
+import { Gamepad2, Home, Coins, Calendar, CheckCircle } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
 const membershipBenefits = [
@@ -92,7 +92,10 @@ export function MembershipJoinSection() {
   const [euroContribution, setEuroContribution] = useState<number | null>(null);
   const [timeContribution, setTimeContribution] = useState<string | null>(null);
   const [otherNotes, setOtherNotes] = useState("");
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleNeed = (needId: string) => {
     setSelectedNeeds((prev) =>
@@ -105,20 +108,62 @@ export function MembershipJoinSection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
 
-    // TODO: Submit to API
-    console.log({
-      memberType,
+    // Build the plan string
+    const planLabel = memberType === "individual"
+      ? `Individual - €${euroContribution}/month`
+      : memberType === "community"
+        ? `Community - €${euroContribution}/year`
+        : `Organisation - €${euroContribution}/year`;
+
+    // Build motivation/notes including all collected information
+    const needsLabels = selectedNeeds.map(id =>
+      needsOptions.find(opt => opt.id === id)?.label
+    ).filter(Boolean);
+
+    const motivationParts = [];
+    if (needsLabels.length > 0) {
+      motivationParts.push(`**Needs:**\n${needsLabels.map(n => `- ${n}`).join("\n")}`);
+    }
+    if (timeContribution && timeContribution !== "0") {
+      motivationParts.push(`**Time contribution:** ${timeContribution}`);
+    }
+    if (memberType !== "individual" && numberOfPeople) {
+      motivationParts.push(`**Number of people:** ${numberOfPeople}`);
+    }
+    if (otherNotes) {
+      motivationParts.push(`**Additional notes:**\n${otherNotes}`);
+    }
+
+    const motivation = motivationParts.join("\n\n") || "No additional information provided.";
+
+    const data = {
       name,
-      website,
-      numberOfPeople,
-      selectedNeeds,
-      euroContribution,
-      timeContribution,
-      otherNotes,
-    });
+      organisation: memberType !== "individual" ? (website || name) : "",
+      email,
+      plan: planLabel,
+      motivation,
+    };
 
-    setIsSubmitting(false);
+    try {
+      const response = await fetch("/api/membership-application", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Failed to submit application");
+      }
+
+      setIsSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred. Please try again or email us at hello@commonshub.brussels");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const currentTiers = memberType === "individual" ? individualTiers : orgTiers;
@@ -150,6 +195,31 @@ export function MembershipJoinSection() {
           </ul>
         </div>
 
+        {isSuccess ? (
+          <div className="py-12 text-center">
+            <CheckCircle className="w-20 h-20 text-primary mx-auto mb-6" />
+            <h2 className="text-3xl font-bold mb-4">Application Submitted!</h2>
+            <p className="text-lg text-muted-foreground max-w-md mx-auto">
+              Thank you for your interest in joining Commons Hub Brussels. We will review your application and get back to you soon.
+            </p>
+            <Button
+              className="mt-8"
+              onClick={() => {
+                setIsSuccess(false);
+                setName("");
+                setEmail("");
+                setWebsite("");
+                setNumberOfPeople("");
+                setSelectedNeeds([]);
+                setEuroContribution(null);
+                setTimeContribution(null);
+                setOtherNotes("");
+              }}
+            >
+              Submit another application
+            </Button>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit}>
           {/* Member type selector */}
           <div className="mb-10">
@@ -220,6 +290,19 @@ export function MembershipJoinSection() {
                         ? "Awesome Community"
                         : "Company Inc."
                   }
+                  className="mt-1.5"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
                   className="mt-1.5"
                   required
                 />
@@ -356,18 +439,32 @@ export function MembershipJoinSection() {
             </CardContent>
           </Card>
 
+          {/* Error message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-center">
+              <p>{error}</p>
+              <p className="mt-2 text-sm">
+                You can also email us directly at{" "}
+                <a href="mailto:hello@commonshub.brussels" className="underline">
+                  hello@commonshub.brussels
+                </a>
+              </p>
+            </div>
+          )}
+
           {/* Submit */}
           <div className="text-center">
             <Button
               type="submit"
               size="lg"
               className="cursor-pointer"
-              disabled={isSubmitting || !name || !euroContribution}
+              disabled={isSubmitting || !name || !email || !euroContribution}
             >
               {isSubmitting ? "Submitting..." : "Apply to become a member"}
             </Button>
           </div>
         </form>
+        )}
 
         {/* Not sure yet */}
         <div className="mt-20">
