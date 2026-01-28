@@ -57,6 +57,23 @@
       ]
     },
     {
+      "id": "playroom",
+      "name": "Playroom",
+      "slug": "playroom",
+      "capacity": 10,
+      "description": "A fun and playful space perfect for a great kicker game! ⚽️",
+      "shortDescription": "Perfect for a great kicker game! ⚽️",
+      "pricePerHour": 25,
+      "tokensPerHour": 1,
+      "heroImage": "/images/playroom.jpg",
+      "features": [],
+      "idealFor": [
+        "Fun",
+        "Killing time",
+        "Team building"
+      ]
+    },
+    {
       "id": "angel",
       "name": "Angel Room",
       "slug": "angel",

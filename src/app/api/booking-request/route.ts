@@ -1,21 +1,22 @@
-import { Resend } from "resend"
-import { NextResponse } from "next/server"
-import { createDiscordThread } from "@/lib/discord"
-import settings from "@/settings/settings.json"
+import { Resend } from "resend";
+import { NextResponse } from "next/server";
+import { createDiscordThread } from "@/lib/discord";
+import settings from "@/settings/settings.json";
 
 const roomNames: Record<string, string> = {
   mush: "Mush Room",
   angel: "Angel Room",
   satoshi: "Satoshi Room",
   ostrom: "Ostrom Room",
-}
+  playroom: "Playroom",
+};
 
 export async function POST(request: Request) {
   try {
     // Initialize Resend client at runtime, not at build time
-    const resend = new Resend(process.env.RESEND_API_KEY)
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const data = await request.json()
+    const data = await request.json();
 
     const {
       name,
@@ -32,9 +33,9 @@ export async function POST(request: Request) {
       snacks,
       isPrivate,
       additionalNotes,
-    } = data
+    } = data;
 
-    const roomName = roomNames[room] || room
+    const roomName = roomNames[room] || room;
     const formattedDate = new Date(dateTime).toLocaleString("en-BE", {
       weekday: "long",
       year: "numeric",
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
+    });
 
     const options = [
       projector && "Projector",
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       facilitationKit && "Facilitation kit (post-its, pens, flipchart)",
       coffeeTea && "Coffee/Tea",
       snacks && "Snacks",
-    ].filter(Boolean)
+    ].filter(Boolean);
 
     // Email to Commons Hub
     await resend.emails.send({
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
             : ""
         }
       `,
-    })
+    });
 
     // Confirmation email to the requester
     await resend.emails.send({
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
         
         <p>Best regards,<br>The Commons Hub Brussels Team</p>
       `,
-    })
+    });
 
     const discordContent = `📅 **New Booking Request**
 ${isPrivate ? "🔒 **PRIVATE** - to be handled by paid staff" : "🌐 Public request - can be picked up by community members"}
@@ -142,13 +143,20 @@ ${isPrivate ? "🔒 **PRIVATE** - to be handled by paid staff" : "🌐 Public re
 **Date:** ${formattedDate}
 **Duration:** ${duration} hour(s)
 ${options.length > 0 ? `**Options:** ${options.join(", ")}` : ""}
-${additionalNotes ? `**Notes:** ${additionalNotes}` : ""}`
+${additionalNotes ? `**Notes:** ${additionalNotes}` : ""}`;
 
-    await createDiscordThread(settings.discord.channels.requests, `🏠 Booking: ${roomName} - ${name}`, discordContent)
+    await createDiscordThread(
+      settings.discord.channels.requests,
+      `🏠 Booking: ${roomName} - ${name}`,
+      discordContent,
+    );
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error sending booking request:", error)
-    return NextResponse.json({ error: "Failed to send booking request" }, { status: 500 })
+    console.error("Error sending booking request:", error);
+    return NextResponse.json(
+      { error: "Failed to send booking request" },
+      { status: 500 },
+    );
   }
 }
