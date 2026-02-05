@@ -17,6 +17,7 @@
     "fetch-calendars": "tsx scripts/fetch-calendars.ts",
     "generate-events": "tsx scripts/generate-events.ts",
     "generate-md": "tsx scripts/generate-md-files.ts",
+    "migrate-discord-to-channels": "tsx scripts/migrate-discord-to-channels.ts",
     "fetch-users": "tsx scripts/warmup-users-cache.ts",
     "fetch-monerium": "tsx scripts/fetch-monerium.ts",
     "lint": "eslint .",
