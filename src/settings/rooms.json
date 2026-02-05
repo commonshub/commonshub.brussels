@@ -177,7 +177,10 @@
       "pricePerHour": 25,
       "tokensPerHour": 1,
       "heroImage": "/images/playroom.jpg",
-      "features": [],
+      "features": [
+        "Kicker table",
+        "Kicker balls"
+      ],
       "idealFor": [
         "Fun",
         "Killing time",
