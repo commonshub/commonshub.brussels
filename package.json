@@ -16,6 +16,7 @@
     "generate-transactions": "tsx scripts/generate-transactions.ts",
     "fetch-calendars": "tsx scripts/fetch-calendars.ts",
     "generate-events": "tsx scripts/generate-events.ts",
+    "generate-md": "tsx scripts/generate-md-files.ts",
     "fetch-users": "tsx scripts/warmup-users-cache.ts",
     "fetch-monerium": "tsx scripts/fetch-monerium.ts",
     "lint": "eslint .",

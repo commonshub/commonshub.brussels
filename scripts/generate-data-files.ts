@@ -1741,6 +1741,15 @@ async function main() {
   }
   console.log();
 
+  // Generate LLM-friendly markdown files (must run after events generation)
+  console.log("📝 Generating LLM-friendly markdown files...");
+  try {
+    execSync("tsx scripts/generate-md-files.ts", { stdio: "inherit" });
+  } catch (error) {
+    console.error("⚠️  Error generating markdown files:", error);
+  }
+  console.log();
+
   console.log("\n" + "=".repeat(60));
   console.log("✅ All data generation completed successfully!");
   console.log("=".repeat(60));

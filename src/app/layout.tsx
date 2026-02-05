@@ -47,6 +47,12 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <link rel="help" href="/llms.txt" type="text/plain" title="LLM-friendly site overview" />
+        <link rel="alternate" href="/about.md" type="text/markdown" title="About Commons Hub Brussels" />
+        <link rel="alternate" href="/events.md" type="text/markdown" title="Upcoming Events" />
+        <link rel="alternate" href="/rooms.md" type="text/markdown" title="Available Rooms" />
+      </head>
       <body className={`font-sans antialiased`}>
         <SessionProvider session={session}>
           <Header />

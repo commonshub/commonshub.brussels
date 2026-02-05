@@ -204,9 +204,9 @@ export default function EconomyPage() {
               Every contribution counts
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-8 text-center max-w-3xl mx-auto">
-              Every contribution is also welcome. Members can just share them in
-              the #contributions channel on Discord. They are reviewed every
-              week during our Heartbeat Meeting and people receive tokens.
+              Share your contribution in the #contributions channel on our
+              Discord. We review them every week during our Heartbeat Meeting to
+              allocate extra tokens.
             </p>
             <CommunityActivityGallery channelId="1297965144579637248" />
           </div>

@@ -390,12 +390,31 @@ async function main() {
   console.log(`Token: ${CHT_CONFIG.symbol} (${CHT_CONFIG.name})`);
   console.log(`Chain: ${CHT_CONFIG.chain} (chainId: ${CHT_CONFIG.chainId})\n`);
 
-  // Check if specific year/month provided
+  // Parse command line arguments
   const args = process.argv.slice(2);
+  const flagArgs = args.filter((a) => a.startsWith("--"));
+  const positionalArgs = args.filter(
+    (a) => !a.startsWith("--")
+  );
 
-  if (args.length >= 2) {
-    // Process specific month
-    const [year, month] = args;
+  let startMonth: string | null = null;
+  let endMonth: string | null = null;
+
+  for (const arg of flagArgs) {
+    if (arg.startsWith("--month=")) {
+      const m = arg.split("=")[1];
+      startMonth = m;
+      endMonth = m;
+    } else if (arg.startsWith("--start-month=")) {
+      startMonth = arg.split("=")[1];
+    } else if (arg.startsWith("--end-month=")) {
+      endMonth = arg.split("=")[1];
+    }
+  }
+
+  // Support positional args: warmup-users-cache.ts [year] [month]
+  if (!startMonth && !endMonth && positionalArgs.length >= 2) {
+    const [year, month] = positionalArgs;
     const success = await processMonth(year, month);
 
     if (success) {
@@ -405,49 +424,61 @@ async function main() {
       console.log("\n⚠️  Completed with errors (see above)");
       process.exit(0);
     }
-  } else {
-    // Process all existing months
-    const months = getExistingMonths();
-
-    if (months.length === 0) {
-      console.log("⚠️  No months with Discord data found in data/");
-      return;
-    }
-
-    console.log(`📊 Found ${months.length} months to process`);
-
-    let successCount = 0;
-    let skippedCount = 0;
-
-    for (const monthKey of months) {
-      const [year, month] = monthKey.split("-");
-
-      // Check if already exists
-      const contributorsFile = path.join(
-        DATA_DIR,
-        year,
-        month,
-        "contributors.json"
-      );
-      if (fs.existsSync(contributorsFile)) {
-        skippedCount++;
-        continue;
-      }
-
-      const success = await processMonth(year, month);
-      if (success) {
-        successCount++;
-      }
-    }
-
-    console.log("\n" + "=".repeat(50));
-    console.log(`📊 Summary:`);
-    console.log(`  ✓ Processed: ${successCount}`);
-    console.log(`  ⏭️  Skipped (already cached): ${skippedCount}`);
-    console.log(`  📁 Total months: ${months.length}`);
-    console.log("=".repeat(50));
-    console.log("\n✅ Done!");
+    return;
   }
+
+  // Process months (filtered by range if provided)
+  const months = getExistingMonths();
+
+  if (months.length === 0) {
+    console.log("⚠️  No months with Discord data found in data/");
+    return;
+  }
+
+  const filteredMonths = months.filter((monthKey) => {
+    if (startMonth && monthKey < startMonth) return false;
+    if (endMonth && monthKey > endMonth) return false;
+    return true;
+  });
+
+  if (startMonth || endMonth) {
+    console.log(
+      `📅 Month filter: ${startMonth || "any"} to ${endMonth || "any"}`
+    );
+  }
+  console.log(`📊 Found ${filteredMonths.length} months to process`);
+
+  let successCount = 0;
+  let skippedCount = 0;
+
+  for (const monthKey of filteredMonths) {
+    const [year, month] = monthKey.split("-");
+
+    // Check if already exists
+    const contributorsFile = path.join(
+      DATA_DIR,
+      year,
+      month,
+      "contributors.json"
+    );
+    if (fs.existsSync(contributorsFile)) {
+      skippedCount++;
+      continue;
+    }
+
+    const success = await processMonth(year, month);
+    if (success) {
+      successCount++;
+    }
+  }
+
+  console.log("\n" + "=".repeat(50));
+  console.log(`📊 Summary:`);
+  console.log(`  ✓ Processed: ${successCount}`);
+  console.log(`  ⏭️  Skipped (already cached): ${skippedCount}`);
+  console.log(`  📁 Total months: ${filteredMonths.length}`);
+  console.log("=".repeat(50));
+  console.log("\n✅ Done!");
 }
 
 // Run the script

@@ -240,12 +240,31 @@ async function main() {
     `Rate limit: 3 requests/second with automatic retry on failure\n`
   );
 
-  // Check if specific year/month provided
+  // Parse command line arguments
   const args = process.argv.slice(2);
+  const flagArgs = args.filter((a) => a.startsWith("--"));
+  const positionalArgs = args.filter(
+    (a) => !a.startsWith("--")
+  );
 
-  if (args.length >= 2) {
-    // Fetch specific month
-    const [year, month] = args;
+  let startMonth: string | null = null;
+  let endMonth: string | null = null;
+
+  for (const arg of flagArgs) {
+    if (arg.startsWith("--month=")) {
+      const m = arg.split("=")[1];
+      startMonth = m;
+      endMonth = m;
+    } else if (arg.startsWith("--start-month=")) {
+      startMonth = arg.split("=")[1];
+    } else if (arg.startsWith("--end-month=")) {
+      endMonth = arg.split("=")[1];
+    }
+  }
+
+  // Support positional args: fetch-cht-tokens.ts [year] [month]
+  if (!startMonth && !endMonth && positionalArgs.length >= 2) {
+    const [year, month] = positionalArgs;
     const success = await fetchCHTForMonth(year, month, apiKey);
 
     if (success) {
@@ -253,45 +272,55 @@ async function main() {
       process.exit(0);
     } else {
       console.log("\n⚠️  Completed with errors (see above)");
-      process.exit(0); // Exit with 0 to not fail build
+      process.exit(0);
     }
-  } else {
-    // Fetch all existing months
-    const months = getExistingMonths();
-
-    if (months.length === 0) {
-      console.log("⚠️  No existing month directories found in data/");
-      return;
-    }
-
-    console.log(`📊 Found ${months.length} months to process`);
-
-    let successCount = 0;
-    let failureCount = 0;
-
-    for (const monthKey of months) {
-      const [year, month] = monthKey.split("-");
-      const success = await fetchCHTForMonth(year, month, apiKey);
-
-      if (success) {
-        successCount++;
-      } else {
-        failureCount++;
-      }
-
-      // No need for manual delay - rate limiting is handled automatically
-    }
-
-    console.log("\n" + "=".repeat(50));
-    console.log(`📊 Summary:`);
-    console.log(`  ✓ Successful: ${successCount}/${months.length}`);
-    if (failureCount > 0) {
-      console.log(`  ✗ Failed: ${failureCount}/${months.length}`);
-      console.log(`  ⚠️  Some months failed but build continues`);
-    }
-    console.log("=".repeat(50));
-    console.log("\n✅ Done!");
+    return;
   }
+
+  // Fetch months (filtered by range if provided)
+  const months = getExistingMonths();
+
+  if (months.length === 0) {
+    console.log("⚠️  No existing month directories found in data/");
+    return;
+  }
+
+  const filteredMonths = months.filter((monthKey) => {
+    if (startMonth && monthKey < startMonth) return false;
+    if (endMonth && monthKey > endMonth) return false;
+    return true;
+  });
+
+  if (startMonth || endMonth) {
+    console.log(
+      `📅 Month filter: ${startMonth || "any"} to ${endMonth || "any"}`
+    );
+  }
+  console.log(`📊 Found ${filteredMonths.length} months to process`);
+
+  let successCount = 0;
+  let failureCount = 0;
+
+  for (const monthKey of filteredMonths) {
+    const [year, month] = monthKey.split("-");
+    const success = await fetchCHTForMonth(year, month, apiKey);
+
+    if (success) {
+      successCount++;
+    } else {
+      failureCount++;
+    }
+  }
+
+  console.log("\n" + "=".repeat(50));
+  console.log(`📊 Summary:`);
+  console.log(`  ✓ Successful: ${successCount}/${filteredMonths.length}`);
+  if (failureCount > 0) {
+    console.log(`  ✗ Failed: ${failureCount}/${filteredMonths.length}`);
+    console.log(`  ⚠️  Some months failed but build continues`);
+  }
+  console.log("=".repeat(50));
+  console.log("\n✅ Done!");
 }
 
 // Run the script
