@@ -9,8 +9,9 @@ import {
   type CachedMessage,
 } from "@/lib/discord-cache"
 import settings from "@/settings/settings.json"
+import roomsData from "@/settings/rooms.json"
 
-// Get all channel IDs from settings
+// Get all channel IDs from settings and rooms
 function getAllChannelIds(): string[] {
   const channelIds = new Set<string>()
   const channels = settings.discord.channels
@@ -21,9 +22,11 @@ function getAllChannelIds(): string[] {
   if (channels.requests) channelIds.add(channels.requests)
   if (channels.contributions) channelIds.add(channels.contributions)
 
-  // Add room channels
-  if (channels.rooms) {
-    Object.values(channels.rooms).forEach((id) => channelIds.add(id))
+  // Add room channels from rooms.json
+  for (const room of roomsData.rooms) {
+    if (room.discordChannelId) {
+      channelIds.add(room.discordChannelId)
+    }
   }
 
   // Add activity channels

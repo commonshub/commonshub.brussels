@@ -13,10 +13,10 @@ import {
  * Image Proxy API - Handles both local data paths and external image URLs
  *
  * Query parameters:
- * - url: Image URL or local path (e.g., /data/2025/11/discord/images/123.jpg) (required)
+ * - url: Image URL or local path (e.g., /data/2025/11/channels/discord/images/123.jpg) (required)
  * - size: Optional size parameter (xs|sm|md|lg) for resizing
  *
- * Example: /api/image-proxy?url=/data/2025/11/discord/images/123.jpg&size=sm
+ * Example: /api/image-proxy?url=/data/2025/11/channels/discord/images/123.jpg&size=sm
  * Example: /api/image-proxy?url=https://example.com/image.jpg&size=md
  */
 export async function GET(request: NextRequest) {

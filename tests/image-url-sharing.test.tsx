@@ -16,7 +16,7 @@ describe("Image URL Sharing", () => {
     const imagesPath = path.join(
       DATA_DIR,
       "latest",
-      "discord",
+      "channels", "discord",
       OSTROM_CHANNEL_ID,
       "images.json"
     );
@@ -40,7 +40,7 @@ describe("Image URL Sharing", () => {
     const imagesPath = path.join(
       DATA_DIR,
       "latest",
-      "discord",
+      "channels", "discord",
       OSTROM_CHANNEL_ID,
       "images.json"
     );
@@ -60,7 +60,7 @@ describe("Image URL Sharing", () => {
     const imagesPath = path.join(
       DATA_DIR,
       "latest",
-      "discord",
+      "channels", "discord",
       OSTROM_CHANNEL_ID,
       "images.json"
     );
@@ -81,7 +81,7 @@ describe("Image URL Sharing", () => {
     const imagesPath = path.join(
       DATA_DIR,
       "latest",
-      "discord",
+      "channels", "discord",
       OSTROM_CHANNEL_ID,
       "images.json"
     );

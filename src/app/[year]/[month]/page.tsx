@@ -91,7 +91,7 @@ export default function MonthlyReportPage() {
 
     // Fetch images and report data in parallel
     Promise.all([
-      fetch(`/data/${year}/${month}/discord/images.json`),
+      fetch(`/data/${year}/${month}/channels/discord/images.json`),
       fetch(`/api/reports/${year}/${month}`)
     ])
       .then(async ([imagesRes, reportRes]) => {

@@ -29,6 +29,7 @@ import {
   getCacheStats,
 } from "../src/lib/discord-cache.ts";
 import settings from "../src/settings/settings.json" with { type: "json" };
+import roomsData from "../src/settings/rooms.json" with { type: "json" };
 
 dotenv.config();
 
@@ -81,9 +82,11 @@ function getAllChannelIds() {
   if (channels.requests) channelIds.add(channels.requests);
   if (channels.contributions) channelIds.add(channels.contributions);
 
-  // Add room channels
-  if (channels.rooms) {
-    Object.values(channels.rooms).forEach((id) => channelIds.add(id));
+  // Add room channels from rooms.json
+  for (const room of roomsData.rooms) {
+    if (room.discordChannelId) {
+      channelIds.add(room.discordChannelId);
+    }
   }
 
   // Add activity channels
@@ -105,10 +108,10 @@ function getChannelName(channelId) {
     if (id === channelId) return name;
   }
 
-  // Check room channels
-  if (channels.rooms) {
-    for (const [name, id] of Object.entries(channels.rooms)) {
-      if (id === channelId) return `rooms/${name}`;
+  // Check room channels from rooms.json
+  for (const room of roomsData.rooms) {
+    if (room.discordChannelId === channelId) {
+      return `rooms/${room.id}`;
     }
   }
 
@@ -142,7 +145,7 @@ async function downloadImage(url, attachmentId, year, month) {
     const filename = `${attachmentId}${ext}`;
 
     // Create images directory if it doesn't exist
-    const imagesDir = path.join(DATA_DIR, year, month, "discord", "images");
+    const imagesDir = path.join(DATA_DIR, year, month, "channels", "discord", "images");
     if (!fs.existsSync(imagesDir)) {
       fs.mkdirSync(imagesDir, { recursive: true });
     }
@@ -286,7 +289,7 @@ async function refetchAndDownloadImagesForMonth(
  * Check if images folder exists and has images for a given month
  */
 function hasImagesForMonth(year, month) {
-  const imagesDir = path.join(DATA_DIR, year, month, "discord", "images");
+  const imagesDir = path.join(DATA_DIR, year, month, "channels", "discord", "images");
   if (!fs.existsSync(imagesDir)) return false;
 
   // Check if directory has any files
@@ -536,11 +539,11 @@ async function fetchLatestMessages(channelId, channelName) {
     // Transform to cached message format and download images
     const cachedMessages = [];
     for (const msg of messages) {
-      // Download images to latest/discord/images (no month subfolder)
+      // Download images to latest/channels/discord/images (no month subfolder)
       await downloadAttachmentImages(
         msg.attachments || [],
         "latest",
-        "discord"
+        ""
       );
 
       cachedMessages.push({
@@ -585,7 +588,7 @@ async function fetchLatestMessages(channelId, channelName) {
     }
 
     // Save to data/latest/discord/{channelId}/messages.json (no month subfolder)
-    const dirPath = path.join(DATA_DIR, "latest", "discord", channelId);
+    const dirPath = path.join(DATA_DIR, "latest", "channels", "discord", channelId);
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
@@ -600,7 +603,7 @@ async function fetchLatestMessages(channelId, channelName) {
 
     fs.writeFileSync(filePath, JSON.stringify(cache, null, 2), "utf-8");
     console.log(
-      `  💾 Saved ${cachedMessages.length} messages to latest/discord/${channelId}/messages.json`
+      `  💾 Saved ${cachedMessages.length} messages to latest/channels/discord/${channelId}/messages.json`
     );
 
     return cachedMessages.length;
@@ -665,35 +668,32 @@ async function main() {
   let latestSuccessCount = 0;
   let latestErrorCount = 0;
 
-  if (!startMonth && !endMonth) {
-    console.log("=".repeat(60));
-    console.log("📌 Fetching latest 100 messages for all channels...");
-    console.log("=".repeat(60));
+  // Always fetch latest 100 messages (cheap operation, independent of month range)
+  console.log("=".repeat(60));
+  console.log("📌 Fetching latest 100 messages for all channels...");
+  console.log("=".repeat(60));
 
-    for (const channelId of channelIds) {
-      const channelName = getChannelName(channelId);
-      try {
-        const count = await fetchLatestMessages(channelId, channelName);
-        latestMessagesCount += count;
-        latestSuccessCount++;
-      } catch (error) {
-        console.error(
-          `❌ Failed to fetch latest messages for ${channelName}:`,
-          error
-        );
-        latestErrorCount++;
-      }
+  for (const channelId of channelIds) {
+    const channelName = getChannelName(channelId);
+    try {
+      const count = await fetchLatestMessages(channelId, channelName);
+      latestMessagesCount += count;
+      latestSuccessCount++;
+    } catch (error) {
+      console.error(
+        `❌ Failed to fetch latest messages for ${channelName}:`,
+        error
+      );
+      latestErrorCount++;
     }
-
-    console.log("\n" + "=".repeat(60));
-    console.log("📊 Latest Messages Summary:");
-    console.log(`  ✓ Successfully processed: ${latestSuccessCount} channel(s)`);
-    console.log(`  ❌ Errors: ${latestErrorCount} channel(s)`);
-    console.log(`  📥 Total latest messages cached: ${latestMessagesCount}`);
-    console.log("=".repeat(60));
-  } else {
-    console.log("⊘ Skipping latest messages (month filter is set)\n");
   }
+
+  console.log("\n" + "=".repeat(60));
+  console.log("📊 Latest Messages Summary:");
+  console.log(`  ✓ Successfully processed: ${latestSuccessCount} channel(s)`);
+  console.log(`  ❌ Errors: ${latestErrorCount} channel(s)`);
+  console.log(`  📥 Total latest messages cached: ${latestMessagesCount}`);
+  console.log("=".repeat(60));
 
   // Then, fetch historical messages
   console.log("\n" + "=".repeat(60));

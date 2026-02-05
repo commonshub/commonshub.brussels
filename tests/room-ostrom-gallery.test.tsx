@@ -18,7 +18,7 @@ describe("Ostrom Room Gallery", () => {
     const imagesPath = path.join(
       DATA_DIR,
       "latest",
-      "discord",
+      "channels", "discord",
       OSTROM_CHANNEL_ID,
       "images.json"
     );
@@ -41,7 +41,7 @@ describe("Ostrom Room Gallery", () => {
     const imagesPath = path.join(
       DATA_DIR,
       "latest",
-      "discord",
+      "channels", "discord",
       OSTROM_CHANNEL_ID,
       "images.json"
     );
@@ -65,15 +65,17 @@ describe("Ostrom Room Gallery", () => {
   });
 
   it("should generate images.json for all room channels", () => {
-    const settings = require("../src/settings/settings.json");
-    const roomChannels = settings.discord.channels.rooms;
+    const roomsData = require("../src/settings/rooms.json");
 
-    for (const [roomId, channelId] of Object.entries(roomChannels)) {
+    for (const room of roomsData.rooms) {
+      const channelId = room.discordChannelId;
+      if (!channelId) continue;
+
       const messagesPath = path.join(
         DATA_DIR,
         "latest",
-        "discord",
-        channelId as string,
+        "channels", "discord",
+        channelId,
         "messages.json"
       );
 
@@ -96,8 +98,8 @@ describe("Ostrom Room Gallery", () => {
           const imagesPath = path.join(
             DATA_DIR,
             "latest",
-            "discord",
-            channelId as string,
+            "channels", "discord",
+            channelId,
             "images.json"
           );
 

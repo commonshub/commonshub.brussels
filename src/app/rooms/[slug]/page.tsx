@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import roomsData from "@/settings/rooms.json";
 import { RoomBookingForm } from "@/components/room-booking-form";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
-import settings from "@/settings/settings.json";
 interface RoomPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -35,7 +34,6 @@ export async function generateMetadata({ params }: RoomPageProps) {
 export default async function RoomPage({ params }: RoomPageProps) {
   const { slug } = await params;
   const room = roomsData.rooms.find((r) => r.slug === slug);
-  const channelId = settings.discord.channels.rooms[room.id];
   if (!room) {
     notFound();
   }
@@ -144,7 +142,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
                     gatherings in this space.
                   </p>
                   <CommunityActivityGallery
-                    channelId={channelId}
+                    channelId={room.discordChannelId}
                     maxImages={18}
                   />
                 </div>

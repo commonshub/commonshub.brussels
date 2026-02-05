@@ -452,8 +452,8 @@ async function downloadImage(
     // Clean up eventId - remove @events.lu.ma
     const cleanEventId = eventId.replace(/@events\.lu\.ma$/, "");
 
-    // Create source-specific images directory
-    const imagesDir = path.join(DATA_DIR, year, month, source, "images");
+    // Create source-specific images directory under calendars/
+    const imagesDir = path.join(DATA_DIR, year, month, "calendars", source, "images");
     if (!fs.existsSync(imagesDir)) {
       fs.mkdirSync(imagesDir, { recursive: true });
     }
@@ -465,7 +465,7 @@ async function downloadImage(
     fs.writeFileSync(filepath, Buffer.from(buffer));
 
     // Return relative path from data directory
-    return `/${year}/${month}/${source}/images/${filename}`;
+    return `/${year}/${month}/calendars/${source}/images/${filename}`;
   } catch (error) {
     console.error(`Error downloading image from ${actualUrl}:`, error);
     return actualUrl; // Fallback to original URL
@@ -968,6 +968,63 @@ async function generateYearlyEventsCSV(year: string): Promise<void> {
 }
 
 /**
+ * Copy directory recursively
+ */
+function copyDirRecursive(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Generate latest events.json and calendars/ directory
+ * Copies the most recent month's data to data/latest/
+ */
+async function generateLatestEvents(): Promise<void> {
+  console.log("\n📌 Generating latest/events.json...");
+
+  // Find the most recent month with events.json
+  const months = getAllMonths().reverse(); // newest first
+
+  for (const { year, month } of months) {
+    const eventsPath = path.join(DATA_DIR, year, month, "events.json");
+    if (fs.existsSync(eventsPath)) {
+      const latestDir = path.join(DATA_DIR, "latest");
+
+      // Copy events.json
+      fs.mkdirSync(latestDir, { recursive: true });
+      fs.copyFileSync(eventsPath, path.join(latestDir, "events.json"));
+
+      // Copy calendars/ directory for image references
+      const srcCalendars = path.join(DATA_DIR, year, month, "calendars");
+      const dstCalendars = path.join(latestDir, "calendars");
+      if (fs.existsSync(srcCalendars)) {
+        // Remove old latest calendars and copy fresh
+        if (fs.existsSync(dstCalendars)) {
+          fs.rmSync(dstCalendars, { recursive: true });
+        }
+        copyDirRecursive(srcCalendars, dstCalendars);
+      }
+
+      console.log(`  ✓ Generated latest/events.json from ${year}-${month}`);
+      return;
+    }
+  }
+
+  console.log("  ⚠️  No events.json found in any month directory");
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -990,6 +1047,9 @@ async function main() {
     await generateYearlyEvents(year);
     await generateYearlyEventsCSV(year);
   }
+
+  // Generate latest events.json and calendars/
+  await generateLatestEvents();
 
   console.log("\n✓ Events generation complete!");
 }

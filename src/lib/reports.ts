@@ -227,7 +227,7 @@ export function readYearlyImages(year: string): PopularPhoto[] {
  * These files are created by generate-data-files.ts and contain processed photo data
  */
 export function readGeneratedImages(year: string, month: string): PopularPhoto[] {
-  const imagesPath = path.join(DATA_DIR, year, month, "discord", "images.json");
+  const imagesPath = path.join(DATA_DIR, year, month, "channels", "discord", "images.json");
 
   if (!fs.existsSync(imagesPath)) {
     return [];
@@ -281,7 +281,7 @@ export function readDiscordMessages(
   year: string,
   month: string
 ): CachedMessage[] {
-  const discordDir = path.join(DATA_DIR, year, month, "discord");
+  const discordDir = path.join(DATA_DIR, year, month, "channels", "discord");
 
   if (!fs.existsSync(discordDir)) {
     return [];

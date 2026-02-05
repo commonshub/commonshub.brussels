@@ -10,6 +10,7 @@ import * as https from "https";
 import * as http from "http";
 import ical from "node-ical";
 import settings from "../src/settings/settings.json";
+import roomsData from "../src/settings/rooms.json";
 import { getAllCalendarEvents } from "../src/lib/luma";
 import ogs from "open-graph-scraper";
 
@@ -69,6 +70,15 @@ function downloadImage(url: string, filepath: string): Promise<void> {
         reject(err);
       });
   });
+}
+
+/**
+ * Construct Google Calendar ICS URL from calendar ID
+ */
+function getGoogleCalendarUrl(calendarId: string): string {
+  // URL-encode the calendar ID (it may contain @ and other special chars)
+  const encodedId = encodeURIComponent(calendarId);
+  return `https://calendar.google.com/calendar/ical/${encodedId}/public/basic.ics`;
 }
 
 /**
@@ -611,6 +621,23 @@ async function main() {
 
   if (googleIcsUrl) {
     await fetchAndSplitCalendarURL(googleIcsUrl, "Google");
+  }
+
+  // Fetch room calendars from rooms.json
+  const roomsWithCalendars = roomsData.rooms.filter(
+    (room) => room.googleCalendarId
+  );
+
+  if (roomsWithCalendars.length > 0) {
+    console.log(`\nFetching ${roomsWithCalendars.length} room calendar(s)...`);
+
+    for (const room of roomsWithCalendars) {
+      if (room.googleCalendarId) {
+        const calendarUrl = getGoogleCalendarUrl(room.googleCalendarId);
+        // Use room slug as the calendar name so it saves as {roomSlug}.ics
+        await fetchAndSplitCalendarURL(calendarUrl, room.slug);
+      }
+    }
   }
 
   // Fetch and split main iCal feed by month (if configured)

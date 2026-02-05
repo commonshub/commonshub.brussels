@@ -112,7 +112,7 @@ export default async function MonthlyContributionsPage({ params }: PageProps) {
 
   try {
     // Read images from static file
-    const imagesPath = path.join(dataDir, year, month, "discord", "images.json")
+    const imagesPath = path.join(dataDir, year, month, "channels", "discord", "images.json")
     if (!fs.existsSync(imagesPath)) {
       throw new Error(`Images file not found: ${imagesPath}`)
     }

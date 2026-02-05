@@ -9,7 +9,7 @@
 Our largest and most versatile space, named after Nobel laureate Elinor Ostrom. Perfect for events, big circles, panels, fishbowls, facilitation workshops, and community gatherings.
 
 - **Capacity**: Up to 80 people
-- **Price**: 100 EUR/hour
+- **Price**: 100 EUR/hour + VAT
 - **Token price**: 3 CHT/hour
 - **Features**: Flexible seating arrangements, Large windows with natural light, Sound system with speakers, TV/Monitor for presentations, Colorful floor cushions, Indoor plants, Air conditioning
 - **Ideal for**: Large community events, Workshops and trainings, Panel discussions, Fishbowl conversations, Dance and movement, Ceremonies and celebrations
@@ -22,7 +22,7 @@ Our largest and most versatile space, named after Nobel laureate Elinor Ostrom. 
 A professional meeting room named after Bitcoin's mysterious creator. Ideal for focused meetings, strategy sessions, and collaborative work.
 
 - **Capacity**: Up to 15 people
-- **Price**: 50 EUR/hour
+- **Price**: 50 EUR/hour + VAT
 - **Token price**: 1.5 CHT/hour
 - **Features**: Long conference table, Comfortable office chairs, Flipchart stand, TV/Monitor, Whiteboard, Natural light, Indoor plants
 - **Ideal for**: Board meetings, Strategy sessions, Team meetings, Workshops (up to 15 people), Presentations, Video conferences
@@ -35,7 +35,7 @@ A professional meeting room named after Bitcoin's mysterious creator. Ideal for 
 A cozy and intimate space perfect for circle conversations, small workshops, and community gatherings. Features comfortable seating and a warm atmosphere.
 
 - **Capacity**: Up to 12 people
-- **Price**: 35 EUR/hour
+- **Price**: 35 EUR/hour + VAT
 - **Token price**: 1 CHT/hour
 - **Features**: Rattan lounge chairs, Scandinavian-style seating, Colorful geometric rug, Multiple indoor plants, Natural light, Cozy atmosphere
 - **Ideal for**: Circle conversations, Small group facilitation, Intimate workshops, Coaching sessions, Reading groups, Support circles
@@ -48,7 +48,7 @@ A cozy and intimate space perfect for circle conversations, small workshops, and
 A bright and functional workspace perfect for small meetings and collaborative work. Named after the mycelium networks that connect forest ecosystems.
 
 - **Capacity**: Up to 10 people
-- **Price**: 25 EUR/hour
+- **Price**: 25 EUR/hour + VAT
 - **Token price**: 1 CHT/hour
 - **Features**: Flexible table arrangement, Office chairs, Whiteboard, Natural light, Indoor plants, Red cube pouf for casual seating
 - **Ideal for**: Small team meetings, Working sessions, One-on-ones, Brainstorming, Study groups, Interview sessions
@@ -73,7 +73,7 @@ Our open coworking area where community members come together to work, connect, 
 A fun and playful space perfect for a great kicker game!
 
 - **Capacity**: Up to 10 people
-- **Price**: 25 EUR/hour
+- **Price**: 25 EUR/hour + VAT
 - **Token price**: 1 CHT/hour
 - **Access**: Members only
 - **Ideal for**: Fun, Killing time, Team building

@@ -67,7 +67,7 @@ function getActiveUsersForMonth(
   month: string
 ): Map<string, DiscordUser> {
   const users = new Map<string, DiscordUser>();
-  const discordDir = path.join(DATA_DIR, year, month, "discord");
+  const discordDir = path.join(DATA_DIR, year, month, "channels", "discord");
 
   if (!fs.existsSync(discordDir)) {
     return users;
@@ -371,7 +371,7 @@ function getExistingMonths(): string[] {
 
     for (const month of monthDirs) {
       // Only include months that have Discord data
-      const discordDir = path.join(yearPath, month, "discord");
+      const discordDir = path.join(yearPath, month, "channels", "discord");
       if (fs.existsSync(discordDir)) {
         months.push(`${year}-${month}`);
       }

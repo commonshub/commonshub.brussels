@@ -105,6 +105,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "latest",
     "vaul": "latest",
+    "vercel": "^50.12.0",
     "viem": "latest",
     "vitest": "latest",
     "zod": "3.25.76"

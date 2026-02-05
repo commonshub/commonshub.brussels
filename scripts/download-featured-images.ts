@@ -95,7 +95,7 @@ async function downloadFeaturedImages(year: string) {
   console.log(`\n📁 Scanning ${months.length} months for featured images...\n`);
 
   for (const month of months) {
-    const imagesPath = path.join(yearPath, month, "discord", "images.json");
+    const imagesPath = path.join(yearPath, month, "channels", "discord", "images.json");
 
     if (!fs.existsSync(imagesPath)) {
       console.log(`⊘ Skipping ${year}-${month}: No Discord images data`);

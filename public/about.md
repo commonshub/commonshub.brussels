@@ -2,7 +2,7 @@
 
 ## What is Commons Hub Brussels?
 
-Commons Hub Brussels is a community hub and coworking space located at **Rue de la Madeleine 51, 1000 Brussels, Belgium**, right in front of Brussels Central Station.
+Commons Hub Brussels is a coworking and event space located at **Rue de la Madeleine 51, 1000 Brussels, Belgium**, right in front of Brussels Central Station.
 
 It is more than just a space — it is a living ecosystem where community builders come together to share resources, knowledge, and inspiration. We provide the infrastructure and support for communities to gather, collaborate, and thrive. Whether you're hosting an event, looking for a workspace, or seeking to connect with like-minded individuals, Commons Hub is your home.
 
@@ -66,11 +66,18 @@ We have multiple rooms available for events, workshops, meetings, and community 
 
 ## How to Get Involved
 
-- **Visit us**: Drop by at Rue de la Madeleine 51, 1000 Brussels
+- **Visit us**: Drop by at Rue de la Madeleine 51, 1000 Brussels every Friday for our community potluck at 12:30pm.
 - **Become a member**: [Apply for membership](https://commonshub.brussels/apply)
 - **Book a room**: [View our rooms](https://commonshub.brussels/rooms)
 - **Attend an event**: [See upcoming events](https://commonshub.brussels/events.md)
 - **Join our Discord**: [discord.commonshub.brussels](https://discord.commonshub.brussels)
+
+## Workshops
+
+Come play the game of the Commons to learn about the 8 principles of Elinor Ostrom to manage our common resources.
+Book the workshop for you or for your team or community.
+
+[View all our workshops](https://commonshub.brussels/workshops)
 
 ## Contact
 
@@ -81,3 +88,4 @@ We have multiple rooms available for events, workshops, meetings, and community 
 - **LinkedIn**: https://be.linkedin.com/company/commonshub-brussels/
 - **X/Twitter**: https://x.com/commonshub_bxl
 - **Newsletter**: https://paragraph.com/@commonshub_bxl
+- **Nostr**: npub1t992vaal2acea05wfgjynnlqh27uy938fjyzx0m7l28r0xl9ndaq46skkl

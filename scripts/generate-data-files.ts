@@ -3,10 +3,10 @@
  *
  * This script processes cached data and generates:
  * - Discord data:
- *   - data/:year/:month/discord/images.json - Images with reactions for each month
- *   - data/latest/discord/images.json - Latest images (from most recent month)
- *   - data/:year/:month/discord/:channelId/images.json - Images per channel
- *   - data/latest/discord/:channelId/images.json - Latest images per channel
+ *   - data/:year/:month/channels/discord/images.json - Images with reactions for each month
+ *   - data/latest/channels/discord/images.json - Latest images (from most recent month)
+ *   - data/:year/:month/channels/discord/:channelId/images.json - Images per channel
+ *   - data/latest/channels/discord/:channelId/images.json - Latest images per channel
  * - Activity and contributors:
  *   - data/activitygrid.json - Activity grid for all time
  *   - data/:year/activitygrid.json - Activity grid for specific years
@@ -48,6 +48,7 @@ import {
   getWalletCacheStats,
 } from "../src/lib/wallet-address-cache";
 import settings from "../src/settings/settings.json";
+import roomsData from "../src/settings/rooms.json";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const CHT_CONFIG = settings.contributionToken;
@@ -80,6 +81,7 @@ function generateMonthImages(year: string, month: string): number {
       DATA_DIR,
       year,
       month,
+      "channels",
       "discord",
       "images.json"
     );
@@ -111,6 +113,7 @@ function generateChannelImages(year: string, month: string): void {
         DATA_DIR,
         year,
         month,
+        "channels",
         "discord",
         channelId,
         "messages.json"
@@ -141,7 +144,7 @@ function generateChannelImages(year: string, month: string): void {
           // Remove query parameters before getting extension
           const urlWithoutQuery = (attachment.url || "").split("?")[0];
           const ext = path.extname(urlWithoutQuery) || ".jpg";
-          const filePath = `/data/${year}/${month}/discord/images/${attachment.id}${ext}`;
+          const filePath = `/data/${year}/${month}/channels/discord/images/${attachment.id}${ext}`;
 
           // Generate proxy URL with all required metadata (relative for static files)
           const proxyUrl = getProxiedDiscordImage(
@@ -184,6 +187,7 @@ function generateChannelImages(year: string, month: string): void {
           DATA_DIR,
           year,
           month,
+          "channels",
           "discord",
           channelId
         );
@@ -228,6 +232,7 @@ function generateLatestImages(): number {
       const messagesPath = path.join(
         DATA_DIR,
         "latest",
+        "channels",
         "discord",
         channelId,
         "messages.json"
@@ -259,11 +264,8 @@ function generateLatestImages(): number {
           const urlWithoutQuery = (attachment.url || "").split("?")[0];
           const ext = path.extname(urlWithoutQuery) || ".jpg";
 
-          // Use message timestamp to construct dated path
-          const msgDate = new Date(msg.timestamp);
-          const year = msgDate.getFullYear();
-          const month = String(msgDate.getMonth() + 1).padStart(2, "0");
-          const filePath = `/data/${year}/${month}/discord/images/${attachment.id}${ext}`;
+          // Use "latest" path since images are stored in data/latest/channels/discord/images/
+          const filePath = `/data/latest/channels/discord/images/${attachment.id}${ext}`;
 
           // Generate proxy URL with all required metadata (relative for static files)
           const proxyUrl = getProxiedDiscordImage(
@@ -306,7 +308,7 @@ function generateLatestImages(): number {
         );
 
         // Create channel-specific images file
-        const channelDir = path.join(DATA_DIR, "latest", "discord", channelId);
+        const channelDir = path.join(DATA_DIR, "latest", "channels", "discord", channelId);
         fs.mkdirSync(channelDir, { recursive: true });
 
         const outputPath = path.join(channelDir, "images.json");
@@ -338,6 +340,7 @@ function generateLatestImages(): number {
       const outputPath = path.join(
         DATA_DIR,
         "latest",
+        "channels",
         "discord",
         "images.json"
       );
@@ -380,9 +383,11 @@ function getAllChannelIds(): string[] {
   if (channels.requests) channelIds.add(channels.requests);
   if (channels.contributions) channelIds.add(channels.contributions);
 
-  // Add room channels
-  if (channels.rooms) {
-    Object.values(channels.rooms).forEach((id) => channelIds.add(id));
+  // Add room channels from rooms.json
+  for (const room of roomsData.rooms) {
+    if (room.discordChannelId) {
+      channelIds.add(room.discordChannelId);
+    }
   }
 
   // Add activity channels
@@ -402,7 +407,7 @@ function generateYearlyImages(year: string): number {
   const allImages: any[] = [];
 
   for (const month of months) {
-    const imagesPath = path.join(DATA_DIR, year, month, "discord", "images.json");
+    const imagesPath = path.join(DATA_DIR, year, month, "channels", "discord", "images.json");
 
     if (!fs.existsSync(imagesPath)) continue;
 
@@ -414,7 +419,7 @@ function generateYearlyImages(year: string): number {
         allImages.push(...data.images);
       }
     } catch (error) {
-      console.error(`  ⚠️  Error reading ${year}/${month}/discord/images.json:`, error);
+      console.error(`  ⚠️  Error reading ${year}/${month}/channels/discord/images.json:`, error);
     }
   }
 
@@ -547,7 +552,7 @@ async function generateMonthContributors(
     );
 
     // Get all Discord messages for this month
-    const discordDir = path.join(DATA_DIR, year, month, "discord");
+    const discordDir = path.join(DATA_DIR, year, month, "channels", "discord");
     if (!fs.existsSync(discordDir)) {
       return 0;
     }
@@ -910,6 +915,7 @@ async function generateContributors(): Promise<number> {
           DATA_DIR,
           year,
           month,
+          "channels",
           "discord",
           contributionsChannelId,
           "messages.json"
@@ -950,6 +956,7 @@ async function generateContributors(): Promise<number> {
         DATA_DIR,
         year,
         month,
+        "channels",
         "discord",
         contributionsChannelId,
         "messages.json"
@@ -1060,6 +1067,7 @@ async function generateContributors(): Promise<number> {
           DATA_DIR,
           year,
           month,
+          "channels",
           "discord",
           introductionsChannelId,
           "messages.json"
@@ -1286,6 +1294,7 @@ async function generateUserProfiles() {
             DATA_DIR,
             year,
             month,
+            "channels",
             "discord",
             introductionsChannelId,
             "messages.json"
@@ -1320,6 +1329,7 @@ async function generateUserProfiles() {
             DATA_DIR,
             year,
             month,
+            "channels",
             "discord",
             contributionsChannelId,
             "messages.json"
@@ -1353,6 +1363,7 @@ async function generateUserProfiles() {
             DATA_DIR,
             year,
             month,
+            "channels",
             "discord",
             "images.json"
           );
@@ -1514,6 +1525,7 @@ async function generateYearlyUsers(year: string): Promise<void> {
       DATA_DIR,
       year,
       month,
+      "channels",
       "discord",
       contributionsChannelId,
       "messages.json"

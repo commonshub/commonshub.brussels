@@ -63,11 +63,12 @@ export async function GET(request: NextRequest) {
 
     // Check if this is a "latest" request
     if (timestamp.startsWith("latest")) {
-      // Latest path: data/latest/discord/images/{attachmentId}.{ext}
+      // Latest path: data/latest/channels/discord/images/{attachmentId}.{ext}
       for (const ext of possibleExtensions) {
         const testPath = path.join(
           dataDir,
           "latest",
+          "channels",
           "discord",
           "images",
           `${attachmentId}${ext}`
@@ -83,12 +84,13 @@ export async function GET(request: NextRequest) {
       const year = timestamp.substring(0, 4);
       const month = timestamp.substring(4, 6);
 
-      // Dated path: data/{year}/{month}/discord/images/{attachmentId}.{ext}
+      // Dated path: data/{year}/{month}/channels/discord/images/{attachmentId}.{ext}
       for (const ext of possibleExtensions) {
         const testPath = path.join(
           dataDir,
           year,
           month,
+          "channels",
           "discord",
           "images",
           `${attachmentId}${ext}`

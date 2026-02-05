@@ -54,11 +54,11 @@ export function CommunityActivityGallery({
       messageId: string;
       channelId: string;
     }>;
-  }>(`/data/latest/discord/${channelId}/images.json`, fetcher);
+  }>(`/data/latest/channels/discord/${channelId}/images.json`, fetcher);
 
   console.log(
     ">>> Loading image: ",
-    `/data/latest/discord/${channelId}/images.json`,
+    `/data/latest/channels/discord/${channelId}/images.json`,
     data?.images?.[0]?.filePath
   );
   // Map images to ActivityImage format

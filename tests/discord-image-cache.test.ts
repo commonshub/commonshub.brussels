@@ -168,7 +168,7 @@ describe("Discord Image Cache", () => {
     const month = String(msgDate.getMonth() + 1).padStart(2, "0")
 
     // Create images directory
-    const imagesDir = path.join(DATA_DIR, year, month, "discord", "images")
+    const imagesDir = path.join(DATA_DIR, year, month, "channels", "discord", "images")
     if (!fs.existsSync(imagesDir)) {
       fs.mkdirSync(imagesDir, { recursive: true })
     }

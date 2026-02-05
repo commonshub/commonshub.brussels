@@ -15,7 +15,7 @@ const TEST_DISCORD_IMAGE = {
   channelId: "1380592679364329522",
   messageId: "1435913431046951047",
   attachmentId: "1435913431117987910",
-  timestamp: "latest", // Use "latest" to find the image in data/latest/discord/images/
+  timestamp: "latest", // Use "latest" to find the image in data/latest/channels/discord/images/
 };
 
 const TEST_EXTERNAL_IMAGE = {

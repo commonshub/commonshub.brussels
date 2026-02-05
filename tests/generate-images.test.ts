@@ -11,13 +11,13 @@ describe("Images Generation", () => {
     DATA_DIR,
     TEST_YEAR,
     TEST_MONTH,
-    `discord/${channelId}/messages.json`
+    `channels/discord/${channelId}/messages.json`
   );
   const imagesPath = path.join(
     DATA_DIR,
     TEST_YEAR,
     TEST_MONTH,
-    `discord/${channelId}/images.json`
+    `channels/discord/${channelId}/images.json`
   );
 
   test("messages.json exists for test channel", () => {
@@ -90,9 +90,9 @@ describe("Images Generation", () => {
     const data = JSON.parse(fs.readFileSync(imagesPath, "utf-8"));
 
     data.images.forEach((image: any) => {
-      // Should use dated path format: /data/{year}/{month}/discord/images/{attachmentId}.{ext}
+      // Should use dated path format: /data/{year}/{month}/channels/discord/images/{attachmentId}.{ext}
       expect(image.filePath).toMatch(
-        /^\/data\/\d{4}\/\d{2}\/discord\/images\/\d+\.\w+$/
+        /^\/data\/\d{4}\/\d{2}\/channels\/discord\/images\/\d+\.\w+$/
       );
 
       // Should NOT use /latest/ path
@@ -108,7 +108,7 @@ describe("Images Generation", () => {
     const messageDate = new Date(message.timestamp);
     const expectedYear = messageDate.getFullYear();
     const expectedMonth = String(messageDate.getMonth() + 1).padStart(2, "0");
-    const expectedPathPrefix = `/data/${expectedYear}/${expectedMonth}/discord/images/`;
+    const expectedPathPrefix = `/data/${expectedYear}/${expectedMonth}/channels/discord/images/`;
 
     imagesData.images.forEach((image: any) => {
       expect(image.filePath).toContain(expectedPathPrefix);
