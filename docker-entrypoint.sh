@@ -1,11 +1,10 @@
 #!/bin/sh
 set -e
 
-# Ensure /app/data directory exists and has correct permissions
+# Ensure /data directory exists and has correct permissions
 # This runs as root before switching to nextjs user
-# App expects DATA_DIR at /app/data (cwd + "/data")
-if [ -d "/app/data" ]; then
-    chown -R nextjs:nodejs /app/data
+if [ -d "/data" ]; then
+    chown -R nextjs:nodejs /data
 fi
 
 # Fetch recent data if FETCH_DATA_ON_START is set
