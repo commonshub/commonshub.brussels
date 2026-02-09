@@ -1,7 +1,33 @@
 import { NextResponse } from "next/server";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 
 // Store when the application started (runtime)
 const startTime = new Date();
+
+// Read git info at runtime (file is updated by entrypoint)
+function getGitInfoRuntime() {
+  const paths = [
+    join(process.cwd(), 'git-info.json'),
+    '/app/git-info.json',
+  ];
+  
+  for (const path of paths) {
+    if (existsSync(path)) {
+      try {
+        const content = readFileSync(path, 'utf8');
+        return JSON.parse(content);
+      } catch { /* ignore */ }
+    }
+  }
+  
+  // Fallback to env vars
+  return {
+    sha: process.env.SOURCE_COMMIT || process.env.NEXT_PUBLIC_GIT_SHA || 'unknown',
+    message: process.env.COOLIFY_BRANCH || process.env.NEXT_PUBLIC_GIT_MESSAGE || 'unknown',
+    date: process.env.NEXT_PUBLIC_GIT_DATE || new Date().toISOString(),
+  };
+}
 
 /**
  * Status JSON API - Shows application and deployment information
@@ -20,11 +46,12 @@ const startTime = new Date();
  */
 export async function GET() {
   try {
-    // Git info is captured at build time via next.config.mjs
-    const sha = process.env.NEXT_PUBLIC_GIT_SHA || "unknown";
+    // Git info is read at runtime from git-info.json (updated by entrypoint)
+    const gitInfo = getGitInfoRuntime();
+    const sha = gitInfo.sha || "unknown";
     const shortSha = sha !== "unknown" ? sha.substring(0, 7) : "unknown";
-    const message = process.env.NEXT_PUBLIC_GIT_MESSAGE || "unknown";
-    const commitDate = process.env.NEXT_PUBLIC_GIT_DATE || "";
+    const message = gitInfo.message || "unknown";
+    const commitDate = gitInfo.date || "";
     const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || "";
 
     // Calculate uptime
