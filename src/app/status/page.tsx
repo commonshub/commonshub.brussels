@@ -26,6 +26,10 @@ interface StatusData {
     commitDate: string;
     commitDateFormatted: string;
   };
+  build: {
+    time: string;
+    timeFormatted: string;
+  };
   uptime: {
     started: string;
     startedFormatted: string;
@@ -131,9 +135,15 @@ export default function StatusPage() {
               <p className="text-sm font-mono">{data.deployment.message}</p>
             </div>
 
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Deployed At</p>
-              <p className="text-sm">{data.deployment.commitDateFormatted}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Commit Date</p>
+                <p className="text-sm">{data.deployment.commitDateFormatted || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Build Time</p>
+                <p className="text-sm">{data.build?.timeFormatted || "N/A"}</p>
+              </div>
             </div>
 
             <div className="pt-2">
