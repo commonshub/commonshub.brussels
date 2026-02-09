@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
-
-// Store when the application started
+// Store when the application started (runtime)
 const startTime = new Date();
 
 /**
@@ -13,9 +9,10 @@ const startTime = new Date();
  * GET /status.json
  *
  * Returns:
- * - Latest git commit SHA
- * - Latest commit message
- * - Commit datetime
+ * - Latest git commit SHA (captured at build time)
+ * - Latest commit message (captured at build time)
+ * - Commit datetime (captured at build time)
+ * - Build time
  * - Application uptime
  * - Current server time
  *
@@ -23,17 +20,12 @@ const startTime = new Date();
  */
 export async function GET() {
   try {
-    // Get git information
-    const [shaResult, messageResult, dateResult] = await Promise.all([
-      execAsync("git rev-parse HEAD").catch(() => ({ stdout: "unknown", stderr: "" })),
-      execAsync("git log -1 --pretty=%B").catch(() => ({ stdout: "unknown", stderr: "" })),
-      execAsync("git log -1 --pretty=%ci").catch(() => ({ stdout: "", stderr: "" })),
-    ]);
-
-    const sha = shaResult.stdout.trim();
-    const shortSha = sha.substring(0, 7);
-    const message = messageResult.stdout.trim();
-    const commitDate = dateResult.stdout.trim();
+    // Git info is captured at build time via next.config.mjs
+    const sha = process.env.NEXT_PUBLIC_GIT_SHA || "unknown";
+    const shortSha = sha !== "unknown" ? sha.substring(0, 7) : "unknown";
+    const message = process.env.NEXT_PUBLIC_GIT_MESSAGE || "unknown";
+    const commitDate = process.env.NEXT_PUBLIC_GIT_DATE || "";
+    const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || "";
 
     // Calculate uptime
     const now = new Date();
@@ -82,6 +74,10 @@ export async function GET() {
         commitDate: commitDate,
         commitDateFormatted: commitDate ? formatInTimezone(new Date(commitDate)) : null,
       },
+      build: {
+        time: buildTime,
+        timeFormatted: buildTime ? formatInTimezone(new Date(buildTime)) : null,
+      },
       uptime: {
         started: startTime.toISOString(),
         startedFormatted: formatInTimezone(startTime),
@@ -101,13 +97,14 @@ export async function GET() {
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[Status] Error generating status:", error);
 
     return NextResponse.json(
       {
         status: "error",
-        error: error.message,
+        error: errorMessage,
         uptime: {
           started: startTime.toISOString(),
           uptime: Math.floor((Date.now() - startTime.getTime()) / 1000),
