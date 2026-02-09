@@ -10,8 +10,14 @@ RUN npm ci --only=production && npm cache clean --force
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# Install git for build-time git info extraction
+RUN apk add --no-cache git
+
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy .git first for git info extraction during build
+COPY .git ./.git
 COPY . .
 
 # Install all dependencies (including devDependencies for build)
