@@ -41,6 +41,11 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+// Format date as YYYY-MM-DD in local timezone
+function formatLocalDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export function RoomCalendar() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -118,7 +123,7 @@ export function RoomCalendar() {
     for (const day of calendarDays) {
       if (!day) continue;
       
-      const dayKey = day.toISOString().split('T')[0];
+      const dayKey = formatLocalDate(day);
       const dayStart = new Date(day);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(day);
@@ -226,105 +231,114 @@ export function RoomCalendar() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl font-semibold">
-            {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <Button variant="outline" size="sm" onClick={goToToday}>
-            Today
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Left side: Calendar */}
+      <div className="lg:w-80 space-y-4">
+        {/* Month Navigation */}
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold">
+              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+            <Button variant="outline" size="sm" onClick={goToToday} className="text-xs h-7 px-2">
+              Today
+            </Button>
+          </div>
+          
+          <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}>
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        
-        <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-900/30" />
+            <span className="text-muted-foreground">Available</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-orange-100 dark:bg-orange-900/30" />
+            <span className="text-muted-foreground">Partial</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-red-100 dark:bg-red-900/30" />
+            <span className="text-muted-foreground">Busy</span>
+          </div>
+        </div>
+
+        {/* Calendar Grid */}
+        <Card>
+          <CardContent className="p-3">
+            {loading ? (
+              <div className="grid grid-cols-7 gap-1">
+                {DAYS.map(day => (
+                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                    {day.charAt(0)}
+                  </div>
+                ))}
+                {Array.from({ length: 35 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-square rounded" />
+                ))}
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-destructive text-sm">{error}</div>
+            ) : (
+              <div className="grid grid-cols-7 gap-1">
+                {/* Day headers */}
+                {DAYS.map(day => (
+                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                    {day.charAt(0)}
+                  </div>
+                ))}
+                
+                {/* Calendar days */}
+                {calendarDays.map((day, index) => {
+                  if (!day) {
+                    return <div key={`empty-${index}`} className="aspect-square" />;
+                  }
+                  
+                  const dayKey = formatLocalDate(day);
+                  const busyness = dayBusyness.get(dayKey) || 0;
+                  const hasEvents = busyness > 0;
+                  
+                  return (
+                    <button
+                      key={dayKey}
+                      onClick={() => setSelectedDate(day)}
+                      className={cn(
+                        "aspect-square rounded flex items-center justify-center text-xs font-medium transition-colors relative",
+                        hasEvents ? getBusynessClass(busyness) : "hover:bg-muted",
+                        isSelected(day) && "ring-2 ring-primary ring-offset-1",
+                        isToday(day) && "font-bold"
+                      )}
+                    >
+                      {day.getDate()}
+                      {isToday(day) && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Instructions */}
+        {!selectedDate && (
+          <p className="text-sm text-muted-foreground text-center">
+            Select a date to see room availability
+          </p>
+        )}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900/30" />
-          <span className="text-muted-foreground">Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-orange-100 dark:bg-orange-900/30" />
-          <span className="text-muted-foreground">Partially booked</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-100 dark:bg-red-900/30" />
-          <span className="text-muted-foreground">Busy</span>
-        </div>
-      </div>
-
-      {/* Calendar Grid */}
-      <Card className="max-w-2xl mx-auto">
-        <CardContent className="p-4">
-          {loading ? (
-            <div className="grid grid-cols-7 gap-1">
-              {DAYS.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-                  {day}
-                </div>
-              ))}
-              {Array.from({ length: 35 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square rounded-lg" />
-              ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 text-destructive">{error}</div>
-          ) : (
-            <div className="grid grid-cols-7 gap-1">
-              {/* Day headers */}
-              {DAYS.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-                  <span className="hidden sm:inline">{day}</span>
-                  <span className="sm:hidden">{day.charAt(0)}</span>
-                </div>
-              ))}
-              
-              {/* Calendar days */}
-              {calendarDays.map((day, index) => {
-                if (!day) {
-                  return <div key={`empty-${index}`} className="aspect-square" />;
-                }
-                
-                const dayKey = day.toISOString().split('T')[0];
-                const busyness = dayBusyness.get(dayKey) || 0;
-                const hasEvents = busyness > 0;
-                
-                return (
-                  <button
-                    key={dayKey}
-                    onClick={() => setSelectedDate(day)}
-                    className={cn(
-                      "aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-colors relative",
-                      hasEvents ? getBusynessClass(busyness) : "hover:bg-muted",
-                      isSelected(day) && "ring-2 ring-primary ring-offset-2",
-                      isToday(day) && "font-bold"
-                    )}
-                  >
-                    {day.getDate()}
-                    {isToday(day) && (
-                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Selected Day View */}
+      {/* Right side: Room availability for selected date */}
       {selectedDate && data && (
-        <div className="space-y-4">
+        <div className="flex-1 space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <CalendarIcon className="h-5 w-5" />
             {selectedDate.toLocaleDateString('en-BE', { 
@@ -335,86 +349,60 @@ export function RoomCalendar() {
             })}
           </h3>
           
-          {/* Room columns - horizontal scroll on mobile */}
-          <div className="overflow-x-auto -mx-4 px-4">
-            <div className="flex gap-4 min-w-max pb-4">
-              {data.rooms.map(room => {
-                const events = selectedDayEvents.get(room.id) || [];
-                // Format date in local timezone to avoid UTC conversion shifting the day
-                const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-                
-                return (
-                  <Card key={room.id} className="w-64 shrink-0 flex flex-col">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <span>{room.name}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          <Users className="h-3 w-3 mr-1" />
-                          {room.capacity}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 flex-1">
-                      {events.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          Available all day
-                        </p>
-                      ) : (
-                        events.map(event => (
-                          <div
-                            key={event.id}
-                            className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1"
-                          >
-                            <div className="font-medium line-clamp-2">{event.title}</div>
-                            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                              <Clock className="h-3 w-3" />
-                              <span>
-                                {formatTime(event.start)} - {formatTime(event.end)}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {formatDuration(event.start, event.end)}
-                              </Badge>
-                            </div>
+          {/* Room cards - vertical stack */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            {data.rooms.map(room => {
+              const events = selectedDayEvents.get(room.id) || [];
+              const selectedDateStr = formatLocalDate(selectedDate);
+              
+              return (
+                <Card key={room.id} className="flex flex-col">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center justify-between">
+                      <span>{room.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        <Users className="h-3 w-3 mr-1" />
+                        {room.capacity}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 flex-1">
+                    {events.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        ✅ Available all day
+                      </p>
+                    ) : (
+                      events.map(event => (
+                        <div
+                          key={event.id}
+                          className="p-2 rounded-lg bg-muted/50 border text-sm space-y-1"
+                        >
+                          <div className="font-medium line-clamp-1 text-xs">{event.title}</div>
+                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                            <Clock className="h-3 w-3" />
+                            <span>
+                              {formatTime(event.start)} - {formatTime(event.end)}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {formatDuration(event.start, event.end)}
+                            </Badge>
                           </div>
-                        ))
-                      )}
-                    </CardContent>
-                    <CardFooter className="pt-2">
-                      <Link 
-                        href={`/book?room=${room.id}&date=${selectedDateStr}`}
-                        className="w-full"
-                      >
-                        <Button variant="outline" size="sm" className="w-full cursor-pointer">
-                          Book this room
-                        </Button>
-                      </Link>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Event list for mobile */}
-          <div className="md:hidden space-y-2">
-            <h4 className="font-medium text-sm text-muted-foreground">All Events</h4>
-            {Array.from(selectedDayEvents.entries()).flatMap(([roomId, events]) => 
-              events.map(event => (
-                <Card key={event.id} className="p-3">
-                  <div className="font-medium">{event.title}</div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <Badge variant="secondary" className="text-xs">{event.roomName}</Badge>
-                    <span>•</span>
-                    <Clock className="h-3 w-3" />
-                    <span>{formatTime(event.start)} - {formatTime(event.end)}</span>
-                    <span>({formatDuration(event.start, event.end)})</span>
-                  </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                  <CardFooter className="pt-2">
+                    <Link 
+                      href={`/book?room=${room.id}&date=${selectedDateStr}`}
+                      className="w-full"
+                    >
+                      <Button variant="outline" size="sm" className="w-full">
+                        Book this room
+                      </Button>
+                    </Link>
+                  </CardFooter>
                 </Card>
-              ))
-            ).sort((a, b) => {
-              const aTime = new Date((a.props.children[1].props.children[3].props.children as string)).getTime();
-              const bTime = new Date((b.props.children[1].props.children[3].props.children as string)).getTime();
-              return aTime - bTime;
+              );
             })}
           </div>
         </div>
