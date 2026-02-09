@@ -138,37 +138,6 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="block min-h-[2.5rem] flex items-start">Name *</Label>
-              <Input
-                id="name"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email" className="block min-h-[2.5rem] flex items-start">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="organisation">Organisation or Community</Label>
-            <Input
-              id="organisation"
-              value={formData.organisation}
-              onChange={(e) => setFormData({ ...formData, organisation: e.target.value })}
-            />
-          </div>
-
           {/* Calendar for date selection */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
@@ -225,11 +194,7 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                   />
                 </div>
               </div>
-            </>
-          )}
 
-          {selectedDate && (
-            <>
               <div className="space-y-3">
                 <Label>Options</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -286,6 +251,48 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                 </div>
               </div>
 
+              {/* Contact info at the end */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="organisation">Organisation or Community</Label>
+                <Input
+                  id="organisation"
+                  value={formData.organisation}
+                  onChange={(e) => setFormData({ ...formData, organisation: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="additionalNotes">Additional Notes</Label>
+                <Textarea
+                  id="additionalNotes"
+                  placeholder="Any special requirements or questions..."
+                  value={formData.additionalNotes}
+                  onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
+                />
+              </div>
+
               <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-start space-x-2">
                   <Checkbox
@@ -303,16 +310,6 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                     </p>
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="additionalNotes">Additional Notes</Label>
-                <Textarea
-                  id="additionalNotes"
-                  placeholder="Any special requirements or questions..."
-                  value={formData.additionalNotes}
-                  onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
-                />
               </div>
 
               <Button type="submit" className="w-full cursor-pointer" disabled={isSubmitting || !selectedDate}>
