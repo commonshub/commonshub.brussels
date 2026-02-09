@@ -264,7 +264,7 @@ export function RoomCalendar() {
       </div>
 
       {/* Calendar Grid */}
-      <Card>
+      <Card className="max-w-2xl mx-auto">
         <CardContent className="p-4">
           {loading ? (
             <div className="grid grid-cols-7 gap-1">
@@ -340,7 +340,8 @@ export function RoomCalendar() {
             <div className="flex gap-4 min-w-max pb-4">
               {data.rooms.map(room => {
                 const events = selectedDayEvents.get(room.id) || [];
-                const selectedDateStr = selectedDate.toISOString().split('T')[0];
+                // Format date in local timezone to avoid UTC conversion shifting the day
+                const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
                 
                 return (
                   <Card key={room.id} className="w-64 shrink-0 flex flex-col">
