@@ -14,12 +14,23 @@ const reasonLabels: Record<string, string> = {
 
 export async function POST(request: Request) {
   try {
-    // Initialize Resend client at runtime, not at build time
-    const resend = new Resend(process.env.RESEND_API_KEY)
-
     const data = await request.json()
 
     const { name, email, organisation, reason, message } = data
+
+    // Spam protection: reject short messages
+    const messageLength = message?.length || 0
+    const wordCount = message?.trim().split(/\s+/).filter(Boolean).length || 0
+    
+    if (messageLength < 100 || wordCount < 20) {
+      return NextResponse.json(
+        { error: "Message is too short. Please provide more details (at least 100 characters and 20 words)." },
+        { status: 400 }
+      )
+    }
+
+    // Initialize Resend client at runtime, not at build time
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     const reasonLabel = reasonLabels[reason] || reason
 

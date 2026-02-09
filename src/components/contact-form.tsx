@@ -18,11 +18,26 @@ export function ContactForm() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Calculate message stats for validation
+  const messageLength = formData.message.length
+  const wordCount = formData.message.trim().split(/\s+/).filter(Boolean).length
+  const isMessageValid = messageLength >= 100 && wordCount >= 20
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Client-side validation
+    if (!isMessageValid) {
+      setSubmitStatus("error")
+      setErrorMessage("Please provide more details in your message (at least 100 characters and 20 words).")
+      return
+    }
+    
     setIsSubmitting(true)
     setSubmitStatus("idle")
+    setErrorMessage(null)
 
     try {
       const response = await fetch("/api/contact", {
@@ -41,11 +56,14 @@ export function ContactForm() {
           message: "",
         })
       } else {
+        const data = await response.json().catch(() => ({}))
         setSubmitStatus("error")
+        setErrorMessage(data.error || "Something went wrong. Please try again.")
       }
     } catch (error) {
       console.error("Error submitting form:", error)
       setSubmitStatus("error")
+      setErrorMessage("Something went wrong. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -123,6 +141,14 @@ export function ContactForm() {
           placeholder="Tell us more about your inquiry..."
           rows={6}
         />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span className={messageLength < 100 ? "text-amber-600" : "text-green-600"}>
+            {messageLength} / 100 characters {messageLength >= 100 && "✓"}
+          </span>
+          <span className={wordCount < 20 ? "text-amber-600" : "text-green-600"}>
+            {wordCount} / 20 words {wordCount >= 20 && "✓"}
+          </span>
+        </div>
       </div>
 
       {submitStatus === "success" && (
@@ -133,7 +159,7 @@ export function ContactForm() {
 
       {submitStatus === "error" && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
-          Something went wrong. Please try again or email us directly at hello@commonshub.brussels
+          {errorMessage || "Something went wrong. Please try again or email us directly at hello@commonshub.brussels"}
         </div>
       )}
 
