@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       rooms: rooms.map(room => ({
         id: room.id,
         name: room.name,
+        slug: room.slug,
         capacity: room.capacity,
       })),
       range: {

@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Users, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Clock, Calendar as CalendarIcon, Info, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { EmbeddedBookingForm } from "./embedded-booking-form";
 
 interface RoomEvent {
   id: string;
@@ -23,6 +24,7 @@ interface RoomEvent {
 interface Room {
   id: string;
   name: string;
+  slug?: string;
   capacity: number;
 }
 
@@ -47,8 +49,10 @@ function formatLocalDate(date: Date): string {
 }
 
 export function RoomCalendar() {
+  // Default to today selected
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => new Date());
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [data, setData] = useState<CalendarData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,7 +195,6 @@ export function RoomCalendar() {
       newDate.setMonth(prev.getMonth() + direction);
       return newDate;
     });
-    setSelectedDate(null);
   };
 
   const goToToday = () => {
@@ -230,183 +233,241 @@ export function RoomCalendar() {
     return selectedDate?.toDateString() === date.toDateString();
   };
 
+  const handleRoomSelect = (room: Room) => {
+    setSelectedRoom(room);
+  };
+
+  const handleBookingComplete = () => {
+    setSelectedRoom(null);
+  };
+
+  // Determine current step
+  const currentStep = !selectedDate ? 1 : !selectedRoom ? 2 : 3;
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Left side: Calendar */}
-      <div className="lg:w-80 space-y-4">
-        {/* Month Navigation */}
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold">
-              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
-            <Button variant="outline" size="sm" onClick={goToToday} className="text-xs h-7 px-2">
-              Today
-            </Button>
-          </div>
-          
-          <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+    <div className="space-y-6">
+      {/* Steps indicator */}
+      <div className="flex items-center justify-center gap-2 md:gap-4 text-sm">
+        <div className={cn(
+          "flex items-center gap-2 px-3 py-1.5 rounded-full",
+          currentStep >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+        )}>
+          {currentStep > 1 ? <Check className="h-4 w-4" /> : <span className="font-semibold">1</span>}
+          <span className="hidden sm:inline">Select a date</span>
         </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-900/30" />
-            <span className="text-muted-foreground">Available</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-orange-100 dark:bg-orange-900/30" />
-            <span className="text-muted-foreground">Partial</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-red-100 dark:bg-red-900/30" />
-            <span className="text-muted-foreground">Busy</span>
-          </div>
+        <div className="h-px w-4 bg-border" />
+        <div className={cn(
+          "flex items-center gap-2 px-3 py-1.5 rounded-full",
+          currentStep >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+        )}>
+          {currentStep > 2 ? <Check className="h-4 w-4" /> : <span className="font-semibold">2</span>}
+          <span className="hidden sm:inline">Select a room</span>
         </div>
-
-        {/* Calendar Grid */}
-        <Card>
-          <CardContent className="p-3">
-            {loading ? (
-              <div className="grid grid-cols-7 gap-1">
-                {DAYS.map(day => (
-                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
-                    {day.charAt(0)}
-                  </div>
-                ))}
-                {Array.from({ length: 35 }).map((_, i) => (
-                  <Skeleton key={i} className="aspect-square rounded" />
-                ))}
-              </div>
-            ) : error ? (
-              <div className="text-center py-8 text-destructive text-sm">{error}</div>
-            ) : (
-              <div className="grid grid-cols-7 gap-1">
-                {/* Day headers */}
-                {DAYS.map(day => (
-                  <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
-                    {day.charAt(0)}
-                  </div>
-                ))}
-                
-                {/* Calendar days */}
-                {calendarDays.map((day, index) => {
-                  if (!day) {
-                    return <div key={`empty-${index}`} className="aspect-square" />;
-                  }
-                  
-                  const dayKey = formatLocalDate(day);
-                  const busyness = dayBusyness.get(dayKey) || 0;
-                  const hasEvents = busyness > 0;
-                  
-                  return (
-                    <button
-                      key={dayKey}
-                      onClick={() => setSelectedDate(day)}
-                      className={cn(
-                        "aspect-square rounded flex items-center justify-center text-xs font-medium transition-colors relative",
-                        hasEvents ? getBusynessClass(busyness) : "hover:bg-muted",
-                        isSelected(day) && "ring-2 ring-primary ring-offset-1",
-                        isToday(day) && "font-bold"
-                      )}
-                    >
-                      {day.getDate()}
-                      {isToday(day) && (
-                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Instructions */}
-        {!selectedDate && (
-          <p className="text-sm text-muted-foreground text-center">
-            Select a date to see room availability
-          </p>
-        )}
+        <div className="h-px w-4 bg-border" />
+        <div className={cn(
+          "flex items-center gap-2 px-3 py-1.5 rounded-full",
+          currentStep >= 3 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+        )}>
+          <span className="font-semibold">3</span>
+          <span className="hidden sm:inline">Submit booking</span>
+        </div>
       </div>
 
-      {/* Right side: Room availability for selected date */}
-      {selectedDate && data && (
-        <div className="flex-1 space-y-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5" />
-            {selectedDate.toLocaleDateString('en-BE', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </h3>
-          
-          {/* Room cards - vertical stack */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {data.rooms.map(room => {
-              const events = selectedDayEvents.get(room.id) || [];
-              const selectedDateStr = formatLocalDate(selectedDate);
-              
-              return (
-                <Card key={room.id} className="flex flex-col">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center justify-between">
-                      <span>{room.name}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        <Users className="h-3 w-3 mr-1" />
-                        {room.capacity}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 flex-1">
-                    {events.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-2">
-                        ✅ Available all day
-                      </p>
-                    ) : (
-                      events.map(event => (
-                        <div
-                          key={event.id}
-                          className="p-2 rounded-lg bg-muted/50 border text-sm space-y-1"
-                        >
-                          <div className="font-medium line-clamp-1 text-xs">{event.title}</div>
-                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {formatTime(event.start)} - {formatTime(event.end)}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {formatDuration(event.start, event.end)}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                  <CardFooter className="pt-2">
-                    <Link 
-                      href={`/book?room=${room.id}&date=${selectedDateStr}`}
-                      className="w-full"
-                    >
-                      <Button variant="outline" size="sm" className="w-full">
-                        Book this room
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
-              );
-            })}
+      {/* Main content */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Column 1: Calendar */}
+        <div className="lg:w-72 xl:w-80 space-y-4 shrink-0">
+          {/* Month Navigation */}
+          <div className="flex items-center justify-between">
+            <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)} className="cursor-pointer">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">
+                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+              </h2>
+              <Button variant="outline" size="sm" onClick={goToToday} className="text-xs h-7 px-2 cursor-pointer">
+                Today
+              </Button>
+            </div>
+            
+            <Button variant="outline" size="icon" onClick={() => navigateMonth(1)} className="cursor-pointer">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-900/30" />
+              <span className="text-muted-foreground">Available</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-orange-100 dark:bg-orange-900/30" />
+              <span className="text-muted-foreground">Partial</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-red-100 dark:bg-red-900/30" />
+              <span className="text-muted-foreground">Busy</span>
+            </div>
+          </div>
+
+          {/* Calendar Grid */}
+          <Card>
+            <CardContent className="p-3">
+              {loading ? (
+                <div className="grid grid-cols-7 gap-1">
+                  {DAYS.map(day => (
+                    <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                      {day.charAt(0)}
+                    </div>
+                  ))}
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <Skeleton key={i} className="aspect-square rounded" />
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="text-center py-8 text-destructive text-sm">{error}</div>
+              ) : (
+                <div className="grid grid-cols-7 gap-1">
+                  {/* Day headers */}
+                  {DAYS.map(day => (
+                    <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+                      {day.charAt(0)}
+                    </div>
+                  ))}
+                  
+                  {/* Calendar days */}
+                  {calendarDays.map((day, index) => {
+                    if (!day) {
+                      return <div key={`empty-${index}`} className="aspect-square" />;
+                    }
+                    
+                    const dayKey = formatLocalDate(day);
+                    const busyness = dayBusyness.get(dayKey) || 0;
+                    const hasEvents = busyness > 0;
+                    
+                    return (
+                      <button
+                        key={dayKey}
+                        onClick={() => {
+                          setSelectedDate(day);
+                          setSelectedRoom(null);
+                        }}
+                        className={cn(
+                          "aspect-square rounded flex items-center justify-center text-xs font-medium transition-colors relative cursor-pointer",
+                          hasEvents ? getBusynessClass(busyness) : "hover:bg-muted",
+                          isSelected(day) && "ring-2 ring-primary ring-offset-1",
+                          isToday(day) && "font-bold"
+                        )}
+                      >
+                        {day.getDate()}
+                        {isToday(day) && (
+                          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      )}
+
+        {/* Column 2: Rooms */}
+        {selectedDate && data && (
+          <div className="lg:w-72 xl:w-80 space-y-4 shrink-0">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              {selectedDate.toLocaleDateString('en-BE', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </h3>
+            
+            {/* Room cards - vertical on desktop, horizontal scroll on mobile */}
+            <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+              {data.rooms.map(room => {
+                const events = selectedDayEvents.get(room.id) || [];
+                const isRoomSelected = selectedRoom?.id === room.id;
+                
+                return (
+                  <Card 
+                    key={room.id} 
+                    className={cn(
+                      "shrink-0 w-64 lg:w-full",
+                      isRoomSelected && "ring-2 ring-primary"
+                    )}
+                  >
+                    <CardHeader className="pb-2 pt-3 px-3">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          {room.name}
+                          <Link 
+                            href={`/rooms/${room.slug || room.id}`}
+                            className="text-muted-foreground hover:text-foreground cursor-pointer"
+                            title={`View ${room.name} details`}
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </Link>
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          <Users className="h-3 w-3 mr-1" />
+                          {room.capacity}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-3 pb-3 space-y-2">
+                      {events.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-1">
+                          ✅ Available all day
+                        </p>
+                      ) : (
+                        <div className="space-y-1 max-h-24 overflow-y-auto">
+                          {events.map(event => (
+                            <div
+                              key={event.id}
+                              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                            >
+                              <Clock className="h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {formatTime(event.start)}-{formatTime(event.end)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Button 
+                        variant={isRoomSelected ? "default" : "outline"} 
+                        size="sm" 
+                        className="w-full text-xs cursor-pointer"
+                        onClick={() => handleRoomSelect(room)}
+                      >
+                        {isRoomSelected ? "✓ Selected" : "Select this room"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Column 3: Booking Form */}
+        {selectedDate && selectedRoom && (
+          <div className="flex-1 min-w-0">
+            <EmbeddedBookingForm
+              roomId={selectedRoom.id}
+              roomName={selectedRoom.name}
+              date={formatLocalDate(selectedDate)}
+              onComplete={handleBookingComplete}
+              onBack={() => setSelectedRoom(null)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
