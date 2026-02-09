@@ -9,14 +9,15 @@ RUN npm ci --only=production && npm cache clean --force
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Install git for extracting commit info
-RUN apk add --no-cache git
+# Git info passed as build args (Coolify provides these)
+ARG SOURCE_COMMIT=unknown
+ARG COMMIT_MSG=unknown
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Get git info (will work because .git is NOT in .dockerignore)
-RUN git log -1 --pretty=format:'{"sha":"%H","message":"%s","date":"%ci"}' > git-info.json || echo '{"sha":"unknown","message":"unknown","date":"unknown"}' > git-info.json
+# Generate git-info.json from build args
+RUN echo "{\"sha\":\"${SOURCE_COMMIT}\",\"message\":\"${COMMIT_MSG}\",\"date\":\"$(date -Iseconds)\"}" > git-info.json
 RUN cat git-info.json
 
 RUN npm ci
@@ -30,7 +31,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache curl git su-exec
+RUN apk add --no-cache curl su-exec
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
