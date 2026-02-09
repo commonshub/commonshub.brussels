@@ -134,6 +134,16 @@ export async function POST(request: Request) {
       `,
     });
 
+    // Format date concisely for thread title (e.g., "Feb 15")
+    const shortDate = new Date(dateTime).toLocaleDateString("en-BE", {
+      month: "short",
+      day: "numeric",
+    });
+
+    // Concise thread title - just room, date, and name
+    const threadTitle = `${roomName} · ${shortDate} · ${name}`;
+
+    // Detailed first message with all booking info
     const discordContent = `📅 **New Booking Request**
 ${isPrivate ? "🔒 **PRIVATE** - to be handled by paid staff" : "🌐 Public request - can be picked up by community members"}
 
@@ -147,7 +157,7 @@ ${additionalNotes ? `**Notes:** ${additionalNotes}` : ""}`;
 
     await createDiscordThread(
       settings.discord.channels.requests,
-      `🏠 Booking: ${roomName} - ${name}`,
+      threadTitle,
       discordContent,
     );
 

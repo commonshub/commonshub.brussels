@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Users, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -339,9 +340,10 @@ export function RoomCalendar() {
             <div className="flex gap-4 min-w-max pb-4">
               {data.rooms.map(room => {
                 const events = selectedDayEvents.get(room.id) || [];
+                const selectedDateStr = selectedDate.toISOString().split('T')[0];
                 
                 return (
-                  <Card key={room.id} className="w-64 shrink-0">
+                  <Card key={room.id} className="w-64 shrink-0 flex flex-col">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center justify-between">
                         <span>{room.name}</span>
@@ -351,7 +353,7 @@ export function RoomCalendar() {
                         </Badge>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-2 flex-1">
                       {events.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
                           Available all day
@@ -376,6 +378,16 @@ export function RoomCalendar() {
                         ))
                       )}
                     </CardContent>
+                    <CardFooter className="pt-2">
+                      <Link 
+                        href={`/book?room=${room.id}&date=${selectedDateStr}`}
+                        className="w-full"
+                      >
+                        <Button variant="outline" size="sm" className="w-full cursor-pointer">
+                          Book this room
+                        </Button>
+                      </Link>
+                    </CardFooter>
                   </Card>
                 );
               })}
