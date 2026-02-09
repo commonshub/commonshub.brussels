@@ -66,13 +66,13 @@ export default async function RoomPage({ params }: RoomPageProps) {
               <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-2">
                 {room.name}
               </h1>
-              <div className="flex items-center gap-4 text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Users className="w-5 h-5" />
                   Up to {room.capacity} people
                 </span>
                 {room.pricePerHour > 0 && (
-                  <>
+                  <div className="flex items-center gap-4">
                     <span className="font-semibold text-foreground">
                       €{room.pricePerHour}/hour
                     </span>
@@ -81,7 +81,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
                       {room.tokensPerHour} token
                       {room.tokensPerHour > 1 ? "s" : ""}/hour
                     </span>
-                  </>
+                  </div>
                 )}
                 {room.membershipRequired && (
                   <Badge variant="secondary">Members Only</Badge>
