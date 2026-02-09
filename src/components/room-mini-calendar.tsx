@@ -284,8 +284,9 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
                 }
                 
                 const dayKey = formatLocalDate(day);
-                const busyness = dayBusyness.get(dayKey) || 0;
-                const hasEvents = busyness > 0;
+                // Only apply busyness colors when data is loaded
+                const busyness = data ? (dayBusyness.get(dayKey) || 0) : 0;
+                const hasEvents = data ? busyness > 0 : false;
                 const past = isPast(day);
                 
                 return (
@@ -296,8 +297,8 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
                     className={cn(
                       "aspect-square rounded flex items-center justify-center text-xs font-medium transition-colors relative",
                       past && "text-muted-foreground/50 cursor-not-allowed",
-                      !past && hasEvents && getBusynessClass(busyness),
-                      !past && !hasEvents && "hover:bg-muted cursor-pointer",
+                      !past && data && hasEvents && getBusynessClass(busyness),
+                      !past && (!data || !hasEvents) && "hover:bg-muted cursor-pointer",
                       isSelected(day) && "ring-2 ring-primary ring-offset-1",
                       isToday(day) && "font-bold"
                     )}

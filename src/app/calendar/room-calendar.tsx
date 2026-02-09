@@ -345,8 +345,9 @@ export function RoomCalendar() {
                     }
                     
                     const dayKey = formatLocalDate(day);
-                    const busyness = dayBusyness.get(dayKey) || 0;
-                    const hasEvents = busyness > 0;
+                    // Only apply busyness colors when data is loaded
+                    const busyness = data ? (dayBusyness.get(dayKey) || 0) : 0;
+                    const hasEvents = data ? busyness > 0 : false;
                     
                     return (
                       <button
@@ -357,7 +358,7 @@ export function RoomCalendar() {
                         }}
                         className={cn(
                           "aspect-square rounded flex items-center justify-center text-xs font-medium transition-colors relative cursor-pointer",
-                          hasEvents ? getBusynessClass(busyness) : "hover:bg-muted",
+                          data && hasEvents ? getBusynessClass(busyness) : "hover:bg-muted",
                           isSelected(day) && "ring-2 ring-primary ring-offset-1",
                           isToday(day) && "font-bold"
                         )}

@@ -125,15 +125,6 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
         <CardTitle>Book the {roomName}</CardTitle>
         <CardDescription>
           Fill out the form below and we will get back to you to confirm your booking.
-          {pricePerHour > 0 && (
-            <span className="block mt-2">
-              <strong>€{pricePerHour}/hour</strong> or{" "}
-              <strong>
-                {tokensPerHour} token{tokensPerHour > 1 ? "s" : ""}/hour
-              </strong>{" "}
-              for members
-            </span>
-          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
