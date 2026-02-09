@@ -29,8 +29,7 @@ coverage
 Thumbs.db
 
 # Git
-# Note: .git is needed for build-time git info extraction in next.config.mjs
-# .git
+.git
 .gitignore
 
 # Docker

@@ -10,15 +10,19 @@ RUN npm ci --only=production && npm cache clean --force
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Install git for build-time git info extraction
-RUN apk add --no-cache git
+# Git info passed as build args (set via Coolify env vars)
+ARG SOURCE_COMMIT
+ARG GIT_COMMIT_SHA
+ARG GIT_COMMIT_MESSAGE  
+ARG GIT_COMMIT_DATE
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-
-# Copy .git first for git info extraction during build
-COPY .git ./.git
 COPY . .
+
+# Generate git-info.json from build args before npm build
+# This provides git info to next.config.mjs since .git isn't copied
+RUN echo "{\"sha\": \"${SOURCE_COMMIT:-${GIT_COMMIT_SHA:-unknown}}\", \"message\": \"${GIT_COMMIT_MESSAGE:-unknown}\", \"date\": \"${GIT_COMMIT_DATE:-$(date -Iseconds)}\", \"source\": \"docker-build-arg\"}" > git-info.json && cat git-info.json
 
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
