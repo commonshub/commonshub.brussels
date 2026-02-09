@@ -34,9 +34,15 @@ function formatLocalDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+export interface RoomEventData {
+  id: string;
+  start: string;
+  end: string;
+}
+
 interface RoomMiniCalendarProps {
   roomId: string;
-  onDateSelect?: (date: string | null) => void;
+  onDateSelect?: (date: string | null, events: RoomEventData[]) => void;
 }
 
 export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps) {
@@ -181,10 +187,22 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
     const isSameDate = selectedDate?.toDateString() === day.toDateString();
     if (isSameDate) {
       setSelectedDate(null);
-      onDateSelect?.(null);
+      onDateSelect?.(null, []);
     } else {
       setSelectedDate(day);
-      onDateSelect?.(formatLocalDate(day));
+      // Get events for this day
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      
+      const dayEvents = data?.events.filter(event => {
+        const eventStart = new Date(event.start);
+        const eventEnd = new Date(event.end);
+        return eventStart <= dayEnd && eventEnd >= dayStart;
+      }).map(e => ({ id: e.id, start: e.start, end: e.end })) || [];
+      
+      onDateSelect?.(formatLocalDate(day), dayEvents);
     }
   };
 
