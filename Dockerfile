@@ -57,7 +57,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 
 # Create data directory with proper permissions
+# Mount persistent storage here and set DATA_DIR=/data
 RUN mkdir -p /data && chown nextjs:nodejs /data
+
+# Set DATA_DIR to use /data instead of default ./data
+ENV DATA_DIR=/data
 
 EXPOSE 3000
 
