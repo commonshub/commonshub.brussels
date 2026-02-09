@@ -9,7 +9,38 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, CheckCircle, Calendar } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RoomMiniCalendar } from "@/components/room-mini-calendar"
+
+// Time options: 8am to 9pm
+const TIME_OPTIONS = [
+  { value: "08:00", label: "8:00 AM" },
+  { value: "09:00", label: "9:00 AM" },
+  { value: "10:00", label: "10:00 AM" },
+  { value: "11:00", label: "11:00 AM" },
+  { value: "12:00", label: "12:00 PM" },
+  { value: "13:00", label: "1:00 PM" },
+  { value: "14:00", label: "2:00 PM" },
+  { value: "15:00", label: "3:00 PM" },
+  { value: "16:00", label: "4:00 PM" },
+  { value: "17:00", label: "5:00 PM" },
+  { value: "18:00", label: "6:00 PM" },
+  { value: "19:00", label: "7:00 PM" },
+  { value: "20:00", label: "8:00 PM" },
+  { value: "21:00", label: "9:00 PM" },
+]
+
+// Duration options: 1h to 8h
+const DURATION_OPTIONS = [
+  { value: "1", label: "1 hour" },
+  { value: "2", label: "2 hours" },
+  { value: "3", label: "3 hours" },
+  { value: "4", label: "4 hours" },
+  { value: "5", label: "5 hours" },
+  { value: "6", label: "6 hours" },
+  { value: "7", label: "7 hours" },
+  { value: "8", label: "8 hours" },
+]
 
 interface RoomBookingFormProps {
   roomId: string
@@ -27,8 +58,8 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
     email: "",
     organisation: "",
     numberOfPeople: "",
-    time: "",
-    duration: "",
+    time: "09:00",
+    duration: "2",
     projector: false,
     whiteboard: false,
     facilitationKit: false,
@@ -99,8 +130,8 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                   email: "",
                   organisation: "",
                   numberOfPeople: "",
-                  time: "",
-                  duration: "",
+                  time: "09:00",
+                  duration: "2",
                   projector: false,
                   whiteboard: false,
                   facilitationKit: false,
@@ -151,30 +182,44 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="time" className="block min-h-[2.5rem] flex items-start">Start Time *</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    required
+                <div className="space-y-1">
+                  <Label htmlFor="time">Start Time *</Label>
+                  <Select
                     value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  />
+                    onValueChange={(value) => setFormData({ ...formData, time: value })}
+                  >
+                    <SelectTrigger id="time">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration" className="block min-h-[2.5rem] flex items-start">Duration (hours) *</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    required
+                <div className="space-y-1">
+                  <Label htmlFor="duration">Duration *</Label>
+                  <Select
                     value={formData.duration}
-                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  />
+                    onValueChange={(value) => setFormData({ ...formData, duration: value })}
+                  >
+                    <SelectTrigger id="duration">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DURATION_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="numberOfPeople" className="block min-h-[2.5rem] flex items-start">Number of People *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="numberOfPeople">Number of People *</Label>
                   <Input
                     id="numberOfPeople"
                     type="number"
