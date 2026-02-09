@@ -10,37 +10,80 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, CheckCircle, Calendar } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RoomMiniCalendar } from "@/components/room-mini-calendar"
+import { RoomMiniCalendar, RoomEventData } from "@/components/room-mini-calendar"
 
 // Time options: 8am to 9pm
 const TIME_OPTIONS = [
-  { value: "08:00", label: "8:00 AM" },
-  { value: "09:00", label: "9:00 AM" },
-  { value: "10:00", label: "10:00 AM" },
-  { value: "11:00", label: "11:00 AM" },
-  { value: "12:00", label: "12:00 PM" },
-  { value: "13:00", label: "1:00 PM" },
-  { value: "14:00", label: "2:00 PM" },
-  { value: "15:00", label: "3:00 PM" },
-  { value: "16:00", label: "4:00 PM" },
-  { value: "17:00", label: "5:00 PM" },
-  { value: "18:00", label: "6:00 PM" },
-  { value: "19:00", label: "7:00 PM" },
-  { value: "20:00", label: "8:00 PM" },
-  { value: "21:00", label: "9:00 PM" },
+  { value: "08:00", label: "8:00 AM", hour: 8 },
+  { value: "09:00", label: "9:00 AM", hour: 9 },
+  { value: "10:00", label: "10:00 AM", hour: 10 },
+  { value: "11:00", label: "11:00 AM", hour: 11 },
+  { value: "12:00", label: "12:00 PM", hour: 12 },
+  { value: "13:00", label: "1:00 PM", hour: 13 },
+  { value: "14:00", label: "2:00 PM", hour: 14 },
+  { value: "15:00", label: "3:00 PM", hour: 15 },
+  { value: "16:00", label: "4:00 PM", hour: 16 },
+  { value: "17:00", label: "5:00 PM", hour: 17 },
+  { value: "18:00", label: "6:00 PM", hour: 18 },
+  { value: "19:00", label: "7:00 PM", hour: 19 },
+  { value: "20:00", label: "8:00 PM", hour: 20 },
+  { value: "21:00", label: "9:00 PM", hour: 21 },
 ]
 
 // Duration options: 1h to 8h
 const DURATION_OPTIONS = [
-  { value: "1", label: "1 hour" },
-  { value: "2", label: "2 hours" },
-  { value: "3", label: "3 hours" },
-  { value: "4", label: "4 hours" },
-  { value: "5", label: "5 hours" },
-  { value: "6", label: "6 hours" },
-  { value: "7", label: "7 hours" },
-  { value: "8", label: "8 hours" },
+  { value: "1", label: "1 hour", hours: 1 },
+  { value: "2", label: "2 hours", hours: 2 },
+  { value: "3", label: "3 hours", hours: 3 },
+  { value: "4", label: "4 hours", hours: 4 },
+  { value: "5", label: "5 hours", hours: 5 },
+  { value: "6", label: "6 hours", hours: 6 },
+  { value: "7", label: "7 hours", hours: 7 },
+  { value: "8", label: "8 hours", hours: 8 },
 ]
+
+// Default number of people by room
+const DEFAULT_PEOPLE: Record<string, number> = {
+  mushroom: 8,
+  satoshi: 10,
+  ostrom: 40,
+  playroom: 4,
+  coworking: 30,
+  angel: 6,
+  phonebooth: 1,
+}
+
+// Check if a time slot conflicts with any event
+function isTimeBooked(hour: number, events: RoomEventData[], selectedDate: string): boolean {
+  const slotStart = new Date(`${selectedDate}T${hour.toString().padStart(2, '0')}:00:00`);
+  const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000); // 1 hour slot
+  
+  return events.some(event => {
+    const eventStart = new Date(event.start);
+    const eventEnd = new Date(event.end);
+    // Overlap if slot starts before event ends AND slot ends after event starts
+    return slotStart < eventEnd && slotEnd > eventStart;
+  });
+}
+
+// Get max available duration from a start time before hitting a booking
+function getMaxDuration(startHour: number, events: RoomEventData[], selectedDate: string): number {
+  const startTime = new Date(`${selectedDate}T${startHour.toString().padStart(2, '0')}:00:00`);
+  const endOfDay = 22; // 10pm
+  
+  let maxHours = endOfDay - startHour;
+  
+  for (const event of events) {
+    const eventStart = new Date(event.start);
+    // Only consider events that start after our start time
+    if (eventStart > startTime) {
+      const hoursUntilEvent = (eventStart.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+      maxHours = Math.min(maxHours, Math.floor(hoursUntilEvent));
+    }
+  }
+  
+  return Math.max(0, maxHours);
+}
 
 interface RoomBookingFormProps {
   roomId: string
@@ -53,11 +96,15 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [dayEvents, setDayEvents] = useState<RoomEventData[]>([])
+  
+  const defaultPeople = DEFAULT_PEOPLE[roomId] || ""
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     organisation: "",
-    numberOfPeople: "",
+    numberOfPeople: defaultPeople.toString(),
     time: "09:00",
     duration: "2",
     projector: false,
@@ -68,6 +115,22 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
     isPrivate: false,
     additionalNotes: "",
   })
+  
+  // Calculate available time slots and durations
+  const availableTimeOptions = selectedDate 
+    ? TIME_OPTIONS.map(opt => ({
+        ...opt,
+        disabled: isTimeBooked(opt.hour, dayEvents, selectedDate)
+      }))
+    : TIME_OPTIONS.map(opt => ({ ...opt, disabled: false }))
+  
+  const selectedHour = parseInt(formData.time.split(':')[0])
+  const maxDuration = selectedDate ? getMaxDuration(selectedHour, dayEvents, selectedDate) : 8
+  
+  const availableDurationOptions = DURATION_OPTIONS.map(opt => ({
+    ...opt,
+    disabled: opt.hours > maxDuration
+  }))
 
   // Format selected date for display
   const formattedDate = selectedDate
@@ -125,11 +188,12 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
               onClick={() => {
                 setSubmitted(false)
                 setSelectedDate(null)
+                setDayEvents([])
                 setFormData({
                   name: "",
                   email: "",
                   organisation: "",
-                  numberOfPeople: "",
+                  numberOfPeople: defaultPeople.toString(),
                   time: "09:00",
                   duration: "2",
                   projector: false,
@@ -168,7 +232,19 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
             </Label>
             <RoomMiniCalendar 
               roomId={roomId} 
-              onDateSelect={setSelectedDate}
+              onDateSelect={(date, events) => {
+                setSelectedDate(date)
+                setDayEvents(events)
+                // Reset time to first available slot
+                if (date && events.length > 0) {
+                  const firstAvailable = TIME_OPTIONS.find(
+                    opt => !isTimeBooked(opt.hour, events, date)
+                  )
+                  if (firstAvailable) {
+                    setFormData(prev => ({ ...prev, time: firstAvailable.value }))
+                  }
+                }
+              }}
             />
           </div>
 
@@ -186,15 +262,22 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                   <Label htmlFor="time">Start Time *</Label>
                   <Select
                     value={formData.time}
-                    onValueChange={(value) => setFormData({ ...formData, time: value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, time: value })
+                    }}
                   >
                     <SelectTrigger id="time">
                       <SelectValue placeholder="Select time" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIME_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                      {availableTimeOptions.map((opt) => (
+                        <SelectItem 
+                          key={opt.value} 
+                          value={opt.value}
+                          disabled={opt.disabled}
+                          className={opt.disabled ? "text-muted-foreground line-through" : ""}
+                        >
+                          {opt.label}{opt.disabled ? " (booked)" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -210,16 +293,21 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                       <SelectValue placeholder="Select duration" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DURATION_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                      {availableDurationOptions.map((opt) => (
+                        <SelectItem 
+                          key={opt.value} 
+                          value={opt.value}
+                          disabled={opt.disabled}
+                          className={opt.disabled ? "text-muted-foreground line-through" : ""}
+                        >
+                          {opt.label}{opt.disabled ? " (conflict)" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="numberOfPeople">Number of People *</Label>
+                  <Label htmlFor="numberOfPeople">People *</Label>
                   <Input
                     id="numberOfPeople"
                     type="number"
@@ -261,7 +349,7 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                       onCheckedChange={(checked) => setFormData({ ...formData, facilitationKit: !!checked })}
                     />
                     <Label htmlFor="facilitationKit" className="text-sm font-normal cursor-pointer">
-                      Facilitation kit
+                      Facilitation
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
