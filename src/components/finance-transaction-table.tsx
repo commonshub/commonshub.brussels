@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { InlineDescriptionEditor } from "@/components/inline-description-editor";
+import { WalletAddress } from "@/components/wallet-address";
 import type { TokenTransfer } from "@/lib/etherscan";
 import type { MoneriumOrder } from "@/lib/monerium-node";
 import settings from "@/settings/settings.json";
@@ -1082,14 +1083,12 @@ export function FinanceTransactionTable({
                         {tx.moneriumOrder.counterpart.details.name}
                       </div>
                     ) : (
-                      <a
-                        href={`https://gnosisscan.io/address/${isIncoming ? tx.from : tx.to}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-xs hover:underline text-muted-foreground"
-                      >
-                        {shortenAddress(isIncoming ? tx.from : tx.to)}
-                      </a>
+                      <WalletAddress
+                        address={isIncoming ? tx.from : tx.to}
+                        chain={chain}
+                        showLink={true}
+                        showCopy={true}
+                      />
                     )}
                     {isAdmin && tx.counterpartyId && (
                       <div onClick={(e) => e.stopPropagation()}>

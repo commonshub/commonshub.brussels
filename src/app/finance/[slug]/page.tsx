@@ -28,6 +28,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
+import { WalletAddress } from "@/components/wallet-address";
 import settings from "@/settings/settings.json";
 
 interface MonthlyBreakdown {
@@ -348,28 +349,26 @@ export default function AccountPage() {
                   <span className="text-muted-foreground">Chain</span>
                   <span className="font-medium capitalize">{data.chain}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Wallet Address</span>
-                  <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                    {data.address}
-                  </code>
+                  <WalletAddress
+                    address={data.address}
+                    chain={data.chain || "ethereum"}
+                  />
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Token</span>
                   <span className="font-medium">{data.tokenSymbol}</span>
                 </div>
                 {"token" in accountConfig && accountConfig.token && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">
                       Token Contract
                     </span>
-                    <Link
-                      href={`${explorerBaseUrl}/token/${accountConfig.token.address}`}
-                      target="_blank"
-                      className="font-mono text-sm text-primary hover:underline"
-                    >
-                      {formatAddress(accountConfig.token.address)}
-                    </Link>
+                    <WalletAddress
+                      address={accountConfig.token.address}
+                      chain={data.chain || "ethereum"}
+                    />
                   </div>
                 )}
               </CardContent>

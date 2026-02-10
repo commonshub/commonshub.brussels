@@ -8,6 +8,7 @@ import type { MoneriumOrder } from "@/lib/monerium-node";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FinanceTransactionTable } from "@/components/finance-transaction-table";
+import { WalletAddress } from "@/components/wallet-address";
 
 interface PageProps {
   params: Promise<{
@@ -388,10 +389,10 @@ export default async function YearlyFinancePage({ params }: PageProps) {
         <p className="text-muted-foreground">
           {year} - {augmentedTransactions.length} transactions
         </p>
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-wrap items-center gap-2 mt-2">
           <Badge variant="outline">{account.chain}</Badge>
           <Badge variant="outline">{account.token.symbol}</Badge>
-          <Badge variant="outline">{shortenAddress(account.address)}</Badge>
+          <WalletAddress address={account.address} chain={account.chain} />
         </div>
       </div>
 

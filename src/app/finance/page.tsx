@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { ArrowDownLeft, ArrowUpRight, Wallet, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { WalletAddress } from "@/components/wallet-address";
 
 interface MonthlyBreakdown {
   month: string;
@@ -344,10 +345,10 @@ export default function FinanceOverviewPage() {
                     <CardTitle className="text-lg flex items-center justify-between">
                       <span>{account.name}</span>
                       {account.address && (
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {account.address.slice(0, 6)}...
-                          {account.address.slice(-4)}
-                        </span>
+                        <WalletAddress
+                          address={account.address}
+                          chain={account.chain || "ethereum"}
+                        />
                       )}
                     </CardTitle>
                     <CardDescription>
