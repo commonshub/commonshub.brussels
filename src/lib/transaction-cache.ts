@@ -847,9 +847,25 @@ export async function processEtherscanAccount(
       force
     );
 
+    // Always fetch balance, even if no transactions in this time period
+    let balance = 0;
+    try {
+      console.log(`  Fetching balance...`);
+      const balanceData = await fetchTokenBalance(
+        account.chainId,
+        account.token.address,
+        account.address,
+        etherscanApiKey
+      );
+      balance = parseTokenBalance(balanceData.result, account.token.decimals);
+      console.log(`  ✓ Balance: ${balance} ${account.token.symbol}\n`);
+    } catch (error: any) {
+      console.error(`  ⚠ Error fetching balance:`, error.message);
+    }
+
     if (transactions.length === 0) {
-      console.log(`No transactions found for ${account.slug}. Skipping.\n`);
-      return { slug: account.slug, balance: 0, lastTransactionTimestamp: null };
+      console.log(`No transactions found for ${account.slug} in this period.\n`);
+      return { slug: account.slug, balance, lastTransactionTimestamp: null };
     }
 
     // Group by month and cache (skipping existing historical months unless force is enabled)
@@ -873,22 +889,6 @@ export async function processEtherscanAccount(
       transactions.length > 0
         ? Number.parseInt(transactions[0].timeStamp) // Already sorted by most recent first
         : null;
-
-    // Fetch balance
-    let balance = 0;
-    try {
-      console.log(`  Fetching balance...`);
-      const balanceData = await fetchTokenBalance(
-        account.chainId,
-        account.token.address,
-        account.address,
-        etherscanApiKey
-      );
-      balance = parseTokenBalance(balanceData.result, account.token.decimals);
-      console.log(`  ✓ Balance: ${balance} ${account.token.symbol}\n`);
-    } catch (error: any) {
-      console.error(`  ⚠ Error fetching balance:`, error.message);
-    }
 
     return { slug: account.slug, balance, lastTransactionTimestamp };
   } catch (error) {
