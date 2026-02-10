@@ -3,7 +3,11 @@ set -e
 
 # Generate git-info.json from SOURCE_COMMIT env var (set by Coolify)
 if [ -n "$SOURCE_COMMIT" ]; then
-    echo "{\"sha\":\"$SOURCE_COMMIT\",\"message\":\"${COOLIFY_BRANCH:-main}\",\"date\":\"$(date -Iseconds)\"}" > /app/git-info.json
+    # Fetch commit message from GitHub API (public repo, no auth needed)
+    COMMIT_MSG=$(curl -sf "https://api.github.com/repos/CommonsHub/commonshub.brussels/commits/$SOURCE_COMMIT" 2>/dev/null | grep -o '"message": *"[^"]*"' | head -1 | sed 's/"message": *"//;s/"$//' | head -c 100 || echo "unknown")
+    # Escape quotes in message for JSON
+    COMMIT_MSG=$(echo "$COMMIT_MSG" | sed 's/"/\\"/g' | tr '\n' ' ')
+    echo "{\"sha\":\"$SOURCE_COMMIT\",\"message\":\"$COMMIT_MSG\",\"date\":\"$(date -Iseconds)\"}" > /app/git-info.json
     chown nextjs:nodejs /app/git-info.json 2>/dev/null || true
 fi
 
