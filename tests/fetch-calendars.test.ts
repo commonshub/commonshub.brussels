@@ -14,9 +14,6 @@ import * as fs from "fs";
 import ical from "node-ical";
 import { execSync } from "child_process";
 
-// Skip integration tests in CI unless explicitly enabled
-const SKIP_INTEGRATION = process.env.CI === "true" && process.env.INTEGRATION_TESTS !== "true";
-
 describe("Calendar Fetching Tests", () => {
   const testDataDir = path.join(process.cwd(), "tests", "data");
   const testYear = "2025";
@@ -24,13 +21,9 @@ describe("Calendar Fetching Tests", () => {
   const calendarsDir = path.join(testDataDir, testYear, testMonth, "calendars");
 
   let fetchSucceeded = false;
+  let fetchError: string | null = null;
 
   beforeAll(() => {
-    if (SKIP_INTEGRATION) {
-      console.log("⏭️  Skipping calendar fetch integration tests in CI");
-      console.log("   Set INTEGRATION_TESTS=true to run these tests");
-      return;
-    }
 
     // Set DATA_DIR environment variable and fetch calendars for test month
     process.env.DATA_DIR = testDataDir;
@@ -55,15 +48,15 @@ describe("Calendar Fetching Tests", () => {
   }, 120000); // 2 minute timeout for fetching
 
   test("calendars directory exists", () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) {
-      console.log("Skipping - integration test");
+    if (!fetchSucceeded) {
+      console.log("⏭️  Skipping - calendar fetch failed (missing LUMA_API_KEY or network issue)");
       return;
     }
     expect(fs.existsSync(calendarsDir)).toBe(true);
   });
 
   test("ical subdirectory structure (if present)", () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) return;
+    if (!fetchSucceeded) return;
 
     const icalDir = path.join(calendarsDir, "ical");
     const calendarFile = path.join(icalDir, "calendar.ics");
@@ -83,7 +76,7 @@ describe("Calendar Fetching Tests", () => {
   });
 
   test("calendar.ics has valid iCal format", async () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) return;
+    if (!fetchSucceeded) return;
 
     const calendarFile = path.join(calendarsDir, "ical", "calendar.ics");
 
@@ -124,7 +117,7 @@ describe("Calendar Fetching Tests", () => {
   });
 
   test("luma subdirectory structure (if present)", () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) return;
+    if (!fetchSucceeded) return;
 
     const lumaDir = path.join(calendarsDir, "luma");
 
@@ -144,7 +137,7 @@ describe("Calendar Fetching Tests", () => {
   });
 
   test("images directory exists if events have cover images", () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) return;
+    if (!fetchSucceeded) return;
 
     const icsDir = path.join(calendarsDir, "ics");
     const imagesDir = path.join(icsDir, "images");
@@ -162,7 +155,7 @@ describe("Calendar Fetching Tests", () => {
   });
 
   test("event images are downloaded", () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) return;
+    if (!fetchSucceeded) return;
 
     // Check both ics/images and luma images
     const icsImagesDir = path.join(calendarsDir, "ics", "images");
@@ -188,7 +181,7 @@ describe("Calendar Fetching Tests", () => {
   });
 
   test("consolidated structure is correct", () => {
-    if (SKIP_INTEGRATION || !fetchSucceeded) return;
+    if (!fetchSucceeded) return;
 
     // Check that we have either ics or luma structure
     const icsDir = path.join(calendarsDir, "ics");

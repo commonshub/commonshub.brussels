@@ -9,7 +9,7 @@
         "avatar": null
       },
       "content": "Test message",
-      "timestamp": "2026-02-11T15:37:18.517Z",
+      "timestamp": "2026-02-11T15:40:30.948Z",
       "attachments": [
         {
           "id": "attach123",
@@ -22,7 +22,7 @@
       "mentions": []
     }
   ],
-  "cachedAt": "2026-02-11T15:37:18.517Z",
+  "cachedAt": "2026-02-11T15:40:30.948Z",
   "newestMessageId": "test123",
   "oldestMessageId": "test123"
 }
