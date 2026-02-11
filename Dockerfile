@@ -13,6 +13,13 @@ WORKDIR /app
 ARG SOURCE_COMMIT=unknown
 ARG COMMIT_MSG=unknown
 
+# Set to "true" to fetch recent data during build (for preview deployments)
+ARG FETCH_DATA_ON_BUILD=false
+
+# Stripe key for fetching member data (optional, only needed if FETCH_DATA_ON_BUILD=true)
+ARG STRIPE_SECRET_KEY=""
+ARG EMAIL_HASH_SALT=""
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -21,6 +28,18 @@ RUN echo "{\"sha\":\"${SOURCE_COMMIT}\",\"message\":\"${COMMIT_MSG}\",\"date\":\
 RUN cat git-info.json
 
 RUN npm ci
+
+# Ensure data directory exists (may be populated by fetch-recent)
+RUN mkdir -p data
+
+# Fetch recent data during build if requested (for preview deployments)
+RUN if [ "$FETCH_DATA_ON_BUILD" = "true" ]; then \
+      echo "Fetching recent data during build..." && \
+      STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY \
+      EMAIL_HASH_SALT=$EMAIL_HASH_SALT \
+      npm run fetch-recent || echo "Warning: Data fetch failed, continuing anyway"; \
+    fi
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -49,7 +68,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/git-info.json ./git-info.json
 
+# Create data directory and copy build-time fetched data if it exists
 RUN mkdir -p /data && chown nextjs:nodejs /data
+COPY --from=builder --chown=nextjs:nodejs /app/data/ ./data/
 ENV DATA_DIR=/data
 
 EXPOSE 3000
