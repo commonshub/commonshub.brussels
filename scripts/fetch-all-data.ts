@@ -18,9 +18,11 @@
  * 1. Fetch calendars (iCal + Luma)
  * 2. Generate events.json
  * 3. Download featured images
- * 4. Fetch CHT tokens
- * 5. Generate data files (contributors, etc.)
- * 6. Generate transactions
+ * 4. Fetch blockchain transactions
+ * 5. Fetch CHT tokens
+ * 6. Fetch membership subscriptions
+ * 7. Generate data files (contributors, etc.)
+ * 8. Generate transactions
  */
 
 import { spawn } from "child_process";
@@ -122,35 +124,39 @@ async function main() {
 
   try {
     // 1. Fetch calendars (iCal + Luma)
-    console.log("📅 Step 1/7: Fetching calendars...");
+    console.log("📅 Step 1/8: Fetching calendars...");
     const calendarArgs = ["tsx", "scripts/fetch-calendars.ts", `--month=${monthKey}`];
     if (force) calendarArgs.push("--force");
     await runCommand("npx", calendarArgs, env);
 
     // 2. Generate events.json
-    console.log("\n🎉 Step 2/7: Generating events...");
+    console.log("\n🎉 Step 2/8: Generating events...");
     await runCommand("npx", ["tsx", "scripts/generate-events.ts"], env);
 
     // 3. Download featured images
-    console.log("\n🖼️  Step 3/7: Downloading featured images...");
+    console.log("\n🖼️  Step 3/8: Downloading featured images...");
     await runCommand("npx", ["tsx", "scripts/download-featured-images.ts", year], env);
 
     // 4. Fetch blockchain transactions (Gnosis/EURe, EURb, etc.)
-    console.log("\n⛓️  Step 4/7: Fetching blockchain transactions...");
+    console.log("\n⛓️  Step 4/8: Fetching blockchain transactions...");
     await runCommand("npx", ["tsx", "scripts/warmup-transactions-cache.js", `--month=${monthKey}`], env);
 
     // 5. Fetch CHT tokens
-    console.log("\n🪙 Step 5/7: Fetching CHT tokens...");
+    console.log("\n🪙 Step 5/8: Fetching CHT tokens...");
     const chtArgs = ["tsx", "scripts/fetch-cht-tokens.ts", year, month];
     if (force) chtArgs.push("--force");
     await runCommand("npx", chtArgs, env);
 
-    // 6. Generate data files (contributors, etc.)
-    console.log("\n👥 Step 6/7: Generating data files...");
+    // 6. Fetch membership subscriptions
+    console.log("\n👤 Step 6/8: Fetching membership subscriptions...");
+    await runCommand("npx", ["tsx", "scripts/fetch-members.ts", `--month=${monthKey}`], env);
+
+    // 7. Generate data files (contributors, etc.)
+    console.log("\n👥 Step 7/8: Generating data files...");
     await runCommand("npx", ["tsx", "scripts/generate-data-files.ts"], env);
 
-    // 7. Generate transactions
-    console.log("\n💰 Step 7/7: Generating transactions...");
+    // 8. Generate transactions
+    console.log("\n💰 Step 8/8: Generating transactions...");
     await runCommand("npx", ["tsx", "scripts/generate-transactions.ts"], env);
 
     console.log("\n✅ All data fetched and generated successfully!");
