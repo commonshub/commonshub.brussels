@@ -72,10 +72,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/types ./src/types
 COPY --from=builder --chown=nextjs:nodejs /app/src/settings ./src/settings
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 
-# Merge production dependencies for fetch scripts into standalone node_modules
-# Scripts need dotenv, stripe, tsx etc. which are now in dependencies
-COPY --from=deps /app/node_modules /tmp/node_modules_prod
-RUN cp -rn /tmp/node_modules_prod/* node_modules/ && rm -rf /tmp/node_modules_prod
+# Install production dependencies for fetch scripts
+# Standalone has minimal deps; we need tsx, dotenv, stripe etc. for scripts
+# Use npm install to properly create bin links
+RUN npm install --omit=dev --ignore-scripts 2>/dev/null || npm install dotenv tsx stripe discord.js crypto-js viem date-fns date-fns-tz node-ical open-graph-scraper resend
 
 # Create data directory and copy build-time fetched data if it exists
 RUN mkdir -p /data && chown nextjs:nodejs /data
