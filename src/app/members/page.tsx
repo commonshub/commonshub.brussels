@@ -1,13 +1,13 @@
 "use client";
 
-import type { Metadata } from "next";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { RecentContributors } from "@/components/recent-contributors";
 import { DiscordStatsDisplay } from "@/components/discord-stats";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Building2, Utensils, Users, Leaf } from "lucide-react";
+import { ArrowRight, Building2, Utensils, Users, Leaf, Heart } from "lucide-react";
 import partnersData from "@/settings/partners.json";
 import settings from "@/settings/settings.json";
 import {
@@ -26,6 +26,25 @@ interface Partner {
 const partners: Partner[] = partnersData;
 
 export default function MembersPage() {
+  const [activeCommoners, setActiveCommoners] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch current month's active members count
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    
+    fetch(`/api/members?year=${year}&month=${month}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.summary?.activeMembers) {
+          setActiveCommoners(data.summary.activeMembers);
+        }
+      })
+      .catch(() => {
+        // Silently fail - the stat just won't show
+      });
+  }, []);
   return (
     <div className="min-h-screen bg-background">
       <main className="pt-24">
@@ -46,7 +65,7 @@ export default function MembersPage() {
         {/* Stats */}
         <section className="py-12 px-4 sm:px-6 lg:px-8 border-b border-border">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-3 gap-8 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               <div>
                 <div className="flex justify-center mb-3">
                   <Building2 className="w-8 h-8 text-primary" />
@@ -58,6 +77,19 @@ export default function MembersPage() {
                   Partner Organizations
                 </p>
               </div>
+              {activeCommoners !== null && (
+                <Link href="/members/list" className="group">
+                  <div className="flex justify-center mb-3">
+                    <Heart className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground group-hover:text-primary transition-colors">
+                    {activeCommoners}
+                  </p>
+                  <p className="text-sm text-muted-foreground group-hover:text-primary/80 transition-colors">
+                    Active Commoners
+                  </p>
+                </Link>
+              )}
               <DiscordStatsDisplay />
             </div>
           </div>
