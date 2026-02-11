@@ -57,20 +57,29 @@ RUN adduser --system --uid 1001 nextjs
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Copy standalone build (includes minimal node_modules)
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/src ./src
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/git-info.json ./git-info.json
+
+# Copy scripts and their required source files
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib ./src/lib
+COPY --from=builder --chown=nextjs:nodejs /app/src/types ./src/types
+COPY --from=builder --chown=nextjs:nodejs /app/src/settings ./src/settings
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
+
+# Install ONLY deps needed for fetch scripts (not full 1.3GB node_modules)
+# This is ~150MB vs 1.3GB for full node_modules
+RUN npm install --no-save tsx dotenv stripe viem node-ical date-fns date-fns-tz open-graph-scraper discord.js resend crypto-js
 
 # Create data directory and copy build-time fetched data if it exists
 RUN mkdir -p /data && chown nextjs:nodejs /data
-COPY --from=builder --chown=nextjs:nodejs /app/data/ ./data/
+COPY --from=builder --chown=nextjs:nodejs /app/data/ /data/
+
+# DATA_DIR must be /data (not /app/data) to use persistent volume mount
 ENV DATA_DIR=/data
 
 EXPOSE 3000
