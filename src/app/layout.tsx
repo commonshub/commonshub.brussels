@@ -52,6 +52,8 @@ export default async function RootLayout({
         <link rel="alternate" href="/about.md" type="text/markdown" title="About Commons Hub Brussels" />
         <link rel="alternate" href="/events.md" type="text/markdown" title="Upcoming Events" />
         <link rel="alternate" href="/rooms.md" type="text/markdown" title="Available Rooms" />
+        <link rel="alternate" href="/sitemap.md" type="text/markdown" title="Sitemap (Markdown)" />
+        <link rel="alternate" href="/DATA.md" type="text/markdown" title="Data API Documentation" />
       </head>
       <body className={`font-sans antialiased`}>
         <SessionProvider session={session}>
