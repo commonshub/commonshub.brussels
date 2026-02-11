@@ -1,0 +1,68 @@
+{
+  "year": "2026",
+  "month": "01",
+  "count": 3,
+  "images": [
+    {
+      "url": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg001&attachmentId=attach001&timestamp=20260102",
+      "proxyUrl": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg001&attachmentId=attach001&timestamp=20260102",
+      "id": "attach001",
+      "author": {
+        "id": "689614876515237925",
+        "username": "xdamman",
+        "displayName": "Xavier",
+        "avatar": "test123"
+      },
+      "reactions": [
+        { "emoji": "🎉", "count": 8 },
+        { "emoji": "❤️", "count": 5 },
+        { "emoji": "⭐", "count": 2 }
+      ],
+      "totalReactions": 21,
+      "message": "Welcome to 2026! Let's make this year amazing 🎉",
+      "timestamp": "2026-01-02T10:00:00.000Z",
+      "channelId": "1280532849287495726",
+      "messageId": "msg001"
+    },
+    {
+      "url": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg005&attachmentId=attach003&timestamp=20260120",
+      "proxyUrl": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg005&attachmentId=attach003&timestamp=20260120",
+      "id": "attach003",
+      "author": {
+        "id": "1283396134055972906",
+        "username": "janafarine",
+        "displayName": "Jana",
+        "avatar": "testdef"
+      },
+      "reactions": [
+        { "emoji": "🪴", "count": 6 },
+        { "emoji": "💚", "count": 4 }
+      ],
+      "totalReactions": 10,
+      "message": "Plant care day tomorrow! Who's joining?",
+      "timestamp": "2026-01-20T11:00:00.000Z",
+      "channelId": "1280532849287495726",
+      "messageId": "msg005"
+    },
+    {
+      "url": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg003&attachmentId=attach002&timestamp=20260110",
+      "proxyUrl": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg003&attachmentId=attach002&timestamp=20260110",
+      "id": "attach002",
+      "author": {
+        "id": "197741353772384256",
+        "username": "bouday",
+        "displayName": "Cedric",
+        "avatar": "test789"
+      },
+      "reactions": [
+        { "emoji": "💪", "count": 4 },
+        { "emoji": "🔥", "count": 3 }
+      ],
+      "totalReactions": 7,
+      "message": "New coworking setup in the Ostrom room!",
+      "timestamp": "2026-01-10T09:15:00.000Z",
+      "channelId": "1280532849287495726",
+      "messageId": "msg003"
+    }
+  ]
+}

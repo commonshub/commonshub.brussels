@@ -1,6 +1,10 @@
 /**
  * Image Proxy Integration Tests
  * Tests both image-proxy (external URLs) and discord-image-proxy (Discord images)
+ * 
+ * These are INTEGRATION tests that require network access.
+ * They are skipped in CI unless INTEGRATION_TESTS=true is set.
+ * 
  * @jest-environment node
  */
 
@@ -10,6 +14,9 @@ import { GET as GET_DISCORD } from "@/app/api/discord-image-proxy/route";
 import { GET as GET_IMAGE } from "@/app/api/image-proxy/route";
 import fs from "fs";
 import path from "path";
+
+// Skip integration tests in CI unless explicitly enabled
+const SKIP_INTEGRATION = process.env.CI === "true" && process.env.INTEGRATION_TESTS !== "true";
 
 const TEST_DISCORD_IMAGE = {
   channelId: "1380592679364329522",
@@ -28,6 +35,11 @@ describe("Image Proxy Integration Tests", () => {
   const tmpDir = path.join(testDataDir, "tmp");
 
   beforeAll(() => {
+    if (SKIP_INTEGRATION) {
+      console.log("⏭️  Skipping image proxy integration tests in CI");
+      console.log("   Set INTEGRATION_TESTS=true to run these tests");
+      return;
+    }
     // Set DATA_DIR environment variable for tests
     process.env.DATA_DIR = testDataDir;
     console.log(`📁 Using test data directory: ${testDataDir}`);
@@ -62,6 +74,7 @@ describe("Image Proxy Integration Tests", () => {
 
   describe("Discord Image Proxy", () => {
     test("resizes Discord image to xs (320px) and caches it", async () => {
+      if (SKIP_INTEGRATION) return;
       const size = "xs";
       const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
 
@@ -99,6 +112,7 @@ describe("Image Proxy Integration Tests", () => {
     }, 30000); // 30 second timeout for network requests
 
     test("resizes Discord image to sm (640px) and caches it", async () => {
+      if (SKIP_INTEGRATION) return;
       const size = "sm";
       const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
 
@@ -131,6 +145,7 @@ describe("Image Proxy Integration Tests", () => {
     }, 30000);
 
     test("serves Discord image from cache on second request", async () => {
+      if (SKIP_INTEGRATION) return;
       const size = "xs";
       const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
 
@@ -169,6 +184,7 @@ describe("Image Proxy Integration Tests", () => {
 
   describe("External Image Proxy", () => {
     test("proxies external Twitter/X image and resizes to sm", async () => {
+      if (SKIP_INTEGRATION) return;
       const size = "sm";
       const crypto = require("crypto");
       const imageId = crypto
@@ -212,6 +228,7 @@ describe("Image Proxy Integration Tests", () => {
     }, 30000);
 
     test("proxies external image without resizing", async () => {
+      if (SKIP_INTEGRATION) return;
       const request = new NextRequest(
         `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(TEST_EXTERNAL_IMAGE.url)}`
       );
@@ -232,6 +249,7 @@ describe("Image Proxy Integration Tests", () => {
     }, 30000);
 
     test("returns error for non-allowed domain", async () => {
+      if (SKIP_INTEGRATION) return;
       const badUrl = "https://example.com/image.jpg";
       const request = new NextRequest(
         `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(badUrl)}`
@@ -252,6 +270,7 @@ describe("Image Proxy Integration Tests", () => {
 
   describe("Discord Image File Size Progression", () => {
     test("Discord image file sizes decrease with smaller size parameters", async () => {
+      if (SKIP_INTEGRATION) return;
       console.log(`\n📏 Testing Discord image size progression`);
 
       const sizes = ["lg", "md", "sm", "xs"];
