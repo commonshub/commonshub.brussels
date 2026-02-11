@@ -57,9 +57,10 @@ RUN adduser --system --uid 1001 nextjs
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Copy standalone build (includes minimal node_modules)
+# Copy standalone build (includes minimal node_modules for Next.js server)
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/git-info.json ./git-info.json
@@ -71,9 +72,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/types ./src/types
 COPY --from=builder --chown=nextjs:nodejs /app/src/settings ./src/settings
 COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 
-# Install ONLY deps needed for fetch scripts (not full 1.3GB node_modules)
-# This is ~150MB vs 1.3GB for full node_modules
-RUN npm install --no-save tsx dotenv stripe viem node-ical date-fns date-fns-tz open-graph-scraper discord.js resend crypto-js
+# Merge production dependencies for fetch scripts into standalone node_modules
+# Scripts need dotenv, stripe, tsx etc. which are now in dependencies
+COPY --from=deps /app/node_modules /tmp/node_modules_prod
+RUN cp -rn /tmp/node_modules_prod/* node_modules/ && rm -rf /tmp/node_modules_prod
 
 # Create data directory and copy build-time fetched data if it exists
 RUN mkdir -p /data && chown nextjs:nodejs /data
