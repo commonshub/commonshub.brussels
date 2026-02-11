@@ -36,11 +36,11 @@ console.log("⚠️  Warning: This may take a long time for the first run!\n");
 
 // List of scripts to run
 const scripts = [
-  { name: "transactions", cmd: `tsx scripts/warmup-transactions-cache.js ${args}` },
-  { name: "discord", cmd: `tsx scripts/warmup-discord-cache.js ${args}` },
-  { name: "tokens", cmd: `tsx scripts/fetch-cht-tokens.ts ${args}` },
-  { name: "calendars", cmd: `tsx scripts/fetch-calendars.ts ${args}` },
-  { name: "users", cmd: `tsx scripts/warmup-users-cache.ts ${args}` },
+  { name: "transactions", cmd: `npx tsx scripts/warmup-transactions-cache.js ${args}` },
+  { name: "discord", cmd: `npx tsx scripts/warmup-discord-cache.js ${args}` },
+  { name: "tokens", cmd: `npx tsx scripts/fetch-cht-tokens.ts ${args}` },
+  { name: "calendars", cmd: `npx tsx scripts/fetch-calendars.ts ${args}` },
+  { name: "users", cmd: `npx tsx scripts/warmup-users-cache.ts ${args}` },
 ];
 
 // Run each script sequentially

@@ -21,12 +21,12 @@ console.log(`\n📅 Fetching data for recent months: ${previousMonth} to ${curre
 
 // List of scripts to run with month filtering
 const scripts = [
-  { name: "transactions", cmd: `tsx scripts/warmup-transactions-cache.js ${monthArgs}` },
-  { name: "discord", cmd: `tsx scripts/warmup-discord-cache.js ${monthArgs}` },
-  { name: "tokens", cmd: `tsx scripts/fetch-cht-tokens.ts ${monthArgs}` },
-  { name: "calendars", cmd: `tsx scripts/fetch-calendars.ts ${monthArgs}` },
-  { name: "users", cmd: `tsx scripts/warmup-users-cache.ts ${monthArgs}` },
-  { name: "members", cmd: `tsx scripts/fetch-members.ts --month=${currentMonth}` },
+  { name: "transactions", cmd: `npx tsx scripts/warmup-transactions-cache.js ${monthArgs}` },
+  { name: "discord", cmd: `npx tsx scripts/warmup-discord-cache.js ${monthArgs}` },
+  { name: "tokens", cmd: `npx tsx scripts/fetch-cht-tokens.ts ${monthArgs}` },
+  { name: "calendars", cmd: `npx tsx scripts/fetch-calendars.ts ${monthArgs}` },
+  { name: "users", cmd: `npx tsx scripts/warmup-users-cache.ts ${monthArgs}` },
+  { name: "members", cmd: `npx tsx scripts/fetch-members.ts --month=${currentMonth}` },
 ];
 
 // Run each script sequentially
