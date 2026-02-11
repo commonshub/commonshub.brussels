@@ -91,5 +91,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  return [...staticPages, ...roomPages];
+  // Room ICS calendar feeds (only for rooms with Google Calendar)
+  const roomIcsPages: MetadataRoute.Sitemap = roomsData.rooms
+    .filter((room) => room.googleCalendarId)
+    .map((room) => ({
+      url: `${BASE_URL}/rooms/${room.slug}.ics`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.5,
+    }));
+
+  return [...staticPages, ...roomPages, ...roomIcsPages];
 }
