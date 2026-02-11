@@ -42,6 +42,16 @@ function formatDate(dateStr: string): string {
   });
 }
 
+/**
+ * Clean name: remove @ and everything after it
+ */
+function cleanName(name: string): string {
+  if (name.includes("@")) {
+    return name.split("@")[0].trim();
+  }
+  return name;
+}
+
 function getStatusColor(status: Member["status"]): string {
   switch (status) {
     case "active":
@@ -92,7 +102,7 @@ function getMonthOptions(): Array<{ value: string; label: string }> {
   return options;
 }
 
-export default function MemberSubscriptionsPage() {
+export default function MemberListPage() {
   const [data, setData] = useState<MembersFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +130,10 @@ export default function MemberSubscriptionsPage() {
         return res.json();
       })
       .then((data: MembersFile) => {
+        // Sort members alphabetically by firstName
+        data.members.sort((a, b) => 
+          cleanName(a.firstName).localeCompare(cleanName(b.firstName))
+        );
         setData(data);
         setLoading(false);
       })
@@ -143,7 +157,7 @@ export default function MemberSubscriptionsPage() {
           </Link>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold">Membership Subscriptions</h1>
+              <h1 className="text-3xl font-bold">Active Commoners</h1>
               <p className="text-muted-foreground mt-1">
                 Supporting members who contribute financially to the Commons Hub
               </p>
@@ -162,6 +176,36 @@ export default function MemberSubscriptionsPage() {
             </Select>
           </div>
         </div>
+
+        {/* Join CTA - at the top */}
+        <Card className="mb-8 bg-gradient-to-r from-primary/10 to-primary/5">
+          <CardHeader>
+            <CardTitle>Become a Member</CardTitle>
+            <CardDescription>
+              Support the Commons Hub Brussels and get access to member benefits
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              <a
+                href="https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+              >
+                Monthly — €10/month
+              </a>
+              <a
+                href="https://buy.stripe.com/5kA4hNbxz4os2fm3cl"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md border border-primary bg-background px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-primary/10"
+              >
+                Yearly — €100/year (save €20)
+              </a>
+            </div>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="flex items-center justify-center min-h-[400px]">
@@ -262,7 +306,7 @@ export default function MemberSubscriptionsPage() {
                         <TableRow key={member.id}>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-medium">{member.firstName}</span>
+                              <span className="font-medium">{cleanName(member.firstName)}</span>
                               {member.accounts.discord && (
                                 <span className="text-xs text-muted-foreground">
                                   @{member.accounts.discord}
@@ -313,36 +357,6 @@ export default function MemberSubscriptionsPage() {
                       )}
                     </TableBody>
                   </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Join CTA */}
-            <Card className="mt-8 bg-gradient-to-r from-primary/10 to-primary/5">
-              <CardHeader>
-                <CardTitle>Become a Member</CardTitle>
-                <CardDescription>
-                  Support the Commons Hub Brussels and get access to member benefits
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-4">
-                  <a
-                    href="https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
-                  >
-                    Monthly — €10/month
-                  </a>
-                  <a
-                    href="https://buy.stripe.com/5kA4hNbxz4os2fm3cl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-md border border-primary bg-background px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-primary/10"
-                  >
-                    Yearly — €100/year (save €20)
-                  </a>
                 </div>
               </CardContent>
             </Card>
