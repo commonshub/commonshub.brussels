@@ -65,7 +65,7 @@ export default function MembersPage() {
         {/* Stats */}
         <section className="py-12 px-4 sm:px-6 lg:px-8 border-b border-border">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="flex flex-wrap justify-center gap-12 md:gap-16 text-center">
               <div>
                 <div className="flex justify-center mb-3">
                   <Building2 className="w-8 h-8 text-primary" />
