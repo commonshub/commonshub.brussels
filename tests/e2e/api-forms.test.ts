@@ -54,7 +54,7 @@ describe("Form API Integration", () => {
   describe("Contact Form Email Integration", () => {
     test("sends two emails when contact form is submitted", async () => {
       // Import after mocks are set up
-      const { POST } = await import("../app/api/contact/route")
+      const { POST } = await import("../../src/app/api/contact/route")
 
       const formData = {
         name: "John Doe",
@@ -75,7 +75,7 @@ describe("Form API Integration", () => {
     })
 
     test("includes user email in CC for notification", async () => {
-      const { POST } = await import("../app/api/contact/route")
+      const { POST } = await import("../../src/app/api/contact/route")
 
       const formData = {
         name: "Jane Smith",
@@ -106,7 +106,7 @@ describe("Form API Integration", () => {
     })
 
     test("sends confirmation email to user", async () => {
-      const { POST } = await import("../app/api/contact/route")
+      const { POST } = await import("../../src/app/api/contact/route")
 
       const formData = {
         name: "Bob Wilson",
@@ -135,7 +135,7 @@ describe("Form API Integration", () => {
     })
 
     test("handles all contact reasons correctly", async () => {
-      const { POST } = await import("../app/api/contact/route")
+      const { POST } = await import("../../src/app/api/contact/route")
       const reasons = ["booking-room", "joining-community", "research", "visit", "media", "other"]
 
       for (const reason of reasons) {
@@ -171,7 +171,7 @@ describe("Form API Integration", () => {
 
       global.fetch = mockFetch as any
 
-      const { POST } = await import("../app/api/contact/route")
+      const { POST } = await import("../../src/app/api/contact/route")
 
       const formData = {
         name: "Alice Brown",
@@ -205,7 +205,7 @@ describe("Form API Integration", () => {
 
   describe("Booking Request Email Integration", () => {
     test("sends booking confirmation and notification emails", async () => {
-      const { POST } = await import("../app/api/booking-request/route")
+      const { POST } = await import("../../src/app/api/booking-request/route")
 
       const bookingData = {
         name: "Sarah Connor",
@@ -246,7 +246,7 @@ describe("Form API Integration", () => {
     })
 
     test("marks private bookings in email subject", async () => {
-      const { POST } = await import("../app/api/booking-request/route")
+      const { POST } = await import("../../src/app/api/booking-request/route")
 
       const bookingData = {
         name: "Private User",
@@ -278,7 +278,7 @@ describe("Form API Integration", () => {
     })
 
     test("includes all booking options in email", async () => {
-      const { POST } = await import("../app/api/booking-request/route")
+      const { POST } = await import("../../src/app/api/booking-request/route")
 
       const bookingData = {
         name: "Full Options User",
@@ -330,7 +330,7 @@ describe("Form API Integration", () => {
 
       global.fetch = mockFetch as any
 
-      const { POST } = await import("../app/api/booking-request/route")
+      const { POST } = await import("../../src/app/api/booking-request/route")
 
       const bookingData = {
         name: "Discord Test",
@@ -369,7 +369,7 @@ describe("Form API Integration", () => {
     test("returns error response when email sending fails", async () => {
       mockResendSend.mockRejectedValueOnce(new Error("Email service error"))
 
-      const { POST } = await import("../app/api/contact/route")
+      const { POST } = await import("../../src/app/api/contact/route")
 
       const request = {
         json: async () => ({
