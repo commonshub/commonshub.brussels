@@ -26,6 +26,7 @@ const scripts = [
   { name: "tokens", cmd: `tsx scripts/fetch-cht-tokens.ts ${monthArgs}` },
   { name: "calendars", cmd: `tsx scripts/fetch-calendars.ts ${monthArgs}` },
   { name: "users", cmd: `tsx scripts/warmup-users-cache.ts ${monthArgs}` },
+  { name: "members", cmd: `tsx scripts/fetch-members.ts --month=${currentMonth}` },
 ];
 
 // Run each script sequentially

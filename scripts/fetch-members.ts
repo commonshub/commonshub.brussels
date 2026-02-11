@@ -1,8 +1,9 @@
 /**
  * Fetch membership subscriptions from Stripe
  * 
- * Generates data/{year}/{month}/members.json for each month where
- * subscriptions were active.
+ * Generates:
+ * - data/{year}/{month}/members.json (public, hashed emails)
+ * - data/{year}/{month}/private/members.csv (private, full PII)
  * 
  * Usage:
  *   npx tsx scripts/fetch-members.ts
@@ -14,11 +15,15 @@ import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import type { Member, MembersFile, MembersSummary } from "../src/types/members";
+import type { Member, MembersFile, MembersSummary, Amount } from "../src/types/members";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-const EMAIL_HASH_SALT = process.env.EMAIL_HASH_SALT || "default-salt-change-me";
+const NODE_ENV = process.env.NODE_ENV || "development";
+
+// EMAIL_HASH_SALT should be environment-prefixed: [prod|staging|preview|dev]-xxxxx
+// This ensures hashes are different per environment for security
+const EMAIL_HASH_SALT = process.env.EMAIL_HASH_SALT;
 
 // CHB Membership product
 const PRODUCT_ID = "prod_QaSChjphKYLoVs";
@@ -52,9 +57,10 @@ interface StripeSubscription {
   };
   metadata?: {
     client_reference_id?: string;
+    discord_username?: string;
     [key: string]: any;
   };
-  latest_invoice?: string;
+  latest_invoice?: string | StripeInvoice;
 }
 
 interface StripeCustomer {
@@ -71,28 +77,80 @@ interface StripeInvoice {
   id: string;
   status: string;
   amount_paid: number;
+  currency: string;
   created: number;
   status_transitions: {
     paid_at: number | null;
   };
 }
 
+// Private member data (for CSV export)
+interface PrivateMemberData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  emailHash: string;
+  discord: string | null;
+  plan: "monthly" | "yearly";
+  amount: number;
+  currency: string;
+  status: string;
+  lastPaymentDate: string | null;
+  createdAt: string;
+}
+
+/**
+ * Validate EMAIL_HASH_SALT is properly configured
+ */
+function validateEmailHashSalt(): string {
+  if (!EMAIL_HASH_SALT) {
+    console.error("❌ EMAIL_HASH_SALT environment variable not set");
+    console.error("   Set it with environment prefix: [prod|staging|preview|dev]-your-random-secret");
+    console.error("   Example: EMAIL_HASH_SALT=prod-a8f3k2j5h7g9d1s4");
+    process.exit(1);
+  }
+
+  const validPrefixes = ["prod-", "staging-", "preview-", "dev-", "test-"];
+  const hasValidPrefix = validPrefixes.some(prefix => EMAIL_HASH_SALT.startsWith(prefix));
+
+  if (!hasValidPrefix) {
+    console.warn("⚠️  EMAIL_HASH_SALT should be prefixed with environment: [prod|staging|preview|dev]-xxx");
+    console.warn(`   Current value starts with: ${EMAIL_HASH_SALT.substring(0, 10)}...`);
+  }
+
+  return EMAIL_HASH_SALT;
+}
+
 /**
  * Hash an email address with salt for privacy-safe linking
  */
-function hashEmail(email: string): string {
+function hashEmail(email: string, salt: string): string {
   return crypto
     .createHash("sha256")
-    .update(email.toLowerCase().trim() + EMAIL_HASH_SALT)
+    .update(email.toLowerCase().trim() + salt)
     .digest("hex");
 }
 
 /**
- * Extract first name from full name
+ * Create an Amount object
  */
-function extractFirstName(name: string | null): string {
-  if (!name) return "Member";
-  return name.split(" ")[0] || "Member";
+function createAmount(value: number, currency: string = "EUR", decimals: number = 2): Amount {
+  return { value, decimals, currency: currency.toUpperCase() };
+}
+
+/**
+ * Extract first and last name from full name
+ */
+function extractNames(name: string | null): { firstName: string; lastName: string } {
+  if (!name) return { firstName: "Member", lastName: "" };
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "" };
+  }
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
 }
 
 /**
@@ -206,8 +264,6 @@ function isActiveInMonth(sub: StripeSubscription, year: number, month: number): 
   
   // If subscription is currently active, check if period overlaps
   if (activeStatuses.includes(sub.status)) {
-    // For active subscriptions, they're active if their current period overlaps
-    // or if they were created before the month end
     return sub.current_period_start <= monthEnd && sub.current_period_end >= monthStart;
   }
 
@@ -217,7 +273,6 @@ function isActiveInMonth(sub: StripeSubscription, year: number, month: number): 
     if (canceledAt && canceledAt < monthStart) {
       return false; // Canceled before this month
     }
-    // Check if the subscription period covered this month
     return sub.current_period_start <= monthEnd && 
            (canceledAt ? canceledAt >= monthStart : sub.current_period_end >= monthStart);
   }
@@ -230,8 +285,9 @@ function isActiveInMonth(sub: StripeSubscription, year: number, month: number): 
  */
 async function buildMemberData(
   sub: StripeSubscription,
-  customerCache: Map<string, StripeCustomer>
-): Promise<Member> {
+  customerCache: Map<string, StripeCustomer>,
+  salt: string
+): Promise<{ member: Member; privateData: PrivateMemberData }> {
   // Get or fetch customer
   let customer = customerCache.get(sub.customer);
   if (!customer) {
@@ -242,25 +298,35 @@ async function buildMemberData(
   // Get price info
   const priceItem = sub.items.data.find((item) => item.price.product === PRODUCT_ID);
   const price = priceItem?.price;
+  const currency = (price?.currency || "eur").toUpperCase();
+  const unitAmount = (price?.unit_amount || 0) / 100;
 
   // Get latest payment info
-  let latestPayment = null;
+  let latestPayment: Member["latestPayment"] = null;
+  let lastPaymentDate: string | null = null;
+  
   if (sub.latest_invoice && typeof sub.latest_invoice === "object") {
     const invoice = sub.latest_invoice as StripeInvoice;
     if (invoice.status === "paid") {
+      const paymentDate = new Date((invoice.status_transitions?.paid_at || invoice.created) * 1000)
+        .toISOString().split("T")[0];
+      lastPaymentDate = paymentDate;
       latestPayment = {
-        date: new Date((invoice.status_transitions?.paid_at || invoice.created) * 1000).toISOString().split("T")[0],
-        amount: invoice.amount_paid / 100,
-        status: "succeeded" as const,
+        date: paymentDate,
+        amount: createAmount(invoice.amount_paid / 100, invoice.currency || currency),
+        status: "succeeded",
       };
     }
   } else if (typeof sub.latest_invoice === "string") {
     const invoice = await fetchInvoice(sub.latest_invoice);
     if (invoice && invoice.status === "paid") {
+      const paymentDate = new Date((invoice.status_transitions?.paid_at || invoice.created) * 1000)
+        .toISOString().split("T")[0];
+      lastPaymentDate = paymentDate;
       latestPayment = {
-        date: new Date((invoice.status_transitions?.paid_at || invoice.created) * 1000).toISOString().split("T")[0],
-        amount: invoice.amount_paid / 100,
-        status: "succeeded" as const,
+        date: paymentDate,
+        amount: createAmount(invoice.amount_paid / 100, invoice.currency || currency),
+        status: "succeeded",
       };
     }
   }
@@ -272,22 +338,42 @@ async function buildMemberData(
     customer.metadata?.discord_username ||
     null;
 
-  return {
+  const { firstName, lastName } = extractNames(customer.name);
+  const emailHash = hashEmail(customer.email, salt);
+  const createdAt = new Date(sub.created * 1000).toISOString().split("T")[0];
+
+  const member: Member = {
     id: sub.id.substring(0, 14) + "...", // Truncate for privacy
     accounts: {
-      emailHash: hashEmail(customer.email),
+      emailHash,
       discord: discordUsername,
     },
-    firstName: extractFirstName(customer.name),
+    firstName,
     plan: price?.recurring?.interval === "year" ? "yearly" : "monthly",
-    amount: (price?.unit_amount || 0) / 100,
+    amount: createAmount(unitAmount, currency),
     interval: price?.recurring?.interval || "month",
     status: sub.status as Member["status"],
     currentPeriodStart: new Date(sub.current_period_start * 1000).toISOString().split("T")[0],
     currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString().split("T")[0],
     latestPayment,
-    createdAt: new Date(sub.created * 1000).toISOString().split("T")[0],
+    createdAt,
   };
+
+  const privateData: PrivateMemberData = {
+    firstName,
+    lastName,
+    email: customer.email,
+    emailHash,
+    discord: discordUsername,
+    plan: member.plan,
+    amount: unitAmount,
+    currency,
+    status: sub.status,
+    lastPaymentDate,
+    createdAt,
+  };
+
+  return { member, privateData };
 }
 
 /**
@@ -299,26 +385,63 @@ function calculateSummary(members: Member[]): MembersSummary {
   const yearlyMembers = activeMembers.filter((m) => m.plan === "yearly");
 
   // MRR: monthly revenue + yearly/12
-  const monthlyMrr = monthlyMembers.reduce((sum, m) => sum + m.amount, 0);
-  const yearlyMrr = yearlyMembers.reduce((sum, m) => sum + m.amount / 12, 0);
+  const monthlyMrr = monthlyMembers.reduce((sum, m) => sum + m.amount.value, 0);
+  const yearlyMrr = yearlyMembers.reduce((sum, m) => sum + m.amount.value / 12, 0);
+  const totalMrr = Math.round((monthlyMrr + yearlyMrr) * 100) / 100;
 
   return {
     totalMembers: members.length,
     activeMembers: activeMembers.length,
     monthlyMembers: monthlyMembers.length,
     yearlyMembers: yearlyMembers.length,
-    mrr: Math.round((monthlyMrr + yearlyMrr) * 100) / 100,
+    mrr: createAmount(totalMrr, "EUR"),
   };
 }
 
 /**
- * Generate members.json for a specific month
+ * Generate CSV from private member data
+ */
+function generateCSV(privateData: PrivateMemberData[]): string {
+  const headers = [
+    "firstName",
+    "lastName", 
+    "email",
+    "emailHash",
+    "discord",
+    "plan",
+    "amount",
+    "currency",
+    "status",
+    "lastPaymentDate",
+    "createdAt",
+  ];
+
+  const rows = privateData.map(m => [
+    m.firstName,
+    m.lastName,
+    m.email,
+    m.emailHash,
+    m.discord || "",
+    m.plan,
+    m.amount.toString(),
+    m.currency,
+    m.status,
+    m.lastPaymentDate || "",
+    m.createdAt,
+  ].map(v => `"${v.replace(/"/g, '""')}"`).join(","));
+
+  return [headers.join(","), ...rows].join("\n");
+}
+
+/**
+ * Generate members.json and private CSV for a specific month
  */
 async function generateMonthlyMembers(
   subscriptions: StripeSubscription[],
   customerCache: Map<string, StripeCustomer>,
   year: number,
-  month: number
+  month: number,
+  salt: string
 ): Promise<void> {
   const monthStr = String(month).padStart(2, "0");
   const yearStr = String(year);
@@ -337,10 +460,13 @@ async function generateMonthlyMembers(
 
   // Build member data
   const members: Member[] = [];
+  const privateDataList: PrivateMemberData[] = [];
+
   for (const sub of activeInMonth) {
     try {
-      const member = await buildMemberData(sub, customerCache);
+      const { member, privateData } = await buildMemberData(sub, customerCache, salt);
       members.push(member);
+      privateDataList.push(privateData);
     } catch (error) {
       console.error(`  ⚠️  Error processing subscription ${sub.id}:`, error);
     }
@@ -348,6 +474,7 @@ async function generateMonthlyMembers(
 
   // Sort by creation date (oldest first)
   members.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  privateDataList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const summary = calculateSummary(members);
 
@@ -360,7 +487,7 @@ async function generateMonthlyMembers(
     members,
   };
 
-  // Write to file
+  // Write public members.json
   const outputDir = path.join(DATA_DIR, yearStr, monthStr);
   fs.mkdirSync(outputDir, { recursive: true });
 
@@ -368,7 +495,17 @@ async function generateMonthlyMembers(
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
 
   console.log(`  ✅ Written ${members.length} members to ${outputPath}`);
-  console.log(`     Active: ${summary.activeMembers}, MRR: €${summary.mrr}`);
+  console.log(`     Active: ${summary.activeMembers}, MRR: €${summary.mrr.value}`);
+
+  // Write private CSV
+  const privateDir = path.join(outputDir, "private");
+  fs.mkdirSync(privateDir, { recursive: true });
+
+  const csvPath = path.join(privateDir, "members.csv");
+  const csv = generateCSV(privateDataList);
+  fs.writeFileSync(csvPath, csv);
+
+  console.log(`  🔒 Written private CSV to ${csvPath}`);
 }
 
 /**
@@ -421,14 +558,13 @@ async function main() {
     process.exit(1);
   }
 
-  if (EMAIL_HASH_SALT === "default-salt-change-me") {
-    console.warn("⚠️  EMAIL_HASH_SALT not set, using default (not secure for production)");
-  }
+  const salt = validateEmailHashSalt();
 
   const args = process.argv.slice(2);
   const monthsToProcess = getMonthsToProcess(args);
 
   console.log(`📆 Will process ${monthsToProcess.length} month(s)`);
+  console.log(`🔐 Using EMAIL_HASH_SALT: ${salt.substring(0, 10)}...`);
 
   // Fetch all subscriptions once
   const subscriptions = await fetchAllSubscriptions();
@@ -438,7 +574,7 @@ async function main() {
 
   // Process each month
   for (const { year, month } of monthsToProcess) {
-    await generateMonthlyMembers(subscriptions, customerCache, year, month);
+    await generateMonthlyMembers(subscriptions, customerCache, year, month, salt);
   }
 
   console.log("\n✅ Done!");

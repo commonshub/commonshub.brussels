@@ -3,14 +3,25 @@
  * Generated from data/{year}/{month}/members.json
  */
 
+/**
+ * Monetary amount with currency and precision
+ * Use this type whenever storing monetary values
+ */
+export interface Amount {
+  value: number;
+  decimals: number;
+  currency: string;
+}
+
 export interface MemberAccounts {
   emailHash: string;
   discord?: string | null;
+  // Future: nostr?: string | null;
 }
 
 export interface MemberPayment {
   date: string;
-  amount: number;
+  amount: Amount;
   status: "succeeded" | "pending" | "failed";
 }
 
@@ -19,7 +30,7 @@ export interface Member {
   accounts: MemberAccounts;
   firstName: string;
   plan: "monthly" | "yearly";
-  amount: number; // EUR
+  amount: Amount;
   interval: "month" | "year";
   status: "active" | "past_due" | "canceled" | "incomplete" | "trialing" | "unpaid";
   currentPeriodStart: string;
@@ -33,7 +44,7 @@ export interface MembersSummary {
   activeMembers: number;
   monthlyMembers: number;
   yearlyMembers: number;
-  mrr: number; // Monthly Recurring Revenue in EUR
+  mrr: Amount; // Monthly Recurring Revenue
 }
 
 export interface MembersFile {

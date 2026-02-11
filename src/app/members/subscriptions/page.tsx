@@ -20,15 +20,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Users, TrendingUp, Calendar, CreditCard, ArrowLeft } from "lucide-react";
-import type { MembersFile, Member } from "@/types/members";
+import type { MembersFile, Member, Amount } from "@/types/members";
 
-function formatCurrency(amount: number): string {
+function formatAmount(amount: Amount | number): string {
+  const value = typeof amount === "number" ? amount : amount.value;
+  const currency = typeof amount === "number" ? "EUR" : amount.currency;
+  
   return new Intl.NumberFormat("en-EU", {
     style: "currency",
-    currency: "EUR",
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(value);
 }
 
 function formatDate(dateStr: string): string {
@@ -201,7 +204,7 @@ export default function MemberSubscriptionsPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-bold text-green-600">
-                    {formatCurrency(data.summary.mrr)}
+                    {formatAmount(data.summary.mrr)}
                   </p>
                   <p className="text-sm text-muted-foreground">MRR</p>
                 </CardContent>
@@ -271,7 +274,7 @@ export default function MemberSubscriptionsPage() {
                             <div className="flex flex-col gap-1">
                               {getPlanBadge(member.plan)}
                               <span className="text-xs text-muted-foreground">
-                                {formatCurrency(member.amount)}/{member.interval}
+                                {formatAmount(member.amount)}/{member.interval}
                               </span>
                             </div>
                           </TableCell>
@@ -284,7 +287,7 @@ export default function MemberSubscriptionsPage() {
                             {member.latestPayment ? (
                               <div className="flex flex-col">
                                 <span className="text-sm">
-                                  {formatCurrency(member.latestPayment.amount)}
+                                  {formatAmount(member.latestPayment.amount)}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                   {formatDate(member.latestPayment.date)}
