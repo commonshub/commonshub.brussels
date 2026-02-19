@@ -26,17 +26,19 @@ export interface MemberPayment {
 }
 
 export interface Member {
-  id: string; // Stripe subscription ID (truncated for privacy)
+  id: string; // Stripe subscription ID (truncated) or Odoo order ID
+  source?: "stripe" | "odoo"; // Payment provider
   accounts: MemberAccounts;
   firstName: string;
   plan: "monthly" | "yearly";
   amount: Amount;
   interval: "month" | "year";
-  status: "active" | "past_due" | "canceled" | "incomplete" | "trialing" | "unpaid";
+  status: "active" | "past_due" | "canceled" | "incomplete" | "trialing" | "unpaid" | "paused";
   currentPeriodStart: string;
   currentPeriodEnd: string;
   latestPayment: MemberPayment | null;
   createdAt: string;
+  isOrganization?: boolean; // For Odoo non-profit memberships
 }
 
 export interface MembersSummary {

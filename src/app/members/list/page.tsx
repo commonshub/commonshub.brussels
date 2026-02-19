@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Users, TrendingUp, Calendar, CreditCard, ArrowLeft } from "lucide-react";
+import { Loader2, Users, TrendingUp, Calendar, CreditCard, ArrowLeft, Building2 } from "lucide-react";
 import type { MembersFile, Member, Amount } from "@/types/members";
 
 function formatAmount(amount: Amount | number): string {
@@ -65,22 +65,35 @@ function getStatusColor(status: Member["status"]): string {
     case "incomplete":
     case "unpaid":
       return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+    case "paused":
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
     default:
       return "bg-gray-100 text-gray-800";
   }
 }
 
-function getPlanBadge(plan: Member["plan"]): JSX.Element {
+function getPlanBadge(member: Member): JSX.Element {
+  const plan = member.plan;
+  const isOrg = member.isOrganization;
   if (plan === "yearly") {
     return (
       <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900 dark:text-purple-200 dark:border-purple-700">
-        Yearly
+        {isOrg ? "Yearly (org)" : "Yearly"}
       </Badge>
     );
   }
   return (
     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700">
       Monthly
+    </Badge>
+  );
+}
+
+function getSourceBadge(source?: string): JSX.Element | null {
+  if (!source || source === "stripe") return null;
+  return (
+    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700">
+      {source}
     </Badge>
   );
 }
@@ -306,7 +319,10 @@ export default function MemberListPage() {
                         <TableRow key={member.id}>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-medium">{cleanName(member.firstName)}</span>
+                              <span className="font-medium flex items-center gap-1.5">
+                                {member.isOrganization && <Building2 className="h-3.5 w-3.5 text-muted-foreground" />}
+                                {cleanName(member.firstName)}
+                              </span>
                               {member.accounts.discord && (
                                 <span className="text-xs text-muted-foreground">
                                   @{member.accounts.discord}
@@ -316,7 +332,10 @@ export default function MemberListPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
-                              {getPlanBadge(member.plan)}
+                              <div className="flex items-center gap-1">
+                                {getPlanBadge(member)}
+                                {getSourceBadge(member.source)}
+                              </div>
                               <span className="text-xs text-muted-foreground">
                                 {formatAmount(member.amount)}/{member.interval}
                               </span>
