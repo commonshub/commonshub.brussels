@@ -23,6 +23,7 @@ export interface MemberPayment {
   date: string;
   amount: Amount;
   status: "succeeded" | "pending" | "failed";
+  url?: string; // Link to invoice/payment on Stripe or Odoo
 }
 
 export interface Member {
@@ -37,6 +38,7 @@ export interface Member {
   currentPeriodStart: string;
   currentPeriodEnd: string;
   latestPayment: MemberPayment | null;
+  subscriptionUrl?: string; // Link to subscription on Stripe or Odoo
   createdAt: string;
   isOrganization?: boolean; // For Odoo non-profit memberships
 }

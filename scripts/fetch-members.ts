@@ -71,6 +71,7 @@ interface StripeInvoice {
   amount_paid: number;
   currency: string;
   created: number;
+  hosted_invoice_url?: string;
   status_transitions: { paid_at: number | null };
 }
 
@@ -88,6 +89,7 @@ interface ProviderSubscription {
   currentPeriodStart: string;
   currentPeriodEnd: string;
   latestPayment: Member["latestPayment"];
+  subscriptionUrl?: string;
   createdAt: string;
   discord?: string | null;
   isOrganization?: boolean;
@@ -231,7 +233,12 @@ async function buildStripeSnapshot(
       if (inv && inv.status === "paid") {
         const d = new Date((inv.status_transitions?.paid_at || inv.created) * 1000).toISOString().split("T")[0];
         lastPaymentDate = d;
-        latestPayment = { date: d, amount: amt(inv.amount_paid / 100, inv.currency || currency), status: "succeeded" };
+        latestPayment = {
+          date: d,
+          amount: amt(inv.amount_paid / 100, inv.currency || currency),
+          status: "succeeded",
+          url: inv.hosted_invoice_url || `https://dashboard.stripe.com/invoices/${inv.id}`,
+        };
       }
 
       const discord = sub.metadata?.client_reference_id || sub.metadata?.discord_username || cust!.metadata?.discord_username || null;
@@ -251,6 +258,7 @@ async function buildStripeSnapshot(
         currentPeriodStart: new Date(sub.current_period_start * 1000).toISOString().split("T")[0],
         currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString().split("T")[0],
         latestPayment,
+        subscriptionUrl: `https://dashboard.stripe.com/subscriptions/${sub.id}`,
         createdAt: new Date(sub.created * 1000).toISOString().split("T")[0],
         discord,
         productId: STRIPE_PRODUCT_ID,
@@ -389,6 +397,7 @@ async function buildOdooSnapshot(
         date: inv.invoice_date || "",
         amount: amt(inv.amount_total, inv.currency_id?.[1] || "EUR"),
         status: "succeeded",
+        url: `${ODOO_CONFIG.url}/web#id=${inv.id}&model=account.move&view_type=form`,
       };
     }
 
@@ -405,6 +414,7 @@ async function buildOdooSnapshot(
       currentPeriodStart: order.start_date || "",
       currentPeriodEnd: order.next_invoice_date || "",
       latestPayment,
+      subscriptionUrl: `${ODOO_CONFIG.url}/web#id=${order.id}&model=sale.order&view_type=form`,
       createdAt: order.start_date || "",
       discord: null,
       isOrganization: isOrg,
@@ -447,6 +457,7 @@ function mergeSnapshots(snapshots: ProviderSnapshot[]): Member[] {
         currentPeriodStart: sub.currentPeriodStart,
         currentPeriodEnd: sub.currentPeriodEnd,
         latestPayment: sub.latestPayment,
+        subscriptionUrl: sub.subscriptionUrl,
         createdAt: sub.createdAt,
         isOrganization: sub.isOrganization,
       };

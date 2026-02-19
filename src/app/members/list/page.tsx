@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Users, TrendingUp, Calendar, CreditCard, ArrowLeft, Building2 } from "lucide-react";
+import { Loader2, Users, TrendingUp, Calendar, CreditCard, ArrowLeft, Building2, ExternalLink } from "lucide-react";
 import type { MembersFile, Member, Amount } from "@/types/members";
 
 function formatAmount(amount: Amount | number): string {
@@ -335,6 +335,17 @@ export default function MemberListPage() {
                               <div className="flex items-center gap-1">
                                 {getPlanBadge(member)}
                                 {getSourceBadge(member.source)}
+                                {member.subscriptionUrl && (
+                                  <a
+                                    href={member.subscriptionUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title={`View on ${member.source === "odoo" ? "Odoo" : "Stripe"}`}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
                               </div>
                               <span className="text-xs text-muted-foreground">
                                 {formatAmount(member.amount)}/{member.interval}
@@ -348,13 +359,26 @@ export default function MemberListPage() {
                           </TableCell>
                           <TableCell>
                             {member.latestPayment ? (
-                              <div className="flex flex-col">
-                                <span className="text-sm">
-                                  {formatAmount(member.latestPayment.amount)}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDate(member.latestPayment.date)}
-                                </span>
+                              <div className="flex items-start gap-1">
+                                <div className="flex flex-col">
+                                  <span className="text-sm">
+                                    {formatAmount(member.latestPayment.amount)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(member.latestPayment.date)}
+                                  </span>
+                                </div>
+                                {member.latestPayment.url && (
+                                  <a
+                                    href={member.latestPayment.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-foreground mt-0.5"
+                                    title="View invoice"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
