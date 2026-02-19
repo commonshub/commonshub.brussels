@@ -316,8 +316,21 @@ async function buildOdooSnapshot(
   if (orderIds.length === 0) return { provider: "odoo", fetchedAt: new Date().toISOString(), subscriptions: [] };
 
   const orders = await odooExec("sale.order", "read", [orderIds], {
-    fields: ["partner_id", "subscription_state", "recurring_monthly", "start_date", "next_invoice_date", "amount_total", "currency_id", "order_line", "plan_id"],
+    fields: ["partner_id", "subscription_state", "recurring_monthly", "start_date", "next_invoice_date", "amount_total", "currency_id", "order_line", "plan_id", "invoice_ids"],
   });
+
+  // Fetch latest paid invoice per order
+  const allInvoiceIds = [...new Set(orders.flatMap((o: any) => o.invoice_ids || []))];
+  const invoices = allInvoiceIds.length > 0
+    ? await odooExec("account.move", "read", [allInvoiceIds], {
+        fields: ["payment_state", "invoice_date", "amount_total", "currency_id"],
+      })
+    : [];
+  const invoiceMap = new Map(
+    invoices
+      .filter((inv: any) => inv.payment_state === "paid" || inv.payment_state === "in_payment")
+      .map((inv: any) => [inv.id, inv])
+  );
 
   // Partners
   const partnerIds = [...new Set(orders.map((o: any) => o.partner_id[0]))];
@@ -361,6 +374,24 @@ async function buildOdooSnapshot(
     const status = order.subscription_state === "4_paused" ? "paused" : "active";
     const totalAmount = order.recurring_monthly * (interval === "year" ? 12 : 1);
 
+    // Find latest paid invoice
+    let latestPayment: ProviderSubscription["latestPayment"] = null;
+    let lastPaymentDate: string | null = null;
+    const orderInvoiceIds = (order.invoice_ids || []) as number[];
+    const paidInvoices = orderInvoiceIds
+      .map((id: number) => invoiceMap.get(id))
+      .filter(Boolean)
+      .sort((a: any, b: any) => (b.invoice_date || "").localeCompare(a.invoice_date || ""));
+    if (paidInvoices.length > 0) {
+      const inv = paidInvoices[0];
+      lastPaymentDate = inv.invoice_date || null;
+      latestPayment = {
+        date: inv.invoice_date || "",
+        amount: amt(inv.amount_total, inv.currency_id?.[1] || "EUR"),
+        status: "succeeded",
+      };
+    }
+
     subs.push({
       id: `odoo-${order.id}`,
       source: "odoo",
@@ -373,7 +404,7 @@ async function buildOdooSnapshot(
       status,
       currentPeriodStart: order.start_date || "",
       currentPeriodEnd: order.next_invoice_date || "",
-      latestPayment: null,
+      latestPayment,
       createdAt: order.start_date || "",
       discord: null,
       isOrganization: isOrg,
@@ -384,7 +415,7 @@ async function buildOdooSnapshot(
       firstName, lastName, email, emailHash, discord: null,
       plan: interval === "year" ? "yearly" : "monthly",
       amount: totalAmount, currency: "EUR", status, source: "odoo",
-      lastPaymentDate: null, createdAt: order.start_date || "",
+      lastPaymentDate, createdAt: order.start_date || "",
     });
   }
 

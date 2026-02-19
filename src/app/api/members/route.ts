@@ -182,8 +182,22 @@ async function fetchLiveOdooMembers(): Promise<Member[]> {
     if (!orderIds.length) { odooCache = { members: [], at: Date.now() }; return []; }
 
     const orders = await exec("sale.order", "read", [orderIds], {
-      fields: ["partner_id", "subscription_state", "recurring_monthly", "start_date", "next_invoice_date", "order_line"],
+      fields: ["partner_id", "subscription_state", "recurring_monthly", "start_date", "next_invoice_date", "order_line", "invoice_ids"],
     });
+
+    // Fetch latest paid invoice per order
+    const allInvoiceIds = [...new Set(orders.flatMap((o: any) => o.invoice_ids || []))];
+    const invoices = allInvoiceIds.length
+      ? await exec("account.move", "read", [allInvoiceIds], {
+          fields: ["payment_state", "invoice_date", "amount_total", "currency_id"],
+        })
+      : [];
+    // Map invoice id → invoice, only paid ones
+    const invoiceMap = new Map(
+      invoices
+        .filter((inv: any) => inv.payment_state === "paid" || inv.payment_state === "in_payment")
+        .map((inv: any) => [inv.id, inv])
+    );
 
     const partnerIds = [...new Set(orders.map((o: any) => o.partner_id[0]))];
     const partners = await exec("res.partner", "read", [partnerIds], { fields: ["name", "email", "is_company"] });
@@ -211,6 +225,22 @@ async function fetchLiveOdooMembers(): Promise<Member[]> {
       const pc = ODOO_CONFIG.products.find((p: any) => p.id === tmplId);
       const interval = (pc?.interval || "month") as "month" | "year";
 
+      // Find latest paid invoice for this order
+      let latestPayment: Member["latestPayment"] = null;
+      const orderInvoiceIds = (order.invoice_ids || []) as number[];
+      const paidInvoices = orderInvoiceIds
+        .map((id: number) => invoiceMap.get(id))
+        .filter(Boolean)
+        .sort((a: any, b: any) => (b.invoice_date || "").localeCompare(a.invoice_date || ""));
+      if (paidInvoices.length > 0) {
+        const inv = paidInvoices[0];
+        latestPayment = {
+          date: inv.invoice_date || "",
+          amount: amt(inv.amount_total, inv.currency_id?.[1] || "EUR"),
+          status: "succeeded",
+        };
+      }
+
       members.push({
         id: `odoo-${order.id}`,
         source: "odoo",
@@ -222,7 +252,7 @@ async function fetchLiveOdooMembers(): Promise<Member[]> {
         status: order.subscription_state === "4_paused" ? "paused" : "active",
         currentPeriodStart: order.start_date || "",
         currentPeriodEnd: order.next_invoice_date || "",
-        latestPayment: null,
+        latestPayment,
         createdAt: order.start_date || "",
         isOrganization: tmplId === 104 || partner.is_company,
       });
