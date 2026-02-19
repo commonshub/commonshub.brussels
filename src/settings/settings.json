@@ -50,6 +50,24 @@
     "symbol": "CHT",
     "decimals": 6
   },
+  "membership": {
+    "stripe": {
+      "productId": "prod_QaSChjphKYLoVs",
+      "plans": [
+        { "name": "Monthly Individual", "interval": "month", "amount": 10, "currency": "EUR" },
+        { "name": "Yearly Individual", "interval": "year", "amount": 100, "currency": "EUR" }
+      ]
+    },
+    "odoo": {
+      "url": "https://citizen-spring-vzw.odoo.com",
+      "db": "citizen-spring-vzw",
+      "products": [
+        { "id": 94, "name": "Monthly Individual Membership", "interval": "month" },
+        { "id": 111, "name": "Yearly Individual Membership", "interval": "year" },
+        { "id": 104, "name": "Yearly Non-Profit Membership", "interval": "year" }
+      ]
+    }
+  },
   "finance": {
     "accounts": [
       {
