@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       ...event,
       start: event.start.toISOString(),
       end: event.end.toISOString(),
+      ...(event.url ? { url: event.url } : {}),
     }));
     
     return NextResponse.json({

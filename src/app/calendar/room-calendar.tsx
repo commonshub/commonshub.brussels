@@ -10,6 +10,7 @@ interface RoomEvent {
   id: string;
   title: string;
   description?: string;
+  url?: string;
   start: string;
   end: string;
   roomId: string;
@@ -361,7 +362,15 @@ function SelectedDayPanel({
                 {formatTime(ev.start)}–{formatTime(ev.end)}
               </span>
               <span className="text-muted-foreground text-xs">[{shortRoomName(ev.roomName)}]</span>
-              <span className="truncate">{ev.title}</span>
+              <span className="truncate">
+                {ev.url ? (
+                  <a href={ev.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {ev.title} ↗
+                  </a>
+                ) : (
+                  ev.title
+                )}
+              </span>
             </div>
           ))}
         </div>

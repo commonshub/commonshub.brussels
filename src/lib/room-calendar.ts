@@ -9,6 +9,7 @@ export interface RoomEvent {
   id: string;
   title: string;
   description?: string;
+  url?: string;
   start: Date;
   end: Date;
   roomId: string;
@@ -131,6 +132,7 @@ function parseIcsEvents(icsContent: string, roomId: string, roomName: string, ro
       .replace(/\\n/g, '\n')
       .replace(/\\,/g, ',')
       .replace(/\\;/g, ';');
+    const url = fields['URL'] || undefined;
     
     // Find DTSTART and DTEND in original block (to preserve parameters)
     const dtStartLine = block.match(/DTSTART[^:]*:[^\r\n]+/)?.[0] || '';
@@ -140,10 +142,18 @@ function parseIcsEvents(icsContent: string, roomId: string, roomName: string, ro
     const end = parseIcsDate(dtEndLine);
     
     if (start && end) {
+      // Also check description for "Event URL:" if no URL field
+      let eventUrl = url;
+      if (!eventUrl && description) {
+        const urlMatch = description.match(/Event URL: (https?:\/\/\S+)/);
+        if (urlMatch) eventUrl = urlMatch[1];
+      }
+
       events.push({
         id: uid,
         title: summary,
         description: description || undefined,
+        url: eventUrl,
         start,
         end,
         roomId,
