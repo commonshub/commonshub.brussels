@@ -5,6 +5,7 @@ import Link from "next/link"
 import settings from "@/settings/settings.json"
 import { ContributorCard } from "@/components/contributor-card"
 import { DiscordImageGallery } from "@/components/discord-image-gallery"
+import { getMonthlyReportData } from "@/lib/reports"
 import * as fs from "fs"
 import * as path from "path"
 
@@ -118,17 +119,8 @@ export default async function MonthlyContributionsPage({ params }: PageProps) {
     }
     imagesData = JSON.parse(fs.readFileSync(imagesPath, "utf-8"))
 
-    // Fetch report data from API (still needs API for financial data)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const reportResponse = await fetch(`${baseUrl}/api/reports/${year}/${month}`, {
-      next: { revalidate: 86400 }
-    })
-
-    if (!reportResponse.ok) {
-      throw new Error('Failed to fetch report data')
-    }
-
-    reportData = await reportResponse.json()
+    // Get report data directly (no self-referential fetch)
+    reportData = getMonthlyReportData(year, month.padStart(2, "0"))
   } catch (error) {
     console.error(`Error loading monthly contributions for ${year}-${month}:`, error)
     notFound()
