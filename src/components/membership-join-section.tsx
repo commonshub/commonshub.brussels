@@ -11,13 +11,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Building2, Users } from "lucide-react";
-import { Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb } from "lucide-react";
+import { Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb, Gamepad2, Users2 } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
 const individualBenefits = [
   {
     icon: Home,
     content: "You can feel at home in the hub, you have access to the door at all times, and help yourself in the kitchen",
+  },
+  {
+    icon: Gamepad2,
+    content: (
+      <>
+        Play{" "}
+        <Link href="/workshops/commons-game" className="text-primary hover:underline">
+          the Commons Games
+        </Link>{" "}
+        and learn{" "}
+        <Link href="/workshops/commons-game#principles" className="text-primary hover:underline">
+          Elinor Ostrom&apos;s 8 principles to govern the commons
+        </Link>
+      </>
+    ),
   },
   {
     icon: BadgePercent,
@@ -64,12 +79,34 @@ const organisationBenefits = [
   },
 ];
 
+const communityBenefits = [
+  {
+    icon: Users2,
+    content: "Make the hub the place where your community meets",
+  },
+  {
+    icon: Coins,
+    content: "Contribute to the space to earn tokens to rent the space for your meetups",
+  },
+  {
+    icon: Lightbulb,
+    content: "You can make proposals and join conversations, and cocreate the hub",
+  },
+];
+
 const individualTiers = [
   { amount: 10, period: "month" },
   { amount: 15, period: "month" },
   { amount: 20, period: "month" },
   { amount: 50, period: "month" },
   { amount: 100, period: "month" },
+];
+
+const communityTiers = [
+  { amount: 100, period: "year" },
+  { amount: 250, period: "year" },
+  { amount: 500, period: "year" },
+  { amount: 1000, period: "year" },
 ];
 
 const orgTiers = [
@@ -133,10 +170,10 @@ export function MembershipJoinSection() {
 
     // Build the plan string
     const planLabel = memberType === "individual"
-      ? `Individual - €${euroContribution}/month`
+      ? `Individual - €${euroContribution?.toLocaleString()}/month`
       : memberType === "community"
-        ? `Community - €${euroContribution}/year`
-        : `Organisation - €${euroContribution}/year`;
+        ? `Community - €${euroContribution?.toLocaleString()}/year`
+        : `Organisation - €${euroContribution?.toLocaleString()}/year`;
 
     // Build motivation/notes including all collected information
     const needsLabels = selectedNeeds.map(id =>
@@ -187,7 +224,7 @@ export function MembershipJoinSection() {
     }
   };
 
-  const currentTiers = memberType === "individual" ? individualTiers : orgTiers;
+  const currentTiers = memberType === "individual" ? individualTiers : memberType === "community" ? communityTiers : orgTiers;
 
   return (
     <section className="py-24">
@@ -280,7 +317,7 @@ export function MembershipJoinSection() {
           {/* Benefits */}
           <div className="mb-10">
             <ul className="space-y-4">
-              {(memberType === "organisation" ? organisationBenefits : individualBenefits).map((benefit, i) => (
+              {(memberType === "organisation" ? organisationBenefits : memberType === "community" ? communityBenefits : individualBenefits).map((benefit, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <benefit.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <span className="text-muted-foreground">{benefit.content}</span>
@@ -413,7 +450,7 @@ export function MembershipJoinSection() {
                           : "border-border bg-muted/50 hover:border-primary hover:bg-primary/5"
                       }`}
                     >
-                      €{tier.amount}
+                      €{tier.amount.toLocaleString()}
                     </button>
                   ))}
                 </div>
