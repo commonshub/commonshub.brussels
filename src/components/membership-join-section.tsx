@@ -11,10 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Building2, Users } from "lucide-react";
-import { Gamepad2, Laptop, Coins, Calendar, CheckCircle } from "lucide-react";
+import { Gamepad2, Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
-const membershipBenefits = [
+const individualBenefits = [
   {
     icon: Laptop,
     content: "Access to the coworking",
@@ -29,7 +29,7 @@ const membershipBenefits = [
         </Link>{" "}
         and learn{" "}
         <Link href="/workshops/commons-game#principles" className="text-primary hover:underline">
-          Elinor Ostrom's 8 principles to govern the commons
+          Elinor Ostrom&apos;s 8 principles to govern the commons
         </Link>
       </>
     ),
@@ -45,6 +45,29 @@ const membershipBenefits = [
   {
     icon: Calendar,
     content: "Make proposals to organise events, workshops or other activities for the community",
+  },
+];
+
+const organisationBenefits = [
+  {
+    icon: DoorOpen,
+    content: "Book meeting rooms for your team",
+  },
+  {
+    icon: Calendar,
+    content: "Organise events, workshops and meetups at the Hub",
+  },
+  {
+    icon: Users,
+    content: "Connect with a community of commoners, changemakers and social entrepreneurs",
+  },
+  {
+    icon: Megaphone,
+    content: "Visibility on our website and community channels",
+  },
+  {
+    icon: Laptop,
+    content: "Access to the coworking for your team members",
   },
 ];
 
@@ -187,18 +210,6 @@ export function MembershipJoinSection() {
           </p>
         </div>
 
-        {/* Benefits */}
-        <div className="mb-8">
-          <ul className="space-y-4">
-            {membershipBenefits.map((benefit, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <benefit.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <span className="text-muted-foreground">{benefit.content}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
         {isSuccess ? (
           <div className="py-12 text-center">
             <CheckCircle className="w-20 h-20 text-primary mx-auto mb-6" />
@@ -270,6 +281,18 @@ export function MembershipJoinSection() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Benefits */}
+          <div className="mb-10">
+            <ul className="space-y-4">
+              {(memberType === "organisation" ? organisationBenefits : individualBenefits).map((benefit, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <benefit.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">{benefit.content}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Name and website */}
