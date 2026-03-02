@@ -1,8 +1,11 @@
 /**
  * API route to get membership data
- * 
- * GET /api/members - Returns members.json for current month
- * GET /api/members?year=2026&month=01 - Returns members.json for specific month
+ *
+ * Reads pre-generated data from data/{year}/{month}/members.json
+ * Use /api/sync to refresh data on demand.
+ *
+ * GET /api/members              → current month
+ * GET /api/members?year=2026&month=01 → specific month
  */
 
 import { NextResponse } from "next/server";
@@ -14,31 +17,23 @@ const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  
-  // Default to current month
   const now = new Date();
   const year = searchParams.get("year") || String(now.getFullYear());
-  const month = searchParams.get("month") || String(now.getMonth() + 1).padStart(2, "0");
+  const month = (searchParams.get("month") || String(now.getMonth() + 1)).padStart(2, "0");
 
-  const membersPath = path.join(DATA_DIR, year, month.padStart(2, "0"), "members.json");
+  const membersPath = path.join(DATA_DIR, year, month, "members.json");
 
   if (!fs.existsSync(membersPath)) {
     return NextResponse.json(
-      { error: "Members data not found for this month" },
+      { error: "Members data not found for this month. Try calling /api/sync first." },
       { status: 404 }
     );
   }
 
   try {
-    const content = fs.readFileSync(membersPath, "utf-8");
-    const data: MembersFile = JSON.parse(content);
-    
+    const data: MembersFile = JSON.parse(fs.readFileSync(membersPath, "utf-8"));
     return NextResponse.json(data);
-  } catch (error) {
-    console.error("Error reading members data:", error);
-    return NextResponse.json(
-      { error: "Failed to read members data" },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to read members data" }, { status: 500 });
   }
 }
