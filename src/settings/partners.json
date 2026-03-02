@@ -1,12 +1,5 @@
 [
   {
-    "name": "Apus et les Cocottes Volantes",
-    "type": "vendor",
-    "logo": "/images/partners/apus-cocottes.png",
-    "website": "https://apusetlescocottesvolantes.com/",
-    "description": "Creative collective bringing art and community together through collaborative projects."
-  },
-  {
     "name": "BeImpact",
     "type": "organisation",
     "logo": "/images/partners/beimpact.png",
@@ -53,6 +46,20 @@
     "description": "Foundation supporting regenerative initiatives and interconnected community projects."
   },
   {
+    "name": "Gezond Leven",
+    "type": "organisation",
+    "logo": "/images/partners/gezondleven.svg",
+    "website": "https://www.gezondleven.be/",
+    "description": "Flemish expertise centre promoting healthy living through evidence-based prevention and health promotion."
+  },
+  {
+    "name": "Impact Studio",
+    "type": "organisation",
+    "logo": "/images/partners/impactstudio.png",
+    "website": "https://impactstudio.io/",
+    "description": "Multidisciplinary collective transforming urban spaces towards greater social utility and territorial engagement."
+  },
+  {
     "name": "Inflights",
     "type": "organisation",
     "logo": "/images/partners/inflights.avif",
@@ -68,12 +75,11 @@
     "featured": true
   },
   {
-    "name": "North Star AGI",
+    "name": "Long Term Society",
     "type": "community",
-    "logo": "/images/partners/northstar.avif",
-    "website": "https://www.ns2agi.com",
-    "description": "AI & robotics education through hackathons and community events across Belgium.",
-    "featured": true
+    "logo": "/images/partners/longtermsociety.png",
+    "website": "https://longtermsociety.substack.com/",
+    "description": "Community organising monthly meet-ups for changemakers exploring desirable futures for our great-grandchildren."
   },
   {
     "name": "Open Collective",
@@ -82,6 +88,13 @@
     "website": "https://opencollective.com",
     "description": "Platform enabling communities to collect and spend money transparently.",
     "featured": true
+  },
+  {
+    "name": "Psyche",
+    "type": "organisation",
+    "logo": "/images/partners/psyche.svg",
+    "website": "https://www.psyche.be/",
+    "description": "Flemish organisation supporting mental health care through mediation, advocacy and information for patients and their families."
   },
   {
     "name": "RCR2",

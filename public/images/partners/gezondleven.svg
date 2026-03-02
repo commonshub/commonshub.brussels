@@ -1,0 +1,535 @@
+
+<!DOCTYPE html>
+<html class="no-js js-done" lang="nl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="facebook-domain-verification" content="bscuu1szsgo3qaqz8q7srm5o1ibtjs"/>
+    
+
+    <title>Pagina niet gevonden | Gezond Leven</title>
+    <meta name="description" content="Het Vlaams Instituut Gezond Leven wil je op een toegankelijke manier helpen om gezond te leven. Met onderbouwd advies, concrete tips en kant-en-klare projecten.">
+        <meta property="og:url" content="https://www.gezondleven.be/themes/custom/vl_gezondleven/logo.svg"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="Pagina niet gevonden | Gezond Leven"/>
+                <meta property="og:image" content="https://www.gezondleven.be/files/_1200x590_crop_center-center_none/hero-img-compressed-2.jpg"/>
+        <meta property="og:image:width" content="1200"/>
+        <meta property="og:image:height" content="590"/>
+        <meta property="og:image:alt" content="Hero Image 3"/>
+        <meta property="og:description" content="Het Vlaams Instituut Gezond Leven wil je op een toegankelijke manier helpen om gezond te leven. Met onderbouwd advies, concrete tips en kant-en-klare projecten."/>
+    <meta property="og:site_name" content=""/>
+    <meta property="og:locale" content="nl"/>
+        <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="" />
+    <meta name="twitter:title" content="Pagina niet gevonden | Gezond Leven" />
+    <meta name="twitter:description" content="Het Vlaams Instituut Gezond Leven wil je op een toegankelijke manier helpen om gezond te leven. Met onderbouwd advies, concrete tips en kant-en-klare projecten." />
+    <meta name="twitter:url" content="https://www.gezondleven.be/themes/custom/vl_gezondleven/logo.svg" />
+            <meta property="twitter:image" content="https://www.gezondleven.be/files/_1200x590_crop_center-center_none/hero-img-compressed-2.jpg"/>
+        <meta property="twitter:image:width" content="1200"/>
+        <meta property="twitter:image:height" content="590"/>
+        <meta property="twitter:image:alt" content="Hero Image 3"/>
+    
+    
+    
+    
+    
+            <link rel="alternate" hreflang="nl" href="https://www.gezondleven.be/404" />
+            <link rel="alternate" hreflang="nl-BE" href="https://10000stappen.gezondleven.be/404" />
+    
+
+    <script type="text/javascript" src="https://www.gezondleven.be/js/modernizr.min.js"></script>
+                <link rel="shortcut icon" href="/favicon/frontendLanding/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon/frontendLanding/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon/frontendLanding/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon/frontendLanding/favicon-48x48.png">
+<link rel="manifest" href="/favicon/frontendLanding/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f7ac4b">
+<meta name="application-name">
+<link rel="apple-touch-icon" sizes="57x57" href="/favicon/frontendLanding/apple-touch-icon-57x57.png">
+<link rel="apple-touch-icon" sizes="60x60" href="/favicon/frontendLanding/apple-touch-icon-60x60.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/favicon/frontendLanding/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="76x76" href="/favicon/frontendLanding/apple-touch-icon-76x76.png">
+<link rel="apple-touch-icon" sizes="114x114" href="/favicon/frontendLanding/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/favicon/frontendLanding/apple-touch-icon-120x120.png">
+<link rel="apple-touch-icon" sizes="144x144" href="/favicon/frontendLanding/apple-touch-icon-144x144.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/favicon/frontendLanding/apple-touch-icon-152x152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/favicon/frontendLanding/apple-touch-icon-167x167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon/frontendLanding/apple-touch-icon-180x180.png">
+<link rel="apple-touch-icon" sizes="1024x1024" href="/favicon/frontendLanding/apple-touch-icon-1024x1024.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title">
+<link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-640x1136.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-750x1334.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1242x2208.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1536x2048.png">
+<link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1668x2224.png">
+<link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1668x2388.png">
+<link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-2048x2732.png">
+<link rel="apple-touch-startup-image" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/favicon/frontendLanding/apple-touch-startup-image-1620x2160.png">
+<link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-1136x640.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-1334x750.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-1792x828.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2436x1125.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2208x1242.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2688x1242.png">
+<link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2048x1536.png">
+<link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2224x1668.png">
+<link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2388x1668.png">
+<link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2732x2048.png">
+<link rel="apple-touch-startup-image" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/favicon/frontendLanding/apple-touch-startup-image-2160x1620.png">
+<link rel="icon" type="image/png" sizes="228x228" href="/favicon/frontendLanding/coast-228x228.png">
+<meta name="msapplication-TileColor" content="#fff">
+<meta name="msapplication-TileImage" content="/favicon/frontendLanding/mstile-144x144.png">
+<meta name="msapplication-config" content="/favicon/frontendLanding/browserconfig.xml">
+<link rel="yandex-tableau-widget" href="/favicon/frontendLanding/yandex-browser-manifest.json">
+    <!--<![endif]-->
+    <!--[if lt IE 9]>
+    <script type="text/javascript" src="https://www.gezondleven.be/js/selectivizr.min.js"></script>
+    <![endif]-->
+    <!--[if lte IE 9]>
+    <link rel="stylesheet" href="https://www.gezondleven.be/css/main-legacy.min.css">
+    <script type="text/javascript" src="https://www.gezondleven.be/js/polyfill.min.js"></script>
+    <![endif]-->
+    <link rel="stylesheet" href="/frontend/icons-BLR570zj.css">
+    <link rel="stylesheet" href="/frontend/css-Ddi66wb5.css">
+    <link rel="icon" type="image/png" href="https://www.gezondleven.be/cpresources/22132958/favicon.png?v=1765806075"/>
+    <script type="text/javascript">
+        WebFontConfig = {
+            google: {families: ['Alegreya+Sans:400,400italic,700,700italic:latin']}
+        };
+        (function () {
+            var wf = document.createElement('script');
+            wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+                '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+            wf.type = 'text/javascript';
+            wf.async = 'true';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(wf, s);
+        })();
+    </script>
+</head>
+
+<body
+    data-components="shoppingcart form publicArea" class="pageNotFound">
+    <noscript>
+        <iframe src="//www.googletagmanager.com/ns.html?id=GTM-MHVZ8V"
+                height="0" width="0" style="display:none;visibility:hidden" title="GTM"></iframe>
+    </noscript>
+    <script>(function (w, d, s, l, i) {
+            w[l] = w[l] || [];
+            w[l].push({
+                'gtm.start':
+                    new Date().getTime(), event: 'gtm.js'
+            });
+            var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
+            j.async = true;
+            j.src =
+                '//www.googletagmanager.com/gtm.js?id=' + i + dl;
+            f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-MHVZ8V');</script>
+
+
+    
+
+            <div class="cookiebanner" id="cookiebanner" role="dialog" aria-modal="true" aria-labelledby="cookie_banner_title" tabindex="-1">
+    <div class="section section--light section--sml">
+        <div class="container">
+            <div class="cookie__wrapper">
+                <h1 class="cookie__title" id="cookie_banner_title">
+                    Deze website gebruikt cookies
+                </h1>
+
+                <div class="cookie__body">
+                    We gebruiken cookies om je een betere bezoekerservaring te bieden. Ga naar je instellingen om je voorkeuren aan te passen of klik op &#039;akkoord&#039; om verder te gaan naar de website.
+                </div>
+                <div class="cookie__cta">
+                    <a href="#" class="inline__item btn btn--ext cookiemonster__accept js-cookie-accept">Akkoord</a>
+                    <a href="#" class="inline__item cookiemonster__settings js-cookie-settings">Cookieinstellingen</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    
+    <div class="cookie-modal" id="cookieModal" role="dialog" aria-modal="true" aria-labelledby="cookie_settings_title" tabindex="-1">
+    <div class="cookie-modal__content">
+        <a href="#" class="js-modal-close-btn cookie-modal__close-btn">
+            <span class="visuallyhidden">Close</span>
+            <span class="icon icon--clear"></span>
+        </a>
+        <h1 class="heading--2" id="cookie_settings_title">Cookieinstellingen</h1>
+        <p class="modal__description">
+            Onze website houdt drie niveaus van cookies bij. Je kan zelf je voorkeuren op elk moment aanpassen. Meer informatie over wat cookies zijn en welke cookies we verzamelen kan je lezen in ons <a href="/cookiebeleid" target="_blank">cookiebeleid</a>.
+        </p>
+        <p class="text--center spacer">
+            <a href="#" class="inline__item btn cookiemonster__accept js-cookie-accept">Alle cookies aanvaarden</a>
+        </p>
+        <h2 class="heading--3">Of pas je voorkeuren aan</h2>
+        <form>
+            <div class="cookie__section">
+                <div class="heading--4">
+                    <input class="js-cookie-essential" type="checkbox" name="essential" id="essential" disabled="disabled" checked="checked">
+                    <label for="essential">Essentiële cookies</label>
+                </div>
+                <p class="block modal__description">
+                    zijn noodzakelijke cookies die ervoor zorgen dat de website goed functioneert en dat je voorkeuren (bv. taal, regio) goed worden opgeslagen.
+                </p>
+            </div>
+            <div class="cookie__section">
+                <div class="heading--4">
+                    <input class="js-cookie-performance" type="checkbox" name="CookiePerformance" id="performance" value="2">
+                    <label for="performance" class="js-cookie-performance">
+                        Analytische cookies
+                    </label>
+                </div>
+                <p class="block modal__description">
+                    laten ons toe om het gebruik van de website te analyseren en de bezoekerservaring te verbeteren.
+                </p>
+            </div>
+            <div class="cookie__section">
+                <div class="heading--4">
+                    <input class="js-cookie-marketing" type="checkbox" name="CookieMarketing" id="marketing" value="3">
+                    <label for="marketing" class="js-cookie-marketing">
+                        Marketingcookies
+                    </label>
+                </div>
+                <p class="block modal__description">
+                    hebben als doel je ervaring te personaliseren en je relevante inhoud en aanbiedingen te sturen op deze en andere websites.
+                </p>
+            </div>
+            <p class="text--center spacer">
+                <button type="submit" class="btn js-modal-close">Bewaren</button>
+            </p>
+        </form>
+    </div>
+
+</div>
+    <div class="cookiebanner-overlay" id="cookiebanner-overlay"></div>
+
+
+
+<div class="page-wrap" id="mainContentBlock">
+
+                
+    <header class="page-header">
+    <div class="container">
+        <button type="button" class="screen-only flyout__link js-flyout-toggle"><span class="visuallyhidden">Menu</span><span class="lines"></span></button>
+        <a href="https://www.gezondleven.be/" class="page-header__logo">
+            <img src="https://www.gezondleven.be/cpresources/f3709a19/logo.svg?v=1765806075" alt="Vlaams Instituut Gezond Leven">
+        </a>
+        
+    <nav class="nav nav--service">
+        <ul>
+                            <li><a href="https://www.gezondleven.be/vacatures" class="">Vacatures</a></li>
+                            <li><a href="https://www.gezondleven.be/contact" class="">Contact</a></li>
+                            <li><a href="https://www.gezondleven.be/over-gezond-leven" class="">Over ons</a></li>
+                            <li><a href="https://www.gezondleven.be/nieuwsbrief" class="">Nieuwsbrief</a></li>
+                        <li>
+                <div id="component-makvti" class="sprig-component" data-hx-target="this" data-hx-include="this" data-hx-trigger="htmx:afterOnLoad from:#cart" data-hx-get="https://www.gezondleven.be/index.php?p=actions/sprig-core/components/render" data-hx-vals="{&quot;sprig:config&quot;:&quot;5ae1f693796b76cbc434356dafaf90424d683d394a44562b614726c6f7c45fde{\u0022id\u0022:\u0022component-makvti\u0022,\u0022siteId\u0022:1,\u0022template\u0022:\u0022sprig\\\/components\\\/cart\\\/_counter\u0022}&quot;}" s-listen="#cart"><a href="https://www.gezondleven.be/winkelmandje" class="simpleCart_button btn btn--sml">
+    0
+</a>
+</div>
+            </li>
+        </ul>
+    </nav>
+        <div class="search screen-only">
+            <label class="pointer" for="form-search">
+                <a href="" class="search__link js-search-trigger">
+                    <i class="icon icon--search"></i>
+                    <span class="visuallyhidden">Zoeken</span>
+                </a>
+            </label>
+        </div>
+        <div class="container screen-only container--search js-search-container">
+            <form action="/zoekresultaten" class="search__form js-search-form">
+                <input type="hidden" name="cx" value="009783014900805875343:khdsvk3eg4w">
+                <input type="hidden" name="ie" value="UTF-8">
+                <div class="grid">
+                    <div class="grid__12 grid--bp-med__9">
+                        <div class="form__item search__input">
+                            <input type="search" id="form-search" class="form__text form__text-search" name="q" required placeholder="Wat zoek je?">
+                        </div>
+                    </div>
+                    <div class="grid__12 grid--bp-med__3">
+                        <div class="form__actions search__submit">
+                            <button type="submit" class="btn btn--sml">
+                                Zoek
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+            <nav class="nav nav--main">
+        <ul>
+                            <li>
+                    <a href="https://www.gezondleven.be/themas" class=""
+                        >
+                        Thema&#039;s
+                    </a>
+                </li>
+                            <li>
+                    <a href="https://www.gezondleven.be/settings" class=""
+                        >
+                        Settings
+                    </a>
+                </li>
+                            <li>
+                    <a href="https://www.gezondleven.be/projecten" class=""
+                        >
+                        Projecten
+                    </a>
+                </li>
+                            <li>
+                    <a href="https://www.gezondleven.be/academie" class=""
+                        >
+                        Academie
+                    </a>
+                </li>
+                            <li>
+                    <a href="https://www.gezondleven.be/materialen" class=""
+                        >
+                        Webshop
+                    </a>
+                </li>
+                    </ul>
+    </nav>
+    </div>
+</header>
+
+    <div class="flyout" id="flyout">
+    <div class="container">
+        <div class="flyout__content">
+            
+    <nav class="nav nav--flyout">
+        <ul>
+                            <li><a href="https://www.gezondleven.be/themas" class="">Thema&#039;s</a></li>
+                            <li><a href="https://www.gezondleven.be/settings" class="">Settings</a></li>
+                            <li><a href="https://www.gezondleven.be/projecten" class="">Projecten</a></li>
+                            <li><a href="https://www.gezondleven.be/materialen" class="">Webshop</a></li>
+                            <li><a href="https://www.gezondleven.be/over-gezond-leven" class="">Over ons</a></li>
+                            <li><a href="https://www.gezondleven.be/vacatures" class="">Vacatures</a></li>
+                            <li><a href="https://www.gezondleven.be/contact" class="">Contact</a></li>
+                        <li>
+                <span class="visuallyhidden">Items in winkelmandje: </span>
+                <div id="component-pktyal" class="sprig-component" data-hx-target="this" data-hx-include="this" data-hx-trigger="htmx:afterOnLoad from:#cart" data-hx-get="https://www.gezondleven.be/index.php?p=actions/sprig-core/components/render" data-hx-vals="{&quot;sprig:config&quot;:&quot;fee60e53a5e578f947a77664e2f65c8978b14886e43f25aa3879c4befaec9bf9{\u0022id\u0022:\u0022component-pktyal\u0022,\u0022siteId\u0022:1,\u0022template\u0022:\u0022sprig\\\/components\\\/cart\\\/_counter\u0022}&quot;}" s-listen="#cart"><a href="https://www.gezondleven.be/winkelmandje" class="simpleCart_button btn btn--sml">
+    0
+</a>
+</div>
+            </li>
+        </ul>
+    </nav>
+        </div>
+    </div>
+</div>
+<div class="flyout__overlay"></div>
+
+    <main class="page-main">
+        
+            <div class="section section--header">
+        <div class="container">
+            <div class="section__content">
+                    <h1>Pagina niet gevonden</h1>
+            </div>
+        </div>
+    </div>
+
+                                <div class="section section--default">
+                    <div class="container">
+                        <div class="section__content">
+                                                                                                                                        <div class="block block--text">
+    <div class="grid">
+        <div class="grid__12">
+            <div class="text--center  spacer list-style--default">
+                <div class="spacer">
+                    <iframe src="https://notfound-static.fwebservices.be/en/404?key=669a0339ed754" width="100%" height="650" frameborder="0"></iframe>
+                </div>
+                            </div>
+        </div>
+    </div>
+</div>
+
+                                                                                                                        </div>
+                    </div>
+                </div>
+            
+    </main>
+
+    <footer class="page-footer">
+    <div class="screen-only section section--dark section--xlr section--doormat">
+        <div class="container">
+            <div class="section__content">
+                <div class="grid">
+                    
+<div class="grid__12 grid--bp-med__3">
+    <nav class="nav nav--doormat">
+        <div class="nav__title nav--doormat__title">
+            <a href="https://www.gezondleven.be/themas" ><h4>Thema&#039;s</h4></a>
+        </div>
+                <ul class="list--unordered list--links">
+                                                <li><a href="https://www.gezondleven.be/themas/voeding" class="">Voeding</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/beweging-sedentair-gedrag" class="">Beweging &amp; sedentair gedrag</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/tabak" class="">Tabak</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/gezondheid-en-milieu" class="">Gezondheid en milieu</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/mentaal-welbevinden" class="">Mentaal welbevinden</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/slaap" class="">Slaap</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/gedragsinzichten" class="">Gedragsinzichten</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/gezondheidsongelijkheid" class="">Gezondheidsongelijkheid</a></li>
+                                                                <li><a href="https://www.gezondleven.be/themas/andere-themas" class="">Andere thema&#039;s</a></li>
+                                    </ul>
+            </nav>
+</div>
+<div class="grid__12 grid--bp-med__3">
+    <nav class="nav nav--doormat">
+        <div class="nav__title nav--doormat__title">
+            <a href="https://www.gezondleven.be/over-gezond-leven" ><h4>Over Gezond Leven</h4></a>
+        </div>
+                <ul class="list--unordered list--links">
+                                                <li><a href="https://www.gezondleven.be/vacatures" class="">Vacatures</a></li>
+                                                                <li><a href="https://www.gezondleven.be/wie-is-wie" class="">Wie is wie?</a></li>
+                                                                <li><a href="https://www.gezondleven.be/contact" class="">Contacteer Gezond Leven</a></li>
+                                    </ul>
+            </nav>
+</div>
+<div class="grid__12 grid--bp-med__3">
+    <nav class="nav nav--doormat">
+        <div class="nav__title nav--doormat__title">
+            <a href="https://www.gezondleven.be/settings" ><h4>Settings</h4></a>
+        </div>
+                <ul class="list--unordered list--links">
+                                                <li><a href="https://www.gezondleven.be/settings/gezonde-gemeente" class="">Gezonde Gemeente</a></li>
+                                                                <li><a href="https://www.gezondleven.be/settings/gezonde-school" class="">Gezonde School</a></li>
+                                                                <li><a href="https://www.gezondleven.be/settings/gezond-werken" class="">Gezond Werken</a></li>
+                                                                <li><a href="https://www.gezondleven.be/settings/zorg-en-welzijn" class="">Zorg en Welzijn</a></li>
+                                                                <li><a href="https://www.gezondleven.be/settings/kinderopvang" class="">Kinderopvang</a></li>
+                                                                <li><a href="https://www.gezondleven.be/settings/vrije-tijd" class="">Vrije tijd</a></li>
+                                    </ul>
+            </nav>
+</div>
+
+                    <div class="grid__12 grid--bp-med__3">
+                        <div class="section--doormat__block text--center text--bp-sml--right text--tight">
+                            <a href="https://www.gezondleven.be/" class="page-footer__logo">
+                                <img src="https://www.gezondleven.be/img/svg/logo-neg.svg" alt="Naar de homepage"/>
+                            </a>
+                            <div class="page-footer__about spacer">
+                                <p>Vlaams Instituut Gezond Leven vzw</p>
+<p>G. Schildknechtstraat 9<br>
+ 1020 Brussel</p>
+<p>Tel. 02 422 49 49<br></p>
+                                <div class="block nav nav--social spacer spacer--sml">
+    <ul class="list--reset inline">
+                    <li class="inline__item">
+                <a href="https://www.facebook.com/gezondlevenvzw" target="_blank" class="nav__link nav__link--facebook">
+                    <i class="icon icon--facebook"></i>
+                    <span class="visuallyhidden">facebook</span>
+                </a>
+            </li>
+                                    <li class="inline__item">
+                <a href="https://www.instagram.com/gezondlevenvzw/" target="_blank" class="nav__link nav__link--instagram">
+                    <i class="icon icon--instagram"></i>
+                    <span class="visuallyhidden">instagram</span>
+                </a>
+            </li>
+                            <li class="inline__item">
+                <a href="https://nl.linkedin.com/company/vlaams-instituut-voor-gezondheidspromotie-en-ziektepreventie-vigez-vzw" target="_blank" class="nav__link nav__link--linkedin">
+                    <i class="icon icon--linkedin"></i>
+                    <span class="visuallyhidden">linkedin</span>
+                </a>
+            </li>
+                            <li class="inline__item">
+                <a href="https://www.pinterest.com/gezondlevenvzw/" target="_blank" class="nav__link nav__link--pinterest">
+                    <i class="icon icon--pinterest"></i>
+                    <span class="visuallyhidden">pinterest</span>
+                </a>
+            </li>
+                                    <li class="inline__item">
+                <a href="https://www.youtube.com/channel/UCC20cmxif6_9fT8nIVxhkFw" target="_blank" class="nav__link nav__link--youtube">
+                    <i class="icon icon--youtube"></i>
+                    <span class="visuallyhidden">youtube</span>
+                </a>
+            </li>
+            </ul>
+</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section section--xsm section--footer">
+        <div class="container">
+            <div class="section__content">
+                <a href="https://www.departementzorg.be/" class="page-footer__logo page-footer__logo--sml spacer spacer--xsm pull--bp-sml--left">
+                     <img src="https://www.gezondleven.be/img/logo-vlaamse-overheid.jpg" alt="Naar de homepage"/>
+                </a>
+                <div class="pull--bp-sml--right spacer spacer--xsm screen-only">
+                    <span class="page-footer__copyright">&copy; Vlaams Instituut Gezond Leven vzw 2026 - Website by <a href="https://www.statik.be">Statik</a></span>
+                    <nav class="nav nav--footer">
+                        <ul>
+                                                        
+                                                            <li><a href="https://www.gezondleven.be/cookiebeleid" class="nav__link">Cookiebeleid</a></li>
+                                                        <li>
+                                <button type="button" class="underline js-cookie-settings hover:no-underline">Cookie-instellingen</button>
+                            </li>
+                                                            <li><a href="https://www.gezondleven.be/privacyverklaring" class="nav__link">Privacyverklaring</a></li>
+                                                    </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+</div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"
+            integrity="sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E="
+            crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://www.gezondleven.be/js/masonry.min.js"></script>
+    <script type="text/javascript" src="https://www.gezondleven.be/js/js.cookie.js"></script>
+    <script type="text/javascript">
+        window.app = window.app || {};
+        app.variables = {
+            assetsPath: "/",
+        };
+    </script>
+    <script type="text/javascript" src="/frontend/main-CoLQSSYB.js"></script>
+    <script type="text/javascript" src="https://www.gezondleven.be/js/cookie.js"></script>
+    <script type="text/javascript" src="https://www.gezondleven.be/js/simpleCart.min.js"></script>
+    
+    
+    <script>
+
+        $(document).on('change', "#theme", function () {
+            var queryParameters = {}, queryString = location.search.substring(1),
+                re = /([^&=]+)=([^&]*)/g, m;
+            while (m = re.exec(queryString)) {
+                queryParameters[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+            }
+            queryParameters['themas'] = $(this).val();
+            location.search = $.param(queryParameters);
+        });
+        $(document).on('change', "#sector", function () {
+            var queryParameters = {}, queryString = location.search.substring(1),
+                re = /([^&=]+)=([^&]*)/g, m;
+            while (m = re.exec(queryString)) {
+                queryParameters[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+            }
+            queryParameters['sector'] = $(this).val();
+            location.search = $.param(queryParameters);
+        });
+
+
+    </script>
+<script type="application/ld+json">{"@context":"https:\/\/schema.org","@type":"WebPage","name":"Pagina niet gevonden","description":"Het Vlaams Instituut Gezond Leven wil je op een toegankelijke manier helpen om gezond te leven. Met onderbouwd advies, concrete tips en kant-en-klare projecten.","url":"https:\/\/www.gezondleven.be\/404"}</script><script src="https://www.gezondleven.be/cpresources/dc666775/htmx.min.js?v=1767597073"></script></body>
+
+</html>
