@@ -76,10 +76,11 @@ const individualTiers = [
 ];
 
 const orgTiers = [
-  { amount: 100, period: "year" },
-  { amount: 250, period: "year" },
+  { amount: 200, period: "year" },
   { amount: 500, period: "year" },
   { amount: 1000, period: "year" },
+  { amount: 5000, period: "year" },
+  { amount: 10000, period: "year" },
 ];
 
 const timeCommitments = [
