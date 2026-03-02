@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Building2, Users } from "lucide-react";
-import { Gamepad2, Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone } from "lucide-react";
+import { Gamepad2, Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
 const individualBenefits = [
@@ -50,24 +50,20 @@ const individualBenefits = [
 
 const organisationBenefits = [
   {
-    icon: DoorOpen,
-    content: "Book meeting rooms for your team",
-  },
-  {
-    icon: Calendar,
-    content: "Organise events, workshops and meetups at the Hub",
-  },
-  {
-    icon: Users,
-    content: "Connect with a community of commoners, changemakers and social entrepreneurs",
-  },
-  {
     icon: Megaphone,
-    content: "Visibility on our website and community channels",
+    content: "Logo on the website as partner organisation",
   },
   {
-    icon: Laptop,
-    content: "Access to the coworking for your team members",
+    icon: BadgePercent,
+    content: "30% discount on bookings and events",
+  },
+  {
+    icon: KeyRound,
+    content: "Membership for two people (who can open the door)",
+  },
+  {
+    icon: MessageSquarePlus,
+    content: "Make proposals (e.g. when you need space for a series of workshops)",
   },
 ];
 
