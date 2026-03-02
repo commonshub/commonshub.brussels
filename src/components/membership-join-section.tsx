@@ -11,40 +11,37 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Building2, Users } from "lucide-react";
-import { Gamepad2, Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus } from "lucide-react";
+import { Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
 const individualBenefits = [
   {
+    icon: Home,
+    content: "You can feel at home in the hub, you have access to the door at all times, and help yourself in the kitchen",
+  },
+  {
+    icon: BadgePercent,
+    content: "You receive 30% discount on all events and when renting the rooms",
+  },
+  {
     icon: Laptop,
-    content: "Access to the coworking",
-  },
-  {
-    icon: Gamepad2,
-    content: (
-      <>
-        Play{" "}
-        <Link href="/workshops/commons-game" className="text-primary hover:underline">
-          the Commons Games
-        </Link>{" "}
-        and learn{" "}
-        <Link href="/workshops/commons-game#principles" className="text-primary hover:underline">
-          Elinor Ostrom&apos;s 8 principles to govern the commons
-        </Link>
-      </>
-    ),
-  },
-  {
-    icon: Users,
-    content: "Make use of the common space and the common resources of the community",
+    content: "You can cowork at the hub for one day/month (or pay-as-you-go if you need more, or pay €100/month for unlimited access)",
   },
   {
     icon: Coins,
-    content: "Contribute and earn tokens",
+    content: "You get access to our internal economy, and governance/decision making processes (through tokens for volunteer work) and you can make use of the space with those tokens",
   },
   {
-    icon: Calendar,
-    content: "Make proposals to organise events, workshops or other activities for the community",
+    icon: Heart,
+    content: "You are welcome to join our Heartbeat meetings every Monday 13:00-14:00",
+  },
+  {
+    icon: Hash,
+    content: "You receive access to all Discord channels",
+  },
+  {
+    icon: Lightbulb,
+    content: "You can make proposals and join conversations, and cocreate the hub",
   },
 ];
 
