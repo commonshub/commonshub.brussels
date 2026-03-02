@@ -16,6 +16,10 @@ import { CommunityActivityGallery } from "./community-activity-gallery";
 
 const membershipBenefits = [
   {
+    icon: Home,
+    content: "Access to the coworking",
+  },
+  {
     icon: Gamepad2,
     content: (
       <>
@@ -31,7 +35,7 @@ const membershipBenefits = [
     ),
   },
   {
-    icon: Home,
+    icon: Users,
     content: "Make use of the common space and the common resources of the community",
   },
   {
@@ -200,7 +204,7 @@ export function MembershipJoinSection() {
             <CheckCircle className="w-20 h-20 text-primary mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">Application Submitted!</h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Thank you for your interest in joining Commons Hub Brussels. We will review your application and get back to you soon.
+              Thank you for your application! We&apos;ll be in touch soon, and you&apos;ll receive an invitation to come visit the Hub.
             </p>
             <Button
               className="mt-8"
