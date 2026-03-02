@@ -196,8 +196,19 @@ async function fetchRoomEvents(room: Room): Promise<RoomEvent[]> {
 /**
  * Fetch events for all rooms
  */
+const OUTSIDE_CALENDAR: Room = {
+  id: "outside",
+  name: "Outside",
+  slug: "outside",
+  capacity: 100,
+  googleCalendarId: "c_c5c032ff4f13c1066827b469a731dca1bc416bf6ccd736adc267c79b95de6a6a@group.calendar.google.com",
+};
+
 export async function fetchAllRoomEvents(): Promise<RoomEvent[]> {
-  const rooms = roomsData.rooms.filter(room => room.googleCalendarId) as Room[];
+  const rooms = [
+    ...(roomsData.rooms.filter(room => room.googleCalendarId) as Room[]),
+    OUTSIDE_CALENDAR,
+  ];
   
   const eventPromises = rooms.map(room => fetchRoomEvents(room));
   const eventArrays = await Promise.all(eventPromises);
@@ -230,9 +241,10 @@ export async function fetchRoomEventsForRange(
  * Get rooms sorted by capacity (descending)
  */
 export function getRoomsSortedByCapacity(): Room[] {
-  return (roomsData.rooms as Room[])
-    .filter(room => room.googleCalendarId)
-    .sort((a, b) => b.capacity - a.capacity);
+  return [
+    ...(roomsData.rooms as Room[]).filter(room => room.googleCalendarId),
+    OUTSIDE_CALENDAR,
+  ].sort((a, b) => b.capacity - a.capacity);
 }
 
 /**

@@ -46,6 +46,7 @@ const ROOM_COLORS: Record<string, string> = {
   mushroom: "#10b981",   // emerald
   coworking: "#3b82f6",  // blue
   playroom: "#f97316",   // orange
+  outside: "#22c55e",    // green
 };
 
 const ROOM_BG: Record<string, string> = {
@@ -56,6 +57,7 @@ const ROOM_BG: Record<string, string> = {
   mushroom: "bg-emerald-500",
   coworking: "bg-blue-500",
   playroom: "bg-orange-500",
+  outside: "bg-green-500",
 };
 
 function formatLocalDate(date: Date): string {
