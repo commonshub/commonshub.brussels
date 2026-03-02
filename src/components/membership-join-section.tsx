@@ -11,12 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Building2, Users } from "lucide-react";
-import { Gamepad2, Home, Coins, Calendar, CheckCircle } from "lucide-react";
+import { Gamepad2, Laptop, Coins, Calendar, CheckCircle } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
 const membershipBenefits = [
   {
-    icon: Home,
+    icon: Laptop,
     content: "Access to the coworking",
   },
   {
