@@ -87,11 +87,11 @@ export function ProposalListItem({ proposal, types, statuses, isLast }: Props) {
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
           <span>#{proposal.id}</span>
           <span>opened {timeAgo(proposal.createdAt)} by {proposal.author.name}</span>
-          {proposal.room && (
-            <span className="hidden sm:inline">📍 {getRoomName(proposal.room)}</span>
+          {(proposal.type === "booking" || proposal.type === "event" || proposal.type === "workshop") && proposal.room && (
+            <span>📍 {getRoomName(proposal.room)}</span>
           )}
-          {proposal.date && (
-            <span className="hidden sm:inline">📅 {proposal.date}</span>
+          {(proposal.type === "booking" || proposal.type === "event" || proposal.type === "workshop") && proposal.date && (
+            <span>📅 {new Date(proposal.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{proposal.startTime ? ` ${proposal.startTime}` : ""}</span>
           )}
         </div>
 
