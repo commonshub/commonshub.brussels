@@ -13,6 +13,18 @@ export interface ProposalContribution {
   date: string
 }
 
+export interface ProposalImage {
+  url: string
+  caption?: string
+  author: {
+    name: string
+    avatar: string
+    discordId: string
+  }
+  date: string
+  commentId?: string // links to the comment that shared it
+}
+
 export interface ProposalComment {
   id: string
   author: {
@@ -22,6 +34,12 @@ export interface ProposalComment {
   }
   content: string
   date: string
+  images?: string[] // image URLs attached to this comment
+  tokenContribution?: {
+    amount: number
+    token: string
+    txHash: string
+  }
   encrypted?: {
     for: string[] // names of recipients
   }
@@ -133,8 +151,21 @@ We'll play 2 rounds of the game followed by a debrief discussion connecting the 
       {
         id: "m4",
         author: { name: "Xavier", avatar: AVATARS.xavier, discordId: "849888126" },
-        content: "We had 18 participants! Great session. Photos in the #contributions channel. Submitting expense for the snacks.",
+        content: "We had 18 participants! Great session. Submitting expense for the snacks.",
         date: "2026-02-15T18:00:00Z",
+        images: [
+          "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800",
+          "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800",
+        ],
+      },
+      {
+        id: "m4b",
+        author: { name: "Bob", avatar: AVATARS.bob, discordId: "222222222" },
+        content: "What a great evening! Here's the group photo. Thanks for organising Xavier!",
+        date: "2026-02-15T19:30:00Z",
+        images: [
+          "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800",
+        ],
       },
     ],
     metadata: {
@@ -238,6 +269,11 @@ Facilitated by David from DAO.brussels.`,
         author: { name: "Elena", avatar: AVATARS.elena, discordId: "555555555" },
         content: "Workshop went great! 12 participants, really engaging discussion during the hands-on part. Will post a write-up soon.",
         date: "2026-02-08T17:00:00Z",
+        images: [
+          "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800",
+          "https://images.unsplash.com/photo-1531545514256-b1400bc00f31?w=800",
+          "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=800",
+        ],
       },
     ],
     metadata: {
@@ -340,23 +376,32 @@ Everyone is welcome — you don't need to have read the book to participate, but
 
 ☕ Coffee and tea provided.`,
     type: "event",
-    status: "pending",
+    status: "funded",
     author: { name: "Carol", avatar: AVATARS.carol, discordId: "333333333" },
     organisers: [
       { name: "Carol", avatar: AVATARS.carol, discordId: "333333333" },
       { name: "Bob", avatar: AVATARS.bob, discordId: "222222222" },
     ],
     createdAt: "2026-02-28T14:00:00Z",
-    updatedAt: "2026-03-02T11:00:00Z",
+    updatedAt: "2026-03-03T09:00:00Z",
     room: "mushroom",
     date: "2026-03-20",
     startTime: "19:00",
     duration: 120,
     walletAddress: "0x4567890123abcdef4567890123abcdef45678901",
     priceTotal: 2,
-    pricePaid: 0,
+    pricePaid: 2,
     token: "CHT",
-    contributions: [],
+    contributions: [
+      {
+        id: "c4",
+        author: { name: "Alice", avatar: AVATARS.alice, discordId: "111111111" },
+        amount: 2,
+        token: "CHT",
+        txHash: "0xggg111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        date: "2026-03-03T09:00:00Z",
+      },
+    ],
     comments: [
       {
         id: "m16",
@@ -387,6 +432,17 @@ Everyone is welcome — you don't need to have read the book to participate, but
         author: { name: "David", avatar: AVATARS.david, discordId: "444444444" },
         content: "I'd like to attend but I have a conflict at 19:00. Any chance of starting at 18:30?",
         date: "2026-03-02T11:00:00Z",
+      },
+      {
+        id: "m20b",
+        author: { name: "Alice", avatar: AVATARS.alice, discordId: "111111111" },
+        content: "I'll fund the full room cost. Let's make this happen! 🙌",
+        date: "2026-03-03T09:00:00Z",
+        tokenContribution: {
+          amount: 2,
+          token: "CHT",
+          txHash: "0xggg111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        },
       },
     ],
     metadata: {

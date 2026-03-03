@@ -9,6 +9,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProposalActivity } from "./proposal-activity"
+import { CommentBox } from "./proposal-comment-box"
+import { MediaGallery } from "./proposal-media-gallery"
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   DoorOpen, Calendar, GraduationCap, Coins, Hammer, MessageSquare,
@@ -151,26 +153,7 @@ export default async function ProposalPage({ params }: PageProps) {
                 />
 
                 {/* Comment box */}
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <div className="px-4 py-2.5 bg-muted/30 border-b border-border">
-                    <span className="text-sm font-medium">Add a comment</span>
-                  </div>
-                  <div className="p-4">
-                    <textarea
-                      placeholder="Leave a comment... (sign in with Discord to post)"
-                      className="w-full h-24 px-3 py-2 text-sm border border-border rounded-lg bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      disabled
-                    />
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-muted-foreground">
-                        Comments are published as Nostr events
-                      </span>
-                      <Button size="sm" disabled>
-                        Comment
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <CommentBox token={proposal.token} isFunded={isFunded} />
               </div>
 
               {/* Sidebar */}
@@ -297,6 +280,9 @@ export default async function ProposalPage({ params }: PageProps) {
                     </Button>
                   </div>
                 )}
+
+                {/* Media Gallery */}
+                <MediaGallery comments={proposal.comments} />
 
                 {/* Wallet */}
                 <div className="border border-border rounded-lg p-4">
