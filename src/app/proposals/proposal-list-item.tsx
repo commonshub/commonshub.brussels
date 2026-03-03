@@ -46,59 +46,72 @@ export function ProposalListItem({ proposal, types, statuses, isLast }: Props) {
   const hasFunding = proposal.priceTotal > 0
   const fundingPercent = hasFunding ? Math.min(100, (proposal.pricePaid / proposal.priceTotal) * 100) : 0
 
+  const hasRoomDate = (proposal.type === "booking" || proposal.type === "event" || proposal.type === "workshop")
+
   return (
     <Link
       href={`/proposals/${proposal.id}`}
-      className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors ${
+      className={`block px-4 py-3 hover:bg-muted/50 transition-colors ${
         !isLast ? "border-b border-border" : ""
       }`}
     >
-      {/* Icon */}
-      <div
-        className="mt-1 p-1.5 rounded-md flex-shrink-0"
-        style={{ backgroundColor: `${type?.color}15`, color: type?.color }}
-      >
-        {Icon && <Icon className="w-4 h-4" />}
+      {/* Row 1: Icon + Title + badges + #id */}
+      <div className="flex items-start gap-2.5">
+        <div
+          className="mt-0.5 p-1.5 rounded-md flex-shrink-0"
+          style={{ backgroundColor: `${type?.color}15`, color: type?.color }}
+        >
+          {Icon && <Icon className="w-4 h-4" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-foreground text-sm leading-tight">
+                {proposal.title}
+              </span>
+              <span className="inline-flex items-center gap-1.5 ml-2">
+                <span
+                  className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white whitespace-nowrap"
+                  style={{ backgroundColor: type?.color }}
+                >
+                  {type?.label}
+                </span>
+                <span
+                  className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap"
+                  style={{ borderColor: status?.color, color: status?.color }}
+                >
+                  {status?.label}
+                </span>
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground flex-shrink-0">#{proposal.id}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-foreground hover:text-primary text-sm">
-            {proposal.title}
-          </span>
-          {/* Type badge */}
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white"
-            style={{ backgroundColor: type?.color }}
-          >
-            {type?.label}
-          </span>
-          {/* Status badge */}
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border"
-            style={{ borderColor: status?.color, color: status?.color }}
-          >
-            {status?.label}
-          </span>
-        </div>
+      {/* Row 2: Opened by */}
+      <div className="ml-[38px] mt-1 text-xs text-muted-foreground">
+        opened {timeAgo(proposal.createdAt)} by {proposal.author.name}
+      </div>
 
-        {/* Meta line */}
-        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-          <span>#{proposal.id}</span>
-          <span>opened {timeAgo(proposal.createdAt)} by {proposal.author.name}</span>
-          {(proposal.type === "booking" || proposal.type === "event" || proposal.type === "workshop") && proposal.room && (
+      {/* Row 3: Room + Date (if applicable) */}
+      {hasRoomDate && (proposal.room || proposal.date) && (
+        <div className="ml-[38px] mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+          {proposal.room && (
             <span>📍 {getRoomName(proposal.room)}</span>
           )}
-          {(proposal.type === "booking" || proposal.type === "event" || proposal.type === "workshop") && proposal.date && (
+          {proposal.date && (
             <span>📅 {new Date(proposal.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{proposal.startTime ? ` ${proposal.startTime}` : ""}</span>
           )}
         </div>
+      )}
 
+      {/* Row 4: Funding + stats */}
+      <div className="ml-[38px] mt-1.5 flex items-center gap-3 flex-wrap">
         {/* Funding bar */}
         {hasFunding && (
-          <div className="flex items-center gap-2 mt-1.5">
-            <div className="flex-1 max-w-[120px] h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="flex items-center gap-2">
+            <div className="w-[80px] h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
@@ -112,37 +125,37 @@ export function ProposalListItem({ proposal, types, statuses, isLast }: Props) {
             </span>
           </div>
         )}
-      </div>
 
-      {/* Right side: comments + contributions count */}
-      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-shrink-0 mt-1">
-        {contributionCount > 0 && (
-          <span className="flex items-center gap-1" title={`${contributionCount} contribution(s)`}>
-            <Coins className="w-3.5 h-3.5" />
-            {contributionCount}
-          </span>
-        )}
-        {commentCount > 0 && (
-          <span className="flex items-center gap-1" title={`${commentCount} comment(s)`}>
-            <MessageCircle className="w-3.5 h-3.5" />
-            {commentCount}
-          </span>
-        )}
-        {/* Contributor avatars */}
-        <div className="flex -space-x-1.5">
-          {[...new Map(
-            [...proposal.contributions, ...proposal.comments]
-              .map((c) => [c.author.discordId, c.author])
-          ).values()]
-            .slice(0, 3)
-            .map((author) => (
-              <img
-                key={author.discordId}
-                src={author.avatar}
-                alt={author.name}
-                className="w-5 h-5 rounded-full border border-background"
-              />
-            ))}
+        {/* Stats inline */}
+        <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+          {contributionCount > 0 && (
+            <span className="flex items-center gap-0.5">
+              <Coins className="w-3 h-3" />
+              {contributionCount}
+            </span>
+          )}
+          {commentCount > 0 && (
+            <span className="flex items-center gap-0.5">
+              <MessageCircle className="w-3 h-3" />
+              {commentCount}
+            </span>
+          )}
+          {/* Participant avatars */}
+          <div className="flex -space-x-1.5">
+            {[...new Map(
+              [...proposal.contributions, ...proposal.comments]
+                .map((c) => [c.author.discordId, c.author])
+            ).values()]
+              .slice(0, 3)
+              .map((author) => (
+                <img
+                  key={author.discordId}
+                  src={author.avatar}
+                  alt={author.name}
+                  className="w-4 h-4 rounded-full border border-background"
+                />
+              ))}
+          </div>
         </div>
       </div>
     </Link>
