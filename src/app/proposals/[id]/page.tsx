@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import { getProposal, getProposals } from "@/lib/proposals-data"
 import proposalSettings from "@/settings/proposals.json"
-import rooms from "@/settings/rooms.json"
+import roomsData from "@/settings/rooms.json"
 import Link from "next/link"
 import {
   ArrowLeft, DoorOpen, Calendar, GraduationCap, Coins, Hammer, MessageSquare,
@@ -23,7 +23,7 @@ export async function generateStaticParams() {
 }
 
 function getRoomName(slug: string): string {
-  const room = rooms.find((r) => r.slug === slug)
+  const room = roomsData.rooms.find((r: { slug?: string; id?: string; name: string }) => r.slug === slug || r.id === slug)
   return room?.name || slug
 }
 

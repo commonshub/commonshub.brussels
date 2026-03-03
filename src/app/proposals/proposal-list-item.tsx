@@ -4,7 +4,7 @@ import {
   DoorOpen, Calendar, GraduationCap, Coins, Hammer, MessageSquare,
   MessageCircle,
 } from "lucide-react"
-import rooms from "@/settings/rooms.json"
+import roomsData from "@/settings/rooms.json"
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   DoorOpen, Calendar, GraduationCap, Coins, Hammer, MessageSquare,
@@ -32,7 +32,7 @@ function timeAgo(dateStr: string): string {
 }
 
 function getRoomName(slug: string): string {
-  const room = rooms.find((r) => r.slug === slug)
+  const room = roomsData.rooms.find((r: { slug?: string; id?: string; name: string }) => r.slug === slug || r.id === slug)
   return room?.name || slug
 }
 
