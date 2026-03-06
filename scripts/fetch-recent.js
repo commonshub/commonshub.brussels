@@ -15,9 +15,13 @@ const prevDate = new Date(now);
 prevDate.setMonth(prevDate.getMonth() - 1);
 const previousMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
 
-const monthArgs = `--start-month=${previousMonth} --end-month=${currentMonth}`;
+const nextDate = new Date(now);
+nextDate.setMonth(nextDate.getMonth() + 1);
+const nextMonth = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
 
-console.log(`\n📅 Fetching data for recent months: ${previousMonth} to ${currentMonth}\n`);
+const monthArgs = `--start-month=${previousMonth} --end-month=${nextMonth}`;
+
+console.log(`\n📅 Fetching data for recent months: ${previousMonth} to ${nextMonth}\n`);
 
 // List of scripts to run with month filtering
 const scripts = [
