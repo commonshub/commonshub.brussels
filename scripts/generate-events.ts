@@ -173,6 +173,10 @@ async function loadICalEvents(year: string, month: string): Promise<any[]> {
 /**
  * Load cached calendar events from .ics files
  */
+/**
+ * Load cached calendar events from .ics files
+ * Only loads luma.ics for public events (Google/room calendars kept as backup but not used)
+ */
 async function loadCachedCalendarEvents(
   year: string,
   month: string
@@ -183,30 +187,26 @@ async function loadCachedCalendarEvents(
     return [];
   }
 
-  const allEvents: any[] = [];
-  const icsFiles = fs.readdirSync(icsDir).filter((f) => f.endsWith(".ics"));
-
-  for (const icsFile of icsFiles) {
-    try {
-      const icsPath = path.join(icsDir, icsFile);
-      const content = fs.readFileSync(icsPath, "utf-8");
-      const events = await ical.async.parseICS(content);
-
-      // Convert to array and filter only VEVENTs
-      const eventArray = Object.values(events).filter(
-        (event: any) => event.type === "VEVENT"
-      );
-
-      const calendarName = path.basename(icsFile, ".ics");
-      allEvents.push(
-        ...eventArray.map((e) => ({ ...e, calendarSource: calendarName }))
-      );
-    } catch (error) {
-      console.error(`Error loading ${icsFile}:`, error);
-    }
+  // Only load luma.ics — this is the single source of truth for public events
+  const lumaIcsPath = path.join(icsDir, "luma.ics");
+  if (!fs.existsSync(lumaIcsPath)) {
+    console.log(`  No luma.ics found for ${year}-${month}`);
+    return [];
   }
 
-  return allEvents;
+  try {
+    const content = fs.readFileSync(lumaIcsPath, "utf-8");
+    const events = await ical.async.parseICS(content);
+
+    const eventArray = Object.values(events)
+      .filter((event: any) => event.type === "VEVENT")
+      .map((e) => ({ ...e, calendarSource: "luma" }));
+
+    return eventArray;
+  } catch (error) {
+    console.error(`Error loading luma.ics:`, error);
+    return [];
+  }
 }
 
 /**
@@ -491,14 +491,13 @@ async function processMonth(year: string, month: string) {
   // Load Luma API events (highest priority)
   const lumaEventsMap = loadLumaEvents(year, month);
 
-  // Load cached calendar events
+  // Load public events from Luma ICS feed (single source of truth)
   const allICalEvents = await loadCachedCalendarEvents(year, month);
-  console.log(`  Loaded ${allICalEvents.length} events from cached calendars`);
+  console.log(`  Loaded ${allICalEvents.length} public events from Luma ICS`);
 
   // Process events
   const events: Event[] = [];
   const processedEventIds = new Set<string>();
-  const processedEventKeys = new Set<string>(); // Track by startAt + endAt only
 
   for (const icalEvent of allICalEvents) {
     const calendarSource = (icalEvent as any).calendarSource;
@@ -703,31 +702,18 @@ async function processMonth(year: string, month: string) {
       continue;
     }
 
-    // Check for duplicate by start time + end time only
-    const finalStartAt = lumaData?.start_at || startAt;
-    const finalEndAt = lumaData?.end_at || endAt;
-    const eventKey = `${finalStartAt}|${finalEndAt || ""}`;
-
-    if (processedEventKeys.has(eventKey)) {
-      console.log(
-        `  ⚠️  Skipping duplicate event by time: ${name} (start: ${finalStartAt}, end: ${finalEndAt || "N/A"})`
-      );
-      continue;
-    }
-
     processedEventIds.add(eventId);
-    processedEventKeys.add(eventKey);
 
     // Determine final description
-    let finalDescription = lumaData?.description || description;
-    // If description starts with "Find more information on https://luma.com", use OG description instead
+    // Priority: Luma API description > OG description > ICS description
+    // ICS descriptions from Luma are usually just "Get up-to-date information at: ..."
+    let finalDescription = lumaData?.description || ogDescription || description;
+    // If still a stub description, try OG
     if (
-      finalDescription?.startsWith(
-        "Find more information on https://luma.com"
-      ) &&
-      ogDescription
+      finalDescription?.startsWith("Get up-to-date information at:") ||
+      finalDescription?.startsWith("Find more information on https://luma.com")
     ) {
-      finalDescription = ogDescription;
+      finalDescription = ogDescription || finalDescription;
     }
 
     // Create event object
