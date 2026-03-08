@@ -16,7 +16,7 @@ import ogs from "open-graph-scraper";
 import { addHours } from "date-fns";
 import settings from "../src/settings/settings.json";
 import type { LumaEvent } from "../src/lib/luma";
-import { getEventGuests, type LumaGuest } from "../src/lib/luma";
+import { getEvent, getEventGuests, type LumaGuest } from "../src/lib/luma";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const IS_VERCEL = !!process.env.VERCEL;
@@ -568,6 +568,25 @@ async function processMonth(year: string, month: string) {
       lumaData = lumaEventsMap.get(name.toLowerCase());
     }
 
+    // If no match in cache, try fetching from Luma API by event ID (works for community events too)
+    // The ICS UID contains the evt-xxx API ID, so use eventId (not the slug)
+    if (!lumaData && eventId.startsWith("evt-") && process.env.LUMA_API_KEY) {
+      try {
+        const fetchedEvent = await getEvent(eventId);
+        if (fetchedEvent) {
+          lumaData = fetchedEvent;
+          // Cache it in the map for potential name-based matches later
+          lumaEventsMap.set(eventId, fetchedEvent);
+          if (fetchedEvent.name) {
+            lumaEventsMap.set(fetchedEvent.name.toLowerCase(), fetchedEvent);
+          }
+          console.log(`  ✓ Fetched community event from Luma API: ${name}`);
+        }
+      } catch (error) {
+        console.error(`  ⚠ Failed to fetch event ${eventId} from Luma API`);
+      }
+    }
+
     // If we found Luma data, use it (highest priority)
     if (lumaData) {
       eventId = lumaData.api_id;
@@ -589,7 +608,7 @@ async function processMonth(year: string, month: string) {
         }
       }
 
-      // For non-Luma events, fetch OG metadata
+      // Fallback: scrape og:image from the event URL
       if (eventUrl) {
         const ogData = await fetchOGMetadata(eventUrl);
         if (ogData.image) {
