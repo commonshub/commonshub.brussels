@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
-import settings from "@/settings/settings.json";
+import * as fs from "fs";
+import * as path from "path";
 
-const LUMA_API_KEY = process.env.LUMA_API_KEY;
-const CALENDAR_API_ID = settings.luma.calendarId || "cal-kWlIiw3HsJFhs25";
-const ICS_URL = settings.luma.icalUrl;
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
-// Cache for 1 hour
+// Cache for 5 minutes (data files are already pre-generated hourly)
 let cachedData: {
-  events: LumaEvent[];
+  events: HomepageEvent[];
   timestamp: number;
 } | null = null;
 
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in ms
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-interface LumaEvent {
+interface EventTag {
+  name: string;
+  color: string;
+}
+
+interface HomepageEvent {
   id: string;
   name: string;
   description: string;
@@ -25,183 +29,103 @@ interface LumaEvent {
   isExternal: boolean;
   externalPlatform?: string;
   externalUrl?: string;
-  tags?: Array<{ name: string; color: string }>;
+  tags?: EventTag[];
   isFeatured?: boolean;
 }
 
-async function fetchIcsEvents(): Promise<LumaEvent[]> {
-  if (!ICS_URL) return [];
+/**
+ * Load upcoming events from pre-generated data files.
+ * These are populated by the fetch-recent / fetch-calendars pipeline (runs hourly).
+ */
+function loadUpcomingEvents(): HomepageEvent[] {
+  const now = new Date();
+  const events: HomepageEvent[] = [];
 
-  try {
-    const response = await fetch(ICS_URL);
-    if (!response.ok) return [];
+  if (!fs.existsSync(DATA_DIR)) {
+    console.log("[events] DATA_DIR not found:", DATA_DIR);
+    return [];
+  }
 
-    const icsText = await response.text();
-    const events: LumaEvent[] = [];
+  // Scan current month + next 2 months
+  for (let i = 0; i <= 2; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const year = String(d.getFullYear());
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const eventsPath = path.join(DATA_DIR, year, month, "events.json");
 
-    // Parse VEVENT blocks
-    const eventBlocks = icsText.split("BEGIN:VEVENT");
+    if (!fs.existsSync(eventsPath)) {
+      continue;
+    }
 
-    for (let i = 1; i < eventBlocks.length; i++) {
-      const block = eventBlocks[i].split("END:VEVENT")[0];
+    try {
+      const content = fs.readFileSync(eventsPath, "utf-8");
+      const data = JSON.parse(content);
+      const monthEvents = data.events || [];
 
-      const getField = (field: string): string => {
-        const regex = new RegExp(`^${field}[^:]*:(.*)`, "m");
-        const match = block.match(regex);
-        return match
-          ? match[1].trim().replace(/\\n/g, "\n").replace(/\\,/g, ",")
-          : "";
-      };
+      for (const event of monthEvents) {
+        const startAt = event.startAt || event.start_at || "";
 
-      const uid = getField("UID");
-      const summary = getField("SUMMARY");
-      const description = getField("DESCRIPTION");
-      const dtstart = getField("DTSTART");
-      const dtend = getField("DTEND");
-      const url = getField("URL");
-      let location = getField("LOCATION");
+        // Only include future events
+        if (startAt && new Date(startAt) < now) continue;
 
-      // Skip if no URL or if it's a Luma event (we'll get those from the API)
-      if (!url || url.includes("lu.ma")) continue;
+        // Determine if external (non-Luma source without a lu.ma URL)
+        const eventUrl = event.url || "";
+        const isLuma = eventUrl.includes("lu.ma") || eventUrl.includes("luma.com");
+        const isExternal = !isLuma && !!eventUrl;
 
-      // Parse dates
-      const parseIcsDate = (dateStr: string): string => {
-        if (!dateStr) return "";
-        // Format: 20241201T180000Z or 20241201
-        const clean = dateStr.replace(/[TZ]/g, "");
-        if (clean.length >= 8) {
-          const year = clean.substring(0, 4);
-          const month = clean.substring(4, 6);
-          const day = clean.substring(6, 8);
-          const hour = clean.length >= 10 ? clean.substring(8, 10) : "00";
-          const minute = clean.length >= 12 ? clean.substring(10, 12) : "00";
-          return `${year}-${month}-${day}T${hour}:${minute}:00Z`;
+        // Detect external platform
+        let externalPlatform = "";
+        if (isExternal) {
+          if (eventUrl.includes("eventbrite")) externalPlatform = "Eventbrite";
+          else if (eventUrl.includes("meetup")) externalPlatform = "Meetup";
+          else if (eventUrl.includes("facebook")) externalPlatform = "Facebook";
+          else externalPlatform = "Event Page";
         }
-        return "";
-      };
 
-      const startAt = parseIcsDate(dtstart);
-      const endAt = parseIcsDate(dtend);
-
-      // Only include future events
-      if (startAt && new Date(startAt) < new Date()) continue;
-
-      // Don't show location if it contains "Commons Hub"
-      if (location.toLowerCase().includes("commons hub")) {
-        location = "";
-      }
-
-      // Detect external platform
-      let externalPlatform = "";
-      if (url.includes("eventbrite")) externalPlatform = "Eventbrite";
-      else if (url.includes("meetup")) externalPlatform = "Meetup";
-      else if (url.includes("facebook")) externalPlatform = "Facebook";
-      else externalPlatform = "Event Page";
-
-      events.push({
-        id: uid || `ics-${i}`,
-        name: summary,
-        description: description.substring(0, 200),
-        start_at: startAt,
-        end_at: endAt,
-        cover_url: "",
-        url: url,
-        location,
-        isExternal: true,
-        externalPlatform,
-        externalUrl: url,
-        tags: [],
-        isFeatured: false,
-      });
-    }
-
-    return events;
-  } catch (error) {
-    console.error("[v0] Failed to parse ICS events:", error);
-    return [];
-  }
-}
-
-async function fetchCalendarEvents(): Promise<LumaEvent[]> {
-  if (!LUMA_API_KEY) {
-    console.log("[v0] No LUMA_API_KEY set, cannot fetch calendar events");
-    return [];
-  }
-
-  try {
-    const apiUrl = `https://api.lu.ma/public/v1/calendar/list-events?calendar_api_id=${CALENDAR_API_ID}&after=${new Date().toISOString()}`;
-
-    const response = await fetch(apiUrl, {
-      headers: {
-        "x-luma-api-key": LUMA_API_KEY,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        "[v0] Luma Calendar API error:",
-        response.status,
-        errorText
-      );
-      return [];
-    }
-
-    const data = await response.json();
-    const entries = data.entries || [];
-
-    return entries.map(
-      (entry: {
-        event: Record<string, unknown>;
-        tags?: Array<{ name: string; color: string }>;
-      }) => {
-        const event = entry.event as {
-          api_id?: string;
-          name?: string;
-          description?: string;
-          start_at?: string;
-          end_at?: string;
-          cover_url?: string;
-          url?: string;
-          geo_address_json?: { full_address?: string };
-        };
-        const tags = (entry.tags || []).map(
-          (t: { name: string; color: string }) => ({
-            name: t.name,
-            color: t.color || "#6b7280",
-          })
-        );
-
-        let location = event.geo_address_json?.full_address || "";
-        // Don't show location if it contains "Commons Hub"
+        // Normalize location — hide "Commons Hub" since it's implied
+        let location = event.location || "";
         if (location.toLowerCase().includes("commons hub")) {
           location = "";
         }
+
+        // Get tags from event or from nested lumaData
+        const tags: EventTag[] = event.tags || (event.lumaData?.tags
+          ? (event.lumaData.tags as any[]).map((t: any) =>
+              typeof t === "string" ? { name: t, color: "#6b7280" } : { name: t.name, color: t.color || "#6b7280" }
+            )
+          : []);
 
         const isFeatured = tags.some(
           (t) => t.name.toLowerCase() === "featured"
         );
 
-        return {
-          id: event.api_id || "",
+        events.push({
+          id: event.id || "",
           name: event.name || "",
           description: event.description || "",
-          start_at: event.start_at || "",
-          end_at: event.end_at || "",
-          cover_url: event.cover_url || "",
-          url: event.url || "",
+          start_at: startAt,
+          end_at: event.endAt || event.end_at || "",
+          cover_url: event.coverImage || event.cover_url || "",
+          url: eventUrl,
           location,
-          isExternal: false,
+          isExternal,
+          externalPlatform: isExternal ? externalPlatform : undefined,
+          externalUrl: isExternal ? eventUrl : undefined,
           tags,
           isFeatured,
-        };
+        });
       }
-    );
-  } catch (error) {
-    console.error("[v0] Failed to fetch calendar events:", error);
-    return [];
+    } catch (error) {
+      console.error(`[events] Error reading ${eventsPath}:`, error);
+    }
   }
+
+  // Sort by date
+  events.sort(
+    (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+  );
+
+  return events;
 }
 
 export async function GET() {
@@ -215,35 +139,20 @@ export async function GET() {
   }
 
   try {
-    const [lumaEvents, icsEvents] = await Promise.all([
-      fetchCalendarEvents(),
-      fetchIcsEvents(),
-    ]);
-
-    // Combine and deduplicate (prefer Luma events)
-    const lumaEventIds = new Set(lumaEvents.map((e) => e.id));
-    const allEvents = [
-      ...lumaEvents,
-      ...icsEvents.filter((e) => !lumaEventIds.has(e.id)),
-    ];
-
-    // Sort by date
-    const sortedEvents = allEvents.sort(
-      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-    );
+    const events = loadUpcomingEvents();
 
     // Update cache
     cachedData = {
-      events: sortedEvents,
+      events,
       timestamp: Date.now(),
     };
 
     return NextResponse.json({
-      events: sortedEvents,
+      events,
       cached: false,
     });
   } catch (error) {
-    console.error("[v0] Failed to fetch events:", error);
+    console.error("[events] Failed to load events:", error);
 
     // Return cached data if available, even if stale
     if (cachedData) {
@@ -256,7 +165,7 @@ export async function GET() {
     }
 
     return NextResponse.json(
-      { error: "Failed to fetch events", events: [] },
+      { error: "Failed to load events", events: [] },
       { status: 500 }
     );
   }

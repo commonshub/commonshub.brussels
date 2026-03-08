@@ -55,6 +55,11 @@ interface EventGuest {
   approval_status: string;
 }
 
+interface EventTag {
+  name: string;
+  color: string;
+}
+
 interface Event {
   id: string;
   name: string;
@@ -68,6 +73,7 @@ interface Event {
   coverImageLocal?: string;
   source: "luma" | "ical";
   calendarSource?: "luma-api" | "luma" | "google"; // Track which calendar it came from
+  tags?: EventTag[];
   lumaData?: LumaEvent;
   guests?: EventGuest[];
   metadata: EventMetadata;
@@ -716,6 +722,13 @@ async function processMonth(year: string, month: string) {
       finalDescription = ogDescription || finalDescription;
     }
 
+    // Extract tags from Luma cached data (tags are stored as Array<{name, color}>)
+    const eventTags: EventTag[] | undefined = lumaData?.tags
+      ? (lumaData.tags as any[]).map((t: any) =>
+          typeof t === "string" ? { name: t, color: "#6b7280" } : { name: t.name, color: t.color || "#6b7280" }
+        )
+      : undefined;
+
     // Create event object
     const event: Event = {
       id: eventId,
@@ -730,6 +743,7 @@ async function processMonth(year: string, month: string) {
       coverImageLocal, // Local downloaded path
       source,
       calendarSource: finalCalendarSource,
+      tags: eventTags,
       guests,
       lumaData: lumaData
         ? {
