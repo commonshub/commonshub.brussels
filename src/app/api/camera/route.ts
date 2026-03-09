@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { bindDeviceLive, getLiveStreamInfo } from "@/lib/imou";
 
-const DEVICE_ID = process.env.IMOU_DEVICE_ID || "";
-const CHANNEL_ID = process.env.IMOU_CHANNEL_ID || "0";
+// Force dynamic — env vars must be read at request time, not build time
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const DEVICE_ID = process.env.IMOU_DEVICE_ID || "";
+  const CHANNEL_ID = process.env.IMOU_CHANNEL_ID || "0";
+
   if (!DEVICE_ID) {
     return NextResponse.json(
       { error: "Camera not configured" },
