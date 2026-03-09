@@ -8,6 +8,10 @@ export async function GET() {
   const DEVICE_ID = process.env.IMOU_DEVICE_ID || "";
   const CHANNEL_ID = process.env.IMOU_CHANNEL_ID || "0";
 
+  console.log("[camera] IMOU_DEVICE_ID:", DEVICE_ID ? `${DEVICE_ID.slice(0, 4)}...` : "NOT SET");
+  console.log("[camera] IMOU_APP_ID:", process.env.IMOU_APP_ID ? "set" : "NOT SET");
+  console.log("[camera] IMOU_APP_SECRET:", process.env.IMOU_APP_SECRET ? "set" : "NOT SET");
+
   if (!DEVICE_ID) {
     return NextResponse.json(
       { error: "Camera not configured" },
