@@ -117,6 +117,13 @@ export async function GET() {
         timezone: timezone,
       },
       environment: process.env.NODE_ENV || "development",
+      envCheck: {
+        // Shows which optional env vars are configured (never exposes values)
+        IMOU_APP_ID: !!process.env.IMOU_APP_ID,
+        IMOU_APP_SECRET: !!process.env.IMOU_APP_SECRET,
+        IMOU_DEVICE_ID: !!process.env.IMOU_DEVICE_ID,
+        IMOU_CHANNEL_ID: !!process.env.IMOU_CHANNEL_ID,
+      },
     };
 
     return NextResponse.json(response, {
