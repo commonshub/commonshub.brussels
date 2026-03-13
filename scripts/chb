@@ -1,4 +1,4 @@
 #!/bin/sh
 # chb — Commons Hub Brussels CLI wrapper
-# Works with npx tsx (no bun needed in Docker)
-exec npx tsx "$(dirname "$0")/cli.ts" "$@"
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$DIR/node_modules/.bin/tsx" "$DIR/scripts/cli.ts" "$@"
