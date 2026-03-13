@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "chb": "./scripts/cli.ts"
+    "chb": "./scripts/chb"
   },
   "scripts": {
-    "chb": "bun scripts/cli.ts",
+    "chb": "./scripts/chb",
     "build": "next build",
     "dev": "next dev",
     "fetch-data": "tsx scripts/fetch-all-data.ts",

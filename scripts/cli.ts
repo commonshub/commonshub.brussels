@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * chb — CLI tool for Commons Hub Brussels data management
  */
