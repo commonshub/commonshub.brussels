@@ -262,11 +262,26 @@ For questions about bookings, contact us at hello@commonshub.brussels or visit [
   console.log(`  Written to ${outputPath}`);
 }
 
-function main() {
+// Export functions for CLI usage
+export { generateEventsMd, generateRoomsMd };
+
+/**
+ * Generate all markdown files.
+ * Exported for CLI use.
+ */
+export function generateMarkdownFiles(): void {
   console.log("📝 Generating markdown files for LLM discoverability...\n");
   generateEventsMd();
   generateRoomsMd();
   console.log("\n✅ Done!");
 }
 
-main();
+function main() {
+  generateMarkdownFiles();
+}
+
+// Only run main when executed directly
+const isDirectRun = process.argv[1]?.includes("generate-md-files");
+if (isDirectRun) {
+  main();
+}

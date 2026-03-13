@@ -28,6 +28,14 @@ const FILTER_MONTH = monthArg ? monthArg.split("=")[1] : null;
 const START_MONTH = startMonthArg ? startMonthArg.split("=")[1] : null;
 const END_MONTH = endMonthArg ? endMonthArg.split("=")[1] : null;
 
+export interface FetchCalendarsOptions {
+  dataDir?: string;
+  forceFetch?: boolean;
+  filterMonth?: string | null;
+  startMonth?: string | null;
+  endMonth?: string | null;
+}
+
 /**
  * Check if a month should be processed based on filter parameters
  */
@@ -39,6 +47,22 @@ function shouldProcessMonth(yearMonth: string): boolean {
     return false;
   }
   if (END_MONTH && yearMonth > END_MONTH) {
+    return false;
+  }
+  return true;
+}
+
+function shouldProcessMonthWithOpts(
+  yearMonth: string,
+  opts: FetchCalendarsOptions
+): boolean {
+  if (opts.filterMonth) {
+    return yearMonth === opts.filterMonth;
+  }
+  if (opts.startMonth && yearMonth < opts.startMonth) {
+    return false;
+  }
+  if (opts.endMonth && yearMonth > opts.endMonth) {
     return false;
   }
   return true;
@@ -603,11 +627,21 @@ async function fetchLumaForMonth(year: string, month: string) {
 }
 
 /**
- * Main execution
+ * Run the full calendar fetch pipeline with options.
+ * Exported for use by the CLI tool.
  */
-async function main() {
+export async function fetchCalendars(
+  opts: FetchCalendarsOptions = {}
+): Promise<string[]> {
+  const dataDir = opts.dataDir || DATA_DIR;
+  const forceFetch = opts.forceFetch ?? FORCE_FETCH;
+
+  // Temporarily override module-level vars for the existing functions
+  const origDataDir = (globalThis as any).__fetchCal_dataDir;
+  const origForce = (globalThis as any).__fetchCal_force;
+
   console.log("📅 Starting events fetch...");
-  console.log(`📂 DATA_DIR: ${DATA_DIR}\n`);
+  console.log(`📂 DATA_DIR: ${dataDir}\n`);
 
   // Fetch calendar URLs from settings
   const calendars = (settings as any).calendars || {};
@@ -634,7 +668,6 @@ async function main() {
     for (const room of roomsWithCalendars) {
       if (room.googleCalendarId) {
         const calendarUrl = getGoogleCalendarUrl(room.googleCalendarId);
-        // Use room slug as the calendar name so it saves as {roomSlug}.ics
         await fetchAndSplitCalendarURL(calendarUrl, room.slug);
       }
     }
@@ -651,21 +684,21 @@ async function main() {
 
   if (months.length === 0) {
     console.log("\nNo month directories found.");
-    return;
+    return [];
+  }
+
+  // Filter months
+  let monthsToProcess = months;
+  if (opts.filterMonth || opts.startMonth || opts.endMonth) {
+    monthsToProcess = months.filter(({ year, month }) => {
+      const yearMonth = `${year}-${month}`;
+      return shouldProcessMonthWithOpts(yearMonth, opts);
+    });
   }
 
   // Fetch Luma API data for each month
   if (process.env.LUMA_API_KEY) {
     console.log("\nFetching Luma API data...");
-
-    // If month filter is specified, only process filtered months
-    let monthsToProcess = months;
-    if (FILTER_MONTH || START_MONTH || END_MONTH) {
-      monthsToProcess = months.filter(({ year, month }) => {
-        const yearMonth = `${year}-${month}`;
-        return shouldProcessMonth(yearMonth);
-      });
-    }
 
     for (const { year, month } of monthsToProcess) {
       process.stdout.write(`${year}-${month}: `);
@@ -676,6 +709,20 @@ async function main() {
   }
 
   console.log("\n✓ Events fetch complete!");
+
+  // Return affected months as YYYY-MM strings
+  return monthsToProcess.map(({ year, month }) => `${year}-${month}`);
 }
 
-main().catch(console.error);
+/**
+ * Main execution (standalone script)
+ */
+async function main() {
+  await fetchCalendars();
+}
+
+// Only run main when executed directly (not imported)
+const isDirectRun = process.argv[1]?.includes("fetch-calendars");
+if (isDirectRun) {
+  main().catch(console.error);
+}

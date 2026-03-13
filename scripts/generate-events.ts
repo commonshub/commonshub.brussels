@@ -1196,25 +1196,50 @@ async function generateLatestEvents(): Promise<void> {
   console.log("  ⚠️  No events.json found in any month directory");
 }
 
+// Export key functions for CLI usage
+export {
+  processMonth,
+  generateYearlyEvents,
+  generateYearlyEventsCSV,
+  generateLatestEvents,
+  getAllMonths,
+};
+
+export interface GenerateEventsOptions {
+  months?: Array<{ year: string; month: string }>;
+}
+
 /**
- * Main execution
+ * Generate events for specific months (or all if not specified).
+ * Exported for CLI use.
  */
-async function main() {
+export async function generateEvents(
+  opts: GenerateEventsOptions = {}
+): Promise<void> {
   console.log("Starting events generation...");
 
-  const months = getAllMonths();
+  const allMonths = getAllMonths();
 
-  if (months.length === 0) {
+  if (allMonths.length === 0) {
     console.log("No month directories found in data folder.");
     return;
   }
 
-  for (const { year, month } of months) {
+  // If specific months provided, only process those (that exist)
+  const monthsToProcess = opts.months
+    ? allMonths.filter(({ year, month }) =>
+        opts.months!.some((m) => m.year === year && m.month === month)
+      )
+    : allMonths;
+
+  for (const { year, month } of monthsToProcess) {
     await processMonth(year, month);
   }
 
   // Generate yearly aggregated files for each unique year
-  const uniqueYears = [...new Set(months.map((m) => m.year))];
+  const uniqueYears = [
+    ...new Set(monthsToProcess.map((m) => m.year)),
+  ];
   for (const year of uniqueYears) {
     await generateYearlyEvents(year);
     await generateYearlyEventsCSV(year);
@@ -1226,4 +1251,15 @@ async function main() {
   console.log("\n✓ Events generation complete!");
 }
 
-main().catch(console.error);
+/**
+ * Main execution (standalone script)
+ */
+async function main() {
+  await generateEvents();
+}
+
+// Only run main when executed directly
+const isDirectRun = process.argv[1]?.includes("generate-events");
+if (isDirectRun) {
+  main().catch(console.error);
+}
