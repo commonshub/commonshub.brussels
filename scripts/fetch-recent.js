@@ -29,6 +29,7 @@ const scripts = [
   { name: "discord", cmd: `npx tsx scripts/warmup-discord-cache.js ${monthArgs}` },
   { name: "tokens", cmd: `npx tsx scripts/fetch-cht-tokens.ts ${monthArgs}` },
   { name: "events", cmd: `bun scripts/cli.ts events sync` },
+  { name: "bookings", cmd: `bun scripts/cli.ts bookings sync` },
   { name: "users", cmd: `npx tsx scripts/warmup-users-cache.ts ${monthArgs}` },
   { name: "members", cmd: `npx tsx scripts/fetch-members.ts --month=${currentMonth}` },
 ];

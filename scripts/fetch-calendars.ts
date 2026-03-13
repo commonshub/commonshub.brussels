@@ -715,6 +715,101 @@ export async function fetchCalendars(
 }
 
 /**
+ * Fetch only event calendars (Luma ICS + Luma API). No room calendars.
+ */
+export async function fetchEventCalendars(
+  opts: FetchCalendarsOptions = {}
+): Promise<string[]> {
+  console.log("📅 Fetching event calendars...");
+  console.log(`📂 DATA_DIR: ${opts.dataDir || DATA_DIR}\n`);
+
+  const calendars = (settings as any).calendars || {};
+  const lumaIcsUrl = calendars.luma;
+
+  if (lumaIcsUrl) {
+    await fetchAndSplitCalendarURL(lumaIcsUrl, "Luma");
+  }
+
+  // Fetch main iCal feed by month (if configured)
+  const mainIcalUrl = (settings.luma as any)?.icalUrl;
+  if (mainIcalUrl) {
+    await fetchAndSplitICal();
+  }
+
+  // Get months and filter
+  const months = getAllMonths();
+  let monthsToProcess = months;
+  if (opts.filterMonth || opts.startMonth || opts.endMonth) {
+    monthsToProcess = months.filter(({ year, month }) =>
+      shouldProcessMonthWithOpts(`${year}-${month}`, opts)
+    );
+  }
+
+  // Fetch Luma API data
+  if (process.env.LUMA_API_KEY) {
+    console.log("\nFetching Luma API data...");
+    for (const { year, month } of monthsToProcess) {
+      process.stdout.write(`${year}-${month}: `);
+      await fetchLumaForMonth(year, month);
+    }
+  } else {
+    console.log("\nLUMA_API_KEY not set, skipping Luma API fetch");
+  }
+
+  console.log("\n✓ Event calendars fetch complete!");
+  return monthsToProcess.map(({ year, month }) => `${year}-${month}`);
+}
+
+/**
+ * Fetch room booking calendars (Google Calendar ICS for each room).
+ * @param roomSlug - if provided, only sync that room
+ */
+export async function fetchBookingCalendars(
+  opts: FetchCalendarsOptions & { roomSlug?: string } = {}
+): Promise<string[]> {
+  console.log("📅 Fetching room booking calendars...");
+  console.log(`📂 DATA_DIR: ${opts.dataDir || DATA_DIR}\n`);
+
+  const roomsWithCalendars = roomsData.rooms.filter(
+    (room) => room.googleCalendarId && (!opts.roomSlug || room.slug === opts.roomSlug)
+  );
+
+  if (roomsWithCalendars.length === 0) {
+    if (opts.roomSlug) {
+      console.log(`No room found with slug "${opts.roomSlug}" or it has no calendar.`);
+    } else {
+      console.log("No rooms with calendars found.");
+    }
+    return [];
+  }
+
+  console.log(`Fetching ${roomsWithCalendars.length} room calendar(s)...`);
+  for (const room of roomsWithCalendars) {
+    if (room.googleCalendarId) {
+      const calendarUrl = getGoogleCalendarUrl(room.googleCalendarId);
+      await fetchAndSplitCalendarURL(calendarUrl, room.slug);
+    }
+  }
+
+  // Also fetch the main Google Calendar if configured
+  const googleIcsUrl = (settings as any).calendars?.google;
+  if (googleIcsUrl && !opts.roomSlug) {
+    await fetchAndSplitCalendarURL(googleIcsUrl, "Google");
+  }
+
+  const months = getAllMonths();
+  let monthsToProcess = months;
+  if (opts.filterMonth || opts.startMonth || opts.endMonth) {
+    monthsToProcess = months.filter(({ year, month }) =>
+      shouldProcessMonthWithOpts(`${year}-${month}`, opts)
+    );
+  }
+
+  console.log("\n✓ Booking calendars fetch complete!");
+  return monthsToProcess.map(({ year, month }) => `${year}-${month}`);
+}
+
+/**
  * Main execution (standalone script)
  */
 async function main() {
