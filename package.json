@@ -21,6 +21,8 @@
     "fetch-calendars": "tsx scripts/fetch-calendars.ts",
     "generate-events": "tsx scripts/generate-events.ts",
     "generate-md": "tsx scripts/generate-md-files.ts",
+    "docs:dev": "cd docs && npm run dev",
+    "docs:build": "cd docs && npm run build",
     "migrate-discord-to-channels": "tsx scripts/migrate-discord-to-channels.ts",
     "fetch-users": "tsx scripts/warmup-users-cache.ts",
     "fetch-monerium": "tsx scripts/fetch-monerium.ts",
