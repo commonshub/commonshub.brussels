@@ -788,6 +788,159 @@ async function processMonth(year: string, month: string) {
     events.push(event);
   }
 
+  // ── Add Luma API events not found in ICS feed ────────────────────────────
+  // The ICS feed only includes events created by the calendar owner.
+  // Community events (hosted by others) only appear in the Luma API data.
+  const calendarId = (settings.luma as any)?.calendarId;
+  if (calendarId) {
+    const lumaPath = path.join(
+      DATA_DIR, year, month, "calendars", "luma", `${calendarId}.json`
+    );
+    if (fs.existsSync(lumaPath)) {
+      try {
+        const lumaContent = fs.readFileSync(lumaPath, "utf-8");
+        const lumaApiEvents: LumaEvent[] = JSON.parse(lumaContent);
+        let addedCount = 0;
+
+        for (const lumaEvent of lumaApiEvents) {
+          if (!lumaEvent.api_id || processedEventIds.has(lumaEvent.api_id)) {
+            continue;
+          }
+
+          // Skip events without start date
+          if (!lumaEvent.start_at) continue;
+
+          processedEventIds.add(lumaEvent.api_id);
+
+          // Download cover image if available
+          let coverImageLocal: string | undefined;
+          if (lumaEvent.cover_url) {
+            coverImageLocal = await downloadImage(
+              lumaEvent.cover_url,
+              lumaEvent.api_id,
+              year,
+              month,
+              "luma"
+            );
+          }
+
+          // Load guests
+          let guests: EventGuest[] | undefined;
+          let allGuests: LumaGuest[] = loadGuestsFromFile(
+            lumaEvent.api_id, year, month
+          );
+          if (allGuests.length === 0 && process.env.LUMA_API_KEY) {
+            allGuests = await getEventGuests(lumaEvent.api_id);
+          }
+          if (allGuests.length > 0) {
+            guests = allGuests
+              .filter((g) => g.guest.approval_status === "approved")
+              .map((g) => ({
+                name: g.guest.name,
+                avatar_url: g.guest.avatar_url,
+                approval_status: g.guest.approval_status,
+              }));
+          }
+
+          // Compute ticket stats
+          let ticketsSold = 0;
+          let ticketRevenue = 0;
+          for (const g of allGuests) {
+            if (g.guest.event_tickets && g.guest.event_tickets.length > 0) {
+              for (const ticket of g.guest.event_tickets) {
+                if (ticket.is_captured && ticket.amount > 0) {
+                  ticketsSold++;
+                  ticketRevenue += ticket.amount / 100;
+                }
+              }
+            } else {
+              const amount = g.guest.event_ticket?.amount;
+              if (amount !== undefined && amount > 0) {
+                ticketsSold++;
+                ticketRevenue += amount / 100;
+              }
+            }
+          }
+
+          // Metadata
+          let metadata = existingMetadata.get(lumaEvent.api_id) || {
+            host: undefined, attendance: undefined, fridgeIncome: undefined,
+            rentalIncome: undefined, ticketsSold: undefined, ticketRevenue: undefined,
+            note: undefined,
+          };
+
+          const guestCount = guests && guests.length > 0
+            ? guests.length
+            : lumaEvent.guest_count;
+          if (guestCount && !metadata.attendance) {
+            metadata = { ...metadata, attendance: guestCount };
+          }
+          if (ticketsSold > 0 && !metadata.ticketsSold) {
+            metadata = { ...metadata, ticketsSold, ticketRevenue };
+          }
+          if (!metadata.fridgeIncome) {
+            const fridgeIncome = computeFridgeIncome(
+              lumaEvent.start_at, lumaEvent.end_at, year, month
+            );
+            if (fridgeIncome > 0) {
+              metadata = { ...metadata, fridgeIncome };
+            }
+          }
+
+          // Tags
+          const eventTags: EventTag[] | undefined = lumaEvent.tags
+            ? (lumaEvent.tags as any[]).map((t: any) =>
+                typeof t === "string"
+                  ? { name: t, color: "#6b7280" }
+                  : { name: t.name, color: t.color || "#6b7280" }
+              )
+            : undefined;
+
+          events.push({
+            id: lumaEvent.api_id,
+            name: lumaEvent.name,
+            description: lumaEvent.description,
+            startAt: lumaEvent.start_at,
+            endAt: lumaEvent.end_at,
+            timezone: lumaEvent.timezone,
+            location: (lumaEvent.geo_address_json as any)?.full_address || undefined,
+            url: lumaEvent.url,
+            coverImage: lumaEvent.cover_url,
+            coverImageLocal,
+            source: "luma",
+            calendarSource: "luma-api",
+            tags: eventTags,
+            guests,
+            lumaData: {
+              api_id: lumaEvent.api_id,
+              start_at: lumaEvent.start_at,
+              end_at: lumaEvent.end_at,
+              timezone: lumaEvent.timezone,
+              url: lumaEvent.url,
+              cover_url: lumaEvent.cover_url,
+              geo_address_json: lumaEvent.geo_address_json,
+              meeting_url: lumaEvent.meeting_url,
+              visibility: lumaEvent.visibility,
+              event_type: lumaEvent.event_type,
+              capacity: lumaEvent.capacity,
+              guest_count: lumaEvent.guest_count,
+              hosts: lumaEvent.hosts,
+              hosted_by: lumaEvent.hosted_by,
+            },
+            metadata,
+          });
+          addedCount++;
+        }
+
+        if (addedCount > 0) {
+          console.log(`  ✓ Added ${addedCount} community events from Luma API (not in ICS feed)`);
+        }
+      } catch (error) {
+        console.error(`  ⚠ Error loading Luma API events for community event injection:`, error);
+      }
+    }
+  }
+
   // Sort events by start date
   events.sort(
     (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
