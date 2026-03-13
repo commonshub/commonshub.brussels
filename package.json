@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "chb": "npx tsx scripts/cli.ts"
+    "chb": "./scripts/cli.ts"
   },
   "scripts": {
-    "chb": "tsx scripts/cli.ts",
+    "chb": "bun scripts/cli.ts",
     "build": "next build",
     "dev": "next dev",
     "fetch-data": "tsx scripts/fetch-all-data.ts",
