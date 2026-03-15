@@ -430,88 +430,58 @@ async function cmdEventsSync(args: string[]): Promise<void> {
   const history = getFlag(args, "--history");
   const sinceStr = getOption(args, "--since");
 
-  if (history) {
-    console.log(
-      `\n${fmt.bold}📅 Syncing ALL event history${fmt.reset} ${fmt.dim}(this may take a while)${fmt.reset}\n`
-    );
-  }
-
   const monthRange = history ? null : computeMonthRange(sinceStr);
 
-  if (monthRange) {
-    console.log(
-      `\n${fmt.bold}📅 Syncing events${fmt.reset} ${fmt.dim}${monthRange.startMonth} → ${monthRange.endMonth}${fmt.reset}\n`
-    );
-  }
-
   // Step 1: Fetch event calendars (Luma only, no rooms)
-  console.log(`${fmt.bold}━━━ Fetching Luma feeds ━━━${fmt.reset}\n`);
+  console.log(`\n📅 Fetching Luma calendar...`);
   const { fetchEventCalendars } = await import("./fetch-calendars.js");
-  const affectedMonths = await fetchEventCalendars({
+  const fetchResult = await fetchEventCalendars({
     forceFetch: force,
     startMonth: monthRange?.startMonth ?? null,
     endMonth: monthRange?.endMonth ?? null,
+    quiet: true,
   });
 
+  console.log(`  Found ${fetchResult.totalEvents} total events (${fetchResult.upcomingEvents} upcoming)`);
+
   // Step 2: Generate events.json
-  console.log(`\n${fmt.bold}━━━ Generating events ━━━${fmt.reset}\n`);
   const { generateEvents } = await import("./generate-events.js");
 
+  let monthResults;
   if (history) {
-    await generateEvents();
+    monthResults = await generateEvents({ quiet: true });
   } else {
-    const monthObjs = affectedMonths.map((ym: string) => {
+    const monthObjs = fetchResult.affectedMonths.map((ym: string) => {
       const [year, month] = ym.split("-");
       return { year, month };
     });
-    await generateEvents({ months: monthObjs });
+    monthResults = await generateEvents({ months: monthObjs, quiet: true });
   }
 
-  // Step 3: Generate markdown
-  console.log(`\n${fmt.bold}━━━ Updating markdown files ━━━${fmt.reset}\n`);
+  // Step 3: Generate markdown (quiet)
   const { generateMarkdownFiles } = await import("./generate-md-files.js");
-  generateMarkdownFiles();
+  generateMarkdownFiles({ quiet: true });
 
-  // Step 4: Stats
-  printEventStats();
-}
+  // Step 4: Print concise output
+  const monthsWithNewEvents = monthResults.filter((r: any) => r.newEvents.length > 0);
 
-function printEventStats() {
-  console.log(`\n${fmt.bold}━━━ Statistics ━━━${fmt.reset}\n`);
+  if (monthsWithNewEvents.length > 0) {
+    console.log(`\n📊 Processing months...`);
+    for (const result of monthsWithNewEvents) {
+      const count = result.newEvents.length;
+      console.log(`  ${result.yearMonth} ${fmt.green}✓${fmt.reset} ${count} new event${count !== 1 ? "s" : ""}`);
+      for (const evt of result.newEvents) {
+        console.log(`    + ${evt.name} ${fmt.dim}(via ${evt.metadataSource})${fmt.reset}`);
+      }
+    }
+  }
 
+  // Final summary
   const now = new Date();
   const allEvents = loadAllEvents();
   const futureEvents = allEvents.filter((e) => new Date(e.startAt) >= now);
 
-  const byMonth = new Map<string, EventEntry[]>();
-  const bySource = new Map<string, number>();
-
-  for (const e of futureEvents) {
-    const d = new Date(e.startAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    if (!byMonth.has(key)) byMonth.set(key, []);
-    byMonth.get(key)!.push(e);
-
-    const src = e.calendarSource || e.source || "unknown";
-    bySource.set(src, (bySource.get(src) || 0) + 1);
-  }
-
-  for (const [month, events] of [...byMonth.entries()].sort()) {
-    const sources: Record<string, number> = {};
-    for (const e of events) {
-      const src = e.calendarSource || e.source || "unknown";
-      sources[src] = (sources[src] || 0) + 1;
-    }
-    const srcStr = Object.entries(sources)
-      .map(([s, n]) => `${s}: ${n}`)
-      .join(", ");
-    console.log(
-      `  ${fmt.cyan}${month}${fmt.reset}  ${events.length} events ${fmt.dim}(${srcStr})${fmt.reset}`
-    );
-  }
-
-  console.log(`\n  ${fmt.bold}Total upcoming: ${futureEvents.length}${fmt.reset}`);
-  console.log(`\n${fmt.green}✓ Done!${fmt.reset}\n`);
+  console.log(`\n${fmt.green}✓ Done!${fmt.reset} ${allEvents.length} events (${futureEvents.length} upcoming)\n`);
 }
 
 // ── Commands: rooms ────────────────────────────────────────────────────────

@@ -126,10 +126,10 @@ function truncateDescription(desc: string, maxLen: number = 200): string {
   return clean.substring(0, maxLen).trimEnd() + "...";
 }
 
-function generateEventsMd() {
-  console.log("  Loading events from cached data...");
+function generateEventsMd(opts: { quiet?: boolean } = {}) {
+  if (!opts.quiet) console.log("  Loading events from cached data...");
   const allEvents = loadUpcomingEvents();
-  console.log(`  Found ${allEvents.length} upcoming events`);
+  if (!opts.quiet) console.log(`  Found ${allEvents.length} upcoming events`);
 
   let eventsMarkdown: string;
 
@@ -196,11 +196,11 @@ Want to host an event at Commons Hub Brussels? [Contact us](${BASE_URL}/contact)
 
   const outputPath = path.join(process.cwd(), "public", "events.md");
   fs.writeFileSync(outputPath, content, "utf-8");
-  console.log(`  Written to ${outputPath}`);
+  if (!opts.quiet) console.log(`  Written to ${outputPath}`);
 }
 
-function generateRoomsMd() {
-  console.log("  Generating rooms.md...");
+function generateRoomsMd(opts: { quiet?: boolean } = {}) {
+  if (!opts.quiet) console.log("  Generating rooms.md...");
 
   const roomsMarkdown = roomsData.rooms
     .map((room) => {
@@ -259,7 +259,7 @@ For questions about bookings, contact us at hello@commonshub.brussels or visit [
 
   const outputPath = path.join(process.cwd(), "public", "rooms.md");
   fs.writeFileSync(outputPath, content, "utf-8");
-  console.log(`  Written to ${outputPath}`);
+  if (!opts.quiet) console.log(`  Written to ${outputPath}`);
 }
 
 // Export functions for CLI usage
@@ -269,11 +269,11 @@ export { generateEventsMd, generateRoomsMd };
  * Generate all markdown files.
  * Exported for CLI use.
  */
-export function generateMarkdownFiles(): void {
-  console.log("📝 Generating markdown files for LLM discoverability...\n");
-  generateEventsMd();
-  generateRoomsMd();
-  console.log("\n✅ Done!");
+export function generateMarkdownFiles(opts: { quiet?: boolean } = {}): void {
+  if (!opts.quiet) console.log("📝 Generating markdown files for LLM discoverability...\n");
+  generateEventsMd(opts);
+  generateRoomsMd(opts);
+  if (!opts.quiet) console.log("\n✅ Done!");
 }
 
 function main() {

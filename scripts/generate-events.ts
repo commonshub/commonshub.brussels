@@ -185,7 +185,8 @@ async function loadICalEvents(year: string, month: string): Promise<any[]> {
  */
 async function loadCachedCalendarEvents(
   year: string,
-  month: string
+  month: string,
+  opts: { quiet?: boolean } = {}
 ): Promise<any[]> {
   const icsDir = path.join(DATA_DIR, year, month, "calendars", "ics");
 
@@ -196,7 +197,7 @@ async function loadCachedCalendarEvents(
   // Only load luma.ics — this is the single source of truth for public events
   const lumaIcsPath = path.join(icsDir, "luma.ics");
   if (!fs.existsSync(lumaIcsPath)) {
-    console.log(`  No luma.ics found for ${year}-${month}`);
+    if (!opts.quiet) console.log(`  No luma.ics found for ${year}-${month}`);
     return [];
   }
 
@@ -218,7 +219,7 @@ async function loadCachedCalendarEvents(
 /**
  * Load cached Luma events for a month
  */
-function loadLumaEvents(year: string, month: string): Map<string, LumaEvent> {
+function loadLumaEvents(year: string, month: string, opts: { quiet?: boolean } = {}): Map<string, LumaEvent> {
   const lumaMap = new Map<string, LumaEvent>();
   const calendarId = (settings.luma as any)?.calendarId;
 
@@ -236,7 +237,7 @@ function loadLumaEvents(year: string, month: string): Map<string, LumaEvent> {
   );
 
   if (!fs.existsSync(lumaPath)) {
-    console.log(`  No cached Luma data found at ${lumaPath}`);
+    if (!opts.quiet) console.log(`  No cached Luma data found at ${lumaPath}`);
     return lumaMap;
   }
 
@@ -252,7 +253,7 @@ function loadLumaEvents(year: string, month: string): Map<string, LumaEvent> {
       }
     }
 
-    console.log(`  Loaded ${events.length} Luma events from cache`);
+    if (!opts.quiet) console.log(`  Loaded ${events.length} Luma events from cache`);
   } catch (error) {
     console.error(`Error loading Luma events:`, error);
   }
@@ -481,25 +482,42 @@ async function downloadImage(
 /**
  * Process events for a specific month
  */
-async function processMonth(year: string, month: string) {
-  console.log(`\n=== Generating events.json for ${year}-${month} ===`);
+async function processMonth(year: string, month: string, opts: { quiet?: boolean } = {}): Promise<ProcessMonthResult | null> {
+  const quiet = opts.quiet ?? false;
+  if (!quiet) console.log(`\n=== Generating events.json for ${year}-${month} ===`);
 
   const monthPath = path.join(DATA_DIR, year, month);
   if (!fs.existsSync(monthPath)) {
-    console.log(`  Month directory does not exist: ${monthPath}`);
-    return;
+    if (!quiet) console.log(`  Month directory does not exist: ${monthPath}`);
+    return null;
+  }
+
+  // Load existing events to detect what's new
+  const existingEventsPath = path.join(monthPath, "events.json");
+  const existingEventIds = new Set<string>();
+  if (fs.existsSync(existingEventsPath)) {
+    try {
+      const content = fs.readFileSync(existingEventsPath, "utf-8");
+      const data: EventsFile = JSON.parse(content);
+      for (const event of data.events) {
+        existingEventIds.add(event.id);
+      }
+    } catch { /* ignore */ }
   }
 
   // Load existing metadata
   const existingMetadata = loadExistingEvents(year, month);
-  console.log(`  Loaded ${existingMetadata.size} existing metadata entries`);
+  if (!quiet) console.log(`  Loaded ${existingMetadata.size} existing metadata entries`);
+
+  // Track new events for reporting
+  const newEvents: NewEventInfo[] = [];
 
   // Load Luma API events (highest priority)
-  const lumaEventsMap = loadLumaEvents(year, month);
+  const lumaEventsMap = loadLumaEvents(year, month, { quiet });
 
   // Load public events from Luma ICS feed (single source of truth)
-  const allICalEvents = await loadCachedCalendarEvents(year, month);
-  console.log(`  Loaded ${allICalEvents.length} public events from Luma ICS`);
+  const allICalEvents = await loadCachedCalendarEvents(year, month, { quiet });
+  if (!quiet) console.log(`  Loaded ${allICalEvents.length} public events from Luma ICS`);
 
   // Process events
   const events: Event[] = [];
@@ -580,12 +598,15 @@ async function processMonth(year: string, month: string) {
           if (fetchedEvent.name) {
             lumaEventsMap.set(fetchedEvent.name.toLowerCase(), fetchedEvent);
           }
-          console.log(`  ✓ Fetched community event from Luma API: ${name}`);
+          if (!quiet) console.log(`  ✓ Fetched community event from Luma API: ${name}`);
         }
       } catch (error) {
-        console.error(`  ⚠ Failed to fetch event ${eventId} from Luma API`);
+        if (!quiet) console.error(`  ⚠ Failed to fetch event ${eventId} from Luma API`);
       }
     }
+
+    // Track metadata source for reporting
+    let metadataSource: "Luma API" | "og:image" | "none" = "none";
 
     // If we found Luma data, use it (highest priority)
     if (lumaData) {
@@ -596,6 +617,7 @@ async function processMonth(year: string, month: string) {
       eventUrl = lumaData.url;
       physicalLocation =
         lumaData.geo_address_json?.full_address || physicalLocation;
+      metadataSource = "Luma API";
     } else {
       // For non-matched events, try to extract URL from description
       if (!eventUrl && description) {
@@ -614,6 +636,7 @@ async function processMonth(year: string, month: string) {
         if (ogData.image) {
           // Extract actual URL if it's a Next.js proxy URL
           coverImageUrl = extractImageUrl(ogData.image);
+          metadataSource = "og:image";
         }
         if (ogData.description) {
           ogDescription = ogData.description;
@@ -721,13 +744,18 @@ async function processMonth(year: string, month: string) {
 
     // Check for duplicate event ID
     if (processedEventIds.has(eventId)) {
-      console.log(
+      if (!quiet) console.log(
         `  ⚠️  Skipping duplicate event by ID: ${name} (ID: ${eventId})`
       );
       continue;
     }
 
     processedEventIds.add(eventId);
+
+    // Track new events for reporting
+    if (!existingEventIds.has(eventId)) {
+      newEvents.push({ name, metadataSource });
+    }
 
     // Determine final description
     // Priority: Luma API description > OG description > ICS description
@@ -930,13 +958,18 @@ async function processMonth(year: string, month: string) {
             metadata,
           });
           addedCount++;
+
+          // Track new community events
+          if (!existingEventIds.has(lumaEvent.api_id)) {
+            newEvents.push({ name: lumaEvent.name, metadataSource: "Luma API" });
+          }
         }
 
-        if (addedCount > 0) {
+        if (addedCount > 0 && !quiet) {
           console.log(`  ✓ Added ${addedCount} community events from Luma API (not in ICS feed)`);
         }
       } catch (error) {
-        console.error(`  ⚠ Error loading Luma API events for community event injection:`, error);
+        if (!quiet) console.error(`  ⚠ Error loading Luma API events for community event injection:`, error);
       }
     }
   }
@@ -955,27 +988,35 @@ async function processMonth(year: string, month: string) {
 
   const filePath = path.join(monthPath, "events.json");
   fs.writeFileSync(filePath, JSON.stringify(eventsFile, null, 2), "utf-8");
-  console.log(`✓ Generated ${filePath} with ${events.length} events`);
-  console.log(
-    `  Luma API events: ${events.filter((e) => e.calendarSource === "luma-api").length}`
-  );
-  console.log(
-    `  Luma ICS events: ${events.filter((e) => e.calendarSource === "luma").length}`
-  );
-  console.log(
-    `  Google ICS events: ${events.filter((e) => e.calendarSource === "google").length}`
-  );
+  if (!quiet) {
+    console.log(`✓ Generated ${filePath} with ${events.length} events`);
+    console.log(
+      `  Luma API events: ${events.filter((e) => e.calendarSource === "luma-api").length}`
+    );
+    console.log(
+      `  Luma ICS events: ${events.filter((e) => e.calendarSource === "luma").length}`
+    );
+    console.log(
+      `  Google ICS events: ${events.filter((e) => e.calendarSource === "google").length}`
+    );
+  }
+
+  return {
+    yearMonth: `${year}-${month}`,
+    totalEvents: events.length,
+    newEvents,
+  };
 }
 
 /**
  * Generate yearly events.json file
  */
-async function generateYearlyEvents(year: string): Promise<void> {
-  console.log(`\n📄 Generating events.json for ${year}...`);
+async function generateYearlyEvents(year: string, opts: { quiet?: boolean } = {}): Promise<void> {
+  if (!opts.quiet) console.log(`\n📄 Generating events.json for ${year}...`);
 
   const yearPath = path.join(DATA_DIR, year);
   if (!fs.existsSync(yearPath)) {
-    console.log(`  ⚠️  Year directory not found: ${year}`);
+    if (!opts.quiet) console.log(`  ⚠️  Year directory not found: ${year}`);
     return;
   }
 
@@ -1003,7 +1044,7 @@ async function generateYearlyEvents(year: string): Promise<void> {
   }
 
   if (allEvents.length === 0) {
-    console.log(`  ⚠️  No events found for ${year}`);
+    if (!opts.quiet) console.log(`  ⚠️  No events found for ${year}`);
     return;
   }
 
@@ -1022,18 +1063,18 @@ async function generateYearlyEvents(year: string): Promise<void> {
   const outputPath = path.join(DATA_DIR, year, "events.json");
   fs.writeFileSync(outputPath, JSON.stringify(outputFile, null, 2), "utf-8");
 
-  console.log(`  ✓ Generated events.json with ${allEvents.length} events`);
+  if (!opts.quiet) console.log(`  ✓ Generated events.json with ${allEvents.length} events`);
 }
 
 /**
  * Generate yearly events.csv file
  */
-async function generateYearlyEventsCSV(year: string): Promise<void> {
-  console.log(`\n📄 Generating events.csv for ${year}...`);
+async function generateYearlyEventsCSV(year: string, opts: { quiet?: boolean } = {}): Promise<void> {
+  if (!opts.quiet) console.log(`\n📄 Generating events.csv for ${year}...`);
 
   const yearPath = path.join(DATA_DIR, year);
   if (!fs.existsSync(yearPath)) {
-    console.log(`  ⚠️  Year directory not found: ${year}`);
+    if (!opts.quiet) console.log(`  ⚠️  Year directory not found: ${year}`);
     return;
   }
 
@@ -1061,7 +1102,7 @@ async function generateYearlyEventsCSV(year: string): Promise<void> {
   }
 
   if (allEvents.length === 0) {
-    console.log(`  ⚠️  No events found for ${year}`);
+    if (!opts.quiet) console.log(`  ⚠️  No events found for ${year}`);
     return;
   }
 
@@ -1136,7 +1177,7 @@ async function generateYearlyEventsCSV(year: string): Promise<void> {
   const csvPath = path.join(DATA_DIR, year, "events.csv");
   fs.writeFileSync(csvPath, csvContent, "utf-8");
 
-  console.log(`  ✓ Generated events.csv with ${allEvents.length} events`);
+  if (!opts.quiet) console.log(`  ✓ Generated events.csv with ${allEvents.length} events`);
 }
 
 /**
@@ -1162,8 +1203,8 @@ function copyDirRecursive(src: string, dest: string): void {
  * Generate latest events.json and calendars/ directory
  * Copies the most recent month's data to data/latest/
  */
-async function generateLatestEvents(): Promise<void> {
-  console.log("\n📌 Generating latest/events.json...");
+async function generateLatestEvents(opts: { quiet?: boolean } = {}): Promise<void> {
+  if (!opts.quiet) console.log("\n📌 Generating latest/events.json...");
 
   // Find the most recent month with events.json
   const months = getAllMonths().reverse(); // newest first
@@ -1188,12 +1229,25 @@ async function generateLatestEvents(): Promise<void> {
         copyDirRecursive(srcCalendars, dstCalendars);
       }
 
-      console.log(`  ✓ Generated latest/events.json from ${year}-${month}`);
+      if (!opts.quiet) console.log(`  ✓ Generated latest/events.json from ${year}-${month}`);
       return;
     }
   }
 
-  console.log("  ⚠️  No events.json found in any month directory");
+  if (!opts.quiet) console.log("  ⚠️  No events.json found in any month directory");
+}
+
+/** Info about a new event discovered during processing */
+export interface NewEventInfo {
+  name: string;
+  metadataSource: "Luma API" | "og:image" | "none";
+}
+
+/** Result of processing a single month */
+export interface ProcessMonthResult {
+  yearMonth: string;
+  totalEvents: number;
+  newEvents: NewEventInfo[];
 }
 
 // Export key functions for CLI usage
@@ -1207,6 +1261,7 @@ export {
 
 export interface GenerateEventsOptions {
   months?: Array<{ year: string; month: string }>;
+  quiet?: boolean;
 }
 
 /**
@@ -1215,14 +1270,15 @@ export interface GenerateEventsOptions {
  */
 export async function generateEvents(
   opts: GenerateEventsOptions = {}
-): Promise<void> {
-  console.log("Starting events generation...");
+): Promise<ProcessMonthResult[]> {
+  const quiet = opts.quiet ?? false;
+  if (!quiet) console.log("Starting events generation...");
 
   const allMonths = getAllMonths();
 
   if (allMonths.length === 0) {
-    console.log("No month directories found in data folder.");
-    return;
+    if (!quiet) console.log("No month directories found in data folder.");
+    return [];
   }
 
   // If specific months provided, only process those (that exist)
@@ -1232,8 +1288,10 @@ export async function generateEvents(
       )
     : allMonths;
 
+  const results: ProcessMonthResult[] = [];
   for (const { year, month } of monthsToProcess) {
-    await processMonth(year, month);
+    const result = await processMonth(year, month, { quiet });
+    if (result) results.push(result);
   }
 
   // Generate yearly aggregated files for each unique year
@@ -1241,14 +1299,15 @@ export async function generateEvents(
     ...new Set(monthsToProcess.map((m) => m.year)),
   ];
   for (const year of uniqueYears) {
-    await generateYearlyEvents(year);
-    await generateYearlyEventsCSV(year);
+    await generateYearlyEvents(year, { quiet });
+    await generateYearlyEventsCSV(year, { quiet });
   }
 
   // Generate latest events.json and calendars/
-  await generateLatestEvents();
+  await generateLatestEvents({ quiet });
 
-  console.log("\n✓ Events generation complete!");
+  if (!quiet) console.log("\n✓ Events generation complete!");
+  return results;
 }
 
 /**

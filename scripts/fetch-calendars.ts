@@ -34,6 +34,13 @@ export interface FetchCalendarsOptions {
   filterMonth?: string | null;
   startMonth?: string | null;
   endMonth?: string | null;
+  quiet?: boolean;
+}
+
+export interface FetchCalendarsResult {
+  affectedMonths: string[];
+  totalEvents: number;
+  upcomingEvents: number;
 }
 
 /**
@@ -275,9 +282,10 @@ async function fetchAndSplitICal() {
  */
 async function fetchAndSplitCalendarURL(
   url: string,
-  calendarName: string
-): Promise<void> {
-  console.log(`Fetching ${calendarName} calendar from ${url}...`);
+  calendarName: string,
+  opts: { quiet?: boolean } = {}
+): Promise<{ totalEvents: number; upcomingEvents: number }> {
+  if (!opts.quiet) console.log(`Fetching ${calendarName} calendar from ${url}...`);
 
   try {
     const response = await fetch(url);
@@ -285,11 +293,11 @@ async function fetchAndSplitCalendarURL(
       console.error(
         `  Failed to fetch ${calendarName} calendar: ${response.statusText}`
       );
-      return;
+      return { totalEvents: 0, upcomingEvents: 0 };
     }
 
     const icalData = await response.text();
-    console.log(`Parsing ${calendarName} events...`);
+    if (!opts.quiet) console.log(`Parsing ${calendarName} events...`);
     const events = await ical.async.parseICS(icalData);
 
     // Group events by year-month
@@ -339,9 +347,21 @@ async function fetchAndSplitCalendarURL(
       }
     }
 
-    console.log(
+    if (!opts.quiet) console.log(
       `Found ${Object.keys(events).length} events across ${eventsByMonth.size} different months\n`
     );
+
+    // Count total and upcoming events
+    const now = new Date();
+    let totalEvents = 0;
+    let upcomingEvents = 0;
+    for (const [uid, event] of Object.entries(events)) {
+      if (event.type !== "VEVENT") continue;
+      totalEvents++;
+      if (event.start && new Date(event.start as any) >= now) {
+        upcomingEvents++;
+      }
+    }
 
     // Save as iCal files for each month
     const calendarSlug = calendarName.toLowerCase().replace(/\s+/g, "-");
@@ -357,7 +377,7 @@ async function fetchAndSplitCalendarURL(
 
       // Skip if already exists (unless force flag is set)
       if (!FORCE_FETCH && fs.existsSync(icsPath)) {
-        console.log(
+        if (!opts.quiet) console.log(
           `⊘ Skipping ${yearMonth} ${calendarName} (already exists, use --force to override)`
         );
         continue;
@@ -380,13 +400,13 @@ async function fetchAndSplitCalendarURL(
 
       fs.writeFileSync(icsPath, icalContent, "utf-8");
 
-      console.log(
+      if (!opts.quiet) console.log(
         `✓ Saved ${monthEventBlocks.length} ${calendarName} events to ${year}/${month}/calendars/ics/${calendarSlug}.ics`
       );
     }
 
     // Download images for events with URLs
-    console.log(`\nDownloading ${calendarName} event images...`);
+    if (!opts.quiet) console.log(`\nDownloading ${calendarName} event images...`);
     for (const [yearMonth, monthEventBlocks] of eventsByMonth.entries()) {
       // Skip months outside the filter range
       if (!shouldProcessMonth(yearMonth)) {
@@ -409,8 +429,10 @@ async function fetchAndSplitCalendarURL(
         await downloadCalendarImages(year, month, monthEventsObj);
       }
     }
+    return { totalEvents, upcomingEvents };
   } catch (error) {
     console.error(`Error fetching ${calendarName} calendar:`, error);
+    return { totalEvents: 0, upcomingEvents: 0 };
   }
 }
 
@@ -510,7 +532,7 @@ async function downloadCalendarImages(
 /**
  * Fetch and save Luma API data for a month
  */
-async function fetchLumaForMonth(year: string, month: string) {
+async function fetchLumaForMonth(year: string, month: string, opts: { quiet?: boolean } = {}) {
   const calendarId = (settings.luma as any)?.calendarId;
 
   if (!calendarId) {
@@ -526,7 +548,7 @@ async function fetchLumaForMonth(year: string, month: string) {
   const lumaPath = path.join(lumaDir, `${calendarId}.json`);
 
   if (!FORCE_FETCH && fs.existsSync(lumaPath)) {
-    console.log(
+    if (!opts.quiet) console.log(
       `⊘ Skipping ${year}-${month} Luma API (already exists, use --force to override)`
     );
     return;
@@ -562,7 +584,7 @@ async function fetchLumaForMonth(year: string, month: string) {
 
     fs.writeFileSync(lumaPath, JSON.stringify(events, null, 2), "utf-8");
 
-    if (events.length > 0) {
+    if (events.length > 0 && !opts.quiet) {
       console.log(`  ✓ Saved ${events.length} Luma events`);
     }
 
@@ -618,7 +640,7 @@ async function fetchLumaForMonth(year: string, month: string) {
       }
     }
 
-    if (downloadedCount > 0) {
+    if (downloadedCount > 0 && !opts.quiet) {
       console.log(`  ✓ Downloaded ${downloadedCount} Luma event images`);
     }
   } catch (error) {
@@ -650,11 +672,11 @@ export async function fetchCalendars(
 
   // Fetch and split calendar URLs by month
   if (lumaIcsUrl) {
-    await fetchAndSplitCalendarURL(lumaIcsUrl, "Luma");
+    await fetchAndSplitCalendarURL(lumaIcsUrl, "Luma", { quiet: opts.quiet });
   }
 
   if (googleIcsUrl) {
-    await fetchAndSplitCalendarURL(googleIcsUrl, "Google");
+    await fetchAndSplitCalendarURL(googleIcsUrl, "Google", { quiet: opts.quiet });
   }
 
   // Fetch room calendars from rooms.json
@@ -668,7 +690,7 @@ export async function fetchCalendars(
     for (const room of roomsWithCalendars) {
       if (room.googleCalendarId) {
         const calendarUrl = getGoogleCalendarUrl(room.googleCalendarId);
-        await fetchAndSplitCalendarURL(calendarUrl, room.slug);
+        await fetchAndSplitCalendarURL(calendarUrl, room.slug, { quiet: opts.quiet });
       }
     }
   }
@@ -719,15 +741,23 @@ export async function fetchCalendars(
  */
 export async function fetchEventCalendars(
   opts: FetchCalendarsOptions = {}
-): Promise<string[]> {
-  console.log("📅 Fetching event calendars...");
-  console.log(`📂 DATA_DIR: ${opts.dataDir || DATA_DIR}\n`);
+): Promise<FetchCalendarsResult> {
+  const quiet = opts.quiet ?? false;
+  if (!quiet) {
+    console.log("📅 Fetching event calendars...");
+    console.log(`📂 DATA_DIR: ${opts.dataDir || DATA_DIR}\n`);
+  }
+
+  let totalEvents = 0;
+  let upcomingEvents = 0;
 
   const calendars = (settings as any).calendars || {};
   const lumaIcsUrl = calendars.luma;
 
   if (lumaIcsUrl) {
-    await fetchAndSplitCalendarURL(lumaIcsUrl, "Luma");
+    const result = await fetchAndSplitCalendarURL(lumaIcsUrl, "Luma", { quiet });
+    totalEvents = result.totalEvents;
+    upcomingEvents = result.upcomingEvents;
   }
 
   // Fetch main iCal feed by month (if configured)
@@ -747,17 +777,21 @@ export async function fetchEventCalendars(
 
   // Fetch Luma API data
   if (process.env.LUMA_API_KEY) {
-    console.log("\nFetching Luma API data...");
+    if (!quiet) console.log("\nFetching Luma API data...");
     for (const { year, month } of monthsToProcess) {
-      process.stdout.write(`${year}-${month}: `);
-      await fetchLumaForMonth(year, month);
+      if (!quiet) process.stdout.write(`${year}-${month}: `);
+      await fetchLumaForMonth(year, month, { quiet });
     }
   } else {
-    console.log("\nLUMA_API_KEY not set, skipping Luma API fetch");
+    if (!quiet) console.log("\nLUMA_API_KEY not set, skipping Luma API fetch");
   }
 
-  console.log("\n✓ Event calendars fetch complete!");
-  return monthsToProcess.map(({ year, month }) => `${year}-${month}`);
+  if (!quiet) console.log("\n✓ Event calendars fetch complete!");
+  return {
+    affectedMonths: monthsToProcess.map(({ year, month }) => `${year}-${month}`),
+    totalEvents,
+    upcomingEvents,
+  };
 }
 
 /**
