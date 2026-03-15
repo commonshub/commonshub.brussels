@@ -486,10 +486,28 @@ async function cmdEventsSync(args: string[]): Promise<void> {
     }
   }
 
-  // Final summary
+  // Final summary with breakdown
   const now = new Date();
   const allEvents = loadAllEvents();
   const futureEvents = allEvents.filter((e) => new Date(e.startAt) >= now);
+
+  // Breakdown: own (luma-api) vs community
+  const ownEvents = futureEvents.filter((e) => e.calendarSource === "luma-api");
+  const communityEvents = futureEvents.filter((e) => e.calendarSource !== "luma-api");
+
+  // Domain breakdown from event URLs
+  const domainCounts = new Map<string, number>();
+  for (const e of futureEvents) {
+    let domain = "no url";
+    if (e.url) {
+      try {
+        domain = new URL(e.url).hostname.replace(/^www\./, "");
+      } catch {
+        domain = "invalid url";
+      }
+    }
+    domainCounts.set(domain, (domainCounts.get(domain) || 0) + 1);
+  }
 
   // Count events written to events.md
   let eventsMdCount = 0;
@@ -498,7 +516,14 @@ async function cmdEventsSync(args: string[]): Promise<void> {
     eventsMdCount = (mdContent.match(/^### /gm) || []).length;
   } catch {}
 
-  console.log(`\n${fmt.green}✓ Done!${fmt.reset} ${allEvents.length} events (${futureEvents.length} upcoming)`);
+  console.log(`\n${fmt.green}✓ Done!${fmt.reset} ${allEvents.length} total events, ${futureEvents.length} upcoming`);
+  console.log(`  ${fmt.dim}own: ${ownEvents.length} (via Luma API) · community: ${communityEvents.length}${fmt.reset}`);
+
+  // Domain breakdown (sorted by count desc)
+  const sortedDomains = [...domainCounts.entries()].sort((a, b) => b[1] - a[1]);
+  const domainStr = sortedDomains.map(([d, n]) => `${d}: ${n}`).join(", ");
+  console.log(`  ${fmt.dim}${domainStr}${fmt.reset}`);
+
   console.log(`  ${eventsMdCount} events written to ${eventsMdPath}\n`);
 }
 
