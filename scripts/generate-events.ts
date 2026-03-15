@@ -754,7 +754,7 @@ async function processMonth(year: string, month: string, opts: { quiet?: boolean
 
     // Track new events for reporting
     if (!existingEventIds.has(eventId)) {
-      newEvents.push({ name, metadataSource });
+      newEvents.push({ name, startAt: lumaData?.start_at || startAt, metadataSource });
     }
 
     // Determine final description
@@ -961,7 +961,7 @@ async function processMonth(year: string, month: string, opts: { quiet?: boolean
 
           // Track new community events
           if (!existingEventIds.has(lumaEvent.api_id)) {
-            newEvents.push({ name: lumaEvent.name, metadataSource: "Luma API" });
+            newEvents.push({ name: lumaEvent.name, startAt: lumaEvent.start_at, metadataSource: "Luma API" });
           }
         }
 
@@ -1240,6 +1240,7 @@ async function generateLatestEvents(opts: { quiet?: boolean } = {}): Promise<voi
 /** Info about a new event discovered during processing */
 export interface NewEventInfo {
   name: string;
+  startAt: string;
   metadataSource: "Luma API" | "og:image" | "none";
 }
 

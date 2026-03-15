@@ -472,7 +472,9 @@ async function cmdEventsSync(args: string[]): Promise<void> {
       const count = result.newEvents.length;
       console.log(`  ${result.yearMonth} ${fmt.green}✓${fmt.reset} ${count} new event${count !== 1 ? "s" : ""}`);
       for (const evt of result.newEvents) {
-        console.log(`    + ${evt.name} ${fmt.dim}(via ${evt.metadataSource})${fmt.reset}`);
+        const d = new Date(evt.startAt);
+        const dateStr = `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+        console.log(`    + ${fmt.dim}${dateStr}${fmt.reset} ${evt.name} ${fmt.dim}(via ${evt.metadataSource})${fmt.reset}`);
       }
     }
   }
@@ -482,8 +484,15 @@ async function cmdEventsSync(args: string[]): Promise<void> {
   const allEvents = loadAllEvents();
   const futureEvents = allEvents.filter((e) => new Date(e.startAt) >= now);
 
+  // Count events written to events.md
+  let eventsMdCount = 0;
+  try {
+    const mdContent = fs.readFileSync(eventsMdPath, "utf-8");
+    eventsMdCount = (mdContent.match(/^### /gm) || []).length;
+  } catch {}
+
   console.log(`\n${fmt.green}✓ Done!${fmt.reset} ${allEvents.length} events (${futureEvents.length} upcoming)`);
-  console.log(`  ${fmt.dim}${eventsMdPath}${fmt.reset}\n`);
+  console.log(`  ${eventsMdCount} events written to ${eventsMdPath}\n`);
 }
 
 // ── Commands: rooms ────────────────────────────────────────────────────────
