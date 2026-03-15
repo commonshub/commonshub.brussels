@@ -3,14 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "chb": "./scripts/chb"
+    "chb": "dist/chb"
   },
   "scripts": {
-    "chb": "./scripts/chb",
     "build": "next build",
     "build:cli": "cd cli && make build-small",
     "dev": "next dev",
-    "fetch-data": "tsx scripts/fetch-all-data.ts",
     "fetch-recent": "node scripts/fetch-recent.js",
     "fetch-history": "node scripts/fetch-history.js",
     "fetch-transactions": "tsx scripts/warmup-transactions-cache.js",
@@ -18,10 +16,7 @@
     "download-featured-images": "tsx scripts/download-featured-images.ts",
     "generate-data": "tsx scripts/generate-data-files.ts",
     "fetch-tokens": "tsx scripts/fetch-cht-tokens.ts",
-    "generate-transactions": "tsx scripts/generate-transactions.ts",
-    "fetch-calendars": "tsx scripts/fetch-calendars.ts",
-    "generate-events": "tsx scripts/generate-events.ts",
-    "generate-md": "tsx scripts/generate-md-files.ts",
+    "fetch-members": "tsx scripts/fetch-members.ts",
     "migrate-discord-to-channels": "tsx scripts/migrate-discord-to-channels.ts",
     "fetch-users": "tsx scripts/warmup-users-cache.ts",
     "fetch-monerium": "tsx scripts/fetch-monerium.ts",
