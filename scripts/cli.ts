@@ -7,6 +7,7 @@ import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
 import ical from "node-ical";
+import settings from "../src/settings/settings.json";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const TIMEZONE = "Europe/Brussels";
@@ -432,8 +433,14 @@ async function cmdEventsSync(args: string[]): Promise<void> {
 
   const monthRange = history ? null : computeMonthRange(sinceStr);
 
+  // Show env info
+  const lumaIcsUrl = (settings as any).calendars?.luma;
+  console.log(`\n${fmt.dim}DATA_DIR: ${DATA_DIR}${fmt.reset}`);
+  console.log(`${fmt.dim}LUMA_API_KEY: ${process.env.LUMA_API_KEY ? "set" : "missing (falling back to OG scraping)"}${fmt.reset}`);
+
   // Step 1: Fetch event calendars (Luma only, no rooms)
   console.log(`\n📅 Fetching Luma calendar...`);
+  console.log(`  ${fmt.dim}${lumaIcsUrl}${fmt.reset}`);
   const { fetchEventCalendars } = await import("./fetch-calendars.js");
   const fetchResult = await fetchEventCalendars({
     forceFetch: force,
@@ -442,7 +449,7 @@ async function cmdEventsSync(args: string[]): Promise<void> {
     quiet: true,
   });
 
-  console.log(`  Found ${fetchResult.totalEvents} total events (${fetchResult.upcomingEvents} upcoming)`);
+  console.log(`  ${fetchResult.totalEvents} events in ICS feed (${fetchResult.upcomingEvents} upcoming)`);
 
   // Step 2: Generate events.json
   const { generateEvents } = await import("./generate-events.js");
