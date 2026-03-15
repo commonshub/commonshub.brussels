@@ -1,7 +1,8 @@
 /**
  * GET /api/sync — Returns sync status + per-month data overview
+ * Accepts ?year=2025 to filter months by year
  */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -78,7 +79,7 @@ function getSyncState(): { lastSync: string | null; duration: string | null } {
   }
 }
 
-function getMonthsData(): MonthData[] {
+function getMonthsData(yearFilter?: string): MonthData[] {
   const months: MonthData[] = [];
   if (!fs.existsSync(DATA_DIR)) return months;
 
@@ -89,6 +90,8 @@ function getMonthsData(): MonthData[] {
       .sort();
 
     for (const year of years) {
+      if (yearFilter && year !== yearFilter) continue;
+
       const yearDir = path.join(DATA_DIR, year);
       if (!fs.statSync(yearDir).isDirectory()) continue;
 
@@ -115,9 +118,11 @@ function getMonthsData(): MonthData[] {
   return months.reverse(); // newest first
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const yearFilter = request.nextUrl.searchParams.get("year") || undefined;
+
   const syncState = getSyncState();
-  const months = getMonthsData();
+  const months = getMonthsData(yearFilter);
 
   return NextResponse.json({
     lastSync: syncState.lastSync,

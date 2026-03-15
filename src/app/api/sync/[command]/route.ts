@@ -2,6 +2,9 @@
  * POST /api/sync/[command] — Triggers a sync command and streams output via SSE
  *
  * Commands: events, transactions, messages, bookings, all
+ *
+ * Query params:
+ *   months=2025-01,2025-02  — sync specific months (runs per-month with --force)
  */
 import { NextRequest } from "next/server";
 import { spawn } from "child_process";
@@ -90,6 +93,30 @@ function runCommand(
   });
 }
 
+/**
+ * Convert "2025-01" to "2025/01" for CLI positional arg
+ */
+function monthToCliArg(month: string): string {
+  return month.replace("-", "/");
+}
+
+/**
+ * Build command arrays for specific months.
+ * For each base command and each month, produce: [...baseCmd, "YYYY/MM", "--force"]
+ */
+function buildMonthCommands(
+  baseCommands: string[][],
+  months: string[]
+): string[][] {
+  const result: string[][] = [];
+  for (const baseCmd of baseCommands) {
+    for (const month of months) {
+      result.push([...baseCmd, monthToCliArg(month), "--force"]);
+    }
+  }
+  return result;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ command: string }> }
@@ -103,8 +130,20 @@ export async function POST(
     });
   }
 
+  const monthsParam = request.nextUrl.searchParams.get("months");
+  const specificMonths = monthsParam
+    ? monthsParam.split(",").filter((m) => /^\d{4}-\d{2}$/.test(m))
+    : [];
+
   const chbPath = getChbPath();
-  const commands = VALID_COMMANDS[command];
+  const baseCommands = VALID_COMMANDS[command];
+
+  // If specific months requested, run per-month with --force
+  const commands =
+    specificMonths.length > 0
+      ? buildMonthCommands(baseCommands, specificMonths)
+      : baseCommands;
+
   const startTime = Date.now();
 
   const stream = new ReadableStream<Uint8Array>({

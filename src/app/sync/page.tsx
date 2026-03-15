@@ -83,7 +83,18 @@ function getSyncState(): { lastSync: string | null; duration: string | null } {
   }
 }
 
-function getMonthsData(): MonthData[] {
+function getAvailableYears(): number[] {
+  const years: number[] = [];
+  if (!fs.existsSync(DATA_DIR)) return years;
+  try {
+    for (const d of fs.readdirSync(DATA_DIR)) {
+      if (/^\d{4}$/.test(d)) years.push(parseInt(d));
+    }
+  } catch {}
+  return years.sort((a, b) => b - a);
+}
+
+function getMonthsData(yearFilter?: number): MonthData[] {
   const months: MonthData[] = [];
   if (!fs.existsSync(DATA_DIR)) return months;
 
@@ -94,6 +105,8 @@ function getMonthsData(): MonthData[] {
       .sort();
 
     for (const year of years) {
+      if (yearFilter && parseInt(year) !== yearFilter) continue;
+
       const yearDir = path.join(DATA_DIR, year);
       if (!fs.statSync(yearDir).isDirectory()) continue;
 
@@ -120,13 +133,27 @@ function getMonthsData(): MonthData[] {
   return months.reverse();
 }
 
-export default function SyncPage() {
+export default async function SyncPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const params = await searchParams;
+  const currentYear = new Date().getFullYear();
+  const yearFilter = params.year ? parseInt(params.year) : currentYear;
+  const availableYears = getAvailableYears();
+  // Ensure current year is always in the list
+  if (!availableYears.includes(currentYear)) {
+    availableYears.unshift(currentYear);
+  }
+
   const syncState = getSyncState();
-  const months = getMonthsData();
-  const totalEvents = months.reduce((s, m) => s + m.events, 0);
-  const totalBookings = months.reduce((s, m) => s + m.bookings, 0);
-  const totalTransactions = months.reduce((s, m) => s + m.transactions, 0);
-  const totalMessages = months.reduce((s, m) => s + m.messages, 0);
+  const months = getMonthsData(yearFilter);
+  const allMonths = getMonthsData();
+  const totalEvents = allMonths.reduce((s, m) => s + m.events, 0);
+  const totalBookings = allMonths.reduce((s, m) => s + m.bookings, 0);
+  const totalTransactions = allMonths.reduce((s, m) => s + m.transactions, 0);
+  const totalMessages = allMonths.reduce((s, m) => s + m.messages, 0);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -170,7 +197,8 @@ export default function SyncPage() {
             </div>
             <code className="text-sm text-gray-300 font-mono">{DATA_DIR}</code>
             <div className="text-xs text-gray-600 mt-1">
-              {months.length} month{months.length !== 1 ? "s" : ""} of data
+              {allMonths.length} month{allMonths.length !== 1 ? "s" : ""} of
+              data
             </div>
           </div>
         </div>
@@ -183,52 +211,12 @@ export default function SyncPage() {
           <StatCard label="Messages" value={totalMessages} />
         </div>
 
-        {/* Interactive sync controls + console (client component) */}
-        <SyncDashboard initialMonths={months} />
-
-        {/* Per-month data table (SSR) */}
-        {months.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-3">Data by Month</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase tracking-wider">
-                    <th className="text-left py-2 pr-4">Month</th>
-                    <th className="text-right py-2 px-3">Events</th>
-                    <th className="text-right py-2 px-3">Bookings</th>
-                    <th className="text-right py-2 px-3">Transactions</th>
-                    <th className="text-right py-2 px-3">Messages</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {months.map((m) => (
-                    <tr
-                      key={m.month}
-                      className="border-b border-gray-800/50 hover:bg-gray-900/50"
-                    >
-                      <td className="py-2 pr-4 font-mono text-gray-300">
-                        {m.month}
-                      </td>
-                      <td className="text-right py-2 px-3">
-                        <NumCell value={m.events} />
-                      </td>
-                      <td className="text-right py-2 px-3">
-                        <NumCell value={m.bookings} />
-                      </td>
-                      <td className="text-right py-2 px-3">
-                        <NumCell value={m.transactions} />
-                      </td>
-                      <td className="text-right py-2 px-3">
-                        <NumCell value={m.messages} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* Interactive sync controls + console + month table (client component) */}
+        <SyncDashboard
+          initialMonths={months}
+          availableYears={availableYears}
+          selectedYear={yearFilter}
+        />
       </div>
     </div>
   );
@@ -252,9 +240,7 @@ function SyncStatusBadge({ lastSync }: { lastSync: string | null }) {
       <span className="inline-block w-2 h-2 rounded-full bg-yellow-500" />
     );
   }
-  return (
-    <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-  );
+  return <span className="inline-block w-2 h-2 rounded-full bg-red-500" />;
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
@@ -263,15 +249,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <div className="text-xs uppercase tracking-wider text-gray-500">
         {label}
       </div>
-      <div className="text-xl font-bold mt-1">
-        {value.toLocaleString()}
-      </div>
+      <div className="text-xl font-bold mt-1">{value.toLocaleString()}</div>
     </div>
   );
-}
-
-function NumCell({ value }: { value: number }) {
-  if (value === 0)
-    return <span className="text-gray-700">—</span>;
-  return <span className="text-gray-300">{value.toLocaleString()}</span>;
 }
