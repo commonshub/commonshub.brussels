@@ -51,7 +51,7 @@ export async function getEvent(eventId: string): Promise<LumaEvent | null> {
   }
 
   try {
-    const response = await fetch(`${LUMA_API_BASE_URL}/v1/event/get?event_id=${eventId}`, {
+    const response = await fetch(`${LUMA_API_BASE_URL}/v1/event/get?api_id=${eventId}`, {
       method: "GET",
       headers: {
         accept: "application/json",

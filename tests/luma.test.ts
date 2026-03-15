@@ -96,11 +96,11 @@ describe("Luma API – getEvent", () => {
     sampleEventId = uidMatch ? uidMatch[1] : null;
   }, 30_000);
 
-  apiIt("fetches event by event_id param (GET)", async () => {
+  apiIt("fetches event by api_id param (GET)", async () => {
     expect(sampleEventId).toBeTruthy();
 
     const res = await fetch(
-      `${LUMA_API_BASE_URL}/v1/event/get?event_id=${sampleEventId}`,
+      `${LUMA_API_BASE_URL}/v1/event/get?api_id=${sampleEventId}`,
       {
         method: "GET",
         headers: {
