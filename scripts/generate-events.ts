@@ -570,40 +570,32 @@ async function processMonth(year: string, month: string, opts: { quiet?: boolean
         "Commons Hub Brussels, Rue de la Madeleine 51, 1000 Bruxelles, Belgium";
     }
 
-    // Check for Luma event ID in URL or description
-    let lumaEventId = extractLumaEventId(icalUrl || icalLocation);
-    if (!lumaEventId && description) {
-      lumaEventId = extractLumaEventId(description);
+    // Try to match with Luma data — check cache first, avoid API calls
+
+    // 1. Direct match by evt- API ID (most reliable — eventId comes from ICS UID)
+    if (eventId.startsWith("evt-")) {
+      lumaData = lumaEventsMap.get(eventId);
     }
 
-    // Try to match with Luma data
-    if (lumaEventId) {
-      lumaData = lumaEventsMap.get(lumaEventId);
+    // 2. Match by slug extracted from URL or description
+    if (!lumaData) {
+      let lumaEventId = extractLumaEventId(icalUrl || icalLocation);
+      if (!lumaEventId && description) {
+        lumaEventId = extractLumaEventId(description);
+      }
+      if (lumaEventId) {
+        lumaData = lumaEventsMap.get(lumaEventId);
+      }
     }
 
-    // Try name matching if no ID match
+    // 3. Match by name
     if (!lumaData) {
       lumaData = lumaEventsMap.get(name.toLowerCase());
     }
 
-    // If no match in cache, try fetching from Luma API by event ID (works for community events too)
-    // The ICS UID contains the evt-xxx API ID, so use eventId (not the slug)
-    if (!lumaData && eventId.startsWith("evt-") && process.env.LUMA_API_KEY) {
-      try {
-        const fetchedEvent = await getEvent(eventId);
-        if (fetchedEvent) {
-          lumaData = fetchedEvent;
-          // Cache it in the map for potential name-based matches later
-          lumaEventsMap.set(eventId, fetchedEvent);
-          if (fetchedEvent.name) {
-            lumaEventsMap.set(fetchedEvent.name.toLowerCase(), fetchedEvent);
-          }
-          if (!quiet) console.log(`  ✓ Fetched community event from Luma API: ${name}`);
-        }
-      } catch (error) {
-        if (!quiet) console.error(`  ⚠ Failed to fetch event ${eventId} from Luma API`);
-      }
-    }
+    // 4. No API call — events not in the calendar cache are community
+    //    events we don't own (GetEvent returns 403 anyway).
+    //    Fall through to OG scraping instead.
 
     // Track metadata source for reporting
     let metadataSource: "Luma API" | "scraping" | "none" = "none";
