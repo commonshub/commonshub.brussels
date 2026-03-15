@@ -428,43 +428,70 @@ async function cmdEventsSync(args: string[]): Promise<void> {
   if (getFlag(args, "--help", "-h")) return printEventsSyncHelp();
 
   const force = getFlag(args, "--force");
-  const history = getFlag(args, "--history");
   const sinceStr = getOption(args, "--since");
-
-  const monthRange = history ? null : computeMonthRange(sinceStr);
+  // --history is kept for compat but is now the default behavior
+  getFlag(args, "--history");
 
   // Show env info
   const lumaIcsUrl = (settings as any).calendars?.luma;
   console.log(`\n${fmt.dim}DATA_DIR: ${DATA_DIR}${fmt.reset}`);
   console.log(`${fmt.dim}LUMA_API_KEY: ${process.env.LUMA_API_KEY ? "set" : "missing (falling back to OG scraping)"}${fmt.reset}`);
 
-  // Step 1: Fetch event calendars (Luma only, no rooms)
-  const rangeLabel = monthRange
-    ? `${monthRange.startMonth} → ${monthRange.endMonth}`
-    : "all history";
-  console.log(`\n📅 Fetching Luma calendar ${fmt.dim}(${rangeLabel})${fmt.reset}`);
+  // Step 1: Fetch ICS feed (all events, no range limit)
+  console.log(`\n📅 Fetching Luma calendar...`);
   console.log(`  ${fmt.dim}${lumaIcsUrl}${fmt.reset}`);
   const { fetchEventCalendars } = await import("./fetch-calendars.js");
+
+  // Only apply --since filter, otherwise fetch everything
+  const sinceMonth = sinceStr ? (() => {
+    const d = parseSinceDate(sinceStr);
+    return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : null;
+  })() : null;
+
   const fetchResult = await fetchEventCalendars({
     forceFetch: force,
-    startMonth: monthRange?.startMonth ?? null,
-    endMonth: monthRange?.endMonth ?? null,
+    startMonth: sinceMonth,
+    endMonth: null,
     quiet: true,
   });
 
-  // Step 2: Generate events.json
-  const { generateEvents } = await import("./generate-events.js");
+  console.log(`  ${fetchResult.totalEvents} events in ICS (${fetchResult.upcomingEvents} upcoming)`);
 
-  let monthResults;
-  if (history) {
-    monthResults = await generateEvents({ quiet: true });
-  } else {
-    const monthObjs = fetchResult.affectedMonths.map((ym: string) => {
-      const [year, month] = ym.split("-");
-      return { year, month };
-    });
-    monthResults = await generateEvents({ months: monthObjs, quiet: true });
+  // Step 2: Determine which months need regeneration
+  // Skip past months where the ICS event count matches existing events.json
+  const allMonthStrs = fetchResult.affectedMonths;
+  const monthsToProcess: Array<{ year: string; month: string }> = [];
+  let skippedCount = 0;
+
+  for (const ym of allMonthStrs) {
+    const [year, month] = ym.split("-");
+    const icsCount = fetchResult.icsCountsByMonth.get(ym) || 0;
+
+    if (!force) {
+      // Check existing events.json count
+      const existingPath = path.join(DATA_DIR, year, month, "events.json");
+      if (fs.existsSync(existingPath)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(existingPath, "utf-8"));
+          const existingCount = (data.events || []).length;
+          if (existingCount === icsCount) {
+            skippedCount++;
+            continue; // Same count — skip
+          }
+        } catch { /* regenerate on error */ }
+      }
+    }
+
+    monthsToProcess.push({ year, month });
   }
+
+  if (skippedCount > 0) {
+    console.log(`  ${fmt.dim}${skippedCount} months unchanged, ${monthsToProcess.length} to process${fmt.reset}`);
+  }
+
+  // Step 3: Generate events.json for changed months
+  const { generateEvents } = await import("./generate-events.js");
+  const monthResults = await generateEvents({ months: monthsToProcess, quiet: true });
 
   // Step 3: Generate markdown (quiet)
   const { generateMarkdownFiles } = await import("./generate-md-files.js");

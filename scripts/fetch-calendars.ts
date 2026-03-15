@@ -41,6 +41,8 @@ export interface FetchCalendarsResult {
   affectedMonths: string[];
   totalEvents: number;
   upcomingEvents: number;
+  /** Number of events in the ICS feed per month (YYYY-MM → count) */
+  icsCountsByMonth: Map<string, number>;
 }
 
 /**
@@ -284,7 +286,7 @@ async function fetchAndSplitCalendarURL(
   url: string,
   calendarName: string,
   opts: { quiet?: boolean } = {}
-): Promise<{ totalEvents: number; upcomingEvents: number }> {
+): Promise<{ totalEvents: number; upcomingEvents: number; countsByMonth: Map<string, number> }> {
   if (!opts.quiet) console.log(`Fetching ${calendarName} calendar from ${url}...`);
 
   try {
@@ -293,7 +295,7 @@ async function fetchAndSplitCalendarURL(
       console.error(
         `  Failed to fetch ${calendarName} calendar: ${response.statusText}`
       );
-      return { totalEvents: 0, upcomingEvents: 0 };
+      return { totalEvents: 0, upcomingEvents: 0, countsByMonth: new Map() };
     }
 
     const icalData = await response.text();
@@ -429,10 +431,16 @@ async function fetchAndSplitCalendarURL(
         await downloadCalendarImages(year, month, monthEventsObj);
       }
     }
-    return { totalEvents, upcomingEvents };
+    // Build per-month counts from ICS
+    const countsByMonth = new Map<string, number>();
+    for (const [ym, blocks] of eventsByMonth.entries()) {
+      countsByMonth.set(ym, blocks.length);
+    }
+
+    return { totalEvents, upcomingEvents, countsByMonth };
   } catch (error) {
     console.error(`Error fetching ${calendarName} calendar:`, error);
-    return { totalEvents: 0, upcomingEvents: 0 };
+    return { totalEvents: 0, upcomingEvents: 0, countsByMonth: new Map() };
   }
 }
 
@@ -750,6 +758,7 @@ export async function fetchEventCalendars(
 
   let totalEvents = 0;
   let upcomingEvents = 0;
+  let icsCountsByMonth = new Map<string, number>();
 
   const calendars = (settings as any).calendars || {};
   const lumaIcsUrl = calendars.luma;
@@ -758,6 +767,7 @@ export async function fetchEventCalendars(
     const result = await fetchAndSplitCalendarURL(lumaIcsUrl, "Luma", { quiet });
     totalEvents = result.totalEvents;
     upcomingEvents = result.upcomingEvents;
+    icsCountsByMonth = result.countsByMonth;
   }
 
   // Fetch main iCal feed by month (if configured)
@@ -766,7 +776,7 @@ export async function fetchEventCalendars(
     await fetchAndSplitICal();
   }
 
-  // Get months and filter
+  // Get all months that have calendar data
   const months = getAllMonths();
   let monthsToProcess = months;
   if (opts.filterMonth || opts.startMonth || opts.endMonth) {
@@ -791,6 +801,7 @@ export async function fetchEventCalendars(
     affectedMonths: monthsToProcess.map(({ year, month }) => `${year}-${month}`),
     totalEvents,
     upcomingEvents,
+    icsCountsByMonth,
   };
 }
 
