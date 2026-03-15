@@ -8,9 +8,7 @@
   "scripts": {
     "chb": "./scripts/chb",
     "build": "next build",
-    "build:cli": "bash scripts/build-cli.sh",
-    "build:cli:bun": "mkdir -p dist && bun build --compile --minify --sourcemap=none --outfile dist/chb-bun scripts/cli.ts",
-    "build:cli:deno": "bash scripts/build-cli.sh",
+    "build:cli": "cd cli && make build-small",
     "dev": "next dev",
     "fetch-data": "tsx scripts/fetch-all-data.ts",
     "fetch-recent": "node scripts/fetch-recent.js",
