@@ -51,29 +51,24 @@ export async function getEvent(eventId: string): Promise<LumaEvent | null> {
   }
 
   try {
-    const response = await fetch(`${LUMA_API_BASE_URL}/v1/event/get`, {
-      method: "POST",
+    const response = await fetch(`${LUMA_API_BASE_URL}/v1/event/get?api_id=${eventId}`, {
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
+        accept: "application/json",
         "x-luma-api-key": LUMA_API_KEY,
       },
-      body: JSON.stringify({
-        event_api_id: eventId,
-      }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Luma API error for ${eventId}: ${response.status} ${response.statusText}`);
-      console.error(`Response: ${errorText}`);
-      if (response.status === 404) {
+      // 403 = community event we don't own, 404 = deleted — both expected
+      if (response.status === 403 || response.status === 404) {
         return null;
       }
-      throw new Error(`Luma API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Luma API error: ${response.status} ${response.statusText} – ${errorText}`);
     }
 
     const data = await response.json();
-    console.log(`✓ Successfully fetched Luma event ${eventId}`);
     return data.event || data;
   } catch (error) {
     console.error(`Error fetching Luma event ${eventId}:`, error);

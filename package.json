@@ -31,6 +31,7 @@
     "status": "scripts/check-status.sh",
     "test": "jest",
     "test:ci": "jest --ci --coverage",
+    "test:luma": "jest tests/luma.test.ts",
     "test:fetch-calendars": "jest tests/fetch-calendars.test.ts",
     "test:generate-events": "jest tests/generate-events.test.ts",
     "test:generate-transactions": "jest tests/generate-transactions.test.ts",
