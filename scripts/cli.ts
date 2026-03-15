@@ -461,6 +461,7 @@ async function cmdEventsSync(args: string[]): Promise<void> {
   // Step 3: Generate markdown (quiet)
   const { generateMarkdownFiles } = await import("./generate-md-files.js");
   generateMarkdownFiles({ quiet: true });
+  const eventsMdPath = path.resolve(process.cwd(), "public", "events.md");
 
   // Step 4: Print concise output
   const monthsWithNewEvents = monthResults.filter((r: any) => r.newEvents.length > 0);
@@ -481,7 +482,8 @@ async function cmdEventsSync(args: string[]): Promise<void> {
   const allEvents = loadAllEvents();
   const futureEvents = allEvents.filter((e) => new Date(e.startAt) >= now);
 
-  console.log(`\n${fmt.green}✓ Done!${fmt.reset} ${allEvents.length} events (${futureEvents.length} upcoming)\n`);
+  console.log(`\n${fmt.green}✓ Done!${fmt.reset} ${allEvents.length} events (${futureEvents.length} upcoming)`);
+  console.log(`  ${fmt.dim}${eventsMdPath}${fmt.reset}\n`);
 }
 
 // ── Commands: rooms ────────────────────────────────────────────────────────
