@@ -60,13 +60,12 @@ export async function getEvent(eventId: string): Promise<LumaEvent | null> {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Luma API error for ${eventId}: ${response.status} ${response.statusText}`);
-      console.error(`Response: ${errorText}`);
-      if (response.status === 404) {
+      // 403 = community event we don't own, 404 = deleted — both expected
+      if (response.status === 403 || response.status === 404) {
         return null;
       }
-      throw new Error(`Luma API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Luma API error: ${response.status} ${response.statusText} – ${errorText}`);
     }
 
     const data = await response.json();

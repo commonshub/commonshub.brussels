@@ -160,6 +160,14 @@ describe("Luma API – getEvent", () => {
     expect(withCover.length).toBeGreaterThan(0);
   }, 15_000);
 
+  apiIt("getEvent() returns null for inaccessible events (403)", async () => {
+    // evt-9T2dNRYWfq2s7Yk is a known community event we don't own
+    const { getEvent } = await import("../src/lib/luma");
+    const event = await getEvent("evt-9T2dNRYWfq2s7Yk");
+    // Should return null gracefully, not throw
+    expect(event).toBeNull();
+  }, 15_000);
+
   apiIt("getEvent() from src/lib/luma.ts works", async () => {
     expect(sampleEventId).toBeTruthy();
 
@@ -203,7 +211,8 @@ describe("OG metadata fallback", () => {
 
   networkIt("scrapes og:image from a non-Luma page", async () => {
     const ogs = (await import("open-graph-scraper")).default;
-    const { result } = await ogs({ url: "https://github.com" });
+    // Use meetup.com as a reliable OG source (github.com can 502)
+    const { result } = await ogs({ url: "https://www.meetup.com" });
 
     expect(result.success).toBe(true);
     expect(result.ogImage).toBeDefined();
