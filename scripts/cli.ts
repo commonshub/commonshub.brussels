@@ -439,7 +439,10 @@ async function cmdEventsSync(args: string[]): Promise<void> {
   console.log(`${fmt.dim}LUMA_API_KEY: ${process.env.LUMA_API_KEY ? "set" : "missing (falling back to OG scraping)"}${fmt.reset}`);
 
   // Step 1: Fetch event calendars (Luma only, no rooms)
-  console.log(`\n📅 Fetching Luma calendar...`);
+  const rangeLabel = monthRange
+    ? `${monthRange.startMonth} → ${monthRange.endMonth}`
+    : "all history";
+  console.log(`\n📅 Fetching Luma calendar ${fmt.dim}(${rangeLabel})${fmt.reset}`);
   console.log(`  ${fmt.dim}${lumaIcsUrl}${fmt.reset}`);
   const { fetchEventCalendars } = await import("./fetch-calendars.js");
   const fetchResult = await fetchEventCalendars({
@@ -448,8 +451,6 @@ async function cmdEventsSync(args: string[]): Promise<void> {
     endMonth: monthRange?.endMonth ?? null,
     quiet: true,
   });
-
-  console.log(`  ${fetchResult.totalEvents} events in ICS feed (${fetchResult.upcomingEvents} upcoming)`);
 
   // Step 2: Generate events.json
   const { generateEvents } = await import("./generate-events.js");
