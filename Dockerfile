@@ -21,13 +21,6 @@ WORKDIR /app
 ARG SOURCE_COMMIT=unknown
 ARG COMMIT_MSG=unknown
 
-# Set to "true" to fetch recent data during build (for preview deployments)
-ARG FETCH_DATA_ON_BUILD=false
-
-# Stripe key for fetching member data (optional, only needed if FETCH_DATA_ON_BUILD=true)
-ARG STRIPE_SECRET_KEY=""
-ARG EMAIL_HASH_SALT=""
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -37,19 +30,8 @@ RUN cat git-info.json
 
 RUN npm ci
 
-# Ensure data directory exists (may be populated by fetch-recent)
+# Ensure data directory exists
 RUN mkdir -p data
-
-# Copy Go CLI into builder for build-time data fetching
-COPY --from=go-builder /build/chb /usr/local/bin/chb
-
-# Fetch recent data during build if requested (for preview deployments)
-RUN if [ "$FETCH_DATA_ON_BUILD" = "true" ]; then \
-      echo "Fetching recent data during build..." && \
-      STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY \
-      EMAIL_HASH_SALT=$EMAIL_HASH_SALT \
-      chb events sync || echo "Warning: Events sync failed, continuing anyway"; \
-    fi
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
