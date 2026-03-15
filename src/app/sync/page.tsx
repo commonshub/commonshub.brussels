@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import SyncDashboard from "./sync-dashboard";
@@ -20,58 +21,28 @@ interface MonthData {
   messages: number;
 }
 
-function countJsonArrayItems(filePath: string): number {
+interface StatsMonth {
+  month: string;
+  count: number;
+}
+
+interface StatsResult {
+  total: number;
+  upcoming?: number;
+  months: StatsMonth[];
+}
+
+function runCliStats(resource: string): StatsResult | null {
   try {
-    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    return Array.isArray(data) ? data.length : 0;
+    const chbPath = path.join(process.cwd(), "dist", "chb");
+    const output = execSync(`${chbPath} ${resource} stats --format json`, {
+      env: { ...process.env, DATA_DIR },
+      timeout: 10000,
+    });
+    return JSON.parse(output.toString());
   } catch {
-    return 0;
+    return null;
   }
-}
-
-function countFilesInDir(dirPath: string, ext?: string): number {
-  try {
-    const files = fs.readdirSync(dirPath);
-    return ext ? files.filter((f) => f.endsWith(ext)).length : files.length;
-  } catch {
-    return 0;
-  }
-}
-
-function countTransactions(monthDir: string): number {
-  const financeDir = path.join(monthDir, "finance");
-  if (!fs.existsSync(financeDir)) return 0;
-  let total = 0;
-  try {
-    for (const chain of fs.readdirSync(financeDir)) {
-      const chainDir = path.join(financeDir, chain);
-      if (!fs.statSync(chainDir).isDirectory()) continue;
-      for (const file of fs.readdirSync(chainDir)) {
-        if (file.endsWith(".json")) {
-          total += countJsonArrayItems(path.join(chainDir, file));
-        }
-      }
-    }
-  } catch {}
-  return total;
-}
-
-function countMessages(monthDir: string): number {
-  const channelsDir = path.join(monthDir, "channels", "discord");
-  if (!fs.existsSync(channelsDir)) return 0;
-  let total = 0;
-  try {
-    for (const channelId of fs.readdirSync(channelsDir)) {
-      const msgFile = path.join(channelsDir, channelId, "messages.json");
-      total += countJsonArrayItems(msgFile);
-    }
-  } catch {}
-  return total;
-}
-
-function countBookings(monthDir: string): number {
-  const icsDir = path.join(monthDir, "calendars", "ics");
-  return countFilesInDir(icsDir, ".ics");
 }
 
 function getSyncState(): { lastSync: string | null; duration: string | null } {
@@ -94,7 +65,47 @@ function getAvailableYears(): number[] {
   return years.sort((a, b) => b - a);
 }
 
-function getMonthsData(yearFilter?: number): MonthData[] {
+function buildMonthsFromStats(
+  events: StatsResult,
+  transactions: StatsResult,
+  bookings: StatsResult,
+  messages: StatsResult,
+  yearFilter?: number
+): MonthData[] {
+  const monthSet = new Set<string>();
+  for (const stats of [events, transactions, bookings, messages]) {
+    for (const m of stats.months) {
+      monthSet.add(m.month);
+    }
+  }
+
+  const eventsMap = new Map(events.months.map((m) => [m.month, m.count]));
+  const txMap = new Map(transactions.months.map((m) => [m.month, m.count]));
+  const bookingsMap = new Map(bookings.months.map((m) => [m.month, m.count]));
+  const messagesMap = new Map(messages.months.map((m) => [m.month, m.count]));
+
+  let months = Array.from(monthSet)
+    .sort()
+    .reverse()
+    .map((month) => ({
+      month,
+      events: eventsMap.get(month) || 0,
+      bookings: bookingsMap.get(month) || 0,
+      transactions: txMap.get(month) || 0,
+      messages: messagesMap.get(month) || 0,
+    }));
+
+  if (yearFilter) {
+    months = months.filter((m) =>
+      m.month.startsWith(yearFilter.toString())
+    );
+  }
+
+  return months;
+}
+
+// Fallback: direct filesystem scan
+function getMonthsDataFallback(yearFilter?: number): MonthData[] {
   const months: MonthData[] = [];
   if (!fs.existsSync(DATA_DIR)) return months;
 
@@ -106,7 +117,6 @@ function getMonthsData(yearFilter?: number): MonthData[] {
 
     for (const year of years) {
       if (yearFilter && parseInt(year) !== yearFilter) continue;
-
       const yearDir = path.join(DATA_DIR, year);
       if (!fs.statSync(yearDir).isDirectory()) continue;
 
@@ -121,16 +131,72 @@ function getMonthsData(yearFilter?: number): MonthData[] {
 
         months.push({
           month: `${year}-${month}`,
-          events: countJsonArrayItems(path.join(monthDir, "events.json")),
-          bookings: countBookings(monthDir),
-          transactions: countTransactions(monthDir),
-          messages: countMessages(monthDir),
+          events: countEventsInMonth(monthDir),
+          bookings: countBookingsInMonth(monthDir),
+          transactions: countTransactionsInMonth(monthDir),
+          messages: countMessagesInMonth(monthDir),
         });
       }
     }
   } catch {}
 
   return months.reverse();
+}
+
+function countJsonArrayField(filePath: string, field: string): number {
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    return Array.isArray(data[field]) ? data[field].length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function countEventsInMonth(monthDir: string): number {
+  return countJsonArrayField(path.join(monthDir, "events.json"), "events");
+}
+
+function countTransactionsInMonth(monthDir: string): number {
+  const financeDir = path.join(monthDir, "finance");
+  if (!fs.existsSync(financeDir)) return 0;
+  let total = 0;
+  try {
+    for (const chain of fs.readdirSync(financeDir)) {
+      const chainDir = path.join(financeDir, chain);
+      if (!fs.statSync(chainDir).isDirectory()) continue;
+      for (const file of fs.readdirSync(chainDir)) {
+        if (file.endsWith(".json")) {
+          total += countJsonArrayField(
+            path.join(chainDir, file),
+            "transactions"
+          );
+        }
+      }
+    }
+  } catch {}
+  return total;
+}
+
+function countMessagesInMonth(monthDir: string): number {
+  const channelsDir = path.join(monthDir, "channels", "discord");
+  if (!fs.existsSync(channelsDir)) return 0;
+  let total = 0;
+  try {
+    for (const channelId of fs.readdirSync(channelsDir)) {
+      const msgFile = path.join(channelsDir, channelId, "messages.json");
+      total += countJsonArrayField(msgFile, "messages");
+    }
+  } catch {}
+  return total;
+}
+
+function countBookingsInMonth(monthDir: string): number {
+  const icsDir = path.join(monthDir, "calendars", "ics");
+  try {
+    return fs.readdirSync(icsDir).filter((f) => f.endsWith(".ics")).length;
+  } catch {
+    return 0;
+  }
 }
 
 export default async function SyncPage({
@@ -142,18 +208,57 @@ export default async function SyncPage({
   const currentYear = new Date().getFullYear();
   const yearFilter = params.year ? parseInt(params.year) : currentYear;
   const availableYears = getAvailableYears();
-  // Ensure current year is always in the list
   if (!availableYears.includes(currentYear)) {
     availableYears.unshift(currentYear);
   }
 
   const syncState = getSyncState();
-  const months = getMonthsData(yearFilter);
-  const allMonths = getMonthsData();
-  const totalEvents = allMonths.reduce((s, m) => s + m.events, 0);
-  const totalBookings = allMonths.reduce((s, m) => s + m.bookings, 0);
-  const totalTransactions = allMonths.reduce((s, m) => s + m.transactions, 0);
-  const totalMessages = allMonths.reduce((s, m) => s + m.messages, 0);
+
+  // Try CLI stats first for accurate totals
+  const eventsStats = runCliStats("events");
+  const transactionsStats = runCliStats("transactions");
+  const bookingsStats = runCliStats("bookings");
+  const messagesStats = runCliStats("messages");
+
+  const useCli =
+    eventsStats && transactionsStats && bookingsStats && messagesStats;
+
+  let months: MonthData[];
+  let totalEvents: number;
+  let totalBookings: number;
+  let totalTransactions: number;
+  let totalMessages: number;
+
+  if (useCli) {
+    months = buildMonthsFromStats(
+      eventsStats,
+      transactionsStats,
+      bookingsStats,
+      messagesStats,
+      yearFilter
+    );
+    totalEvents = eventsStats.total;
+    totalBookings = bookingsStats.total;
+    totalTransactions = transactionsStats.total;
+    totalMessages = messagesStats.total;
+  } else {
+    months = getMonthsDataFallback(yearFilter);
+    const allMonths = getMonthsDataFallback();
+    totalEvents = allMonths.reduce((s, m) => s + m.events, 0);
+    totalBookings = allMonths.reduce((s, m) => s + m.bookings, 0);
+    totalTransactions = allMonths.reduce((s, m) => s + m.transactions, 0);
+    totalMessages = allMonths.reduce((s, m) => s + m.messages, 0);
+  }
+
+  // Count all months for display
+  const allMonthCount = useCli
+    ? new Set([
+        ...eventsStats.months.map((m) => m.month),
+        ...transactionsStats.months.map((m) => m.month),
+        ...bookingsStats.months.map((m) => m.month),
+        ...messagesStats.months.map((m) => m.month),
+      ]).size
+    : getMonthsDataFallback().length;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -197,8 +302,7 @@ export default async function SyncPage({
             </div>
             <code className="text-sm text-gray-300 font-mono">{DATA_DIR}</code>
             <div className="text-xs text-gray-600 mt-1">
-              {allMonths.length} month{allMonths.length !== 1 ? "s" : ""} of
-              data
+              {allMonthCount} month{allMonthCount !== 1 ? "s" : ""} of data
             </div>
           </div>
         </div>
