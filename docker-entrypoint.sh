@@ -20,7 +20,9 @@ fi
 # Fetch recent data if FETCH_DATA_ON_START is set
 if [ "$FETCH_DATA_ON_START" = "true" ]; then
     echo "Fetching recent data..."
-    su-exec nextjs npm run fetch-recent || echo "Warning: Data fetch failed, continuing anyway"
+    su-exec nextjs chb events sync || echo "Warning: Events sync failed, continuing anyway"
+    su-exec nextjs chb transactions sync || echo "Warning: Transactions sync failed, continuing anyway"
+    su-exec nextjs chb bookings sync || echo "Warning: Bookings sync failed, continuing anyway"
 fi
 
 # Switch to nextjs user and run the command
