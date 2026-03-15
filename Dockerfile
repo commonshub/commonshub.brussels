@@ -1,3 +1,11 @@
+# Stage 0: Build Go CLI
+FROM golang:1.22-alpine AS go-builder
+WORKDIR /build
+RUN apk add --no-cache make
+COPY cli/ ./
+RUN go mod download
+RUN go build -ldflags="-s -w" -trimpath -o chb .
+
 # Stage 1: Dependencies
 FROM node:22-alpine AS deps
 WORKDIR /app
@@ -13,13 +21,6 @@ WORKDIR /app
 ARG SOURCE_COMMIT=unknown
 ARG COMMIT_MSG=unknown
 
-# Set to "true" to fetch recent data during build (for preview deployments)
-ARG FETCH_DATA_ON_BUILD=false
-
-# Stripe key for fetching member data (optional, only needed if FETCH_DATA_ON_BUILD=true)
-ARG STRIPE_SECRET_KEY=""
-ARG EMAIL_HASH_SALT=""
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -29,16 +30,8 @@ RUN cat git-info.json
 
 RUN npm ci
 
-# Ensure data directory exists (may be populated by fetch-recent)
+# Ensure data directory exists
 RUN mkdir -p data
-
-# Fetch recent data during build if requested (for preview deployments)
-RUN if [ "$FETCH_DATA_ON_BUILD" = "true" ]; then \
-      echo "Fetching recent data during build..." && \
-      STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY \
-      EMAIL_HASH_SALT=$EMAIL_HASH_SALT \
-      npm run fetch-recent || echo "Warning: Data fetch failed, continuing anyway"; \
-    fi
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
@@ -54,6 +47,9 @@ RUN apk add --no-cache curl su-exec
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy Go CLI binary
+COPY --from=go-builder /build/chb /usr/local/bin/chb
+
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
@@ -65,17 +61,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/git-info.json ./git-info.json
 
-# Copy scripts and their required source files
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/src/lib ./src/lib
-COPY --from=builder --chown=nextjs:nodejs /app/src/types ./src/types
+# Copy settings (needed by Go CLI at runtime)
 COPY --from=builder --chown=nextjs:nodejs /app/src/settings ./src/settings
-COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
-
-# Install production dependencies for fetch scripts
-# Standalone has minimal deps; we need tsx, dotenv, stripe etc. for scripts
-# Use npm install to properly create bin links
-RUN npm install --omit=dev --ignore-scripts 2>/dev/null || npm install dotenv tsx stripe discord.js crypto-js viem date-fns date-fns-tz node-ical open-graph-scraper resend
 
 # Create data directory and copy build-time fetched data if it exists
 RUN mkdir -p /data && chown nextjs:nodejs /data

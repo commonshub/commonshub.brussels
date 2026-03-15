@@ -1,45 +1,149 @@
 /**
- * /api/sync — Run fetch-members script on demand
- *
- * GET /api/sync              → fetch current month
- * GET /api/sync?backfill=1   → fetch all historical months
- *
- * Runs the fetch-members.ts script as a child process.
+ * GET /api/sync — Returns sync status + per-month data overview
+ * All data comes from the CHB CLI (single source of truth for data dir)
+ * Accepts ?year=2025 to filter months by year
  */
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "child_process";
+import * as fs from "fs";
 import * as path from "path";
 
-export const maxDuration = 300; // 5 min max for Vercel/Coolify
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const backfill = searchParams.get("backfill") === "1";
+interface StatsMonth {
+  month: string;
+  count: number;
+  accounts?: string[];
+  rooms?: string[];
+  channels?: string[];
+}
 
-  const scriptPath = path.join(process.cwd(), "scripts", "fetch-members.ts");
-  const args = backfill ? "--backfill" : "";
+interface StatsResult {
+  total: number;
+  upcoming?: number;
+  months: StatsMonth[];
+}
+
+interface MonthData {
+  month: string;
+  events: number;
+  bookings: number;
+  transactions: number;
+  messages: number;
+}
+
+function chbBinary(): string {
+  // Check common locations
+  const candidates = [
+    "/usr/local/bin/chb",
+    path.join(process.cwd(), "dist", "chb"),
+  ];
+  for (const p of candidates) {
+    try {
+      fs.accessSync(p, fs.constants.X_OK);
+      return p;
+    } catch {}
+  }
+  throw new Error("chb binary not found. Build it with: cd cli && make build-small");
+}
+
+function runCliStats(bin: string, resource: string): StatsResult {
+  const output = execSync(`${bin} ${resource} stats --format json`, {
+    env: { ...process.env, DATA_DIR },
+    timeout: 10000,
+    encoding: "utf-8",
+  });
+  return JSON.parse(output);
+}
+
+function getSyncState(): { lastSync: string | null; duration: string | null } {
+  const stateFile = path.join(DATA_DIR, "sync-state.json");
+  try {
+    return JSON.parse(fs.readFileSync(stateFile, "utf-8"));
+  } catch {
+    return { lastSync: null, duration: null };
+  }
+}
+
+function buildMonthsFromStats(
+  events: StatsResult,
+  transactions: StatsResult,
+  bookings: StatsResult,
+  messages: StatsResult,
+  yearFilter?: string
+): MonthData[] {
+  const monthSet = new Set<string>();
+  for (const stats of [events, transactions, bookings, messages]) {
+    for (const m of stats.months) {
+      monthSet.add(m.month);
+    }
+  }
+
+  const eventsMap = new Map(events.months.map((m) => [m.month, m.count]));
+  const txMap = new Map(transactions.months.map((m) => [m.month, m.count]));
+  const bookingsMap = new Map(bookings.months.map((m) => [m.month, m.count]));
+  const messagesMap = new Map(messages.months.map((m) => [m.month, m.count]));
+
+  let months = Array.from(monthSet)
+    .sort()
+    .reverse()
+    .map((month) => ({
+      month,
+      events: eventsMap.get(month) || 0,
+      bookings: bookingsMap.get(month) || 0,
+      transactions: txMap.get(month) || 0,
+      messages: messagesMap.get(month) || 0,
+    }));
+
+  if (yearFilter) {
+    months = months.filter((m) => m.month.startsWith(yearFilter));
+  }
+
+  return months;
+}
+
+export async function GET(request: NextRequest) {
+  const yearFilter = request.nextUrl.searchParams.get("year") || undefined;
+  const syncState = getSyncState();
 
   try {
-    const output = execSync(`npx tsx ${scriptPath} ${args}`, {
-      timeout: 4 * 60 * 1000, // 4 min timeout
-      encoding: "utf-8",
-      env: { ...process.env },
-      cwd: process.cwd(),
-    });
+    const bin = chbBinary();
+
+    const eventsStats = runCliStats(bin, "events");
+    const transactionsStats = runCliStats(bin, "transactions");
+    const bookingsStats = runCliStats(bin, "bookings");
+    const messagesStats = runCliStats(bin, "messages");
+
+    const months = buildMonthsFromStats(
+      eventsStats,
+      transactionsStats,
+      bookingsStats,
+      messagesStats,
+      yearFilter
+    );
 
     return NextResponse.json({
-      ok: true,
-      mode: backfill ? "backfill" : "current-month",
-      output: output.split("\n").filter(Boolean).slice(-20), // last 20 lines
+      lastSync: syncState.lastSync,
+      duration: syncState.duration,
+      dataDir: DATA_DIR,
+      totals: {
+        events: eventsStats.total,
+        upcoming: eventsStats.upcoming,
+        transactions: transactionsStats.total,
+        bookings: bookingsStats.total,
+        messages: messagesStats.total,
+      },
+      months,
     });
   } catch (err: any) {
     return NextResponse.json(
       {
-        ok: false,
         error: err.message,
-        output: (err.stdout || "").split("\n").filter(Boolean).slice(-20),
-        stderr: (err.stderr || "").split("\n").filter(Boolean).slice(-10),
+        lastSync: syncState.lastSync,
+        duration: syncState.duration,
+        dataDir: DATA_DIR,
+        totals: { events: 0, upcoming: 0, transactions: 0, bookings: 0, messages: 0 },
+        months: [],
       },
       { status: 500 }
     );
