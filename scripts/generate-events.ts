@@ -606,7 +606,7 @@ async function processMonth(year: string, month: string, opts: { quiet?: boolean
     }
 
     // Track metadata source for reporting
-    let metadataSource: "Luma API" | "og:image" | "none" = "none";
+    let metadataSource: "Luma API" | "scraping" | "none" = "none";
 
     // If we found Luma data, use it (highest priority)
     if (lumaData) {
@@ -636,7 +636,7 @@ async function processMonth(year: string, month: string, opts: { quiet?: boolean
         if (ogData.image) {
           // Extract actual URL if it's a Next.js proxy URL
           coverImageUrl = extractImageUrl(ogData.image);
-          metadataSource = "og:image";
+          metadataSource = "scraping";
         }
         if (ogData.description) {
           ogDescription = ogData.description;
@@ -1241,7 +1241,7 @@ async function generateLatestEvents(opts: { quiet?: boolean } = {}): Promise<voi
 export interface NewEventInfo {
   name: string;
   startAt: string;
-  metadataSource: "Luma API" | "og:image" | "none";
+  metadataSource: "Luma API" | "scraping" | "none";
 }
 
 /** Result of processing a single month */
