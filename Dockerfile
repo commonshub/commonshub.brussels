@@ -1,6 +1,6 @@
 # Stage 0: Install Go CLI from standalone repo
 FROM golang:1.22-alpine AS go-builder
-RUN CGO_ENABLED=0 go install -ldflags="-s -w" -trimpath github.com/CommonsHub/cli/cmd/chb@latest
+RUN CGO_ENABLED=0 go install -ldflags="-s -w" -trimpath github.com/CommonsHub/chb@latest
 
 # Stage 1: Dependencies
 FROM node:22-alpine AS deps

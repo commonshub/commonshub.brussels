@@ -2,22 +2,22 @@
 
 Command-line tool for managing Commons Hub Brussels data — events, transactions, bookings, messages, and reports.
 
-The CLI lives in its own repository: [CommonsHub/cli](https://github.com/CommonsHub/cli)
+The CLI lives in its own repository: [CommonsHub/chb](https://github.com/CommonsHub/chb)
 
 ## Installation
 
 ### Using Go (1.22+)
 
 ```bash
-go install github.com/CommonsHub/cli/cmd/chb@latest
+go install github.com/CommonsHub/chb@latest
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/CommonsHub/cli.git
-cd cli
-go build -o chb ./cmd/chb
+git clone https://github.com/CommonsHub/chb.git
+cd chb
+go build -o chb .
 ```
 
 ## Quick Start
