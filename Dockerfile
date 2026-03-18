@@ -1,10 +1,6 @@
-# Stage 0: Build Go CLI
+# Stage 0: Install Go CLI from standalone repo
 FROM golang:1.22-alpine AS go-builder
-WORKDIR /build
-RUN apk add --no-cache make
-COPY cli/ ./
-RUN go mod download
-RUN go build -ldflags="-s -w" -trimpath -o chb .
+RUN CGO_ENABLED=0 go install -ldflags="-s -w" -trimpath github.com/CommonsHub/chb@latest
 
 # Stage 1: Dependencies
 FROM node:22-alpine AS deps
@@ -48,7 +44,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy Go CLI binary
-COPY --from=go-builder /build/chb /usr/local/bin/chb
+COPY --from=go-builder /root/go/bin/chb /usr/local/bin/chb
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

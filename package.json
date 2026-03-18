@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "next build",
-    "build:cli": "cd cli && make build-small",
+    "build:cli": "echo 'CLI moved to https://github.com/CommonsHub/chb — install with: go install github.com/CommonsHub/chb@latest'",
     "dev": "next dev",
     "fetch-recent": "node scripts/fetch-recent.js",
     "fetch-history": "node scripts/fetch-history.js",
