@@ -2,26 +2,24 @@
 
 Command-line tool for managing Commons Hub Brussels data — events, transactions, bookings, messages, and reports.
 
+The CLI lives in its own repository: [CommonsHub/cli](https://github.com/CommonsHub/cli)
+
 ## Installation
 
-### From source (Go 1.21+)
+### Using Go (1.22+)
 
 ```bash
-git clone https://github.com/commonshub/commonshub.brussels.git
-cd commonshub.brussels/cli
-make build-small
+go install github.com/CommonsHub/cli@latest
+# The binary is named "cli", rename it:
+mv $(go env GOPATH)/bin/cli $(go env GOPATH)/bin/chb
 ```
 
-The binary is output to `dist/chb`.
-
-### Add to PATH
+### From source
 
 ```bash
-# Move to a directory in your PATH
-cp dist/chb /usr/local/bin/
-
-# Or add the dist directory
-export PATH="$PATH:$(pwd)/dist"
+git clone https://github.com/CommonsHub/cli.git
+cd cli
+go build -o chb .
 ```
 
 ## Quick Start
@@ -44,12 +42,15 @@ chb report 2025/11
 
 | Command | Description |
 |---------|-------------|
-| [`chb events`](cli/events.md) | List and sync events from Luma |
-| [`chb transactions sync`](cli/transactions.md) | Sync blockchain + Stripe transactions |
-| [`chb bookings`](cli/bookings.md) | List and sync room bookings |
-| [`chb messages sync`](cli/messages.md) | Sync Discord messages |
-| [`chb rooms`](cli/rooms.md) | List rooms and pricing |
-| [`chb report`](cli/report.md) | Generate monthly/yearly reports |
+| `chb events` | List and sync events from Luma |
+| `chb transactions sync` | Sync blockchain + Stripe transactions |
+| `chb bookings` | List and sync room bookings |
+| `chb messages sync` | Sync Discord messages |
+| `chb rooms` | List rooms and pricing |
+| `chb report` | Generate monthly/yearly reports |
+| `chb members sync` | Fetch membership data from Stripe/Odoo |
+| `chb generate` | Generate derived data files |
+| `chb sync` | Sync everything |
 
 ## Environment Variables
 
