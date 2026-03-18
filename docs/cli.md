@@ -9,9 +9,7 @@ The CLI lives in its own repository: [CommonsHub/cli](https://github.com/Commons
 ### Using Go (1.22+)
 
 ```bash
-go install github.com/CommonsHub/cli@latest
-# The binary is named "cli", rename it:
-mv $(go env GOPATH)/bin/cli $(go env GOPATH)/bin/chb
+go install github.com/CommonsHub/cli/cmd/chb@latest
 ```
 
 ### From source
@@ -19,7 +17,7 @@ mv $(go env GOPATH)/bin/cli $(go env GOPATH)/bin/chb
 ```bash
 git clone https://github.com/CommonsHub/cli.git
 cd cli
-go build -o chb .
+go build -o chb ./cmd/chb
 ```
 
 ## Quick Start
