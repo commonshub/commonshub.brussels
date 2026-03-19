@@ -7,7 +7,7 @@ import (
 	"github.com/commonshub/commonshub.brussels/cli/cmd"
 )
 
-const VERSION = "2.0.0"
+const VERSION = "2.1.0"
 
 func main() {
 	args := os.Args[1:]

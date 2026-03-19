@@ -165,9 +165,10 @@ func TransactionsSync(args []string) error {
 			year, month := parts[0], parts[1]
 
 			// Save to data/YYYY/MM/finance/{chain}/{slug}.{token}.json
-			dir := filepath.Join(DataDir(), year, month, "finance", acc.Chain)
+			dataDir := DataDir()
 			filename := fmt.Sprintf("%s.%s.json", acc.Slug, acc.Token.Symbol)
-			filePath := filepath.Join(dir, filename)
+			relPath := filepath.Join("finance", acc.Chain, filename)
+			filePath := filepath.Join(dataDir, year, month, relPath)
 
 			// Skip if exists and not force
 			if !force && fileExists(filePath) {
@@ -175,11 +176,6 @@ func TransactionsSync(args []string) error {
 				if ym != fmt.Sprintf("%d-%02d", now.Year(), now.Month()) {
 					continue
 				}
-			}
-
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				fmt.Printf("    %s✗ Failed to create dir: %v%s\n", Fmt.Red, err, Fmt.Reset)
-				continue
 			}
 
 			cache := TransactionsCacheFile{
@@ -191,7 +187,7 @@ func TransactionsSync(args []string) error {
 			}
 
 			data, _ := json.MarshalIndent(cache, "", "  ")
-			if err := os.WriteFile(filePath, data, 0644); err != nil {
+			if err := writeMonthFile(dataDir, year, month, relPath, data); err != nil {
 				fmt.Printf("    %s✗ Failed to write: %v%s\n", Fmt.Red, err, Fmt.Reset)
 				continue
 			}
@@ -252,19 +248,15 @@ func TransactionsSync(args []string) error {
 					}
 					year, month := parts[0], parts[1]
 
-					dir := filepath.Join(DataDir(), year, month, "finance", "stripe")
-					filePath := filepath.Join(dir, "transactions.json")
+					dataDir := DataDir()
+					relPath := filepath.Join("finance", "stripe", "transactions.json")
+					filePath := filepath.Join(dataDir, year, month, relPath)
 
 					// Skip if exists and not force (but always update current month)
 					if !force && fileExists(filePath) {
 						if ym != fmt.Sprintf("%d-%02d", now.Year(), now.Month()) {
 							continue
 						}
-					}
-
-					if err := os.MkdirAll(dir, 0755); err != nil {
-						fmt.Printf("    %s✗ Failed to create dir: %v%s\n", Fmt.Red, err, Fmt.Reset)
-						continue
 					}
 
 					cache := StripeCacheFile{
@@ -275,7 +267,7 @@ func TransactionsSync(args []string) error {
 					}
 
 					data, _ := json.MarshalIndent(cache, "", "  ")
-					if err := os.WriteFile(filePath, data, 0644); err != nil {
+					if err := writeMonthFile(dataDir, year, month, relPath, data); err != nil {
 						fmt.Printf("    %s✗ Failed to write: %v%s\n", Fmt.Red, err, Fmt.Reset)
 						continue
 					}

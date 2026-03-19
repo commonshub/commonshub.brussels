@@ -224,9 +224,8 @@ func MembersSync(args []string) error {
 		if doStripe && len(stripeSubscriptions) > 0 {
 			snap := buildStripeMonthSnapshot(stripeSubscriptions, year, month, salt, stripeProductID, stripeKey, customerCache)
 			fmt.Printf("  Stripe: %d subscriptions\n", len(snap.Subscriptions))
-			snapDir := filepath.Join(monthDir, "stripe")
-			os.MkdirAll(snapDir, 0755)
-			writeJSONFile(filepath.Join(snapDir, "subscriptions.json"), snap)
+			snapData, _ := json.MarshalIndent(snap, "", "  ")
+			writeMonthFile(dataDir, yearStr, monthStr, filepath.Join("stripe", "subscriptions.json"), snapData)
 			snapshots = append(snapshots, snap)
 		} else {
 			// Try loading cached
@@ -276,8 +275,8 @@ func MembersSync(args []string) error {
 			Members:     members,
 		}
 
-		os.MkdirAll(monthDir, 0755)
-		writeJSONFile(filepath.Join(monthDir, "members.json"), out)
+		membersData, _ := json.MarshalIndent(out, "", "  ")
+		writeMonthFile(dataDir, yearStr, monthStr, "members.json", membersData)
 		fmt.Printf("  %s✅ %d members (active: %d, MRR: €%.2f)%s\n",
 			Fmt.Green, len(members), summary.ActiveMembers, summary.MRR.Value, Fmt.Reset)
 	}

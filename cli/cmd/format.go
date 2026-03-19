@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -99,4 +100,25 @@ func DataDir() string {
 		return d
 	}
 	return "./data"
+}
+
+// writeMonthFile writes data to dataDir/year/month/<relPath> AND mirrors
+// it to dataDir/latest/<relPath> so the latest/ directory always has the most
+// recent version of every file across all sources.
+func writeMonthFile(dataDir, year, month, relPath string, data []byte) error {
+	// Primary: YYYY/MM/<relPath> (or just dataDir/latest/<relPath> when year="latest")
+	monthDst := filepath.Join(dataDir, year, month, relPath)
+	os.MkdirAll(filepath.Dir(monthDst), 0755)
+	if err := os.WriteFile(monthDst, data, 0644); err != nil {
+		return err
+	}
+
+	// Mirror to latest/ (skip if already writing to latest/)
+	if year != "latest" {
+		latestDst := filepath.Join(dataDir, "latest", relPath)
+		os.MkdirAll(filepath.Dir(latestDst), 0755)
+		os.WriteFile(latestDst, data, 0644)
+	}
+
+	return nil
 }

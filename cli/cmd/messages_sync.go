@@ -138,13 +138,8 @@ func MessagesSync(args []string) error {
 			year, month := parts[0], parts[1]
 
 			// Save to data/YYYY/MM/channels/discord/{channelId}/messages.json
-			dir := filepath.Join(DataDir(), year, month, "channels", "discord", channelID)
-			filePath := filepath.Join(dir, "messages.json")
-
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				fmt.Printf("    %s✗ Failed to create dir: %v%s\n", Fmt.Red, err, Fmt.Reset)
-				continue
-			}
+			dataDir := DataDir()
+			relPath := filepath.Join("channels", "discord", channelID, "messages.json")
 
 			cache := MessagesCacheFile{
 				Messages:  monthMsgs,
@@ -153,7 +148,7 @@ func MessagesSync(args []string) error {
 			}
 
 			data, _ := json.MarshalIndent(cache, "", "  ")
-			if err := os.WriteFile(filePath, data, 0644); err != nil {
+			if err := writeMonthFile(dataDir, year, month, relPath, data); err != nil {
 				fmt.Printf("    %s✗ Failed to write: %v%s\n", Fmt.Red, err, Fmt.Reset)
 				continue
 			}

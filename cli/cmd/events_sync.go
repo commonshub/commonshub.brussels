@@ -171,7 +171,7 @@ func EventsSync(args []string, version string) error {
 		}
 
 		content := ical.WrapICS(monthEvents, "-//Commons Hub Brussels//Luma//EN")
-		os.WriteFile(icsPath, []byte(content), 0644)
+		writeMonthFile(dataDir, year, month, filepath.Join("calendars", "ics", "luma.ics"), []byte(content))
 	}
 	sort.Strings(affectedMonths)
 
@@ -395,9 +395,8 @@ func fetchLumaForMonth(dataDir, calendarID, year, month string, force bool) {
 		flat = append(flat, flatEvent{Event: e, Tags: entry.Tags})
 	}
 
-	os.MkdirAll(lumaDir, 0755)
 	data, _ := json.MarshalIndent(flat, "", "  ")
-	os.WriteFile(lumaPath, data, 0644)
+	writeMonthFile(dataDir, year, month, filepath.Join("calendars", "luma", calendarID+".json"), data)
 }
 
 func processMonth(dataDir, calendarID, year, month string) (*monthResult, error) {
@@ -702,7 +701,7 @@ func processMonth(dataDir, calendarID, year, month string) (*monthResult, error)
 		Events:      fullEvents,
 	}
 	data, _ := json.MarshalIndent(ef, "", "  ")
-	os.WriteFile(filepath.Join(monthPath, "events.json"), data, 0644)
+	writeMonthFile(dataDir, year, month, "events.json", data)
 
 	return &monthResult{
 		yearMonth:   fmt.Sprintf("%s-%s", year, month),
