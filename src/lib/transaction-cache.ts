@@ -8,6 +8,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { DATA_DIR as DEFAULT_DATA_DIR } from "./data-paths";
 import { getMonthKey, getMonthKeyFromDate } from "./stripe";
 import {
   fetchAllTokenTransfers,
@@ -69,7 +70,7 @@ export function isMonthInRange(
 export function getMonthlyCacheFilePath(
   monthKey: string,
   accountSlug: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   provider?: string,
   address?: string,
   chain?: string,
@@ -107,7 +108,7 @@ export function getMonthlyCacheFilePath(
 export function cacheFileExists(
   monthKey: string,
   accountSlug: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   provider?: string,
   address?: string,
   chain?: string,
@@ -136,7 +137,7 @@ export function writeMonthlyTransactions(
   monthKey: string,
   accountSlug: string,
   transactions: (StripeTransaction | TokenTransfer)[],
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   provider?: string,
   address?: string,
   chain?: string,
@@ -194,7 +195,7 @@ export function writeMonthlyTransactions(
  */
 export function getExistingCacheMonths(
   accountSlug: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   provider?: string,
   address?: string,
   chain?: string,
@@ -258,7 +259,7 @@ export function getExistingCacheMonths(
 export async function fetchStripeTransactions(
   accountSlug: string,
   stripeSecretKey: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   currency?: string,
   startMonth?: string,
   endMonth?: string,
@@ -474,7 +475,7 @@ export async function fetchAllEtherscanTransactions(
     address: string;
   },
   etherscanApiKey: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   startMonth?: string,
   endMonth?: string,
   force: boolean = false
@@ -554,7 +555,7 @@ export async function fetchAllEtherscanTransactions(
 export function cacheTransactionsByMonth(
   accountSlug: string,
   transactions: StripeTransaction[] | TokenTransfer[],
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   provider?: string,
   address?: string,
   chain?: string,
@@ -692,7 +693,7 @@ export async function processStripeAccount(
     accountId?: string;
   },
   stripeSecretKey: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   startMonth?: string,
   endMonth?: string,
   force: boolean = false
@@ -824,7 +825,7 @@ export async function processEtherscanAccount(
     };
   },
   etherscanApiKey: string,
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data"),
+  dataDir: string = DEFAULT_DATA_DIR,
   startMonth?: string,
   endMonth?: string,
   force: boolean = false
@@ -905,7 +906,7 @@ export async function processEtherscanAccount(
  */
 export function writeFinanceCache(
   accountData: AccountData[],
-  dataDir: string = process.env.DATA_DIR || path.join(process.cwd(), "data")
+  dataDir: string = DEFAULT_DATA_DIR
 ): void {
   try {
     if (!fs.existsSync(dataDir)) {

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
+import { DATA_DIR } from "./data-paths";
 import { NextResponse } from "next/server";
 
 // Cache images for 30 days
@@ -28,8 +29,7 @@ export async function resizeAndCacheImage(
   imageId: string,
   size: ImageSize
 ): Promise<Buffer> {
-  const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-  const tmpDir = path.join(dataDir, "tmp");
+  const tmpDir = path.join(DATA_DIR, "tmp");
 
   // Ensure tmp directory exists
   if (!fs.existsSync(tmpDir)) {

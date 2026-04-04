@@ -6,6 +6,7 @@ import settings from "@/settings/settings.json"
 import { ContributorCard } from "@/components/contributor-card"
 import { DiscordImageGallery } from "@/components/discord-image-gallery"
 import { getMonthlyReportData } from "@/lib/reports"
+import { DATA_DIR } from "@/lib/data-paths"
 import * as fs from "fs"
 import * as path from "path"
 
@@ -58,7 +59,7 @@ export async function generateStaticParams() {
     const fs = await import("fs/promises")
     const path = await import("path")
 
-    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data")
+    const dataDir = DATA_DIR
     const years = await fs.readdir(dataDir)
 
     const params: Array<{ year: string; month: string }> = []
@@ -106,14 +107,14 @@ export default async function MonthlyContributionsPage({ params }: PageProps) {
   const monthName = MONTH_NAMES[monthNum - 1]
 
   // Read images and report data from static files
-  const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data")
+  const dataDir = DATA_DIR
 
   let reportData: MonthlyReportData
   let imagesData: { images: any[] }
 
   try {
     // Read images from static file
-    const imagesPath = path.join(dataDir, year, month, "channels", "discord", "images.json")
+    const imagesPath = path.join(dataDir, year, month, "generated", "images.json")
     if (!fs.existsSync(imagesPath)) {
       throw new Error(`Images file not found: ${imagesPath}`)
     }

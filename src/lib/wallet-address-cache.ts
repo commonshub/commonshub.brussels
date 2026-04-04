@@ -9,8 +9,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+import { DATA_DIR } from "@/lib/data-paths";
 const CACHE_FILE = path.join(DATA_DIR, "wallet-addresses.json");
 
 interface WalletAddressCache {

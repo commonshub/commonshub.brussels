@@ -50,6 +50,15 @@ services:
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 
+    # Read-only root filesystem (supply-chain attack mitigation)
+    # Only /data, /tmp, and /run are writable
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    security_opt:
+      - no-new-privileges:true
+
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -57,12 +66,8 @@ services:
       retries: 3
       start_period: 40s
 
-    # Optional: Resource limits
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '2'
-    #       memory: 2G
-    #     reservations:
-    #       cpus: '1'
-    #       memory: 512M
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G

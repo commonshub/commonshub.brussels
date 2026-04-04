@@ -64,6 +64,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/git-info.json ./git-info.json
 # Copy settings (needed by Go CLI at runtime)
 COPY --from=builder --chown=nextjs:nodejs /app/src/settings ./src/settings
 
+# Copy sandbox domain whitelist (used by entrypoint for DNS filtering)
+COPY sandbox-domains.conf ./sandbox-domains.conf
+
 # Create data directory and copy build-time fetched data if it exists
 RUN mkdir -p /data && chown nextjs:nodejs /data
 COPY --from=builder --chown=nextjs:nodejs /app/data/ /data/

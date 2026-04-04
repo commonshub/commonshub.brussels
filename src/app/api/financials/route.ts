@@ -8,6 +8,7 @@ import {
   type TokenTransfer,
 } from "@/lib/etherscan";
 import { calculateStripeBalance } from "@/lib/stripe";
+import { DATA_DIR } from "@/lib/data-paths";
 
 interface MonthlyBreakdown {
   month: string;
@@ -51,7 +52,6 @@ const BALANCE_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes for balance (change
 const CURRENT_MONTH_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for current month transactions
 
 // Cache file paths
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const BALANCE_CACHE_FILE = path.join(DATA_DIR, "stripe-cache-balance.json");
 const CURRENT_MONTH_CACHE_FILE = path.join(
   DATA_DIR,

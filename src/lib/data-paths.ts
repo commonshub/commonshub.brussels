@@ -1,7 +1,17 @@
+import * as os from "os";
 import * as path from "path";
 
-export const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+function resolveDataDir(): string {
+  const raw = process.env.DATA_DIR || path.join(process.cwd(), "data");
+  // Expand ~ to home directory (shell tilde is not expanded by Node.js)
+  if (raw.startsWith("~/")) {
+    return path.join(os.homedir(), raw.slice(2));
+  }
+  return raw;
+}
 
-// Data type/provider path segments (consistent with calendars/ and finance/)
-export const DISCORD_SUBDIR = path.join("channels", "discord");
-export const DISCORD_URL_SEGMENT = "channels/discord";
+export const DATA_DIR = resolveDataDir();
+
+// Data type/provider path segments
+export const DISCORD_SUBDIR = path.join("messages", "discord");
+export const DISCORD_URL_SEGMENT = "messages/discord";

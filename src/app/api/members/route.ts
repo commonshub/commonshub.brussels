@@ -12,8 +12,7 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import type { MembersFile } from "@/types/members";
-
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+import { DATA_DIR } from "@/lib/data-paths";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { discordGet } from "@/lib/discord";
+import { DATA_DIR } from "@/lib/data-paths";
 import {
   resizeAndCacheImage,
   type ImageSize,
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const dataDir = path.resolve(process.env.DATA_DIR || path.join(process.cwd(), "data"));
+    const dataDir = path.resolve(DATA_DIR);
 
     // Try to find the image file
     // We need to check for the file extension since we don't know it from the parameters
@@ -63,12 +64,12 @@ export async function GET(request: NextRequest) {
 
     // Check if this is a "latest" request
     if (timestamp.startsWith("latest")) {
-      // Latest path: data/latest/channels/discord/images/{attachmentId}.{ext}
+      // Latest path: data/latest/messages/discord/images/{attachmentId}.{ext}
       for (const ext of possibleExtensions) {
         const testPath = path.join(
           dataDir,
           "latest",
-          "channels",
+          "messages",
           "discord",
           "images",
           `${attachmentId}${ext}`
@@ -84,13 +85,13 @@ export async function GET(request: NextRequest) {
       const year = timestamp.substring(0, 4);
       const month = timestamp.substring(4, 6);
 
-      // Dated path: data/{year}/{month}/channels/discord/images/{attachmentId}.{ext}
+      // Dated path: data/{year}/{month}/messages/discord/images/{attachmentId}.{ext}
       for (const ext of possibleExtensions) {
         const testPath = path.join(
           dataDir,
           year,
           month,
-          "channels",
+          "messages",
           "discord",
           "images",
           `${attachmentId}${ext}`

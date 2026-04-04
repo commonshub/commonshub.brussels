@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { DATA_DIR } from "@/lib/data-paths";
 import {
   fetchAndProcessExternalImage,
   resizeAndCacheImage,
@@ -13,10 +14,10 @@ import {
  * Image Proxy API - Handles both local data paths and external image URLs
  *
  * Query parameters:
- * - url: Image URL or local path (e.g., /data/2025/11/channels/discord/images/123.jpg) (required)
+ * - url: Image URL or local path (e.g., /data/2025/11/messages/discord/images/123.jpg) (required)
  * - size: Optional size parameter (xs|sm|md|lg) for resizing
  *
- * Example: /api/image-proxy?url=/data/2025/11/channels/discord/images/123.jpg&size=sm
+ * Example: /api/image-proxy?url=/data/2025/11/messages/discord/images/123.jpg&size=sm
  * Example: /api/image-proxy?url=https://example.com/image.jpg&size=md
  */
 export async function GET(request: NextRequest) {
@@ -59,7 +60,7 @@ async function handleLocalDataPath(
   sizeParam: ImageSize | null
 ): Promise<NextResponse> {
   try {
-    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
+    const dataDir = DATA_DIR;
     // Remove leading /data/ and construct absolute path
     const relativePath = localPath.replace(/^\/data\//, "");
     const absolutePath = path.join(dataDir, relativePath);

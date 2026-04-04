@@ -10,10 +10,9 @@ import { NextRequest } from "next/server";
 import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { DATA_DIR } from "@/lib/data-paths";
 
 export const maxDuration = 300;
-
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
 function getChbPath(): string {
   // Check common locations

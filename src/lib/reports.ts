@@ -12,8 +12,7 @@ import type { StripeTransaction } from "./stripe";
 import type { TokenTransfer } from "./etherscan";
 import { parseTokenValue } from "./etherscan";
 import { getProxiedDiscordImage } from "./image-proxy";
-
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+import { DATA_DIR } from "./data-paths";
 
 // ========== Type Definitions ==========
 
@@ -175,7 +174,7 @@ export function getAvailableMonths(year: string, excludeFuture: boolean = false)
  * These files are created by generate-data-files.ts and contain all photos for the year
  */
 export function readYearlyImages(year: string): PopularPhoto[] {
-  const imagesPath = path.join(DATA_DIR, year, "images.json");
+  const imagesPath = path.join(DATA_DIR, year, "generated", "images.json");
 
   if (!fs.existsSync(imagesPath)) {
     return [];
@@ -227,7 +226,7 @@ export function readYearlyImages(year: string): PopularPhoto[] {
  * These files are created by generate-data-files.ts and contain processed photo data
  */
 export function readGeneratedImages(year: string, month: string): PopularPhoto[] {
-  const imagesPath = path.join(DATA_DIR, year, month, "channels", "discord", "images.json");
+  const imagesPath = path.join(DATA_DIR, year, month, "generated", "images.json");
 
   if (!fs.existsSync(imagesPath)) {
     return [];
@@ -281,7 +280,7 @@ export function readDiscordMessages(
   year: string,
   month: string
 ): CachedMessage[] {
-  const discordDir = path.join(DATA_DIR, year, month, "channels", "discord");
+  const discordDir = path.join(DATA_DIR, year, month, "messages", "discord");
 
   if (!fs.existsSync(discordDir)) {
     return [];
@@ -731,14 +730,14 @@ function readFinancialTransactions(
   const stripeAccount = settings.finance.accounts.find(
     (a) => a.provider === "stripe"
   );
-  if (stripeAccount && stripeAccount.accountId) {
+  if (stripeAccount) {
     const stripePath = path.join(
       DATA_DIR,
       year,
       month,
       "finance",
       "stripe",
-      `${stripeAccount.accountId}.json`
+      "transactions.json"
     );
     if (fs.existsSync(stripePath)) {
       try {
@@ -1059,7 +1058,7 @@ function readUserTokenData(
   { address: string | null; tokensReceived: number; tokensSpent: number }
 > {
   const userTokenData = new Map();
-  const contributorsFile = path.join(DATA_DIR, year, month, "contributors.json");
+  const contributorsFile = path.join(DATA_DIR, year, month, "generated", "contributors.json");
 
   if (!fs.existsSync(contributorsFile)) {
     return userTokenData;
@@ -1146,6 +1145,7 @@ export function getYearlyReportData(year: string): YearlyReportData {
       DATA_DIR,
       year,
       month,
+      "generated",
       "contributors.json"
     );
     if (fs.existsSync(contributorsPath)) {
@@ -1196,6 +1196,7 @@ export function getYearlyReportData(year: string): YearlyReportData {
       DATA_DIR,
       year,
       month,
+      "generated",
       "contributors.json"
     );
     if (fs.existsSync(contributorsPath)) {

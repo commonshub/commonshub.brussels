@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { DATA_DIR } from "@/lib/data-paths";
 import SyncDashboard from "./sync-dashboard";
 
 export const metadata: Metadata = {
@@ -10,8 +11,6 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
-
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
 interface StatsResult {
   total: number;

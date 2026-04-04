@@ -8,7 +8,8 @@
   "scripts": {
     "build": "next build",
     "build:cli": "cd cli && make build-small",
-    "dev": "next dev",
+    "dev": "./sandbox.sh bun x next dev",
+    "dev:unsafe": "next dev",
     "fetch-recent": "node scripts/fetch-recent.js",
     "fetch-history": "node scripts/fetch-history.js",
     "fetch-transactions": "tsx scripts/warmup-transactions-cache.js",

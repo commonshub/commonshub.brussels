@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Database, Terminal } from "lucide-react";
+import { AlertCircle, Terminal } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -22,7 +22,7 @@ interface EmptyDataStateProps {
  */
 export function EmptyDataState({
   title = "No Data Available",
-  message = `The data directory ${process.env.DATA_DIR || "./data"} is empty. Data needs to be fetched before the website can display content.`,
+  message = "Data needs to be synced using the CHB CLI before the website can display content.",
   showInstructions = true,
 }: EmptyDataStateProps) {
   return (
@@ -45,43 +45,28 @@ export function EmptyDataState({
             <div className="space-y-4">
               <div className="flex gap-3">
                 <div className="mt-1">
-                  <Database className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">
-                    Quick Start (Recommended)
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Fetch recent data (current and previous month) to get
-                    started quickly:
-                  </p>
-                  <div className="bg-muted p-3 rounded-md">
-                    <code className="text-sm">
-                      docker exec commonshub npm run fetch-recent
-                    </code>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Duration: ~3-7 minutes
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="mt-1">
                   <Terminal className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-2">Full Historical Data</h3>
+                  <h3 className="font-semibold mb-2">
+                    Sync Data
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Fetch all available historical data:
+                    Use the CHB CLI to sync all data from external sources:
                   </p>
                   <div className="bg-muted p-3 rounded-md">
-                    <code className="text-sm">
-                      docker exec commonshub npm run fetch-history
-                    </code>
+                    <code className="text-sm">chb sync</code>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Duration: ~15-60 minutes on first run
+                    Install the CLI from{" "}
+                    <a
+                      href="https://github.com/commonshub/chb"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      github.com/commonshub/chb
+                    </a>
                   </p>
                 </div>
               </div>
@@ -89,7 +74,7 @@ export function EmptyDataState({
 
             <div className="pt-4 border-t">
               <h3 className="font-semibold mb-3">
-                What happens when you fetch data?
+                What happens when you sync data?
               </h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
@@ -102,7 +87,7 @@ export function EmptyDataState({
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-0.5">✓</span>
-                  <span>Retrieves calendar events from Luma and ICS feeds</span>
+                  <span>Retrieves calendar events from the different room calendars</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-0.5">✓</span>
@@ -119,12 +104,12 @@ export function EmptyDataState({
               <p className="text-sm text-muted-foreground">
                 Need help?{" "}
                 <a
-                  href="https://github.com/commonshub/commonshub.brussels/blob/main/docs/deployment.md"
+                  href="https://github.com/commonshub/chb"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  Read the deployment guide
+                  CHB CLI documentation
                 </a>
               </p>
             </div>
@@ -139,7 +124,7 @@ export function EmptyDataState({
  * Compact version for inline use
  */
 export function EmptyDataInline({
-  message = "No data available. Run fetch-recent to populate data.",
+  message = "No data available. Run `chb sync` to populate data.",
 }: {
   message?: string;
 }) {

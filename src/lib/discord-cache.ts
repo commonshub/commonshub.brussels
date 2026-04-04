@@ -4,6 +4,7 @@
  */
 
 import { toZonedTime } from "date-fns-tz"
+import { DATA_DIR } from "./data-paths"
 
 let fs: typeof import("fs") | null = null
 let path: typeof import("path") | null = null
@@ -14,8 +15,6 @@ try {
 } catch {
   console.log("[v2] Discord cache: file system not available, using memory-only mode")
 }
-
-const DATA_DIR = path ? (process.env.DATA_DIR || path.join(process.cwd(), "data")) : ""
 const TIMEZONE = process.env.TZ || "Europe/Brussels"
 
 const memoryCache = new Map<string, CachedMessage[]>()
@@ -70,11 +69,11 @@ function isFileSystemAvailable(): boolean {
 
 /**
  * Get cache file path for a specific channel and month
- * Format: data/{year}/{month}/channels/discord/{channelId}/messages.json
+ * Format: data/{year}/{month}/messages/discord/{channelId}/messages.json
  */
 function getChannelMonthCachePath(channelId: string, year: string, month: string): string {
   if (!path) return ""
-  return path.join(DATA_DIR, year, month, "channels", "discord", channelId, "messages.json")
+  return path.join(DATA_DIR, year, month, "messages", "discord", channelId, "messages.json")
 }
 
 /**
@@ -104,7 +103,7 @@ export function getCachedMonths(channelId: string): string[] {
         .map((dirent) => dirent.name)
 
       for (const month of monthDirs) {
-        const discordDir = path.join(yearPath, month, "channels", "discord")
+        const discordDir = path.join(yearPath, month, "messages", "discord")
         if (fs.existsSync(discordDir)) {
           const cacheFile = path.join(discordDir, channelId, "messages.json")
           if (fs.existsSync(cacheFile)) {
@@ -174,7 +173,7 @@ export function writeChannelMonthCache(channelId: string, monthKey: string, mess
     }
 
     fs.writeFileSync(filePath, JSON.stringify(cache, null, 2), "utf-8")
-    console.log(`[v2] Discord cache: wrote ${messages.length} messages to ${monthKey}/channels/discord/${channelId}/messages.json`)
+    console.log(`[v2] Discord cache: wrote ${messages.length} messages to ${monthKey}/messages/discord/${channelId}/messages.json`)
   } catch (error) {
     console.error(`Error writing cache for ${channelId}/${monthKey}:`, error)
   }
@@ -321,11 +320,11 @@ export function getLocalImagePath(attachmentId: string, url: string, timestamp: 
 
     // Construct local file path
     const filename = `${attachmentId}${ext}`
-    const localPath = path.join(DATA_DIR, year, month, "channels", "discord", "images", filename)
+    const localPath = path.join(DATA_DIR, year, month, "messages", "discord", "images", filename)
 
     // Check if file exists
     if (fs.existsSync(localPath)) {
-      return `/data/${year}/${month}/channels/discord/images/${filename}`
+      return `/data/${year}/${month}/messages/discord/images/${filename}`
     }
   } catch (error) {
     // Invalid URL or other error, return null
