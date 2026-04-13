@@ -309,7 +309,7 @@ func printDiscordSummary(dataDir, year, month string) {
 }
 
 func countDiscordMessages(dataDir, year, month string) (int, map[string]int) {
-	discordDir := filepath.Join(dataDir, year, month, "channels", "discord")
+	discordDir := filepath.Join(dataDir, year, month, "messages", "discord")
 	channelCounts := make(map[string]int)
 
 	if !fileExists(discordDir) {

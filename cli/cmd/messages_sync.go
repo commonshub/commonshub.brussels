@@ -137,9 +137,9 @@ func MessagesSync(args []string) error {
 			}
 			year, month := parts[0], parts[1]
 
-			// Save to data/YYYY/MM/channels/discord/{channelId}/messages.json
+			// Save to data/YYYY/MM/messages/discord/{channelId}/messages.json
 			dataDir := DataDir()
-			relPath := filepath.Join("channels", "discord", channelID, "messages.json")
+			relPath := filepath.Join("messages", "discord", channelID, "messages.json")
 
 			cache := MessagesCacheFile{
 				Messages:  monthMsgs,

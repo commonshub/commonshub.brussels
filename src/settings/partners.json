@@ -127,5 +127,19 @@
     "website": "https://purpose-economy.org/en/",
     "description": "Promoting purpose-driven ownership models where companies serve their mission, not shareholders.",
     "featured": true
+  },
+  {
+    "name": "Octopus Heart",
+    "type": "organisation",
+    "logo": "/images/partners/octopusheart.png",
+    "website": "https://octopus-heart.be",
+    "description": "Creative space in Brussels offering affordable exhibition, workshop, and studio space for artists and artisans."
+  },
+  {
+    "name": "Dare to Be!",
+    "type": "organisation",
+    "logo": "/images/partners/daretobe.png",
+    "website": "https://daretobe.be/bart",
+    "description": "Coaching and training practice guiding leaders and teams toward authentic collaboration and sustainable organizational change."
   }
 ]

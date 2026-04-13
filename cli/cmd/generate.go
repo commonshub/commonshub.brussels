@@ -307,7 +307,7 @@ func parseMessage(raw json.RawMessage) messageBasic {
 
 // readMessages reads all discord messages for a given year/month across all channels
 func readMessages(dataDir, year, month string) []json.RawMessage {
-	discordDir := filepath.Join(dataDir, year, month, "channels", "discord")
+	discordDir := filepath.Join(dataDir, year, month, "messages", "discord")
 	entries, err := os.ReadDir(discordDir)
 	if err != nil {
 		return nil
@@ -333,7 +333,7 @@ func readMessages(dataDir, year, month string) []json.RawMessage {
 
 // readChannelMessages reads messages from a specific channel
 func readChannelMessages(dataDir, year, month, channelID string) []json.RawMessage {
-	msgPath := filepath.Join(dataDir, year, month, "channels", "discord", channelID, "messages.json")
+	msgPath := filepath.Join(dataDir, year, month, "messages", "discord", channelID, "messages.json")
 	data, err := os.ReadFile(msgPath)
 	if err != nil {
 		return nil
@@ -573,7 +573,7 @@ func generateMonthImagesGo(dataDir, year, month string) int {
 	}
 
 	// Also scan per-channel to get channelID
-	discordDir := filepath.Join(dataDir, year, month, "channels", "discord")
+	discordDir := filepath.Join(dataDir, year, month, "messages", "discord")
 	entries, _ := os.ReadDir(discordDir)
 	for _, e := range entries {
 		if !e.IsDir() {
@@ -639,13 +639,13 @@ func generateMonthImagesGo(dataDir, year, month string) int {
 
 	out := ImagesFile{Year: year, Month: month, Count: len(images), Images: images}
 	imgData, _ := json.MarshalIndent(out, "", "  ")
-	writeMonthFile(dataDir, year, month, filepath.Join("channels", "discord", "images.json"), imgData)
+	writeMonthFile(dataDir, year, month, filepath.Join("messages", "discord", "images.json"), imgData)
 
 	return len(images)
 }
 
 func generateLatestImagesGo(dataDir string) int {
-	latestDiscord := filepath.Join(dataDir, "latest", "channels", "discord")
+	latestDiscord := filepath.Join(dataDir, "latest", "messages", "discord")
 	entries, err := os.ReadDir(latestDiscord)
 	if err != nil {
 		return 0
@@ -704,7 +704,7 @@ func generateLatestImagesGo(dataDir string) int {
 		return allImages[i].Timestamp > allImages[j].Timestamp
 	})
 
-	outputPath := filepath.Join(dataDir, "latest", "channels", "discord", "images.json")
+	outputPath := filepath.Join(dataDir, "latest", "messages", "discord", "images.json")
 	os.MkdirAll(filepath.Dir(outputPath), 0755)
 	out := ImagesFile{Source: "latest", Count: len(allImages), Images: allImages}
 	writeJSONFile(outputPath, out)
@@ -780,7 +780,7 @@ func generateYearActivityGridGo(dataDir, year string, grid ActivityGridData) {
 // ── Monthly contributors ────────────────────────────────────────────────────
 
 func generateMonthContributorsGo(dataDir, year, month string, settings *Settings) int {
-	discordDir := filepath.Join(dataDir, year, month, "channels", "discord")
+	discordDir := filepath.Join(dataDir, year, month, "messages", "discord")
 	if _, err := os.Stat(discordDir); os.IsNotExist(err) {
 		return 0
 	}
@@ -1238,7 +1238,7 @@ func generateUserProfilesGo(dataDir string, settings *Settings) {
 				}
 
 				// Images
-				imagesPath := filepath.Join(dataDir, year, month, "channels", "discord", "images.json")
+				imagesPath := filepath.Join(dataDir, year, month, "messages", "discord", "images.json")
 				if data, err := os.ReadFile(imagesPath); err == nil {
 					var imf ImagesFile
 					if json.Unmarshal(data, &imf) == nil {

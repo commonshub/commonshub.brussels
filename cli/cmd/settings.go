@@ -61,6 +61,7 @@ type RoomInfo struct {
 	TokensPerHour    float64  `json:"tokensPerHour"`
 	Features         []string `json:"features"`
 	IdealFor         []string `json:"idealFor"`
+	DiscordChannelID string   `json:"discordChannelId,omitempty"`
 	GoogleCalendarID *string  `json:"googleCalendarId"`
 	MembershipReq    bool     `json:"membershipRequired,omitempty"`
 }
@@ -95,7 +96,8 @@ func LoadRooms() ([]RoomInfo, error) {
 }
 
 // GetDiscordChannelIDs extracts all channel IDs from the Discord channels config
-// It handles the nested structure where some entries are strings and some are objects
+// and room channels from rooms.json.
+// It handles the nested structure where some entries are strings and some are objects.
 func GetDiscordChannelIDs(s *Settings) map[string]string {
 	result := make(map[string]string)
 
@@ -116,6 +118,16 @@ func GetDiscordChannelIDs(s *Settings) map[string]string {
 		if err := json.Unmarshal(raw, &nested); err == nil {
 			for subName, id := range nested {
 				result[name+"/"+subName] = id
+			}
+		}
+	}
+
+	// Add room channels from rooms.json
+	rooms, err := LoadRooms()
+	if err == nil {
+		for _, room := range rooms {
+			if room.DiscordChannelID != "" {
+				result["rooms/"+room.Slug] = room.DiscordChannelID
 			}
 		}
 	}

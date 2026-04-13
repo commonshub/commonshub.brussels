@@ -10,6 +10,17 @@ import {
   CACHE_DURATION,
 } from "@/lib/image-proxy-server";
 
+function getCacheControl(request: NextRequest, localFile: boolean): string {
+  const isLocalDev =
+    process.env.NODE_ENV !== "production" ||
+    request.nextUrl.hostname === "localhost" ||
+    request.nextUrl.hostname === "127.0.0.1";
+
+  if (isLocalDev) return "no-store, max-age=0";
+  const maxAge = localFile ? CACHE_DURATION * 7 : CACHE_DURATION;
+  return `public, max-age=${maxAge}, s-maxage=${maxAge}`;
+}
+
 /**
  * Image Proxy API - Handles both local data paths and external image URLs
  *
@@ -45,17 +56,20 @@ export async function GET(request: NextRequest) {
 
   // Check if this is a local data path
   if (url.startsWith("/data/")) {
-    return handleLocalDataPath(url, sizeParam);
+    return handleLocalDataPath(request, url, sizeParam);
   }
 
   // Otherwise, handle as external URL
-  return fetchAndProcessExternalImage(url, sizeParam);
+  const response = await fetchAndProcessExternalImage(url, sizeParam);
+  response.headers.set("Cache-Control", getCacheControl(request, false));
+  return response;
 }
 
 /**
  * Handle local data directory paths
  */
 async function handleLocalDataPath(
+  request: NextRequest,
   localPath: string,
   sizeParam: ImageSize | null
 ): Promise<NextResponse> {
@@ -105,7 +119,7 @@ async function handleLocalDataPath(
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": `public, max-age=${CACHE_DURATION * 7}, s-maxage=${CACHE_DURATION * 7}`, // 7 days for local files
+        "Cache-Control": getCacheControl(request, true),
         "Access-Control-Allow-Origin": "*",
       },
     });

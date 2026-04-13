@@ -35,9 +35,23 @@ export function DiscordContributors({ filterUserIds, selectedMonth }: DiscordCon
   useEffect(() => {
     async function fetchContributors() {
       try {
-        const response = await fetch("/data/contributors.json")
+        const response = await fetch("/data/latest/generated/contributors.json")
         const result = await response.json()
-        setData(result)
+        // Map generated data shape to component's expected shape
+        const contributors = (result.contributors || []).map((c: any) => ({
+          id: c.id,
+          username: c.profile?.username || "",
+          displayName: c.profile?.name || c.profile?.username || "",
+          avatar: c.profile?.avatar_url || null,
+          contributionCount: (c.discord?.messages || 0) + (c.tokens?.in || 0),
+          joinedAt: null,
+        }))
+        setData({
+          contributors,
+          totalMembers: result.summary?.totalContributors || contributors.length,
+          activeCommoners: contributors.length,
+          isMockData: false,
+        })
       } catch (error) {
         console.error("Failed to fetch contributors:", error)
       } finally {
@@ -142,7 +156,7 @@ export function DiscordStats() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("/data/contributors.json")
+        const response = await fetch("/data/latest/generated/contributors.json")
         const result = await response.json()
         setData(result)
       } catch (error) {
@@ -171,11 +185,11 @@ export function useDiscordStats() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("/data/contributors.json")
+        const response = await fetch("/data/latest/generated/contributors.json")
         const result = await response.json()
         setStats({
-          totalMembers: result.totalMembers || 0,
-          activeCommoners: result.activeCommoners || 0,
+          totalMembers: result.summary?.totalContributors || 0,
+          activeCommoners: (result.contributors || []).length,
         })
       } catch (error) {
         console.error("Failed to fetch Discord stats:", error)

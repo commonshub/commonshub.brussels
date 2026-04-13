@@ -30,46 +30,19 @@ interface ContributorsData {
 }
 
 /**
- * Display recent contributors from the current and previous month
+ * Display recent contributors from the latest generated data
  */
 export function RecentContributors() {
-  const [currentMonthData, setCurrentMonthData] = useState<ContributorsData | null>(null)
-  const [previousMonthData, setPreviousMonthData] = useState<ContributorsData | null>(null)
+  const [contributorsData, setContributorsData] = useState<ContributorsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchRecentContributors() {
       try {
-        const now = new Date()
-        const currentYear = now.getFullYear()
-        const currentMonth = String(now.getMonth() + 1).padStart(2, "0")
-
-        // Calculate previous month
-        const prevDate = new Date(now)
-        prevDate.setMonth(prevDate.getMonth() - 1)
-        const previousYear = prevDate.getFullYear()
-        const previousMonth = String(prevDate.getMonth() + 1).padStart(2, "0")
-
-        // Fetch current month
-        try {
-          const currentResponse = await fetch(`/data/${currentYear}/${currentMonth}/contributors.json`)
-          if (currentResponse.ok) {
-            const currentData = await currentResponse.json()
-            setCurrentMonthData(currentData)
-          }
-        } catch (error) {
-          console.warn(`Could not load contributors for ${currentYear}/${currentMonth}:`, error)
-        }
-
-        // Fetch previous month
-        try {
-          const previousResponse = await fetch(`/data/${previousYear}/${previousMonth}/contributors.json`)
-          if (previousResponse.ok) {
-            const previousData = await previousResponse.json()
-            setPreviousMonthData(previousData)
-          }
-        } catch (error) {
-          console.warn(`Could not load contributors for ${previousYear}/${previousMonth}:`, error)
+        const response = await fetch("/data/latest/generated/contributors.json")
+        if (response.ok) {
+          const data = await response.json()
+          setContributorsData(data)
         }
       } catch (error) {
         console.error("Failed to fetch recent contributors:", error)
@@ -81,32 +54,15 @@ export function RecentContributors() {
     fetchRecentContributors()
   }, [])
 
-  // Merge and deduplicate contributors from both months
   const { displayedContributors, stats } = useMemo(() => {
-    const contributorsMap = new Map<string, Contributor>()
-
-    // Add previous month contributors first
-    if (previousMonthData?.contributors) {
-      for (const contributor of previousMonthData.contributors) {
-        contributorsMap.set(contributor.id, contributor)
-      }
-    }
-
-    // Add/overwrite with current month contributors (to get latest data)
-    if (currentMonthData?.contributors) {
-      for (const contributor of currentMonthData.contributors) {
-        contributorsMap.set(contributor.id, contributor)
-      }
-    }
-
-    const allContributors = Array.from(contributorsMap.values())
+    const allContributors = contributorsData?.contributors || []
 
     // Filter: only show those with avatars and activity
     const visibleContributors = allContributors
       .filter(
         (contributor) =>
           contributor.profile.avatar_url && // Must have avatar
-          (contributor.tokens.in > 0 || contributor.discord.messages > 0) // Must have some activity
+          contributor.tokens.in > 0 // Must have received tokens
       )
       .sort((a, b) => b.tokens.in - a.tokens.in) // Sort by tokens received
 
@@ -122,7 +78,7 @@ export function RecentContributors() {
         totalTokens: totalTokensReceived,
       },
     }
-  }, [currentMonthData, previousMonthData])
+  }, [contributorsData])
 
   if (loading) {
     return (

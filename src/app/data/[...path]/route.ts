@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
-
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+import { DATA_DIR } from "@/lib/data-paths";
 
 export async function GET(
   request: NextRequest,
@@ -69,13 +68,20 @@ export async function GET(
       ".js": "application/javascript",
     };
     const contentType = contentTypeMap[ext] || "application/octet-stream";
+    const isLocalDev =
+      process.env.NODE_ENV !== "production" ||
+      request.nextUrl.hostname === "localhost" ||
+      request.nextUrl.hostname === "127.0.0.1";
+    const cacheControl = isLocalDev
+      ? "no-store, max-age=0"
+      : "public, max-age=3600";
 
     // Return the file with appropriate headers
     return new NextResponse(fileContent, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600", // Cache for 1 hour
+        "Cache-Control": cacheControl,
       },
     });
   } catch (error) {

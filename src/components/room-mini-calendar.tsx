@@ -23,6 +23,8 @@ interface CalendarData {
   };
 }
 
+type DayStatus = "free" | "single" | "partial" | "busy";
+
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -113,11 +115,11 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
     return days;
   }, [currentDate]);
 
-  // Calculate busyness for each day (for single room)
-  const dayBusyness = useMemo(() => {
-    if (!data) return new Map<string, number>();
+  // Calculate booking density, events, and day status for each day
+  const dayMetrics = useMemo(() => {
+    if (!data) return new Map<string, { busyness: number; eventCount: number; status: DayStatus; events: RoomEvent[] }>();
     
-    const busyness = new Map<string, number>();
+    const metrics = new Map<string, { busyness: number; eventCount: number; status: DayStatus; events: RoomEvent[] }>();
     const availableHoursPerDay = 14; // 8am-10pm
     
     for (const day of calendarDays) {
@@ -130,23 +132,44 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
       dayEnd.setHours(23, 59, 59, 999);
       
       let totalBookedHours = 0;
+      let eventCount = 0;
+      const dayEvents: RoomEvent[] = [];
       
       for (const event of data.events) {
         const eventStart = new Date(event.start);
         const eventEnd = new Date(event.end);
         
         if (eventStart <= dayEnd && eventEnd >= dayStart) {
+          eventCount++;
+          dayEvents.push(event);
           const overlapStart = eventStart < dayStart ? dayStart : eventStart;
           const overlapEnd = eventEnd > dayEnd ? dayEnd : eventEnd;
           const hours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
           totalBookedHours += hours;
         }
       }
-      
-      busyness.set(dayKey, Math.min(1, totalBookedHours / availableHoursPerDay));
+
+      const busyness = Math.min(1, totalBookedHours / availableHoursPerDay);
+      let status: DayStatus = "free";
+
+      if (eventCount === 0) {
+        status = "free";
+      } else if (busyness >= 0.65) {
+        status = "busy";
+      } else if (eventCount === 1) {
+        status = "single";
+      } else {
+        status = "partial";
+      }
+
+      dayEvents.sort(
+        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+      );
+
+      metrics.set(dayKey, { busyness, eventCount, status, events: dayEvents });
     }
     
-    return busyness;
+    return metrics;
   }, [data, calendarDays]);
 
   // Get events for selected date
@@ -206,15 +229,26 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
     }
   };
 
-  const getBusynessClass = (busyness: number) => {
-    if (busyness < 0.3) return "bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50";
-    if (busyness < 0.6) return "bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50";
-    return "bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50";
+  const getDayStatusClass = (status: DayStatus) => {
+    if (status === "free") {
+      return "bg-emerald-300 text-emerald-950 hover:bg-emerald-400 dark:bg-emerald-800/70 dark:text-emerald-50 dark:hover:bg-emerald-700/80";
+    }
+    if (status === "busy") {
+      return "bg-rose-50 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/15 dark:text-rose-100 dark:hover:bg-rose-900/25";
+    }
+    return "bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/15 dark:text-amber-100 dark:hover:bg-amber-900/25";
   };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleTimeString('en-BE', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDayHoverText = (events: RoomEvent[]) => {
+    if (events.length === 0) return "Available all day";
+    return events
+      .map((event) => `Booked between ${formatTime(event.start)} and ${formatTime(event.end)}`)
+      .join("\n");
   };
 
   const isToday = (date: Date) => {
@@ -236,7 +270,7 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
     <div className="space-y-3">
       {/* Month Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => navigateMonth(-1)} className="cursor-pointer h-8 w-8">
+        <Button variant="ghost" size="icon" type="button" onClick={() => navigateMonth(-1)} className="cursor-pointer h-8 w-8">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         
@@ -244,12 +278,12 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
           <span className="text-sm font-medium">
             {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <Button variant="ghost" size="sm" onClick={goToToday} className="text-xs h-6 px-2 cursor-pointer">
+          <Button variant="ghost" size="sm" type="button" onClick={goToToday} className="text-xs h-6 px-2 cursor-pointer">
             Today
           </Button>
         </div>
         
-        <Button variant="ghost" size="icon" onClick={() => navigateMonth(1)} className="cursor-pointer h-8 w-8">
+        <Button variant="ghost" size="icon" type="button" onClick={() => navigateMonth(1)} className="cursor-pointer h-8 w-8">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -257,16 +291,16 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
       {/* Legend */}
       <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded bg-green-100 dark:bg-green-900/30" />
+          <div className="w-2.5 h-2.5 rounded bg-emerald-300 dark:bg-emerald-800/70" />
           <span className="text-muted-foreground">Free</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded bg-orange-100 dark:bg-orange-900/30" />
-          <span className="text-muted-foreground">Partial</span>
+          <div className="w-2.5 h-2.5 rounded bg-amber-50 dark:bg-amber-950/15" />
+          <span className="text-muted-foreground">One or some bookings</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded bg-red-100 dark:bg-red-900/30" />
-          <span className="text-muted-foreground">Busy</span>
+          <div className="w-2.5 h-2.5 rounded bg-rose-50 dark:bg-rose-950/15" />
+          <span className="text-muted-foreground">Mostly booked</span>
         </div>
       </div>
 
@@ -302,21 +336,24 @@ export function RoomMiniCalendar({ roomId, onDateSelect }: RoomMiniCalendarProps
                 }
                 
                 const dayKey = formatLocalDate(day);
-                // Only apply busyness colors when data is loaded
-                const busyness = data ? (dayBusyness.get(dayKey) || 0) : 0;
-                const hasEvents = data ? busyness > 0 : false;
+                const metrics = data
+                  ? dayMetrics.get(dayKey) || { busyness: 0, eventCount: 0, status: "free" as DayStatus, events: [] }
+                  : { busyness: 0, eventCount: 0, status: "free" as DayStatus, events: [] };
                 const past = isPast(day);
                 
                 return (
                   <button
                     key={dayKey}
+                    type="button"
                     onClick={() => !past && handleDateSelect(day)}
                     disabled={past}
+                    title={getDayHoverText(metrics.events)}
                     className={cn(
                       "aspect-square rounded flex items-center justify-center text-xs font-medium transition-colors relative",
                       past && "text-muted-foreground/50 cursor-not-allowed",
-                      !past && data && hasEvents && getBusynessClass(busyness),
-                      !past && (!data || !hasEvents) && "hover:bg-muted cursor-pointer",
+                      !past && data && getDayStatusClass(metrics.status),
+                      !past && !data && "hover:bg-muted cursor-pointer",
+                      !past && "cursor-pointer",
                       isSelected(day) && "ring-2 ring-primary ring-offset-1",
                       isToday(day) && "font-bold"
                     )}

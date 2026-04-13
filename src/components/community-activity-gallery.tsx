@@ -1,17 +1,21 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { ImageLightbox, ImageLightboxHandle } from "./image-lightbox";
-import { getProxiedImageUrl } from "@/lib/image-proxy";
+import { getProxiedDiscordImage, getProxiedImageUrl } from "@/lib/image-proxy";
 import settings from "@/settings/settings.json";
 
 interface ActivityImage {
   id: string;
   imageUrl: string;
   thumbnailUrl: string;
+  filePath?: string;
+  sourceUrl: string;
+  channelId: string;
+  messageId: string;
   author: {
     displayName: string;
     avatar: string | null;
@@ -29,6 +33,15 @@ interface CommunityActivityGalleryProps {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+function normalizeDataFilePath(filePath?: string): string | null {
+  if (!filePath) return null;
+  const trimmed = filePath.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("/data/")) return trimmed;
+  if (trimmed.startsWith("data/")) return `/${trimmed}`;
+  return `/data/${trimmed.replace(/^\/+/, "")}`;
+}
+
 export function CommunityActivityGallery({
   channelId,
   title,
@@ -37,11 +50,16 @@ export function CommunityActivityGallery({
 }: CommunityActivityGalleryProps) {
   const lightboxRef = useRef<ImageLightboxHandle>(null);
   const searchParams = useSearchParams();
+  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  const [externalFallbackIds, setExternalFallbackIds] = useState<Set<string>>(new Set());
+  const [discordFallbackIds, setDiscordFallbackIds] = useState<Set<string>>(new Set());
 
   // Fetch from static JSON file
   const { data } = useSWR<{
     images: Array<{
-      filePath: string;
+      url: string;
+      proxyUrl?: string;
+      filePath?: string;
       id: string;
       author: {
         id: string;
@@ -54,36 +72,157 @@ export function CommunityActivityGallery({
       messageId: string;
       channelId: string;
     }>;
-  }>(`/data/latest/messages/discord/${channelId}/images.json`, fetcher);
+  }>(`/data/latest/generated/images.json`, fetcher);
 
-  console.log(
-    ">>> Loading image: ",
-    `/data/latest/messages/discord/${channelId}/images.json`,
-    data?.images?.[0]?.filePath
+  // Filter images by channelId
+  const channelImages = (data?.images || []).filter(
+    (img) => img.channelId === channelId
   );
-  // Map images to ActivityImage format
-  const allImages: ActivityImage[] = (data?.images || []).map((image) => ({
-    id: image.id,
-    // Use regular image proxy with local data path for better performance
-    // Use relative URLs for client-side rendering to work on any port
-    imageUrl: getProxiedImageUrl(image.filePath, "lg", { relative: true }),
-    thumbnailUrl: getProxiedImageUrl(image.filePath, "sm", { relative: true }),
-    author: {
-      displayName: image.author.displayName || image.author.username,
-      avatar: image.author.avatar
-        ? `https://cdn.discordapp.com/avatars/${image.author.id}/${image.author.avatar}.png`
-        : null,
-    },
-    caption: image.message,
-    timestamp: image.timestamp,
-  }));
 
-  const images = allImages.slice(0, maxImages);
+  useEffect(() => {
+    setFailedImageIds(new Set());
+    setExternalFallbackIds(new Set());
+    setDiscordFallbackIds(new Set());
+  }, [channelId, data]);
+
+  useEffect(() => {
+    if (!data) return;
+
+    if (channelImages.length === 0) {
+      console.warn("[CommunityActivityGallery] No images found for channel", {
+        channelId,
+        totalImages: data.images?.length || 0,
+      });
+      return;
+    }
+
+    const missingFilePath = channelImages.filter((img) => !img.filePath).length;
+    if (missingFilePath > 0) {
+      console.warn("[CommunityActivityGallery] Images missing filePath", {
+        channelId,
+        missingFilePath,
+        totalChannelImages: channelImages.length,
+      });
+    }
+  }, [channelId, channelImages, data]);
+
+  // Map images to ActivityImage format
+  const allImages: ActivityImage[] = channelImages.map((image) => {
+    const localPath = normalizeDataFilePath(image.filePath);
+    const useExternalFallback = externalFallbackIds.has(image.id);
+    const useDiscordFallback = discordFallbackIds.has(image.id);
+
+    const primarySource = useDiscordFallback
+      ? getProxiedDiscordImage(
+          image.channelId,
+          image.messageId,
+          image.id,
+          image.timestamp,
+          "lg",
+          { relative: true }
+        )
+      : useExternalFallback
+      ? getProxiedImageUrl(image.url, "lg", { relative: true })
+      : getProxiedImageUrl(localPath || image.url, "lg", {
+          relative: true,
+        });
+
+    const thumbnailSource = useDiscordFallback
+      ? getProxiedDiscordImage(
+          image.channelId,
+          image.messageId,
+          image.id,
+          image.timestamp,
+          "sm",
+          { relative: true }
+        )
+      : useExternalFallback
+      ? getProxiedImageUrl(image.url, "sm", { relative: true })
+      : getProxiedImageUrl(localPath || image.url, "sm", {
+          relative: true,
+        });
+
+    return {
+      id: image.id,
+      imageUrl: primarySource,
+      thumbnailUrl: thumbnailSource,
+      filePath: image.filePath,
+      sourceUrl: image.url,
+      channelId: image.channelId,
+      messageId: image.messageId,
+      author: {
+        displayName: image.author.displayName || image.author.username,
+        avatar: image.author.avatar
+          ? `https://cdn.discordapp.com/avatars/${image.author.id}/${image.author.avatar}.png`
+          : null,
+      },
+      caption: image.message,
+      timestamp: image.timestamp,
+    };
+  });
+  const images = useMemo(
+    () =>
+      allImages
+        .filter((image) => !failedImageIds.has(image.id))
+        .slice(0, maxImages),
+    [allImages, failedImageIds, maxImages]
+  );
   const hasImages = images.length > 0;
 
   const openLightbox = useCallback((index: number) => {
     lightboxRef.current?.openLightbox(index);
   }, []);
+
+  const handleImageError = useCallback(
+    (image: ActivityImage) => {
+      if (!externalFallbackIds.has(image.id)) {
+        console.warn("[CommunityActivityGallery] Local image failed, retrying via stored URL", {
+          channelId,
+          imageId: image.id,
+          filePath: image.filePath,
+          messageId: image.messageId,
+        });
+        setExternalFallbackIds((prev) => {
+          if (prev.has(image.id)) return prev;
+          const next = new Set(prev);
+          next.add(image.id);
+          return next;
+        });
+        return;
+      }
+
+      if (!discordFallbackIds.has(image.id)) {
+        console.warn("[CommunityActivityGallery] Stored URL failed, retrying via Discord proxy", {
+          channelId,
+          imageId: image.id,
+          filePath: image.filePath,
+          messageId: image.messageId,
+        });
+        setDiscordFallbackIds((prev) => {
+          if (prev.has(image.id)) return prev;
+          const next = new Set(prev);
+          next.add(image.id);
+          return next;
+        });
+        return;
+      }
+
+      console.warn("[CommunityActivityGallery] All image fallbacks failed", {
+        channelId,
+        imageId: image.id,
+        filePath: image.filePath,
+        messageId: image.messageId,
+        sourceUrl: image.sourceUrl,
+      });
+      setFailedImageIds((prev) => {
+        if (prev.has(image.id)) return prev;
+        const next = new Set(prev);
+        next.add(image.id);
+        return next;
+      });
+    },
+    [channelId, discordFallbackIds, externalFallbackIds]
+  );
 
   // Check if URL has an image parameter and open that image
   // Use a ref to track if we've already opened this image to prevent loops
@@ -111,7 +250,7 @@ export function CommunityActivityGallery({
 
   // Convert to ImageLightbox format - need to find the original data to get IDs
   const lightboxImages = images.map((image) => {
-    const originalImage = data?.images.find((img) => img.id === image.id);
+    const originalImage = channelImages.find((img) => img.id === image.id);
     return {
       url: image.imageUrl,
       thumbnailUrl: image.thumbnailUrl || image.imageUrl,
@@ -123,8 +262,8 @@ export function CommunityActivityGallery({
       },
       timestamp: image.timestamp,
       attachmentId: image.id,
-      messageId: originalImage?.messageId || "",
-      channelId: channelId,
+      messageId: image.messageId || originalImage?.messageId || "",
+      channelId: image.channelId || channelId,
     };
   });
 
@@ -155,6 +294,7 @@ export function CommunityActivityGallery({
                   ? "192px"
                   : "(max-width: 768px) 50vw, 33vw"
               }
+              onError={() => handleImageError(image)}
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
           </button>

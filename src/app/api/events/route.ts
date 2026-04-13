@@ -33,98 +33,96 @@ interface HomepageEvent {
 }
 
 /**
- * Load upcoming events from pre-generated data files.
- * These are populated by the fetch-recent / fetch-calendars pipeline (runs hourly).
+ * Load upcoming events from the pre-generated latest events file.
+ * This is populated by the chb CLI pipeline (runs hourly).
  */
 function loadUpcomingEvents(): HomepageEvent[] {
   const now = new Date();
-  const events: HomepageEvent[] = [];
+  const eventsPath = path.join(DATA_DIR, "latest", "generated", "events.json");
 
-  if (!fs.existsSync(DATA_DIR)) {
-    console.log("[events] DATA_DIR not found:", DATA_DIR);
+  if (!fs.existsSync(eventsPath)) {
+    console.log("[events] Events file not found:", eventsPath);
     return [];
   }
 
-  // Scan current month + next 2 months
-  for (let i = 0; i <= 2; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const year = String(d.getFullYear());
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const eventsPath = path.join(DATA_DIR, year, month, "events.json");
+  try {
+    const content = fs.readFileSync(eventsPath, "utf-8");
+    const data = JSON.parse(content);
+    const allEvents = data.events || [];
+    const events: HomepageEvent[] = [];
 
-    if (!fs.existsSync(eventsPath)) {
-      continue;
-    }
+    for (const event of allEvents) {
+      const startAt = event.startAt || event.start_at || "";
 
-    try {
-      const content = fs.readFileSync(eventsPath, "utf-8");
-      const data = JSON.parse(content);
-      const monthEvents = data.events || [];
+      // Only include future events
+      if (startAt && new Date(startAt) < now) continue;
 
-      for (const event of monthEvents) {
-        const startAt = event.startAt || event.start_at || "";
+      // Determine if external (non-Luma source without a lu.ma URL)
+      const eventUrl = event.url || "";
+      const isLuma = eventUrl.includes("lu.ma") || eventUrl.includes("luma.com");
+      const isExternal = !isLuma && !!eventUrl;
 
-        // Only include future events
-        if (startAt && new Date(startAt) < now) continue;
-
-        // Determine if external (non-Luma source without a lu.ma URL)
-        const eventUrl = event.url || "";
-        const isLuma = eventUrl.includes("lu.ma") || eventUrl.includes("luma.com");
-        const isExternal = !isLuma && !!eventUrl;
-
-        // Detect external platform
-        let externalPlatform = "";
-        if (isExternal) {
-          if (eventUrl.includes("eventbrite")) externalPlatform = "Eventbrite";
-          else if (eventUrl.includes("meetup")) externalPlatform = "Meetup";
-          else if (eventUrl.includes("facebook")) externalPlatform = "Facebook";
-          else externalPlatform = "Event Page";
-        }
-
-        // Normalize location — hide "Commons Hub" since it's implied
-        let location = event.location || "";
-        if (location.toLowerCase().includes("commons hub")) {
-          location = "";
-        }
-
-        // Get tags from event or from nested lumaData
-        const tags: EventTag[] = event.tags || (event.lumaData?.tags
-          ? (event.lumaData.tags as any[]).map((t: any) =>
-              typeof t === "string" ? { name: t, color: "#6b7280" } : { name: t.name, color: t.color || "#6b7280" }
-            )
-          : []);
-
-        const isFeatured = tags.some(
-          (t) => t.name.toLowerCase() === "featured"
-        );
-
-        events.push({
-          id: event.id || "",
-          name: event.name || "",
-          description: event.description || "",
-          start_at: startAt,
-          end_at: event.endAt || event.end_at || "",
-          cover_url: event.coverImage || event.cover_url || "",
-          url: eventUrl,
-          location,
-          isExternal,
-          externalPlatform: isExternal ? externalPlatform : undefined,
-          externalUrl: isExternal ? eventUrl : undefined,
-          tags,
-          isFeatured,
-        });
+      // Detect external platform
+      let externalPlatform = "";
+      if (isExternal) {
+        if (eventUrl.includes("eventbrite")) externalPlatform = "Eventbrite";
+        else if (eventUrl.includes("meetup")) externalPlatform = "Meetup";
+        else if (eventUrl.includes("facebook")) externalPlatform = "Facebook";
+        else externalPlatform = "Event Page";
       }
-    } catch (error) {
-      console.error(`[events] Error reading ${eventsPath}:`, error);
+
+      // Normalize location — hide "Commons Hub" since it's implied
+      let location = event.location || "";
+      if (location.toLowerCase().includes("commons hub")) {
+        location = "";
+      }
+
+      // Get tags from event or from nested lumaData
+      const tags: EventTag[] = event.tags || (event.lumaData?.tags
+        ? (event.lumaData.tags as any[]).map((t: any) =>
+            typeof t === "string" ? { name: t, color: "#6b7280" } : { name: t.name, color: t.color || "#6b7280" }
+          )
+        : []);
+
+      const isFeatured = tags.some(
+        (t) => t.name.toLowerCase() === "featured"
+      );
+
+      // Prefer local cover image path (served via image proxy with caching/resizing)
+      let coverUrl = "";
+      if (event.coverImageLocal) {
+        coverUrl = `/data/${event.coverImageLocal}`;
+      } else {
+        coverUrl = event.coverImage || event.cover_url || "";
+      }
+
+      events.push({
+        id: event.id || "",
+        name: event.name || "",
+        description: event.description || "",
+        start_at: startAt,
+        end_at: event.endAt || event.end_at || "",
+        cover_url: coverUrl,
+        url: eventUrl,
+        location,
+        isExternal,
+        externalPlatform: isExternal ? externalPlatform : undefined,
+        externalUrl: isExternal ? eventUrl : undefined,
+        tags,
+        isFeatured,
+      });
     }
+
+    // Sort by date
+    events.sort(
+      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+    );
+
+    return events;
+  } catch (error) {
+    console.error(`[events] Error reading ${eventsPath}:`, error);
+    return [];
   }
-
-  // Sort by date
-  events.sort(
-    (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-  );
-
-  return events;
 }
 
 export async function GET() {
