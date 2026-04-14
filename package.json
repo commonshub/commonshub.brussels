@@ -2,6 +2,7 @@
   "name": "commonshub.brussels website",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "bun@1.3.11",
   "scripts": {
     "build": "next build",
     "dev": "./sandbox.sh bun x next dev",
@@ -87,7 +88,7 @@
     "input-otp": "latest",
     "jsdom": "latest",
     "lucide-react": "^0.454.0",
-    "next": "16.0.10",
+    "next": "^16.2.3",
     "next-auth": "^5.0.0-beta.30",
     "next-themes": "latest",
     "node-ical": "^0.22.1",
