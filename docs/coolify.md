@@ -67,6 +67,8 @@ DISCORD_CLIENT_SECRET=your-discord-client-secret
 WEBHOOK_SECRET=your-webhook-secret
 ```
 
+Leave `ENABLE_DNS_SANDBOX` unset on Coolify. The container startup now skips the custom `/etc/hosts` DNS sandbox unless you explicitly set `ENABLE_DNS_SANDBOX=1`.
+
 Generate a secure NEXTAUTH_SECRET:
 ```bash
 openssl rand -base64 32

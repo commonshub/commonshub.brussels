@@ -19,53 +19,59 @@ if [ -d "/data" ]; then
 fi
 
 # ============================================================
-# DNS-level domain whitelisting (supply-chain attack mitigation)
+# Optional DNS-level domain whitelisting
 #
-# Restricts the node process to only resolve whitelisted domains.
-# Uses the shared sandbox-domains.conf file.
+# This is useful in tightly controlled environments, but many container
+# platforms manage /etc/hosts and related files themselves. Keep it opt-in
+# so the app starts reliably on hosts like Coolify.
 # ============================================================
+ENABLE_DNS_SANDBOX="${ENABLE_DNS_SANDBOX:-0}"
 DOMAINS_FILE="/app/sandbox-domains.conf"
-if [ -f "$DOMAINS_FILE" ]; then
-    echo "[sandbox] Setting up DNS domain whitelist..."
+if [ "$ENABLE_DNS_SANDBOX" = "1" ]; then
+    if [ -f "$DOMAINS_FILE" ]; then
+        echo "[sandbox] Setting up DNS domain whitelist..."
 
-    # Build /etc/hosts with pre-resolved whitelisted domains
-    cat > /tmp/sandbox-hosts <<EOF
+        # Build /etc/hosts with pre-resolved whitelisted domains
+        cat > /tmp/sandbox-hosts <<EOF
 127.0.0.1 localhost
 ::1       localhost
 EOF
 
-    while IFS= read -r line; do
-        # Strip comments and whitespace
-        line=$(echo "$line" | sed 's/#.*//' | tr -d ' ')
-        [ -z "$line" ] && continue
-        [ "$line" = "localhost" ] && continue
+        while IFS= read -r line; do
+            # Strip comments and whitespace
+            line=$(echo "$line" | sed 's/#.*//' | tr -d ' ')
+            [ -z "$line" ] && continue
+            [ "$line" = "localhost" ] && continue
 
-        # Resolve domain to IP (Alpine uses musl's getent)
-        ip=$(getent ahostsv4 "$line" 2>/dev/null | awk 'NR==1{print $1}' || true)
-        if [ -n "$ip" ]; then
-            echo "$ip $line" >> /tmp/sandbox-hosts
-            echo "  $line -> $ip"
-        else
-            echo "  [warn] Could not resolve: $line"
-        fi
-    done < "$DOMAINS_FILE"
+            # Resolve domain to IP (Alpine uses musl's getent)
+            ip=$(getent ahostsv4 "$line" 2>/dev/null | awk 'NR==1{print $1}' || true)
+            if [ -n "$ip" ]; then
+                echo "$ip $line" >> /tmp/sandbox-hosts
+                echo "  $line -> $ip"
+            else
+                echo "  [warn] Could not resolve: $line"
+            fi
+        done < "$DOMAINS_FILE"
 
-    # Replace /etc files (we're still root at this point)
-    cp /tmp/sandbox-hosts /etc/hosts
+        # /etc/hosts is a Docker-managed mount, so overwrite contents in place.
+        cat /tmp/sandbox-hosts > /etc/hosts
 
-    # nsswitch.conf: only use /etc/hosts, no DNS queries
-    echo "hosts: files" > /etc/nsswitch.conf
+        # nsswitch.conf: only use /etc/hosts, no DNS queries
+        echo "hosts: files" > /etc/nsswitch.conf
 
-    # resolv.conf: dead nameserver as fallback (RFC 5737 TEST-NET)
-    echo "nameserver 192.0.2.1" > /etc/resolv.conf
-    echo "options timeout:1 attempts:1" >> /etc/resolv.conf
+        # resolv.conf: dead nameserver as fallback (RFC 5737 TEST-NET)
+        echo "nameserver 192.0.2.1" > /etc/resolv.conf
+        echo "options timeout:1 attempts:1" >> /etc/resolv.conf
 
-    rm -f /tmp/sandbox-hosts
+        rm -f /tmp/sandbox-hosts
 
-    DOMAIN_COUNT=$(grep -v '^#' "$DOMAINS_FILE" | grep -v '^\s*$' | wc -l)
-    echo "[sandbox] DNS whitelist active: $DOMAIN_COUNT domains allowed"
+        DOMAIN_COUNT=$(grep -v '^#' "$DOMAINS_FILE" | grep -v '^\s*$' | wc -l)
+        echo "[sandbox] DNS whitelist active: $DOMAIN_COUNT domains allowed"
+    else
+        echo "[sandbox] WARNING: sandbox-domains.conf not found, DNS is unrestricted"
+    fi
 else
-    echo "[sandbox] WARNING: sandbox-domains.conf not found, DNS is unrestricted"
+    echo "[sandbox] DNS whitelist disabled in container startup"
 fi
 
 # ============================================================
