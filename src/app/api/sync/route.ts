@@ -39,7 +39,7 @@ function chbBinary(): string {
       return p;
     } catch {}
   }
-  throw new Error("chb binary not found. Install it from github.com/commonshub/chb.");
+  throw new Error("CHB is not installed in the web container. Run sync from the dedicated CHB service that shares this DATA_DIR.");
 }
 
 function runCliStats(bin: string, resource: string): StatsResult {

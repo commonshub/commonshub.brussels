@@ -1,237 +1,148 @@
 # Deploying with Coolify
 
-This guide walks you through installing Coolify and deploying Commons Hub Brussels as a Docker container with persistent storage.
+This setup now uses two separate services:
+
+- `commonshub-web`: the Next.js website that only reads from `/data`
+- `commonshub-chb`: a worker container that holds the fetch secrets and runs `chb sync`
+
+Both services must mount the same host directory to `/data`.
 
 ## Prerequisites
 
-- A server (VPS) with Ubuntu 22.04+ or Debian 11+
-- Minimum 2GB RAM, 2 CPU cores recommended
-- Root or sudo access
-- A domain name pointing to your server
+- A server with Coolify installed
+- A domain pointing to the server
+- The repository connected in Coolify
+- API keys ready for the CHB worker
 
-## Step 1: Install Coolify
+## Create the Project
 
-SSH into your server and run:
+1. Create a project and environment in Coolify.
+2. Add the repository `https://github.com/commonshub/commonshub.brussels`.
+3. Create two resources from that same repository.
+
+## Service 1: Website
+
+Configure the website resource like this:
+
+- Name: `commonshub-web`
+- Build Pack: `Dockerfile`
+- Dockerfile Location: `Dockerfile`
+- Port: `3000`
+
+Set only the website runtime variables here:
 
 ```bash
-curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
-```
-
-This will:
-- Install Docker if not present
-- Set up Coolify and its dependencies
-- Start the Coolify service
-
-Once complete, access Coolify at `http://your-server-ip:8000`.
-
-## Step 2: Initial Coolify Setup
-
-1. Open `http://your-server-ip:8000` in your browser
-2. Create your admin account
-3. Add your server as a resource (localhost is added by default)
-
-## Step 3: Create a New Project
-
-1. Click **"Projects"** in the sidebar
-2. Click **"+ Add"** to create a new project
-3. Name it `commonshub-brussels` or similar
-4. Click into the project and create a new **Environment** (e.g., `production`)
-
-## Step 4: Add the Application
-
-1. Inside your environment, click **"+ Add New Resource"**
-2. Select **"Public Repository"** (or Private if using authentication)
-3. Enter the repository URL: `https://github.com/commonshub/commonshub.brussels`
-4. Select the branch: `main`
-5. Choose **"Dockerfile"** as the build pack
-
-## Step 5: Configure Build Settings
-
-In the application settings:
-
-### General Tab
-- **Name**: `commonshub-brussels`
-- **Build Pack**: Dockerfile
-- **Dockerfile Location**: `Dockerfile` (or `docker/Dockerfile` if located there)
-
-### Environment Variables
-Add the following environment variables:
-
-```
 NODE_ENV=production
 DATA_DIR=/data
+AUTH_DISCORD_ID=your-discord-oauth-client-id
+AUTH_DISCORD_SECRET=your-discord-oauth-client-secret
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=your-secret-key-here
-DISCORD_CLIENT_ID=your-discord-client-id
-DISCORD_CLIENT_SECRET=your-discord-client-secret
+RESEND_API_KEY=your-resend-api-key
 WEBHOOK_SECRET=your-webhook-secret
 ```
 
-Leave `ENABLE_DNS_SANDBOX` unset on Coolify. The container startup now skips the custom `/etc/hosts` DNS sandbox unless you explicitly set `ENABLE_DNS_SANDBOX=1`.
+If you do not use email or the deploy webhook, you can leave `RESEND_API_KEY` and `WEBHOOK_SECRET` unset.
 
-Generate a secure NEXTAUTH_SECRET:
-```bash
-openssl rand -base64 32
-```
+Add a persistent storage mount:
 
-## Step 6: Configure Persistent Storage
+- Source Path: `/data/commonshub`
+- Destination Path: `/data`
 
-This is critical for preserving data across deployments.
+Add your public domain to this service and enable SSL.
 
-1. Go to the **"Storages"** tab in your application settings
-2. Click **"+ Add"** to add a new volume
-3. Configure:
-   - **Source Path**: `/data/commonshub` (on the host - Coolify creates this automatically)
-   - **Destination Path**: `/data` (in the container)
-4. Save the storage configuration
+## Service 2: CHB Worker
 
-This mounts the host directory `/data/commonshub` to `/data` inside the container, ensuring your data persists across deployments and rebuilds.
+Configure a second resource for the CLI worker:
 
-## Step 7: Configure Domain & SSL
+- Name: `commonshub-chb`
+- Build Pack: `Dockerfile`
+- Dockerfile Location: `Dockerfile.chb`
+- No public domain
 
-1. Go to the **"Settings"** tab
-2. Under **"Domains"**, add your domain: `commonshub.brussels`
-3. Enable **"Generate SSL"** for automatic Let's Encrypt certificates
-4. Set the port to `3000` (Next.js default)
-
-## Step 8: Deploy
-
-1. Click **"Deploy"** to start the initial deployment
-2. Monitor the build logs for any errors
-3. Once complete, your app should be accessible at your domain
-
-## Step 9: Set Up Auto-Deploy Webhook
-
-To enable automatic deployments when you push to main:
-
-1. In Coolify, go to your application's **"Webhooks"** tab
-2. Copy the **Deploy Webhook URL** (looks like `https://coolify.your-server.com/api/v1/deploy?...`)
-3. In your GitHub repository:
-   - Go to **Settings** → **Webhooks** → **Add webhook**
-   - **Payload URL**: Paste the Coolify webhook URL
-   - **Content type**: `application/json`
-   - **Secret**: Leave empty (Coolify uses token in URL)
-   - **Events**: Select "Just the push event"
-   - Click **Add webhook**
-
-Now pushes to main will automatically trigger deployments.
-
-## Step 10: Populate the Data Directory
-
-The app needs data to display events, photos, transactions, etc.
-
-### Using Coolify's Terminal
-
-1. In Coolify, go to your application
-2. Click on the **"Terminal"** tab
-3. Run the fetch command:
+Set the data-fetching secrets on this service only:
 
 ```bash
-npm run fetch-recent
+DATA_DIR=/data
+DISCORD_BOT_TOKEN=your-discord-bot-token
+LUMA_API_KEY=your-luma-api-key
+STRIPE_SECRET_KEY=your-stripe-secret-key
+ETHERSCAN_API_KEY=your-etherscan-api-key
+MONERIUM_CLIENT_ID=your-monerium-client-id
+MONERIUM_CLIENT_SECRET=your-monerium-client-secret
 ```
 
-This will fetch:
-- Discord messages and images
-- Calendar events (Luma, iCal)
-- Financial transactions (blockchain, Stripe)
-- CHT token data
-- User profiles
+Add the exact same persistent storage mount:
 
-It takes a few minutes on first run. Subsequent runs are faster as they skip already-cached data.
+- Source Path: `/data/commonshub`
+- Destination Path: `/data`
 
-### (Optional) Fetch historical data:
+The worker image stays alive with `sleep infinity`, which lets Coolify scheduled tasks execute `chb` commands inside that container.
+
+## First Deploy
+
+1. Deploy `commonshub-web`.
+2. Deploy `commonshub-chb`.
+3. Open the site. If `/data` is empty you will see the empty-data state.
+
+## Populate the Data Directory
+
+Use the terminal of the `commonshub-chb` service and run:
+
 ```bash
-npm run fetch-history
+chb sync
 ```
 
-This fetches all historical data. Only needed if you want complete archives.
+For a full backfill instead:
 
-## Step 11: Set Up the Cron Job
+```bash
+chb sync --history
+```
 
-Data needs to be refreshed periodically. Use Coolify's built-in scheduled tasks.
+After the sync finishes, refresh the website.
 
-1. In Coolify, go to your application
-2. Click on the **"Scheduled Tasks"** tab (or **"Cron"** in some versions)
-3. Click **"+ Add"** to create a new scheduled task
-4. Configure:
-   - **Name**: `fetch-recent-data`
-   - **Command**: `npm run fetch-recent`
-   - **Frequency**: `0 * * * *` (every hour)
-5. Save the scheduled task
+## Scheduled Task
 
-### Common cron frequencies:
-- Every hour: `0 * * * *`
+Create the scheduled task on the `commonshub-chb` service, not on the website service.
+
+- Name: `sync-data`
+- Command: `chb sync`
+- Frequency: `0 * * * *`
+
+Common alternatives:
+
 - Every 30 minutes: `*/30 * * * *`
 - Every 6 hours: `0 */6 * * *`
 - Daily at midnight: `0 0 * * *`
 
-### Verify it's working
+## Why Split the Services
 
-After an hour (or trigger it manually if Coolify allows), check the logs in the Coolify interface to confirm data is being fetched.
+- The website container no longer includes the `chb` binary.
+- Fetcher secrets are scoped to the CHB worker instead of the public web app.
+- Both services still work against the same shared `/data` volume.
 
-## Verifying the Setup
+## Verification
 
-### Check container is running:
+Check the website container:
+
 ```bash
-docker ps | grep commonshub
+docker logs -f <commonshub-web-container>
 ```
 
-### Check data persistence:
+Check the worker container:
+
+```bash
+docker logs -f <commonshub-chb-container>
+```
+
+Check the shared data directory on the host:
+
 ```bash
 ls -la /data/commonshub
 ```
 
-### View logs:
-```bash
-docker logs -f <container-id>
-```
-
-### Test the webhook:
-Push a small change to main and verify Coolify starts a new deployment.
-
-## Troubleshooting
-
-### Container won't start
-- Check logs in Coolify UI or via `docker logs`
-- Verify all required environment variables are set
-- Ensure port 3000 is not blocked
-
-### Data not persisting
-- Verify the storage mount is configured correctly
-- Check that `/data/commonshub` exists on the host
-- The entrypoint script automatically fixes permissions on startup
-
-### SSL certificate issues
-- Ensure your domain DNS is pointing to the server
-- Wait a few minutes for DNS propagation
-- Check Coolify logs for Let's Encrypt errors
-
-### Build failures
-- Check if Dockerfile exists in the repository
-- Verify Node.js version compatibility
-- Review build logs for specific errors
-
 ## Backup
 
-To backup your data:
 ```bash
 tar -czvf commonshub-backup-$(date +%Y%m%d).tar.gz /data/commonshub
 ```
-
-## Updating Coolify
-
-```bash
-curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
-```
-
-This will update Coolify to the latest version while preserving your configuration.
-
-## Summary
-
-Once everything is set up, you should have:
-
-- Application running at `https://commonshub.brussels` and `https://www.commonshub.brussels`
-- Persistent data stored at `/data/commonshub` on the host, mounted to `/data` in the container
-- Automatic SSL certificates via Let's Encrypt
-- Scheduled task running `npm run fetch-recent` every hour to keep data fresh
-- Auto-deploy webhook triggered on pushes to the main branch

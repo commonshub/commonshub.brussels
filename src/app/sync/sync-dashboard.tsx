@@ -106,7 +106,14 @@ export default function SyncDashboard({
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          if (payload?.error) {
+            message = payload.error;
+          }
+        } catch {}
+        throw new Error(message);
       }
 
       const reader = response.body?.getReader();

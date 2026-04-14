@@ -1,0 +1,36 @@
+FROM alpine:3.20
+
+WORKDIR /app
+
+ARG CHB_VERSION=v2.2.4
+
+RUN apk add --no-cache ca-certificates curl tar \
+ && addgroup --system --gid 1001 chb \
+ && adduser --system --uid 1001 --ingroup chb chb \
+ && ARCH="$(apk --print-arch)" \
+ && case "$ARCH" in \
+      x86_64) CHB_ARCH=amd64 ;; \
+      aarch64) CHB_ARCH=arm64 ;; \
+      *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
+    esac \
+ && VERSION="$CHB_VERSION" \
+ && curl -fsSL -o /tmp/chb.tar.gz "https://github.com/CommonsHub/chb/releases/download/${VERSION}/chb_${VERSION#v}_linux_${CHB_ARCH}.tar.gz" \
+ && curl -fsSL -o /tmp/checksums.txt "https://github.com/CommonsHub/chb/releases/download/${VERSION}/checksums.txt" \
+ && EXPECTED_SHA="$(grep " chb_${VERSION#v}_linux_${CHB_ARCH}.tar.gz$" /tmp/checksums.txt | awk '{print $1}')" \
+ && ACTUAL_SHA="$(sha256sum /tmp/chb.tar.gz | awk '{print $1}')" \
+ && [ -n "$EXPECTED_SHA" ] \
+ && [ "$EXPECTED_SHA" = "$ACTUAL_SHA" ] \
+ && tar -xzf /tmp/chb.tar.gz -C /tmp \
+ && install -m 0755 "/tmp/chb_${VERSION#v}_linux_${CHB_ARCH}" /usr/local/bin/chb \
+ && rm -f /tmp/chb.tar.gz /tmp/checksums.txt "/tmp/chb_${VERSION#v}_linux_${CHB_ARCH}" \
+ && mkdir -p /data /app/src/settings \
+ && chown -R chb:chb /data /app
+
+COPY --chown=chb:chb src/settings ./src/settings
+
+ENV DATA_DIR=/data
+
+USER chb
+
+# Keep the worker container alive so schedulers such as Coolify can exec `chb sync`.
+CMD ["sleep", "infinity"]

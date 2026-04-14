@@ -22,7 +22,7 @@ function chbBinary(): string {
   for (const p of ["/usr/local/bin/chb"]) {
     try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {}
   }
-  throw new Error("chb binary not found. Install it from github.com/commonshub/chb.");
+  throw new Error("CHB is not installed in the web container. Run sync from the dedicated CHB service that shares this DATA_DIR.");
 }
 
 function runStats(bin: string, resource: string): StatsResult {
@@ -120,7 +120,7 @@ export default async function SyncPage({
           <div className="bg-red-950 border border-red-800 rounded-lg p-4 mb-8 text-sm text-red-300">
             <strong>CLI error:</strong> {error}
             <p className="text-red-500 mt-1 text-xs">
-              Install the CLI from <code>github.com/commonshub/chb</code> and make sure <code>chb</code> is available at <code>/usr/local/bin/chb</code>.
+              This container now reads from <code>{DATA_DIR}</code> only. Run <code>chb sync</code> in the separate CHB worker service and keep both services mounted to the same data directory.
             </p>
           </div>
         )}

@@ -34,19 +34,19 @@ The script will guide you through:
 cp .env.example .env
 # Edit .env and add your API keys
 
-# 2. Build and start the container
-docker-compose up -d --build
+# 2. Build and start the website container
+docker compose -f docker-compose.yml.example up -d --build
 
 # 3. Open the website (you'll see an empty data state page)
 open http://localhost:3000
 
-# 4. Fetch data (follow instructions from the empty data page)
-docker exec commonshub npm run fetch-recent
+# 4. Populate the shared data directory from the dedicated CHB container
+docker compose -f docker-compose.chb.yml.example run --rm chb chb sync
 
 # 5. Refresh the website - data is now loaded!
 ```
 
-**Note:** The website will display a helpful empty data state page when first accessed. This page provides instructions for fetching data.
+**Note:** The website and CHB worker now run as separate containers and share the same `./data` mount. This keeps fetch secrets scoped to the CHB service instead of the web app container.
 
 ## Development
 
@@ -69,10 +69,10 @@ npm run dev
 
 ## Data Fetching
 
-The website requires data to be fetched before it can display content. The build process is optimized to only fetch recent data by default:
+The website reads pre-generated files from `./data`. Populate that directory with the standalone `chb` CLI, ideally from the separate worker container defined in `docker-compose.chb.yml.example`.
 
-- **`npm run fetch-recent`** - Fetches current and previous month only (fast, ~2-5 minutes)
-- **`npm run fetch-history`** - Fetches all historical data (slow, ~15-60 minutes first run)
+- **`chb sync`** - Fetches the latest data and regenerates derived files
+- **`chb sync --history`** - Backfills historical data and regenerates derived files
 
 ### Data Sources
 
@@ -100,11 +100,11 @@ npm run build
 After building and starting the application:
 
 ```bash
-# Fetch recent data (fast)
-npm run fetch-recent
+# Fetch the latest data from the dedicated CHB service
+docker compose -f docker-compose.chb.yml.example run --rm chb chb sync
 
-# Or fetch all historical data (slow)
-npm run fetch-history
+# Or fetch full history
+docker compose -f docker-compose.chb.yml.example run --rm chb chb sync --history
 ```
 
 If the data directory is empty, the website will display a helpful empty data state page with fetching instructions.
@@ -135,14 +135,14 @@ If the data directory is empty, the website will display a helpful empty data st
 └── public/               # Static assets
 ```
 
-## Scripts
+## Scripts and Commands
 
-| Script | Description |
+| Command | Description |
 |--------|-------------|
 | `npm run dev` | Start development server |
-| `npm run build` | Build for production (fetches recent data and generates files) |
-| `npm run fetch-recent` | Fetch current and previous month data + auto-generate files |
-| `npm run fetch-history` | Fetch all historical data + auto-generate files |
+| `npm run build` | Build the production app |
+| `chb sync` | Fetch latest data + auto-generate derived files |
+| `chb sync --history` | Fetch full history + auto-generate derived files |
 | `npm run fetch-transactions` | Fetch transaction data only (supports `--month`, `--force` flags) |
 | `npm run generate-data` | Manually regenerate all aggregated data files |
 | `npm run restart` | Restart the systemd service |

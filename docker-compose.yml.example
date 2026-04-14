@@ -1,54 +1,27 @@
-version: '3.8'
-
 services:
   web:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
-        LUMA_API_KEY: ${LUMA_API_KEY}
-        STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-        ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
-        MONERIUM_CLIENT_ID: ${MONERIUM_CLIENT_ID}
-        MONERIUM_CLIENT_SECRET: ${MONERIUM_CLIENT_SECRET}
-        RESEND_API_KEY: ${RESEND_API_KEY}
     image: commonshub-brussels:latest
-    container_name: commonshub
+    container_name: commonshub-web
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      # Mount data directory to persist fetched data
-      - ./data:/app/data
+      # Shared read/write data directory populated by the separate CHB service.
+      - ./data:/data
     environment:
       - NODE_ENV=production
-      - DATA_DIR=/app/data
+      - DATA_DIR=/data
 
-      # Discord
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
-      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
-      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
-
-      # Luma Calendar
-      - LUMA_API_KEY=${LUMA_API_KEY}
-
-      # Payment Providers
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-
-      # Blockchain
-      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
-
-      # Banking (optional)
-      - MONERIUM_CLIENT_ID=${MONERIUM_CLIENT_ID}
-      - MONERIUM_CLIENT_SECRET=${MONERIUM_CLIENT_SECRET}
-
-      # Email
+      # Website runtime secrets only. Keep fetcher secrets in docker-compose.chb.yml.example.
+      - AUTH_DISCORD_ID=${AUTH_DISCORD_ID}
+      - AUTH_DISCORD_SECRET=${AUTH_DISCORD_SECRET}
       - RESEND_API_KEY=${RESEND_API_KEY}
-
-      # Next Auth
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
 
     # Read-only root filesystem (supply-chain attack mitigation)
     # Only /data, /tmp, and /run are writable

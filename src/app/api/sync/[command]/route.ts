@@ -21,7 +21,7 @@ function getChbPath(): string {
       return p;
     } catch {}
   }
-  return "chb"; // fall back to PATH
+  throw new Error("CHB is not installed in the web container. Run sync from the dedicated CHB service that shares this DATA_DIR.");
 }
 
 const VALID_COMMANDS: Record<string, string[][]> = {
@@ -133,7 +133,16 @@ export async function POST(
     ? monthsParam.split(",").filter((m) => /^\d{4}-\d{2}$/.test(m))
     : [];
 
-  const chbPath = getChbPath();
+  let chbPath: string;
+  try {
+    chbPath = getChbPath();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   const baseCommands = VALID_COMMANDS[command];
 
   // If specific months requested, run per-month with --force
