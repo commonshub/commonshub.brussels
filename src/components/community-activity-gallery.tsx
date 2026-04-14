@@ -273,7 +273,7 @@ export function CommunityActivityGallery({
         className={
           layout === "horizontal"
             ? "flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
-            : "grid grid-cols-2 md:grid-cols-3 gap-4"
+            : "grid grid-cols-2 md:grid-cols-4 gap-4"
         }
       >
         {images.map((image, index) => (
@@ -292,7 +292,7 @@ export function CommunityActivityGallery({
               sizes={
                 layout === "horizontal"
                   ? "192px"
-                  : "(max-width: 768px) 50vw, 33vw"
+                  : "(max-width: 768px) 50vw, 25vw"
               }
               onError={() => handleImageError(image)}
             />
