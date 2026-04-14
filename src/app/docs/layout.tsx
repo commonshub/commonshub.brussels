@@ -4,23 +4,11 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Documentation — Commons Hub Brussels",
-  description: "CLI documentation for the Commons Hub Brussels tools.",
+  description: "Documentation for Commons Hub Brussels.",
 };
 
 const navItems = [
   { href: "/docs", label: "Overview" },
-  { href: "/docs/cli", label: "CLI Reference" },
-  {
-    label: "Commands",
-    children: [
-      { href: "/docs/cli/events", label: "Events" },
-      { href: "/docs/cli/transactions", label: "Transactions" },
-      { href: "/docs/cli/messages", label: "Messages" },
-      { href: "/docs/cli/bookings", label: "Bookings" },
-      { href: "/docs/cli/rooms", label: "Rooms" },
-      { href: "/docs/cli/report", label: "Report" },
-    ],
-  },
 ];
 
 function Sidebar() {

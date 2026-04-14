@@ -32,18 +32,14 @@ interface MonthData {
 }
 
 function chbBinary(): string {
-  // Check common locations
-  const candidates = [
-    "/usr/local/bin/chb",
-    path.join(process.cwd(), "dist", "chb"),
-  ];
+  const candidates = ["/usr/local/bin/chb"];
   for (const p of candidates) {
     try {
       fs.accessSync(p, fs.constants.X_OK);
       return p;
     } catch {}
   }
-  throw new Error("chb binary not found. Build it with: cd cli && make build-small");
+  throw new Error("chb binary not found. Install it from github.com/commonshub/chb.");
 }
 
 function runCliStats(bin: string, resource: string): StatsResult {

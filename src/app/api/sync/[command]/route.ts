@@ -15,8 +15,7 @@ import { DATA_DIR } from "@/lib/data-paths";
 export const maxDuration = 300;
 
 function getChbPath(): string {
-  // Check common locations
-  for (const p of ["/usr/local/bin/chb", "./dist/chb"]) {
+  for (const p of ["/usr/local/bin/chb"]) {
     try {
       fs.accessSync(p, fs.constants.X_OK);
       return p;

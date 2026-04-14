@@ -1,13 +1,13 @@
 # Deployment Guide
 
-This guide covers deploying the Commons Hub Brussels website using Docker, including data fetching, server setup, and maintenance tasks.
+This guide covers deploying the Commons Hub Brussels website using Docker, including data sync, server setup, and maintenance tasks.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 2. [Building the Docker Image](#building-the-docker-image)
 3. [Running with Docker](#running-with-docker)
-4. [Fetching Data](#fetching-data)
+4. [Syncing Data](#syncing-data)
 5. [Accessing the Website](#accessing-the-website)
 6. [Production Deployment](#production-deployment)
 7. [Maintenance Tasks](#maintenance-tasks)
@@ -51,7 +51,7 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your_random_secret_here
 
 # Data directory
-DATA_DIR=/app/data
+DATA_DIR=/data
 ```
 
 ## Building the Docker Image
@@ -73,7 +73,7 @@ docker build \
   .
 ```
 
-**Note:** The build process only compiles the Next.js application. It does **not** fetch data. Data must be fetched after the container starts with the mounted data volume.
+**Note:** The build process only compiles the Next.js application. It does **not** sync data. Data must be synced after the container starts with the mounted data volume.
 
 ### Build from .env File
 
@@ -114,12 +114,12 @@ Run the container with a mounted data directory:
 docker run -d \
   --name commonshub \
   -p 3000:3000 \
-  -v $(pwd)/data:/app/data \
+  -v $(pwd)/data:/data \
   --env-file .env \
   commonshub-brussels:latest
 ```
 
-**Important:** The `-v $(pwd)/data:/app/data` flag mounts your local `data` directory to the container, persisting fetched data across container restarts.
+**Important:** The `-v $(pwd)/data:/data` flag mounts your local `data` directory to the container, persisting synced data across container restarts.
 
 ### Run with Docker Compose
 
@@ -139,69 +139,76 @@ docker ps | grep commonshub
 docker logs -f commonshub
 ```
 
-## Fetching Data
+## Syncing Data
 
-**Important:** The website requires data to be fetched before it can display content. When you first access the website with an empty data directory, you'll see a helpful error page with instructions on how to fetch data.
+**Important:** The website requires data to be synced before it can display content. When you first access the website with an empty data directory, you'll see a helpful error page with instructions on how to populate it.
 
 ### First Time Setup
 
-After starting the container for the first time, you **must** fetch data:
+After starting the container for the first time, you **must** sync data:
 
 1. The website will show an empty data state page with instructions
-2. Run the fetch command (see below)
+2. Run the sync command (see below)
 3. Refresh the website - it will now display with data
 
-You can fetch recent data (fast) or all historical data.
+You can sync the latest data (fast) or backfill history.
 
-### Fetch Recent Data (Recommended for Quick Start)
+### Sync Latest Data (Recommended for Quick Start)
 
-Fetches current and previous month data, then automatically generates all aggregated files:
+Syncs the latest data across all sources and automatically generates derived files:
 
 ```bash
-# One command - fetches data and generates all views
-docker exec -it commonshub npm run fetch-recent
+# One command - syncs latest data and refreshes derived files
+docker exec -it commonshub chb sync
 ```
 
 **Duration:** 2-5 minutes depending on data volume
 
 **What it does:**
-1. Fetches transactions (Stripe, blockchain)
-2. Fetches Discord messages and images
-3. Fetches token balances
-4. Fetches calendar events
-5. Fetches user data
-6. Automatically generates all aggregated data files (images, contributors, transactions, events)
+1. Syncs events from room calendars
+2. Syncs transactions from blockchain and Stripe
+3. Syncs room bookings
+4. Syncs Discord messages
+5. Syncs member data
+6. Automatically generates derived data files
+7. Downloads referenced images
 
-**Smart Caching:** The scripts automatically skip months that already have cached data and generated files, making subsequent runs much faster.
+**Smart Caching:** The CLI automatically skips cached data unless you pass `--force`, making subsequent runs much faster.
 
-### Fetch All Historical Data
+### Sync Historical Data
 
-Fetches all available historical data and generates aggregated files:
+Backfills all available historical data and regenerates derived files:
 
 ```bash
-# One command - fetches all history and generates views
-docker exec -it commonshub npm run fetch-history
+# One command - syncs all history and regenerates views
+docker exec -it commonshub chb sync --history
 ```
 
 **Duration:** 15-60 minutes on first run (subsequent runs are much faster as data is cached)
 
-### Fetch Specific Date Range
+### Sync Specific Periods
 
 ```bash
-# Fetch a specific month
-docker exec -it commonshub npm run fetch-history -- --month=2025-01
+# Sync a specific month
+docker exec -it commonshub chb sync 2025/01
 
-# Fetch a date range
-docker exec -it commonshub npm run fetch-history -- --start-month=2024-01 --end-month=2024-12
+# Sync a specific year
+docker exec -it commonshub chb sync 2025
+
+# Sync from a given month through today
+docker exec -it commonshub chb sync --since 2024/01
+
+# Force a resync of a month even if cached data exists
+docker exec -it commonshub chb sync 2025/01 --force
 ```
 
-### Manually Generate Data (Usually Not Needed)
+### Regenerate Derived Data (Usually Not Needed)
 
-Data generation happens automatically after fetching, but you can manually regenerate if needed:
+`chb sync` already runs generation for you, but you can regenerate derived data manually if needed:
 
 ```bash
-# Regenerate all aggregated data files
-docker exec -it commonshub npm run generate-data
+# Regenerate derived data files
+docker exec -it commonshub chb generate
 ```
 
 This will generate:
@@ -221,8 +228,8 @@ After running the container:
 
 The empty data state page provides:
 - Clear explanation of why data is needed
-- Step-by-step commands to fetch data
-- Information about what will be fetched
+- Step-by-step commands to sync data
+- Information about what will be synced
 - Links to full documentation
 
 ### Check if Server is Running
@@ -244,6 +251,8 @@ ls -la data/2025/01/
 ```
 
 ## Production Deployment
+
+The `/api/webhook/deploy` endpoint documented elsewhere is for host-based installs with a writable git checkout. It does not work inside the standalone Docker image, because the container does not contain a `.git` repository and is not expected to self-update in place.
 
 ### Docker Compose Setup
 
@@ -271,10 +280,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/app/data
+      - ./data:/data
     environment:
       - NODE_ENV=production
-      - DATA_DIR=/app/data
+      - DATA_DIR=/data
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
@@ -349,14 +358,14 @@ sudo certbot --nginx -d commonshub.brussels
 
 ### Daily/Hourly Data Updates
 
-Set up a cron job to fetch recent data regularly:
+Set up a cron job to sync the latest data regularly:
 
 ```bash
 # Edit crontab
 crontab -e
 
-# Add this line to fetch data every hour (automatically generates aggregated data)
-0 * * * * docker exec commonshub npm run fetch-recent >> /var/log/commonshub-fetch.log 2>&1
+# Add this line to sync data every hour (automatically generates derived data)
+0 * * * * docker exec commonshub chb sync >> /var/log/commonshub-sync.log 2>&1
 ```
 
 ### Backup Data Directory
@@ -382,7 +391,7 @@ docker-compose up -d --build
 docker build -t commonshub-brussels:latest .
 docker stop commonshub
 docker rm commonshub
-docker run -d --name commonshub -p 3000:3000 -v $(pwd)/data:/app/data --env-file .env commonshub-brussels:latest
+docker run -d --name commonshub -p 3000:3000 -v $(pwd)/data:/data --env-file .env commonshub-brussels:latest
 ```
 
 ### Clean Up Old Data
@@ -426,14 +435,14 @@ docker exec commonshub env | grep DISCORD
 ### Data Not Showing
 
 ```bash
-# Check if data was fetched
-docker exec commonshub ls -la /app/data/2025/01/
+# Check if data was synced
+docker exec commonshub ls -la /data/2025/01/
 
-# Re-fetch data
-docker exec commonshub npm run fetch-recent
+# Re-sync latest data
+docker exec commonshub chb sync
 
-# Regenerate aggregated data
-docker exec commonshub npm run generate-data
+# Regenerate derived data
+docker exec commonshub chb generate
 ```
 
 ### API Rate Limiting
@@ -491,9 +500,9 @@ docker build --no-cache -t commonshub-brussels:latest .
 | Stop container | `docker-compose down` |
 | View logs | `docker logs -f commonshub` |
 | Enter container | `docker exec -it commonshub sh` |
-| Fetch recent data | `docker exec commonshub npm run fetch-recent` |
-| Fetch all history | `docker exec commonshub npm run fetch-history` |
-| Regenerate data | `docker exec commonshub npm run generate-data` |
+| Sync latest data | `docker exec commonshub chb sync` |
+| Sync all history | `docker exec commonshub chb sync --history` |
+| Regenerate data | `docker exec commonshub chb generate` |
 | Restart container | `docker restart commonshub` |
 
 ### Data Directory Structure

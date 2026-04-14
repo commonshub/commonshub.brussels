@@ -1,11 +1,3 @@
-# Stage 0: Build Go CLI
-FROM golang:1.22-alpine AS go-builder
-WORKDIR /build
-RUN apk add --no-cache make
-COPY cli/ ./
-RUN go mod download
-RUN go build -ldflags="-s -w" -trimpath -o chb .
-
 # Stage 1: Dependencies
 FROM node:22-alpine AS deps
 WORKDIR /app
@@ -28,12 +20,11 @@ COPY . .
 RUN echo "{\"sha\":\"${SOURCE_COMMIT}\",\"message\":\"${COMMIT_MSG}\",\"date\":\"$(date -Iseconds)\"}" > git-info.json
 RUN cat git-info.json
 
-RUN npm ci
-
 # Ensure data directory exists
 RUN mkdir -p data
 
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm ci
 RUN npm run build
 
 # Stage 3: Production runner
@@ -43,12 +34,25 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache curl su-exec
+ARG CHB_VERSION=v2.2.4
+
+RUN apk add --no-cache bash curl libc6-compat su-exec tar
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy Go CLI binary
-COPY --from=go-builder /build/chb /usr/local/bin/chb
+# Install the CHB CLI using the documented release-download flow from CommonsHub/chb.
+RUN ARCH=amd64 \
+ && VERSION="$CHB_VERSION" \
+ && curl -fsSL -o /tmp/chb.tar.gz "https://github.com/CommonsHub/chb/releases/download/${VERSION}/chb_${VERSION#v}_linux_${ARCH}.tar.gz" \
+ && curl -fsSL -o /tmp/checksums.txt "https://github.com/CommonsHub/chb/releases/download/${VERSION}/checksums.txt" \
+ && EXPECTED_SHA="$(grep " chb_${VERSION#v}_linux_${ARCH}.tar.gz$" /tmp/checksums.txt | awk '{print $1}')" \
+ && ACTUAL_SHA="$(sha256sum /tmp/chb.tar.gz | awk '{print $1}')" \
+ && [ -n "$EXPECTED_SHA" ] \
+ && [ "$EXPECTED_SHA" = "$ACTUAL_SHA" ] \
+ && tar -xzf /tmp/chb.tar.gz -C /tmp \
+ && install /tmp/chb_${VERSION#v}_linux_${ARCH} /usr/local/bin/chb \
+ && rm -f /tmp/chb.tar.gz /tmp/checksums.txt /tmp/chb_${VERSION#v}_linux_${ARCH} \
+ && /usr/local/bin/chb --version
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

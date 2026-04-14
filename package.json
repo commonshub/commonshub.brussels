@@ -2,12 +2,8 @@
   "name": "commonshub.brussels website",
   "version": "0.1.0",
   "private": true,
-  "bin": {
-    "chb": "dist/chb"
-  },
   "scripts": {
     "build": "next build",
-    "build:cli": "cd cli && make build-small",
     "dev": "./sandbox.sh bun x next dev",
     "dev:unsafe": "next dev",
     "fetch-recent": "node scripts/fetch-recent.js",
