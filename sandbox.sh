@@ -3,8 +3,10 @@
 #              and DNS-level domain whitelisting.
 #
 # Protection:
-#   Filesystem: Only project dir + DATA_DIR are writable. No access to
-#               ~/.ssh, ~/.gnupg, ~/.config, or anything outside the project.
+#   Filesystem: Project dir and DATA_DIR are mounted read-only by default.
+#               Only explicit scratch paths such as .next are writable.
+#               No access to ~/.ssh, ~/.gnupg, ~/.config, or anything outside
+#               the project.
 #   Network:    Only whitelisted domains can be resolved. Custom nsswitch.conf
 #               restricts glibc to /etc/hosts only (no DNS queries). A dead
 #               resolv.conf blocks c-ares (Node.js dns.resolve) as fallback.
@@ -48,6 +50,46 @@ DATA_DIR="${DATA_DIR:-$HOME/.chb/data}"
 DATA_DIR="${DATA_DIR/#\~/$HOME}"
 mkdir -p "$DATA_DIR"
 
+report_dir_state() {
+  local dir="$1"
+  local label="$2"
+
+  if [[ ! -e "$dir" ]]; then
+    echo "[sandbox] $label: $dir (missing)"
+    return
+  fi
+
+  if [[ ! -d "$dir" ]]; then
+    echo "[sandbox] $label: $dir (not a directory)"
+    return
+  fi
+
+  local size
+  size=$(du -sh "$dir" 2>/dev/null | awk '{print $1}')
+  echo "[sandbox] $label: $dir ($size)"
+}
+
+report_data_dir() {
+  report_dir_state "$DATA_DIR" "DATA_DIR"
+
+  mapfile -t year_dirs < <(find "$DATA_DIR" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended -regex '.*/[0-9]{4}' | sort)
+  if [[ ${#year_dirs[@]} -eq 0 ]]; then
+    echo "[sandbox] DATA_DIR has no year/month directories"
+    return
+  fi
+
+  for year_dir in "${year_dirs[@]}"; do
+    year=$(basename "$year_dir")
+    report_dir_state "$year_dir" "$year"
+
+    mapfile -t month_dirs < <(find "$year_dir" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended -regex '.*/[0-9]{2}' | sort)
+    for month_dir in "${month_dirs[@]}"; do
+      month=$(basename "$month_dir")
+      report_dir_state "$month_dir" "$year/$month"
+    done
+  done
+}
+
 # ============================================================
 # Load whitelisted domains from sandbox-domains.conf
 # ============================================================
@@ -78,7 +120,9 @@ fi
 # Build sandbox /etc files for DNS filtering
 # ============================================================
 SANDBOX_DIR=$(mktemp -d /tmp/sandbox-etc.XXXXXX)
-trap 'rm -rf "$SANDBOX_DIR"' EXIT
+NEXT_TMP_DIR=$(mktemp -d /tmp/sandbox-next.XXXXXX)
+DATA_TMP_DIR=$(mktemp -d /tmp/sandbox-data-tmp.XXXXXX)
+trap 'rm -rf "$SANDBOX_DIR" "$NEXT_TMP_DIR" "$DATA_TMP_DIR"' EXIT
 
 HOSTS_FILE="$SANDBOX_DIR/hosts"
 NSSWITCH_FILE="$SANDBOX_DIR/nsswitch.conf"
@@ -180,10 +224,22 @@ BWRAP_ARGS+=(
 # -- Empty $HOME (blocks ~/.ssh, ~/.gnupg, ~/.config, etc.) --
 BWRAP_ARGS+=(--tmpfs "$HOME")
 
-# -- Mount project dir + data dir + runtime into the empty $HOME --
+# -- Mount project dir + data dir read-only into the empty $HOME --
 BWRAP_ARGS+=(
-  --bind "$PROJECT_DIR" "$PROJECT_DIR"
-  --bind "$DATA_DIR"    "$DATA_DIR"
+  --ro-bind "$PROJECT_DIR" "$PROJECT_DIR"
+  --ro-bind "$DATA_DIR"    "$DATA_DIR"
+)
+
+# Next.js dev/build need a writable output directory even when source is read-only.
+BWRAP_ARGS+=(
+  --dir "$PROJECT_DIR/.next"
+  --bind "$NEXT_TMP_DIR" "$PROJECT_DIR/.next"
+)
+
+# The image proxy caches resized images in DATA_DIR/tmp on cache miss.
+BWRAP_ARGS+=(
+  --dir "$DATA_DIR/tmp"
+  --bind "$DATA_TMP_DIR" "$DATA_DIR/tmp"
 )
 
 # -- Runtime binaries (read-only) --
@@ -241,7 +297,11 @@ fi
 # Launch
 # ============================================================
 echo ""
-echo "[sandbox] Filesystem: only $PROJECT_DIR and $DATA_DIR are writable"
+echo "[sandbox] Filesystem: $PROJECT_DIR and $DATA_DIR are read-only"
+echo "[sandbox] Scratch:    $PROJECT_DIR/.next is writable inside the sandbox"
+echo "[sandbox] Scratch:    $DATA_DIR/tmp is writable inside the sandbox"
+echo "[sandbox] process.env.DATA_DIR: ${DATA_DIR}"
+report_data_dir
 echo "[sandbox] Network:    $(if $NO_NETWORK; then echo "BLOCKED (offline mode)"; else echo "${#ALLOWED_DOMAINS[@]} whitelisted domains"; fi)"
 echo "[sandbox] Command:    $*"
 echo ""

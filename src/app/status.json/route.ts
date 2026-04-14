@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync, statSync, accessSync, constants } from "fs";
 import { join } from "path";
+import { DATA_DIR } from "@/lib/data-paths";
 
 // Store when the application started (runtime)
 const startTime = new Date();
@@ -29,6 +30,58 @@ function getGitInfoRuntime() {
   };
 }
 
+function getDataDirStatus() {
+  const raw = process.env.DATA_DIR || null;
+  const resolved = DATA_DIR;
+  const exists = existsSync(resolved);
+  const years = exists
+    ? readdirSync(resolved, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && /^\d{4}$/.test(entry.name))
+        .map((entry) => entry.name)
+        .sort()
+    : [];
+
+  let writable = false;
+  try {
+    accessSync(resolved, constants.W_OK);
+    writable = true;
+  } catch {}
+
+  const eventsPath = join(resolved, "latest", "generated", "events.json");
+  let upcomingEvents = 0;
+  let latestEventsUpdatedAt: string | null = null;
+  if (existsSync(eventsPath)) {
+    try {
+      const data = JSON.parse(readFileSync(eventsPath, "utf8"));
+      upcomingEvents = Array.isArray(data.events) ? data.events.length : 0;
+      latestEventsUpdatedAt = statSync(eventsPath).mtime.toISOString();
+    } catch {}
+  }
+
+  const syncStatePath = join(resolved, "sync-state.json");
+  let lastSync: string | null = null;
+  if (existsSync(syncStatePath)) {
+    try {
+      const syncState = JSON.parse(readFileSync(syncStatePath, "utf8"));
+      lastSync = syncState.lastSync || null;
+    } catch {}
+  }
+
+  return {
+    raw,
+    resolved,
+    exists,
+    writable,
+    years,
+    stats: {
+      yearCount: years.length,
+      upcomingEvents,
+      latestEventsUpdatedAt,
+      lastSync,
+    },
+  };
+}
+
 /**
  * Status JSON API - Shows application and deployment information
  *
@@ -53,6 +106,7 @@ export async function GET() {
     const message = gitInfo.message || "unknown";
     const commitDate = gitInfo.date || "";
     const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || "";
+    const dataDir = getDataDirStatus();
 
     // Calculate uptime
     const now = new Date();
@@ -117,6 +171,7 @@ export async function GET() {
         timezone: timezone,
       },
       environment: process.env.NODE_ENV || "development",
+      dataDir,
     };
 
     return NextResponse.json(response, {

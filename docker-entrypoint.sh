@@ -2,12 +2,24 @@
 set -e
 
 # ============================================================
-# Generate git-info.json from SOURCE_COMMIT env var (set by Coolify)
+# Refresh git-info.json from runtime env only when a real commit SHA is provided.
 # ============================================================
-if [ -n "$SOURCE_COMMIT" ]; then
-    COMMIT_MSG=$(curl -sf "https://api.github.com/repos/CommonsHub/commonshub.brussels/commits/$SOURCE_COMMIT" 2>/dev/null | grep -o '"message": *"[^"]*"' | head -1 | sed 's/"message": *"//;s/"$//' | head -c 100 || echo "unknown")
+if [ -n "$SOURCE_COMMIT" ] && [ "$SOURCE_COMMIT" != "unknown" ]; then
+    EXISTING_MSG=$(sed -n 's/.*"message":"\([^"]*\)".*/\1/p' /app/git-info.json 2>/dev/null | head -1)
+    EXISTING_DATE=$(sed -n 's/.*"date":"\([^"]*\)".*/\1/p' /app/git-info.json 2>/dev/null | head -1)
+    COMMIT_MSG="${GIT_COMMIT_MESSAGE:-${COMMIT_MSG:-}}"
+    if [ -z "$COMMIT_MSG" ]; then
+        COMMIT_MSG=$(curl -sf "https://api.github.com/repos/CommonsHub/commonshub.brussels/commits/$SOURCE_COMMIT" 2>/dev/null | grep -o '"message": *"[^"]*"' | head -1 | sed 's/"message": *"//;s/"$//' | head -c 100 || true)
+    fi
+    if [ -z "$COMMIT_MSG" ]; then
+        COMMIT_MSG="$EXISTING_MSG"
+    fi
+    if [ -z "$COMMIT_MSG" ]; then
+        COMMIT_MSG="unknown"
+    fi
     COMMIT_MSG=$(echo "$COMMIT_MSG" | sed 's/"/\\"/g' | tr '\n' ' ')
-    echo "{\"sha\":\"$SOURCE_COMMIT\",\"message\":\"$COMMIT_MSG\",\"date\":\"$(date -Iseconds)\"}" > /app/git-info.json
+    COMMIT_DATE="${GIT_COMMIT_DATE:-${EXISTING_DATE:-$(date -Iseconds)}}"
+    echo "{\"sha\":\"$SOURCE_COMMIT\",\"message\":\"$COMMIT_MSG\",\"date\":\"$COMMIT_DATE\"}" > /app/git-info.json
     chown nextjs:nodejs /app/git-info.json 2>/dev/null || true
 fi
 

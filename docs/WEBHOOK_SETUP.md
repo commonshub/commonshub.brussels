@@ -2,6 +2,8 @@
 
 This project includes an automated deployment webhook that allows GitHub to trigger deployments when code is pushed to the main branch.
 
+This webhook is only for host deployments that run from a real git checkout and can restart the app via `systemd`. It is not supported inside the standalone Docker image.
+
 ## How It Works
 
 1. GitHub sends a webhook on push events
@@ -190,6 +192,7 @@ In GitHub repository settings, go to **Webhooks** and click on your webhook to s
 2. **Permission denied on systemctl**: Add sudo permissions (see step 3)
 3. **Git pull fails**: Ensure the server has SSH keys configured for GitHub
 4. **Build fails**: Check that all dependencies are available on the server
+5. **409 unsupported_runtime**: You are calling the webhook from the standalone Docker image. Rebuild and redeploy the container instead of trying to `git pull` inside it.
 
 ## Manual Deployment
 

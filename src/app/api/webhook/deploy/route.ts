@@ -2,8 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
 import crypto from "crypto";
+import { existsSync } from "fs";
+import { join } from "path";
 
 const execAsync = promisify(exec);
+
+function getDeploymentEnvironmentStatus() {
+  const cwd = process.cwd();
+  const hasGitCheckout = existsSync(join(cwd, ".git"));
+  const hasBuildSources = existsSync(join(cwd, "next.config.mjs"));
+  const isDockerRuntime = existsSync("/.dockerenv");
+
+  return {
+    cwd,
+    hasGitCheckout,
+    hasBuildSources,
+    isDockerRuntime,
+    supportsSelfDeployment: hasGitCheckout && hasBuildSources && !isDockerRuntime,
+  };
+}
 
 /**
  * Webhook endpoint for automated deployment
@@ -18,6 +35,7 @@ const execAsync = promisify(exec);
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const deploymentEnvironment = getDeploymentEnvironmentStatus();
 
   try {
     // Get the secret from environment
@@ -92,6 +110,23 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[Webhook] Starting deployment...");
+
+    if (!deploymentEnvironment.supportsSelfDeployment) {
+      console.error("[Webhook] Self-deployment is not supported in this runtime", deploymentEnvironment);
+      return NextResponse.json(
+        {
+          status: "unsupported_runtime",
+          error: "This webhook requires a host deployment with a full git checkout and restart access. The standalone Docker image cannot run git-based self-updates.",
+          environment: {
+            cwd: deploymentEnvironment.cwd,
+            hasGitCheckout: deploymentEnvironment.hasGitCheckout,
+            hasBuildSources: deploymentEnvironment.hasBuildSources,
+            isDockerRuntime: deploymentEnvironment.isDockerRuntime,
+          },
+        },
+        { status: 409 }
+      );
+    }
 
     // Execute deployment commands
     const deploymentSteps = [
@@ -182,11 +217,13 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   const hasSecret = !!process.env.WEBHOOK_SECRET;
+  const deploymentEnvironment = getDeploymentEnvironmentStatus();
 
   return NextResponse.json({
     status: "ok",
     message: "Webhook endpoint is active",
     configured: hasSecret,
+    supportsSelfDeployment: deploymentEnvironment.supportsSelfDeployment,
     note: "POST with GitHub webhook signature to trigger deployment",
   });
 }

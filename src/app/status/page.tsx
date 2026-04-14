@@ -42,6 +42,19 @@ interface StatusData {
     timezone: string;
   };
   environment: string;
+  dataDir: {
+    raw: string | null;
+    resolved: string;
+    exists: boolean;
+    writable: boolean;
+    years: string[];
+    stats: {
+      yearCount: number;
+      upcomingEvents: number;
+      latestEventsUpdatedAt: string | null;
+      lastSync: string | null;
+    };
+  };
 }
 
 export default function StatusPage() {
@@ -202,6 +215,85 @@ export default function StatusPage() {
                 <p className="text-sm text-muted-foreground mb-1">Timezone</p>
                 <p className="text-sm">{data.server.timezone}</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5" />
+              Data Directory
+            </CardTitle>
+            <CardDescription>
+              Effective runtime data path and current data health signals
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Resolved DATA_DIR</p>
+                <code className="text-sm bg-muted px-2 py-1 rounded break-all">
+                  {data.dataDir.resolved}
+                </code>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Raw Environment Value</p>
+                <code className="text-sm bg-muted px-2 py-1 rounded break-all">
+                  {data.dataDir.raw || "(not set)"}
+                </code>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Exists</p>
+                <Badge variant={data.dataDir.exists ? "default" : "destructive"}>
+                  {data.dataDir.exists ? "Yes" : "No"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Writable</p>
+                <Badge variant={data.dataDir.writable ? "default" : "secondary"}>
+                  {data.dataDir.writable ? "Yes" : "No"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Year Folders</p>
+                <p className="text-sm">{data.dataDir.stats.yearCount}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Upcoming Events</p>
+                <p className="text-sm">{data.dataDir.stats.upcomingEvents}</p>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Last Event Data Update</p>
+                <p className="text-sm">
+                  {data.dataDir.stats.latestEventsUpdatedAt
+                    ? new Date(data.dataDir.stats.latestEventsUpdatedAt).toLocaleString()
+                    : "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Last Sync</p>
+                <p className="text-sm">
+                  {data.dataDir.stats.lastSync
+                    ? new Date(data.dataDir.stats.lastSync).toLocaleString()
+                    : "N/A"}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Available Years</p>
+              <p className="text-sm font-mono">
+                {data.dataDir.years.length > 0 ? data.dataDir.years.join(", ") : "None"}
+              </p>
             </div>
           </CardContent>
         </Card>
