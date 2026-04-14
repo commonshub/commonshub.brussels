@@ -4,7 +4,7 @@ WORKDIR /app
 
 ARG CHB_VERSION=v2.2.4
 
-RUN apk add --no-cache ca-certificates curl tar \
+RUN apk add --no-cache ca-certificates curl gcompat libc6-compat tar \
  && addgroup --system --gid 1001 chb \
  && adduser --system --uid 1001 --ingroup chb chb \
  && ARCH="$(apk --print-arch)" \
