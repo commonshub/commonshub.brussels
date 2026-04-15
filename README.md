@@ -23,9 +23,9 @@ chmod +x scripts/quick-start.sh
 
 The script will guide you through:
 1. Setting up environment variables
-2. Building the Docker image
+2. Building the Docker images
 3. Fetching data
-4. Starting the server
+4. Starting the services
 
 ### Manual Setup
 
@@ -34,19 +34,17 @@ The script will guide you through:
 cp .env.example .env
 # Edit .env and add your API keys
 
-# 2. Build and start the website container
+# 2. Build and start both services
 docker compose -f docker-compose.yml.example up -d --build
 
-# 3. Open the website (you'll see an empty data state page)
+# 3. Populate the shared data directory from the CLI service
+docker compose -f docker-compose.yml.example run --rm chbcli chb sync
+
+# 4. Open the website
 open http://localhost:3000
-
-# 4. Populate the shared data directory from the dedicated CHB container
-docker compose -f docker-compose.chb.yml.example run --rm chb chb sync
-
-# 5. Refresh the website - data is now loaded!
 ```
 
-**Note:** The website and CHB worker now run as separate containers and share the same `./data` mount. This keeps fetch secrets scoped to the CHB service instead of the web app container.
+**Note:** Local Docker now uses a single compose file with both `web` and `chbcli`. For Coolify, use [docs/coolify.md](docs/coolify.md) with [docker-compose.coolify.yml](docker-compose.coolify.yml).
 
 ## Development
 
@@ -54,22 +52,22 @@ docker compose -f docker-compose.chb.yml.example run --rm chb chb sync
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Set up environment variables
 cp .env.example .env
 # Edit .env with your API keys
 
 # Fetch data (automatically generates aggregated data)
-npm run fetch-recent
+bun run fetch-recent
 
 # Start development server
-npm run dev
+bun run dev
 ```
 
 ## Data Fetching
 
-The website reads pre-generated files from `./data`. Populate that directory with the standalone `chb` CLI, ideally from the separate worker container defined in `docker-compose.chb.yml.example`.
+The website reads pre-generated files from `./data`. Populate that directory with the standalone `chb` CLI, usually from the `chbcli` service in `docker-compose.yml.example`, or from the `chbcli` service in the Coolify compose setup.
 
 - **`chb sync`** - Fetches the latest data and regenerates derived files
 - **`chb sync --history`** - Backfills historical data and regenerates derived files
@@ -90,7 +88,7 @@ All fetched data is cached in the `./data` directory to avoid redundant API call
 Build the production application:
 
 ```bash
-npm run build
+bun run build
 ```
 
 **Note:** The build process only compiles the Next.js application. It does **not** fetch data. When using Docker with a mounted data volume, data must be fetched after the container starts.
@@ -100,12 +98,14 @@ npm run build
 After building and starting the application:
 
 ```bash
-# Fetch the latest data from the dedicated CHB service
-docker compose -f docker-compose.chb.yml.example run --rm chb chb sync
+# Local Docker: fetch the latest data from the CLI service
+docker compose -f docker-compose.yml.example run --rm chbcli chb sync
 
 # Or fetch full history
-docker compose -f docker-compose.chb.yml.example run --rm chb chb sync --history
+docker compose -f docker-compose.yml.example run --rm chbcli chb sync --history
 ```
+
+For Coolify, run the same commands inside the `chbcli` service terminal. See [docs/coolify.md](docs/coolify.md).
 
 If the data directory is empty, the website will display a helpful empty data state page with fetching instructions.
 
@@ -117,6 +117,7 @@ If the data directory is empty, the website will display a helpful empty data st
 ## Documentation
 
 - **[Deployment Guide](docs/deployment.md)** - Complete Docker deployment instructions
+- **[Coolify Guide](docs/coolify.md)** - Single-resource Coolify deployment with shared persistent volume
 - **[Webhook Setup](docs/WEBHOOK_SETUP.md)** - Automated deployment via GitHub webhooks
 - **[Fetching Transactions](docs/fetch-transactions.md)** - Guide to fetching and managing transaction data
 - **[CLAUDE.md](CLAUDE.md)** - Technical architecture and component documentation
@@ -139,15 +140,15 @@ If the data directory is empty, the website will display a helpful empty data st
 
 | Command | Description |
 |--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build the production app |
+| `bun run dev` | Start development server |
+| `bun run build` | Build the production app |
 | `chb sync` | Fetch latest data + auto-generate derived files |
 | `chb sync --history` | Fetch full history + auto-generate derived files |
-| `npm run fetch-transactions` | Fetch transaction data only (supports `--month`, `--force` flags) |
-| `npm run generate-data` | Manually regenerate all aggregated data files |
-| `npm run restart` | Restart the systemd service |
-| `npm run logs` | View application logs (last 100 lines + follow) |
-| `npm run status` | Check application status, git info, and uptime |
+| `bun run fetch-transactions` | Fetch transaction data only (supports `--month`, `--force` flags) |
+| `bun run generate-data` | Manually regenerate all aggregated data files |
+| `bun run restart` | Restart the systemd service |
+| `bun run logs` | View application logs (last 100 lines + follow) |
+| `bun run status` | Check application status, git info, and uptime |
 
 ## Environment Variables
 

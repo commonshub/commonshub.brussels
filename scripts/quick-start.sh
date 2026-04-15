@@ -67,18 +67,18 @@ case $choice in
     1)
         echo ""
         echo "Building and starting the application..."
-        docker-compose up -d --build
+        docker compose -f docker-compose.yml up -d --build
         echo ""
         echo -e "${GREEN}✓ Application built and started${NC}"
         echo "Access the website at: http://localhost:3000"
         echo ""
         echo "Next step:"
-        echo "Fetch data with: docker exec commonshub npm run fetch-recent"
+        echo "Fetch data with: docker compose -f docker-compose.yml run --rm chbcli chb sync"
         ;;
     2)
         echo ""
         echo "Starting existing container..."
-        docker-compose up -d
+        docker compose -f docker-compose.yml up -d
         echo ""
         echo -e "${GREEN}✓ Application started${NC}"
         echo "Access the website at: http://localhost:3000"
@@ -87,7 +87,7 @@ case $choice in
         echo ""
         echo "Fetching recent data (current and previous month)..."
         echo "This automatically generates all aggregated data files."
-        docker exec commonshub npm run fetch-recent
+        docker compose -f docker-compose.yml run --rm chbcli chb sync
         echo ""
         echo -e "${GREEN}✓ Recent data fetched and processed${NC}"
         ;;
@@ -99,7 +99,7 @@ case $choice in
             echo ""
             echo "Fetching all historical data..."
             echo "This automatically generates all aggregated data files."
-            docker exec commonshub npm run fetch-history
+            docker compose -f docker-compose.yml run --rm chbcli chb sync --history
             echo ""
             echo -e "${GREEN}✓ All historical data fetched and processed${NC}"
         fi
@@ -108,7 +108,7 @@ case $choice in
         echo ""
         echo "Performing full setup..."
         echo "1/3 Building and starting..."
-        docker-compose up -d --build
+        docker compose -f docker-compose.yml up -d --build
 
         echo ""
         echo "2/3 Waiting for container to be ready..."
@@ -116,7 +116,7 @@ case $choice in
 
         echo ""
         echo "3/3 Fetching recent data and generating views..."
-        docker exec commonshub npm run fetch-recent
+        docker compose -f docker-compose.yml run --rm chbcli chb sync
 
         echo ""
         echo -e "${GREEN}✓ Full setup complete!${NC}"
@@ -128,15 +128,15 @@ case $choice in
         echo "Access the website at: http://localhost:3000"
         echo ""
         echo "Useful commands:"
-        echo "  - View logs:        docker logs -f commonshub"
-        echo "  - Enter container:  docker exec -it commonshub sh"
-        echo "  - Stop:             docker-compose down"
-        echo "  - Fetch more data:  docker exec commonshub npm run fetch-history"
+        echo "  - View logs:        docker compose -f docker-compose.yml logs -f web"
+        echo "  - Enter web shell:  docker exec -it commonshub-web sh"
+        echo "  - Stop:             docker compose -f docker-compose.yml down"
+        echo "  - Fetch more data:  docker compose -f docker-compose.yml run --rm chbcli chb sync --history"
         ;;
     6)
         echo ""
         echo "Stopping and removing containers..."
-        docker-compose down
+        docker compose -f docker-compose.yml down
         echo ""
         echo -e "${GREEN}✓ Containers stopped and removed${NC}"
         ;;

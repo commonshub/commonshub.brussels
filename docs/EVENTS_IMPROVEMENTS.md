@@ -4,11 +4,11 @@
 
 The events system uses a two-stage process with separation of concerns:
 
-1. **`npm run fetch-events`** - Fetches and caches raw data
+1. **`bun run fetch-events`** - Fetches and caches raw data
    - Downloads iCal feed → `/:year/:month/ical/events.ics`
    - Fetches Luma API data → `/:year/:month/luma/:calendarId.json`
 
-2. **`npm run generate-events`** - Consolidates cached data
+2. **`bun run generate-events`** - Consolidates cached data
    - Reads from iCal and Luma caches
    - Merges data and applies augmentation logic
    - Generates → `/:year/:month/events.json`
@@ -101,19 +101,19 @@ The events system uses a two-stage process with separation of concerns:
 
 ### Fetching events
 ```bash
-npm run fetch-events
+bun run fetch-events
 ```
 This downloads and caches the iCal feed and Luma API data for all months.
 
 ### Generating events.json
 ```bash
-npm run generate-events
+bun run generate-events
 ```
 This reads from the cached data and generates consolidated events.json files.
 
 ### Running tests
 ```bash
-npm test -- tests/events.test.ts
+bun run test -- tests/events.test.ts
 ```
 Tests validate:
 - events.json structure

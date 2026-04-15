@@ -136,15 +136,15 @@ export async function POST(request: NextRequest) {
       },
       {
         name: "Install dependencies",
-        command: "npm ci",
+        command: "bun install --frozen-lockfile",
       },
       {
         name: "Build",
-        command: "npm run build",
+        command: "bun run build",
       },
       {
         name: "Restart service",
-        command: "npm run restart",
+        command: "bun run restart",
       },
     ];
 

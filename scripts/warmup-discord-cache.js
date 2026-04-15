@@ -627,7 +627,7 @@ async function main() {
   // (discord-cache reads DATA_DIR at module import time)
   if (!process.env.DATA_DIR) {
     console.log(`⚠️  WARNING: DATA_DIR not set in environment`);
-    console.log(`   To use a custom directory, run: DATA_DIR=/path npm run fetch-discord\n`);
+    console.log(`   To use a custom directory, run: DATA_DIR=/path bun run fetch-discord\n`);
   } else {
     console.log(`✓ DATA_DIR is set in environment\n`);
   }

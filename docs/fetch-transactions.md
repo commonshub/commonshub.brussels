@@ -48,7 +48,7 @@ Add these to your `.env` file or export them in your shell.
 Fetches data for the current month and previous month only. This is fast and ideal for regular updates:
 
 ```bash
-npm run fetch-recent
+bun run fetch-recent
 ```
 
 This runs:
@@ -69,7 +69,7 @@ This runs:
 Fetches data for all months since the beginning. Warning: This takes a long time on first run!
 
 ```bash
-npm run fetch-history
+bun run fetch-history
 ```
 
 **Use when:**
@@ -83,10 +83,10 @@ Fetch data for a specific date range:
 
 ```bash
 # Specific month range
-npm run fetch-history -- --start-month=2024-01 --end-month=2024-12
+bun run fetch-history -- --start-month=2024-01 --end-month=2024-12
 
 # Single year
-npm run fetch-history -- --start-month=2025-01 --end-month=2025-12
+bun run fetch-history -- --start-month=2025-01 --end-month=2025-12
 ```
 
 ## Transaction-Specific Commands
@@ -97,13 +97,13 @@ If you only want to fetch/update transactions without other data:
 
 ```bash
 # All months (skips existing historical months, updates current month)
-npm run fetch-transactions
+bun run fetch-transactions
 
 # Specific month
-npm run fetch-transactions -- --month=2025-11
+bun run fetch-transactions -- --month=2025-11
 
 # Date range
-npm run fetch-transactions -- --start-month=2024-01 --end-month=2024-12
+bun run fetch-transactions -- --start-month=2024-01 --end-month=2024-12
 ```
 
 The script uses: `tsx scripts/warmup-transactions-cache.js`
@@ -114,13 +114,13 @@ To force re-fetching transactions for a month that already has cached data, use 
 
 ```bash
 # Force re-fetch a specific month
-npm run fetch-transactions -- --month=2025-11 --force
+bun run fetch-transactions -- --month=2025-11 --force
 
 # Force re-fetch a date range
-npm run fetch-transactions -- --start-month=2024-01 --end-month=2024-12 --force
+bun run fetch-transactions -- --start-month=2024-01 --end-month=2024-12 --force
 
 # Force re-fetch all historical data
-npm run fetch-history -- --force
+bun run fetch-history -- --force
 ```
 
 The `--force` flag will re-fetch and overwrite cached transaction data even if it already exists.
@@ -140,7 +140,7 @@ You can also delete the cache files manually before re-fetching:
 rm -rf data/2025/11/finance
 
 # Re-fetch that specific month
-npm run fetch-transactions -- --month=2025-11
+bun run fetch-transactions -- --month=2025-11
 ```
 
 Or delete specific account data:
@@ -151,7 +151,7 @@ rm data/2025/11/finance/stripe/acct_1Nn0FaFAhaWeDyow.json
 rm data/2025/11/finance/gnosis/savings.EURe.json
 
 # Re-fetch the month
-npm run fetch-transactions -- --month=2025-11
+bun run fetch-transactions -- --month=2025-11
 ```
 
 ## Common Use Cases
@@ -160,7 +160,7 @@ npm run fetch-transactions -- --month=2025-11
 
 ```bash
 # Run this daily via cron - fetches only recent data
-npm run fetch-recent
+bun run fetch-recent
 ```
 
 This is fast and efficient, only fetching current and previous month.
@@ -169,27 +169,27 @@ This is fast and efficient, only fetching current and previous month.
 
 ```bash
 # Re-fetch November 2025 after fixing an API issue
-npm run fetch-transactions -- --month=2025-11 --force
+bun run fetch-transactions -- --month=2025-11 --force
 ```
 
 ### Backfilling Historical Data
 
 ```bash
 # First time setup - fetch all historical data
-npm run fetch-history
+bun run fetch-history
 
 # Or for a specific year
-npm run fetch-history -- --start-month=2024-01 --end-month=2024-12
+bun run fetch-history -- --start-month=2024-01 --end-month=2024-12
 ```
 
 ### Testing Configuration Changes
 
 ```bash
 # Test with a single month before running on all data
-npm run fetch-transactions -- --month=2025-11 --force
+bun run fetch-transactions -- --month=2025-11 --force
 
 # If it works, run on all data
-npm run fetch-history -- --force
+bun run fetch-history -- --force
 ```
 
 ## How Transaction Fetching Works
@@ -262,13 +262,13 @@ Use `fetch-all-data.ts` for a complete workflow that fetches everything for a sp
 
 ```bash
 # Fetch all data for current month
-npm run fetch-data
+bun run fetch-data
 
 # Specific month
-npm run fetch-data -- --month 11 --year 2025
+bun run fetch-data -- --month 11 --year 2025
 
 # Force re-fetch even if data exists
-npm run fetch-data -- --month 11 --year 2025 --force
+bun run fetch-data -- --month 11 --year 2025 --force
 ```
 
 This runs a complete pipeline:
@@ -290,7 +290,7 @@ This runs a complete pipeline:
 1. Check if the cache file exists: `ls -la data/2025/11/finance/stripe/`
 2. If it exists, delete it to force re-fetch
 3. Check API key configuration
-4. Run with specific month: `npm run fetch-transactions -- --month=2025-11`
+4. Run with specific month: `bun run fetch-transactions -- --month=2025-11`
 
 ### API Rate Limits
 
@@ -325,7 +325,7 @@ This runs a complete pipeline:
 
 ```bash
 # Use a different data directory
-DATA_DIR=/path/to/data npm run fetch-transactions
+DATA_DIR=/path/to/data bun run fetch-transactions
 
 # Or set in .env
 DATA_DIR=/path/to/data
@@ -335,8 +335,8 @@ DATA_DIR=/path/to/data
 
 ```bash
 # Use test data directory
-npm run fetch-transactions -- --month=2025-11
-DATA_DIR=./tests/data npm run fetch-transactions -- --month=2025-11
+bun run fetch-transactions -- --month=2025-11
+DATA_DIR=./tests/data bun run fetch-transactions -- --month=2025-11
 ```
 
 ### Integration with Cron Jobs
@@ -345,7 +345,7 @@ For automated daily updates:
 
 ```bash
 # Add to crontab (runs at 2 AM daily)
-0 2 * * * cd /path/to/project && npm run fetch-recent >> /var/log/fetch-data.log 2>&1
+0 2 * * * cd /path/to/project && bun run fetch-recent >> /var/log/fetch-data.log 2>&1
 ```
 
 ## Related Documentation

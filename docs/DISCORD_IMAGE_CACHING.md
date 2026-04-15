@@ -19,12 +19,12 @@ Discord CDN URLs contain authentication tokens that expire after 24 hours. To av
 **Usage:**
 ```bash
 # Normal mode (fetch new messages only)
-npx tsx scripts/warmup-discord-cache.js
+bun run fetch-discord
 
 # Force rewrite mode (re-fetch all messages and images)
-npx tsx scripts/warmup-discord-cache.js --force
+bun run fetch-discord -- --force
 # or
-npx tsx scripts/warmup-discord-cache.js -f
+bun run fetch-discord -- -f
 ```
 
 **Features:**
@@ -157,7 +157,7 @@ data/
 
 ```bash
 # Run tests
-npm test tests/discord-image-cache.test.ts
+bun run test -- tests/discord-image-cache.test.ts
 ```
 
 **Test Coverage:**
@@ -177,7 +177,7 @@ npm test tests/discord-image-cache.test.ts
 
 ### Initial Setup (Warm Cache)
 ```bash
-npx tsx scripts/warmup-discord-cache.js
+bun run fetch-discord
 ```
 
 This will:
@@ -188,7 +188,7 @@ This will:
 
 ### Force Refresh
 ```bash
-npx tsx scripts/warmup-discord-cache.js --force
+bun run fetch-discord -- --force
 ```
 
 This will:
@@ -201,7 +201,7 @@ This will:
 
 Run the warmup script periodically (e.g., daily):
 ```bash
-npx tsx scripts/warmup-discord-cache.js
+bun run fetch-discord
 ```
 
 It will:
@@ -276,7 +276,7 @@ Images are now served from static JSON files generated at build time:
 
 2. Re-run warmup with force:
    ```bash
-   npx tsx scripts/warmup-discord-cache.js --force
+   bun run fetch-discord -- --force
    ```
 
 3. Check console for 404 errors
@@ -290,7 +290,7 @@ Images are now served from static JSON files generated at build time:
 
 2. Re-run warmup:
    ```bash
-   npx tsx scripts/warmup-discord-cache.js
+   bun run fetch-discord
    ```
 
 ### Permissions

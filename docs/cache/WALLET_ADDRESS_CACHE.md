@@ -118,7 +118,7 @@ To force a refresh of specific addresses, simply delete them from `data/wallet-a
 
 ## Expected Output
 
-When running `npm run generate-data`:
+When running `bun run generate-data`:
 ```
 📸 Generating contributors.json...
   ℹ Fetching wallet addresses for 24 contributors...

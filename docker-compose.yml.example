@@ -2,20 +2,21 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: commonshub-brussels:latest
+      dockerfile: Dockerfile.web
+    image: commonshub-brussels-web:latest
     container_name: commonshub-web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     volumes:
-      # Shared read/write data directory populated by the separate CHB service.
-      - ./data:/data
+      # The website only reads generated data.
+      - ./data:/data:ro
     environment:
       - NODE_ENV=production
       - DATA_DIR=/data
+      - PORT=${PORT:-3000}
 
-      # Website runtime secrets only. Keep fetcher secrets in docker-compose.chb.yml.example.
+      # Website runtime secrets only.
       - AUTH_DISCORD_ID=${AUTH_DISCORD_ID}
       - AUTH_DISCORD_SECRET=${AUTH_DISCORD_SECRET}
       - RESEND_API_KEY=${RESEND_API_KEY}
@@ -33,7 +34,7 @@ services:
       - no-new-privileges:true
 
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:${PORT:-3000}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -44,3 +45,28 @@ services:
         limits:
           cpus: '2'
           memory: 2G
+
+  chbcli:
+    build:
+      context: .
+      dockerfile: Dockerfile.chb
+    image: commonshub-brussels-chb:latest
+    container_name: commonshub-chb
+    restart: unless-stopped
+    volumes:
+      # The CLI writes generated data here for the website to read.
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - LUMA_API_KEY=${LUMA_API_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - MONERIUM_CLIENT_ID=${MONERIUM_CLIENT_ID}
+      - MONERIUM_CLIENT_SECRET=${MONERIUM_CLIENT_SECRET}
+    healthcheck:
+      test: ["CMD", "chb", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

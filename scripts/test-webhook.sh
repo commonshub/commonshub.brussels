@@ -3,7 +3,7 @@
 # Test webhook endpoint
 # Usage: ./scripts/test-webhook.sh [url] [secret]
 
-URL="${1:-http://localhost:3000/api/webhook/deploy}"
+URL="${1:-http://localhost:${PORT:-3000}/api/webhook/deploy}"
 SECRET="${2:-${WEBHOOK_SECRET}}"
 
 if [ -z "$SECRET" ]; then

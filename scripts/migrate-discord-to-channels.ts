@@ -2,7 +2,7 @@
  * Migration script: move data/{year}/{month}/discord/ to data/{year}/{month}/channels/discord/
  * Also handles data/latest/discord/ -> data/latest/channels/discord/
  *
- * Usage: npm run migrate-discord-to-channels
+ * Usage: bun run migrate-discord-to-channels
  *
  * This is safe to run multiple times - it skips directories that have already been migrated.
  */

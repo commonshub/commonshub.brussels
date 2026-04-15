@@ -183,8 +183,8 @@ const year = process.argv[2];
 
 if (!year) {
   console.error("\n❌ Error: Year argument is required\n");
-  console.error("Usage: npm run download-featured-images <year>");
-  console.error("Example: npm run download-featured-images 2025\n");
+  console.error("Usage: bun run download-featured-images <year>");
+  console.error("Example: bun run download-featured-images 2025\n");
   process.exit(1);
 }
 

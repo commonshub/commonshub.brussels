@@ -15,17 +15,17 @@ Now all scripts properly:
 
 ### Default (uses `./data` directory)
 ```bash
-npm run fetch-history
+bun run fetch-history
 ```
 
 ### Custom directory (production build)
 ```bash
-DATA_DIR=/path/to/data npm run fetch-history
+DATA_DIR=/path/to/data bun run fetch-history
 ```
 
 Or for a single script:
 ```bash
-DATA_DIR=/path/to/data npm run fetch-discord
+DATA_DIR=/path/to/data bun run fetch-discord
 ```
 
 ### Using .env file
@@ -36,7 +36,7 @@ DATA_DIR=/path/to/data
 
 Then run normally:
 ```bash
-npm run fetch-history
+bun run fetch-history
 ```
 
 ## Verifying
@@ -53,7 +53,7 @@ Check these match your expectations!
 ### Files still going to wrong location?
 1. Check the console output - it shows exactly where DATA_DIR points
 2. Make sure you're running from the project root (not from `scripts/` folder)
-3. If using environment variable, use: `DATA_DIR=/full/path npm run ...`
+3. If using environment variable, use: `DATA_DIR=/full/path bun run ...`
 4. Don't use relative paths like `DATA_DIR=../data` - use absolute paths
 
 ### Warning messages

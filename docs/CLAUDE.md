@@ -28,10 +28,10 @@ The only dynamic part is the ability to login with Discord to
 
 The build process is separated from data fetching to support Docker volumes:
 
-- `npm run build` - Compiles the Next.js application (does **not** fetch data)
-- `npm run fetch-recent` - Fetches data for current and previous month, then auto-generates all aggregated files
-- `npm run fetch-history` - Fetches all historical data, then auto-generates all aggregated files (run manually when needed)
-- `npm run generate-data` - Manually regenerate all aggregated data files (images, contributors, transactions, events)
+- `bun run build` - Compiles the Next.js application (does **not** fetch data)
+- `bun run fetch-recent` - Fetches data for current and previous month, then auto-generates all aggregated files
+- `bun run fetch-history` - Fetches all historical data, then auto-generates all aggregated files (run manually when needed)
+- `bun run generate-data` - Manually regenerate all aggregated data files (images, contributors, transactions, events)
 
 ### Why Separate Build and Data Fetching?
 
@@ -49,8 +49,8 @@ The fetch scripts automatically skip months that already have cached data, so su
 
 To fetch a specific month or date range:
 ```bash
-npm run fetch-history -- --month=2025-01
-npm run fetch-history -- --start-month=2024-01 --end-month=2024-12
+bun run fetch-history -- --month=2025-01
+bun run fetch-history -- --start-month=2024-01 --end-month=2024-12
 ```
 
 ### Empty Data State

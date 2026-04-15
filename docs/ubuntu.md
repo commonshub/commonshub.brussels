@@ -24,7 +24,7 @@ Install required dependencies:
 sudo apt install -y curl wget git build-essential
 ```
 
-## 2. Install Node.js with nvm
+## 2. Install Node.js and Bun
 
 Install nvm (Node Version Manager):
 
@@ -52,7 +52,19 @@ Verify installation:
 
 ```bash
 node --version
-npm --version
+```
+
+Install Bun:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+
+# Reload your shell configuration
+source ~/.bashrc
+# Or if using zsh:
+# source ~/.zshrc
+
+bun --version
 ```
 
 ## 3. Install and Configure nginx
@@ -174,7 +186,7 @@ git clone https://github.com/yourusername/commonshub.brussels.git .
 Install dependencies:
 
 ```bash
-npm install
+bun install
 ```
 
 Create environment file:
@@ -201,7 +213,7 @@ Fetch initial data:
 
 ```bash
 # Fetch recent data (current and previous month)
-npm run fetch-recent
+bun run fetch-recent
 
 # This will take a few minutes and create:
 # - Discord messages and images
@@ -212,7 +224,7 @@ npm run fetch-recent
 Build the application:
 
 ```bash
-npm run build
+bun run build
 ```
 
 ## 6. Create systemd Service
@@ -379,10 +391,10 @@ cd /var/www/commonshub.brussels
 git pull
 
 # Install any new dependencies
-npm install
+bun install
 
 # Rebuild the application
-npm run build
+bun run build
 
 # Restart the service
 sudo systemctl restart commonshub
@@ -510,7 +522,7 @@ If images don't appear in galleries or room pages:
 3. **If data files are missing, fetch data:**
    ```bash
    cd /var/www/commonshub.brussels
-   npm run fetch-recent
+   bun run fetch-recent
    ```
 
 4. **Test if data is accessible via the API route:**

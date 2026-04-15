@@ -103,10 +103,10 @@ Run the test suite:
 
 ```bash
 # Unit tests
-npm test -- tests/data-route.test.ts
+bun run test -- tests/data-route.test.ts
 
 # Integration tests
-npm test -- tests/room-images-integration.test.ts
+bun run test -- tests/room-images-integration.test.ts
 ```
 
 ## Common Use Cases
@@ -185,7 +185,7 @@ curl http://localhost:3000/data/latest/discord/1443322327159803945/images.json
 ls -la $DATA_DIR/latest/discord/1443322327159803945/images.json
 
 # Fetch data if missing
-npm run fetch-recent
+bun run fetch-recent
 ```
 
 ### 403 Forbidden

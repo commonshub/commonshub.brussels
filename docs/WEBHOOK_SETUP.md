@@ -10,9 +10,9 @@ This webhook is only for host deployments that run from a real git checkout and 
 2. The webhook endpoint verifies the GitHub signature
 3. If valid and pushed to main branch, it runs:
    - `git pull origin main`
-   - `npm ci` (clean install dependencies)
-   - `npm run build`
-   - `npm run restart` (restarts the systemd service)
+   - `bun install --frozen-lockfile`
+   - `bun run build`
+   - `bun run restart` (restarts the systemd service)
 
 ## Setup Instructions
 
@@ -45,7 +45,7 @@ openssl rand -hex 32
 
 ### 3. Configure systemd service name
 
-The webhook uses `npm run restart` and `npm run logs` to manage the service. If your systemd service has a different name, simply edit `package.json`:
+The webhook uses `bun run restart` and `bun run logs` to manage the service. If your systemd service has a different name, simply edit `package.json`:
 
 ```json
 {
@@ -59,8 +59,8 @@ The webhook uses `npm run restart` and `npm run logs` to manage the service. If 
 Replace `your-service-name` with your actual systemd service name (default is `commonshub.brussels`).
 
 **Utility commands:**
-- `npm run restart` - Restart the application service
-- `npm run logs` - View the last 100 lines of logs and follow new entries
+- `bun run restart` - Restart the application service
+- `bun run logs` - View the last 100 lines of logs and follow new entries
 
 ### 4. Grant sudo permissions for systemctl
 
@@ -201,11 +201,11 @@ If you need to deploy manually without the webhook:
 ```bash
 cd /path/to/commonshub.brussels
 git pull origin main
-npm ci
-npm run build
-npm run restart
+bun install --frozen-lockfile
+bun run build
+bun run restart
 ```
 
 **Useful commands:**
-- `npm run logs` - View application logs
-- `npm run restart` - Restart the service after making changes
+- `bun run logs` - View application logs
+- `bun run restart` - Restart the service after making changes

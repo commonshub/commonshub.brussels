@@ -1,0 +1,52 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: commonshub-brussels-web:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
+      PORT: ${PORT:-3000}
+      AUTH_DISCORD_ID: ${AUTH_DISCORD_ID}
+      AUTH_DISCORD_SECRET: ${AUTH_DISCORD_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+    volumes:
+      - commonshub-data:/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:${PORT:-3000}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  chbcli:
+    build:
+      context: .
+      dockerfile: Dockerfile.chb
+    image: commonshub-brussels-chb:latest
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /data
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      LUMA_API_KEY: ${LUMA_API_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
+      MONERIUM_CLIENT_ID: ${MONERIUM_CLIENT_ID}
+      MONERIUM_CLIENT_SECRET: ${MONERIUM_CLIENT_SECRET}
+    volumes:
+      - commonshub-data:/data
+    healthcheck:
+      test: ["CMD", "chb", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  commonshub-data:
+    name: commonshub-data

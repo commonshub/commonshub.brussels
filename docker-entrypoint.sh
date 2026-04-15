@@ -27,7 +27,11 @@ fi
 # Ensure /data directory exists and has correct permissions
 # ============================================================
 if [ -d "/data" ]; then
-    chown -R nextjs:nodejs /data
+    if [ -w "/data" ]; then
+        chown -R nextjs:nodejs /data 2>/dev/null || true
+    else
+        echo "[data] /data is mounted read-only; skipping ownership update"
+    fi
 fi
 
 # ============================================================
