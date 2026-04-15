@@ -19,6 +19,7 @@ RUN apk add --no-cache ca-certificates curl gcompat libc6-compat tar \
       VERSION="$CHB_VERSION"; \
     fi \
  && [ -n "$VERSION" ] \
+ && echo "Resolved chb version: ${VERSION} (${CHB_ARCH})" \
  && curl -fsSL -o /tmp/chb.tar.gz "https://github.com/CommonsHub/chb/releases/download/${VERSION}/chb_${VERSION#v}_linux_${CHB_ARCH}.tar.gz" \
  && curl -fsSL -o /tmp/checksums.txt "https://github.com/CommonsHub/chb/releases/download/${VERSION}/checksums.txt" \
  && EXPECTED_SHA="$(grep " chb_${VERSION#v}_linux_${CHB_ARCH}.tar.gz$" /tmp/checksums.txt | awk '{print $1}')" \
@@ -27,6 +28,8 @@ RUN apk add --no-cache ca-certificates curl gcompat libc6-compat tar \
  && [ "$EXPECTED_SHA" = "$ACTUAL_SHA" ] \
  && tar -xzf /tmp/chb.tar.gz -C /tmp \
  && install -m 0755 "/tmp/chb_${VERSION#v}_linux_${CHB_ARCH}" /usr/local/bin/chb \
+ && echo "Installed chb binary:" \
+ && chb version \
  && rm -f /tmp/chb.tar.gz /tmp/checksums.txt "/tmp/chb_${VERSION#v}_linux_${CHB_ARCH}" \
  && mkdir -p /data /app/src/settings \
  && chown -R chb:chb /data /app
