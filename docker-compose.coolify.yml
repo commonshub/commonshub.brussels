@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile.web
     image: commonshub-brussels-web:latest
     restart: unless-stopped
+    expose:
+      - "${PORT:-3000}"
     environment:
       NODE_ENV: production
       DATA_DIR: /data

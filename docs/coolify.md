@@ -33,6 +33,8 @@ The website gets that volume read-only. Only `chbcli` can write to it.
 That compose file builds the website from `Dockerfile.web` and the worker from `Dockerfile.chb`.
 
 Coolify should expose only the `web` service on your domain. Do not expose `chbcli`.
+Because the website listens on container port `3000`, make sure the `web` service domain in Coolify targets port `3000`.
+For example: `https://staging.commonshub.brussels:3000`
 
 ## Environment Variables
 
