@@ -20,7 +20,7 @@ services:
     volumes:
       - commonshub-data:/data:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:${PORT:-3000}"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${PORT:-3000}/status.json >/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3

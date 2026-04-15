@@ -33,8 +33,12 @@ The website gets that volume read-only. Only `chbcli` can write to it.
 That compose file builds the website from `Dockerfile.web` and the worker from `Dockerfile.chb`.
 
 Coolify should expose only the `web` service on your domain. Do not expose `chbcli`.
-Because the website listens on container port `3000`, make sure the `web` service domain in Coolify targets port `3000`.
-For example: `https://staging.commonshub.brussels:3000`
+Because the website listens on container port `3000`, make sure the `web` service domain in Coolify uses target port `3000`.
+That is a Coolify setting on the domain/service mapping, not a public URL you browse with `:3000`.
+For example:
+
+- Domain: `https://staging.commonshub.brussels`
+- Target port: `3000`
 
 ## Environment Variables
 
@@ -136,6 +140,18 @@ Check the website container:
 ```bash
 docker compose -f docker-compose.coolify.yml logs -f web
 ```
+
+If the app responds inside the container on `localhost:3000` but the public domain shows `no available server`, check the health and proxy path first:
+
+```bash
+curl -fsS http://localhost:3000/status.json
+```
+
+In Coolify, also verify:
+
+- the `web` service is marked healthy
+- the domain is attached to the `web` service, not `chbcli`
+- the domain target port is `3000`
 
 Check the worker container:
 
