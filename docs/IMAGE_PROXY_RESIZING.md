@@ -12,7 +12,7 @@ It can:
 
 - read an original image from disk or fetch it remotely
 - resize it on demand
-- cache the resized result in `DATA_DIR/tmp/`
+- cache the resized result in a writable cache directory
 - serve the cached resized file on subsequent requests
 
 The resizing logic is shared in [src/lib/image-proxy-server.ts](../src/lib/image-proxy-server.ts).
@@ -99,11 +99,15 @@ That means:
 
 ### 5. Resized file is cached on disk
 
-Resized images are cached in:
+Resized images are cached in the first writable directory from this list:
 
 ```text
+IMAGE_PROXY_CACHE_DIR
 DATA_DIR/tmp/
+/tmp/commonshub-image-proxy/
 ```
+
+If `DATA_DIR/tmp/` is read-only in production, the proxy falls back automatically to `/tmp/commonshub-image-proxy/`. If no writable cache directory is available, the proxy still resizes and serves the image but skips disk caching.
 
 The filename format is:
 
@@ -158,7 +162,7 @@ If it does not:
 
 - the original image is read or fetched
 - Sharp generates the resized JPEG
-- the resized JPEG is written to `DATA_DIR/tmp/`
+- the resized JPEG is written to the selected writable cache directory
 - that new file is returned
 
 ## HTTP Caching Behavior
@@ -189,11 +193,11 @@ That means:
 - external proxied images are cached for 30 days
 - local images served from disk are cached for 210 days
 
-The resized file on disk in `DATA_DIR/tmp/` is separate from these HTTP cache headers. Disk cache prevents repeated resizing on the server side, while HTTP caching reduces repeated network requests from browsers and CDNs.
+The resized file on disk in the selected writable cache directory is separate from these HTTP cache headers. Disk cache prevents repeated resizing on the server side, while HTTP caching reduces repeated network requests from browsers and CDNs.
 
 ## What Is Not Cached Here
 
-This document is only about resized derivatives stored in `DATA_DIR/tmp/`.
+This document is only about resized derivatives stored in the proxy cache directory.
 
 It is separate from:
 

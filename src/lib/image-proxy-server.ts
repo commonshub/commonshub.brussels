@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import sharp from "sharp";
 import { DATA_DIR } from "./data-paths";
@@ -13,6 +14,75 @@ export { SIZE_CONFIG, type ImageSize, resolveRequestedImageSize } from "./image-
 // Cache images for 30 days
 export const CACHE_DURATION = 60 * 60 * 24 * 30;
 
+let resolvedCacheDir: string | null | undefined;
+let loggedCacheDir: string | null = null;
+
+function ensureWritableDirectory(dir: string): boolean {
+  try {
+    if (fs.existsSync(dir)) {
+      if (!fs.statSync(dir).isDirectory()) {
+        return false;
+      }
+    } else {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getImageCacheDir(): string | null {
+  if (resolvedCacheDir !== undefined) {
+    return resolvedCacheDir;
+  }
+
+  const preferredDataDir = path.join(DATA_DIR, "tmp");
+  const candidates = [
+    process.env.IMAGE_PROXY_CACHE_DIR,
+    preferredDataDir,
+    path.join(os.tmpdir(), "commonshub-image-proxy"),
+  ].filter(Boolean) as string[];
+
+  const seen = new Set<string>();
+
+  for (const candidate of candidates) {
+    const resolvedCandidate = path.resolve(candidate);
+    if (seen.has(resolvedCandidate)) continue;
+    seen.add(resolvedCandidate);
+
+    if (!ensureWritableDirectory(resolvedCandidate)) {
+      continue;
+    }
+
+    resolvedCacheDir = resolvedCandidate;
+
+    if (loggedCacheDir !== resolvedCandidate) {
+      if (resolvedCandidate === path.resolve(preferredDataDir)) {
+        console.log(`[resize] Using cache dir: ${resolvedCandidate}`);
+      } else {
+        console.warn(
+          `[resize] DATA_DIR/tmp is not writable, using fallback cache dir: ${resolvedCandidate}`
+        );
+      }
+      loggedCacheDir = resolvedCandidate;
+    }
+
+    return resolvedCacheDir;
+  }
+
+  resolvedCacheDir = null;
+  if (loggedCacheDir !== "__disabled__") {
+    console.warn(
+      `[resize] No writable image cache directory available. Resized images will be served without disk caching.`
+    );
+    loggedCacheDir = "__disabled__";
+  }
+  return null;
+}
+
 /**
  * Resize an image and cache it
  * @param sourceBuffer - Source image buffer
@@ -25,17 +95,11 @@ export async function resizeAndCacheImage(
   imageId: string,
   size: ImageSize
 ): Promise<Buffer> {
-  const tmpDir = path.join(DATA_DIR, "tmp");
-
-  // Ensure tmp directory exists
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
-
-  const cachedPath = path.join(tmpDir, `${imageId}-${size}.jpg`);
+  const cacheDir = getImageCacheDir();
+  const cachedPath = cacheDir ? path.join(cacheDir, `${imageId}-${size}.jpg`) : null;
 
   // Check if cached version exists
-  if (fs.existsSync(cachedPath)) {
+  if (cachedPath && fs.existsSync(cachedPath)) {
     console.log(`[resize] Serving cached ${size} image:`, cachedPath);
     return fs.readFileSync(cachedPath);
   }
@@ -55,8 +119,14 @@ export async function resizeAndCacheImage(
     .toBuffer();
 
   // Cache the resized image
-  fs.writeFileSync(cachedPath, resizedBuffer);
-  console.log(`[resize] Cached ${size} image:`, cachedPath);
+  if (cachedPath) {
+    try {
+      fs.writeFileSync(cachedPath, resizedBuffer);
+      console.log(`[resize] Cached ${size} image:`, cachedPath);
+    } catch (error) {
+      console.warn(`[resize] Failed to cache ${size} image at ${cachedPath}:`, error);
+    }
+  }
 
   return resizedBuffer;
 }
