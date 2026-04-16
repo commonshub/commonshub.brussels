@@ -122,11 +122,18 @@ fi
 SANDBOX_DIR=$(mktemp -d /tmp/sandbox-etc.XXXXXX)
 NEXT_TMP_DIR=$(mktemp -d /tmp/sandbox-next.XXXXXX)
 DATA_TMP_DIR=$(mktemp -d /tmp/sandbox-data-tmp.XXXXXX)
-trap 'rm -rf "$SANDBOX_DIR" "$NEXT_TMP_DIR" "$DATA_TMP_DIR"' EXIT
+NEXT_ENV_TMP=$(mktemp /tmp/sandbox-next-env.XXXXXX.d.ts)
+trap 'rm -rf "$SANDBOX_DIR" "$NEXT_TMP_DIR" "$DATA_TMP_DIR" "$NEXT_ENV_TMP"' EXIT
 
 HOSTS_FILE="$SANDBOX_DIR/hosts"
 NSSWITCH_FILE="$SANDBOX_DIR/nsswitch.conf"
 RESOLV_FILE="$SANDBOX_DIR/resolv.conf"
+
+if [[ -f "$PROJECT_DIR/next-env.d.ts" ]]; then
+  cp "$PROJECT_DIR/next-env.d.ts" "$NEXT_ENV_TMP"
+else
+  : > "$NEXT_ENV_TMP"
+fi
 
 # -- /etc/hosts: pre-resolved whitelisted domains only --
 cat > "$HOSTS_FILE" <<EOF
@@ -236,6 +243,11 @@ BWRAP_ARGS+=(
   --bind "$NEXT_TMP_DIR" "$PROJECT_DIR/.next"
 )
 
+# Next.js also manages next-env.d.ts during dev/build startup.
+BWRAP_ARGS+=(
+  --bind "$NEXT_ENV_TMP" "$PROJECT_DIR/next-env.d.ts"
+)
+
 # The image proxy caches resized images in DATA_DIR/tmp on cache miss.
 BWRAP_ARGS+=(
   --dir "$DATA_DIR/tmp"
@@ -299,6 +311,7 @@ fi
 echo ""
 echo "[sandbox] Filesystem: $PROJECT_DIR and $DATA_DIR are read-only"
 echo "[sandbox] Scratch:    $PROJECT_DIR/.next is writable inside the sandbox"
+echo "[sandbox] Scratch:    $PROJECT_DIR/next-env.d.ts is writable inside the sandbox"
 echo "[sandbox] Scratch:    $DATA_DIR/tmp is writable inside the sandbox"
 echo "[sandbox] process.env.DATA_DIR: ${DATA_DIR}"
 report_data_dir
