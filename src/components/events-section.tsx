@@ -8,6 +8,7 @@ import { Calendar, MapPin, Star, Rss, Mail } from "lucide-react";
 import Link from "next/link";
 import settings from "@/settings/settings.json";
 import { displayUrl } from "@/lib/utils";
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 interface EventTag {
   name: string;
   color: string;
@@ -86,7 +87,7 @@ function EventCard({
         >
           {event.cover_url ? (
             <Image
-              src={`/api/image-proxy?url=${encodeURIComponent(event.cover_url)}`}
+              src={getProxiedImageUrl(event.cover_url, "sm", { relative: true })}
               alt={event.name}
               fill
               sizes={

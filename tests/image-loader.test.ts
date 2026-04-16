@@ -36,6 +36,26 @@ describe("imageLoader", () => {
     ).toContain("size=lg");
   });
 
+  test("preserves explicit proxy size parameters as an upper bound", () => {
+    const url = imageLoader({
+      src: "/api/image-proxy?url=https%3A%2F%2Fimages.lumacdn.com%2Fcover.jpg&size=sm",
+      width: 1600,
+    });
+
+    expect(url).toContain("size=sm");
+    expect(url).not.toContain("size=lg");
+  });
+
+  test("downgrades explicit proxy size parameters for smaller screens", () => {
+    const url = imageLoader({
+      src: "/api/image-proxy?url=https%3A%2F%2Fimages.lumacdn.com%2Fcover.jpg&size=sm",
+      width: 280,
+    });
+
+    expect(url).toContain("size=xs");
+    expect(url).not.toContain("size=sm");
+  });
+
   test("routes /images assets through Next optimization capped at md", () => {
     const url = imageLoader({
       src: "/images/chb-facade.avif",

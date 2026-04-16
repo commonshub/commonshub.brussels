@@ -1,4 +1,4 @@
-import { getImageSizeForWidth } from "./image-size";
+import { clampImageSizeToMax, getImageSizeForWidth } from "./image-size";
 
 function shouldBypassOptimization(src: string): boolean {
   return (
@@ -23,7 +23,16 @@ export default function imageLoader({
   if (src.startsWith("/api/image-proxy")) {
     try {
       const url = new URL(src, "http://localhost");
-      url.searchParams.set("size", getImageSizeForWidth(width));
+      const explicitSize = url.searchParams.get("size");
+      const requestedSize = getImageSizeForWidth(width);
+      if (explicitSize === "xs" || explicitSize === "sm" || explicitSize === "md" || explicitSize === "lg") {
+        url.searchParams.set(
+          "size",
+          clampImageSizeToMax(requestedSize, explicitSize)
+        );
+      } else {
+        url.searchParams.set("size", requestedSize);
+      }
       if (quality !== undefined) {
         url.searchParams.set("q", quality.toString());
       }

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowRight, Users, Coins } from "lucide-react";
 import { BookingDialog } from "@/components/booking-dialog";
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 
 const rooms = [
   {
@@ -106,7 +107,13 @@ export function BookingSection() {
                 <Link href={`/rooms/${room.slug}`} className="block">
                   <div className="relative h-40 w-full overflow-hidden">
                     <Image
-                      src={room.image || "/placeholder.svg"}
+                      src={
+                        getProxiedImageUrl(
+                          room.image || "/placeholder.svg",
+                          "sm",
+                          { relative: true }
+                        ) || "/placeholder.svg"
+                      }
                       alt={room.name}
                       fill
                       className="object-cover transition-transform hover:scale-105"

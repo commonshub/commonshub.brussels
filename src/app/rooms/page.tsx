@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Users, ArrowRight, Coins } from "lucide-react";
 import roomsData from "@/settings/rooms.json";
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 
 export const metadata = {
   title: "Our Rooms | Commons Hub Brussels",
@@ -41,7 +42,13 @@ export default function RoomsPage() {
                 >
                   <div className="relative h-48">
                     <Image
-                      src={room.heroImage || "/placeholder.svg"}
+                      src={
+                        getProxiedImageUrl(
+                          room.heroImage || "/placeholder.svg",
+                          "sm",
+                          { relative: true }
+                        ) || "/placeholder.svg"
+                      }
                       alt={room.name}
                       fill
                       className="object-cover"
