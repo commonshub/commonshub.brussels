@@ -1,6 +1,6 @@
 /**
  * Image Proxy Integration Tests
- * Tests both image-proxy (external URLs) and discord-image-proxy (Discord images)
+ * Tests local-file and external URL handling through image-proxy
  * 
  * These are INTEGRATION tests that require network access.
  * They are skipped in CI unless INTEGRATION_TESTS=true is set.
@@ -10,7 +10,6 @@
 
 import { describe, test, expect, beforeEach, beforeAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { GET as GET_DISCORD } from "@/app/api/discord-image-proxy/route";
 import { GET as GET_IMAGE } from "@/app/api/image-proxy/route";
 import fs from "fs";
 import path from "path";
@@ -18,11 +17,9 @@ import path from "path";
 // Skip integration tests in CI unless explicitly enabled
 const SKIP_INTEGRATION = process.env.CI === "true" && process.env.INTEGRATION_TESTS !== "true";
 
-const TEST_DISCORD_IMAGE = {
-  channelId: "1380592679364329522",
-  messageId: "1435913431046951047",
-  attachmentId: "1435913431117987910",
-  timestamp: "latest", // Use "latest" to find the image in data/latest/channels/discord/images/
+const TEST_LOCAL_IMAGE = {
+  path: "/data/2025/11/calendars/ical/images/evt-31Y15JveRh4IHaq.jpg",
+  imageId: "evt-31Y15JveRh4IHaq",
 };
 
 const TEST_EXTERNAL_IMAGE = {
@@ -62,7 +59,7 @@ describe("Image Proxy Integration Tests", () => {
 
   beforeEach(() => {
     // Remove any existing cached files before each test
-    cleanupTestFiles(TEST_DISCORD_IMAGE.attachmentId);
+    cleanupTestFiles(TEST_LOCAL_IMAGE.imageId);
     // Create hash for external image URL
     const crypto = require("crypto");
     const externalImageId = crypto
@@ -72,23 +69,23 @@ describe("Image Proxy Integration Tests", () => {
     cleanupTestFiles(externalImageId);
   });
 
-  describe("Discord Image Proxy", () => {
-    test("resizes Discord image to xs (320px) and caches it", async () => {
+  describe("Local Data Path Image Proxy", () => {
+    test("resizes local image to xs (320px) and caches it", async () => {
       if (SKIP_INTEGRATION) return;
       const size = "xs";
-      const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
+      const cachedFilePath = getCachedFilePath(TEST_LOCAL_IMAGE.imageId, size);
 
       // Verify file doesn't exist before test
       expect(fs.existsSync(cachedFilePath)).toBe(false);
 
       const request = new NextRequest(
-        `http://localhost:3000/api/discord-image-proxy?channelId=${TEST_DISCORD_IMAGE.channelId}&messageId=${TEST_DISCORD_IMAGE.messageId}&attachmentId=${TEST_DISCORD_IMAGE.attachmentId}&timestamp=${TEST_DISCORD_IMAGE.timestamp}&size=${size}`
+        `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(TEST_LOCAL_IMAGE.path)}&size=${size}`
       );
 
-      console.log(`\n📸 Testing Discord image resize to ${size}`);
+      console.log(`\n📸 Testing local image resize to ${size}`);
       console.log(`📁 Expected cache path: ${cachedFilePath}`);
 
-      const response = await GET_DISCORD(request);
+      const response = await GET_IMAGE(request);
 
       // Check response is successful
       expect(response.status).toBe(200);
@@ -111,21 +108,21 @@ describe("Image Proxy Integration Tests", () => {
       console.log(`✅ File is valid JPEG format\n`);
     }, 30000); // 30 second timeout for network requests
 
-    test("resizes Discord image to sm (640px) and caches it", async () => {
+    test("resizes local image to sm (640px) and caches it", async () => {
       if (SKIP_INTEGRATION) return;
       const size = "sm";
-      const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
+      const cachedFilePath = getCachedFilePath(TEST_LOCAL_IMAGE.imageId, size);
 
       expect(fs.existsSync(cachedFilePath)).toBe(false);
 
       const request = new NextRequest(
-        `http://localhost:3000/api/discord-image-proxy?channelId=${TEST_DISCORD_IMAGE.channelId}&messageId=${TEST_DISCORD_IMAGE.messageId}&attachmentId=${TEST_DISCORD_IMAGE.attachmentId}&timestamp=${TEST_DISCORD_IMAGE.timestamp}&size=${size}`
+        `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(TEST_LOCAL_IMAGE.path)}&size=${size}`
       );
 
-      console.log(`\n📸 Testing Discord image resize to ${size}`);
+      console.log(`\n📸 Testing local image resize to ${size}`);
       console.log(`📁 Expected cache path: ${cachedFilePath}`);
 
-      const response = await GET_DISCORD(request);
+      const response = await GET_IMAGE(request);
 
       expect(response.status).toBe(200);
       expect(response.headers.get("Content-Type")).toBe("image/jpeg");
@@ -144,20 +141,20 @@ describe("Image Proxy Integration Tests", () => {
       console.log(`✅ File is valid JPEG format\n`);
     }, 30000);
 
-    test("serves Discord image from cache on second request", async () => {
+    test("serves local image from cache on second request", async () => {
       if (SKIP_INTEGRATION) return;
       const size = "xs";
-      const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
+      const cachedFilePath = getCachedFilePath(TEST_LOCAL_IMAGE.imageId, size);
 
       const request = new NextRequest(
-        `http://localhost:3000/api/discord-image-proxy?channelId=${TEST_DISCORD_IMAGE.channelId}&messageId=${TEST_DISCORD_IMAGE.messageId}&attachmentId=${TEST_DISCORD_IMAGE.attachmentId}&timestamp=${TEST_DISCORD_IMAGE.timestamp}&size=${size}`
+        `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(TEST_LOCAL_IMAGE.path)}&size=${size}`
       );
 
-      console.log(`\n🔄 Testing Discord image cache serving`);
+      console.log(`\n🔄 Testing local image cache serving`);
       console.log(`📁 Cache path: ${cachedFilePath}`);
 
       // First request - creates cache
-      const response1 = await GET_DISCORD(request);
+      const response1 = await GET_IMAGE(request);
       expect(response1.status).toBe(200);
       expect(fs.existsSync(cachedFilePath)).toBe(true);
 
@@ -169,7 +166,7 @@ describe("Image Proxy Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Second request - should serve from cache
-      const response2 = await GET_DISCORD(request);
+      const response2 = await GET_IMAGE(request);
       expect(response2.status).toBe(200);
 
       const stats2 = fs.statSync(cachedFilePath);
@@ -268,23 +265,23 @@ describe("Image Proxy Integration Tests", () => {
     }, 10000);
   });
 
-  describe("Discord Image File Size Progression", () => {
-    test("Discord image file sizes decrease with smaller size parameters", async () => {
+  describe("Local Image File Size Progression", () => {
+    test("local image file sizes decrease with smaller size parameters", async () => {
       if (SKIP_INTEGRATION) return;
-      console.log(`\n📏 Testing Discord image size progression`);
+      console.log(`\n📏 Testing local image size progression`);
 
       const sizes = ["lg", "md", "sm", "xs"];
       const fileSizes: Record<string, number> = {};
 
       for (const size of sizes) {
         const request = new NextRequest(
-          `http://localhost:3000/api/discord-image-proxy?channelId=${TEST_DISCORD_IMAGE.channelId}&messageId=${TEST_DISCORD_IMAGE.messageId}&attachmentId=${TEST_DISCORD_IMAGE.attachmentId}&timestamp=${TEST_DISCORD_IMAGE.timestamp}&size=${size}`
+          `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(TEST_LOCAL_IMAGE.path)}&size=${size}`
         );
 
-        const response = await GET_DISCORD(request);
+        const response = await GET_IMAGE(request);
         expect(response.status).toBe(200);
 
-        const cachedFilePath = getCachedFilePath(TEST_DISCORD_IMAGE.attachmentId, size);
+        const cachedFilePath = getCachedFilePath(TEST_LOCAL_IMAGE.imageId, size);
         const stats = fs.statSync(cachedFilePath);
         fileSizes[size] = stats.size;
         console.log(`📊 ${size}: ${(stats.size / 1024).toFixed(2)} KB`);

@@ -4,8 +4,8 @@
   "count": 3,
   "images": [
     {
-      "url": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg001&attachmentId=attach001&timestamp=20260102",
-      "proxyUrl": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg001&attachmentId=attach001&timestamp=20260102",
+      "url": "/api/image-proxy?url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach001.jpg",
+      "proxyUrl": "/api/image-proxy?url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach001.jpg",
       "id": "attach001",
       "author": {
         "id": "689614876515237925",
@@ -25,8 +25,8 @@
       "messageId": "msg001"
     },
     {
-      "url": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg005&attachmentId=attach003&timestamp=20260120",
-      "proxyUrl": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg005&attachmentId=attach003&timestamp=20260120",
+      "url": "/api/image-proxy?url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach003.jpg",
+      "proxyUrl": "/api/image-proxy?url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach003.jpg",
       "id": "attach003",
       "author": {
         "id": "1283396134055972906",
@@ -45,8 +45,8 @@
       "messageId": "msg005"
     },
     {
-      "url": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg003&attachmentId=attach002&timestamp=20260110",
-      "proxyUrl": "/api/discord-image-proxy?channelId=1280532849287495726&messageId=msg003&attachmentId=attach002&timestamp=20260110",
+      "url": "/api/image-proxy?url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach002.jpg",
+      "proxyUrl": "/api/image-proxy?url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach002.jpg",
       "id": "attach002",
       "author": {
         "id": "197741353772384256",

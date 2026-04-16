@@ -2,8 +2,6 @@
  * Image Proxy API Route Tests
  * Tests external URL proxying functionality
  *
- * Note: For Discord image serving tests, see discord-image-proxy.test.ts
- *
  * @jest-environment node
  */
 
@@ -18,7 +16,10 @@ const mockSharp = {
   jpeg: jest.fn().mockReturnThis(),
   toBuffer: jest.fn().mockResolvedValue(Buffer.from("resized-image-data")),
 }
-jest.mock("sharp", () => jest.fn(() => mockSharp))
+jest.mock("sharp", () => ({
+  __esModule: true,
+  default: jest.fn(() => mockSharp),
+}))
 
 // Now import the route after mocks are set up
 import { NextRequest } from "next/server"
@@ -113,6 +114,58 @@ describe("Image Proxy API Route", () => {
       expect(global.fetch).toHaveBeenCalled()
     })
 
+    test("returns 404 for missing local public images", async () => {
+      const request = new NextRequest(
+        "http://localhost:3000/api/image-proxy?url=/images/does-not-exist.jpg"
+      )
+
+      const response = await GET(request)
+
+      expect(response.status).toBe(404)
+      const data = await response.json()
+      expect(data.error).toBe("File not found")
+    })
+
+    test("serves resized local public images from /images", async () => {
+      const request = new NextRequest(
+        "http://localhost:3000/api/image-proxy?url=/images/chb-facade.avif&size=sm"
+      )
+
+      const response = await GET(request)
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("Content-Type")).toBe("image/jpeg")
+    })
+
+    test("resizes using width parameter when size is not provided", async () => {
+      const mockImageData = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==",
+        "base64"
+      )
+      const mockResponse = {
+        ok: true,
+        headers: new Headers({ "content-type": "image/png" }),
+        arrayBuffer: jest.fn().mockResolvedValue(
+          mockImageData.buffer.slice(
+            mockImageData.byteOffset,
+            mockImageData.byteOffset + mockImageData.byteLength
+          )
+        ),
+      }
+      ;(global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue(
+        mockResponse as any
+      )
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/image-proxy?url=https://images.lumacdn.com/event-covers/abc123.jpg&w=500"
+      )
+
+      const response = await GET(request)
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("Content-Type")).toBe("image/jpeg")
+    })
+
     test("returns 403 for disallowed external domains", async () => {
       const request = new NextRequest(
         "http://localhost:3000/api/image-proxy?url=https://malicious-site.com/image.jpg"
@@ -182,8 +235,7 @@ describe("Image Proxy API Route", () => {
       const response = await GET(request)
 
       expect(response.status).toBe(200)
-      expect(response.headers.get("Cache-Control")).toContain("public")
-      expect(response.headers.get("Cache-Control")).toContain("max-age")
+      expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0")
     })
 
     test("sets CORS headers for all responses", async () => {

@@ -5,89 +5,9 @@
  */
 
 import { describe, test, expect } from "@jest/globals"
-import { getProxiedDiscordImage, getProxiedImageUrl } from "@/lib/image-proxy"
+import { getProxiedImageUrl } from "@/lib/image-proxy"
 
 describe("Image Proxy Helper Functions with Size Parameter", () => {
-  describe("getProxiedDiscordImage", () => {
-    test("generates URL with xs size parameter", () => {
-      const url = getProxiedDiscordImage(
-        "123456",
-        "789012",
-        "345678",
-        "2025-12-01",
-        "xs"
-      )
-
-      expect(url).toContain("channelId=123456")
-      expect(url).toContain("messageId=789012")
-      expect(url).toContain("attachmentId=345678")
-      expect(url).toContain("timestamp=20251201")
-      expect(url).toContain("size=xs")
-    })
-
-    test("generates URL with sm size parameter", () => {
-      const url = getProxiedDiscordImage(
-        "123456",
-        "789012",
-        "345678",
-        "2025-12-01",
-        "sm"
-      )
-
-      expect(url).toContain("size=sm")
-    })
-
-    test("generates URL with md size parameter", () => {
-      const url = getProxiedDiscordImage(
-        "123456",
-        "789012",
-        "345678",
-        "2025-12-01",
-        "md"
-      )
-
-      expect(url).toContain("size=md")
-    })
-
-    test("generates URL with lg size parameter", () => {
-      const url = getProxiedDiscordImage(
-        "123456",
-        "789012",
-        "345678",
-        "2025-12-01",
-        "lg"
-      )
-
-      expect(url).toContain("size=lg")
-    })
-
-    test("generates URL without size parameter when not provided", () => {
-      const url = getProxiedDiscordImage(
-        "123456",
-        "789012",
-        "345678",
-        "2025-12-01"
-      )
-
-      expect(url).toContain("channelId=123456")
-      expect(url).not.toContain("size=")
-    })
-
-    test("formats timestamp correctly", () => {
-      const date = new Date("2025-11-15")
-      const url = getProxiedDiscordImage(
-        "123456",
-        "789012",
-        "345678",
-        date,
-        "md"
-      )
-
-      expect(url).toContain("timestamp=20251115")
-      expect(url).toContain("size=md")
-    })
-  })
-
   describe("getProxiedImageUrl", () => {
     test("generates proxied URL with xs size parameter", () => {
       const url = getProxiedImageUrl("https://example.com/image.jpg", "xs")
@@ -127,6 +47,20 @@ describe("Image Proxy Helper Functions with Size Parameter", () => {
       const url = getProxiedImageUrl(alreadyProxied, "md")
 
       expect(url).toBe(alreadyProxied)
+    })
+
+    test("generates proxied URL for local data paths", () => {
+      const url = getProxiedImageUrl("/data/2026/01/channels/discord/images/attach001.jpg", "sm")
+
+      expect(url).toContain("/api/image-proxy")
+      expect(url).toContain("url=%2Fdata%2F2026%2F01%2Fchannels%2Fdiscord%2Fimages%2Fattach001.jpg")
+      expect(url).toContain("size=sm")
+    })
+
+    test("proxies public /images assets through the shared image proxy", () => {
+      const url = getProxiedImageUrl("/images/chb-facade.avif", "md", { relative: true })
+
+      expect(url).toBe("/api/image-proxy?url=%2Fimages%2Fchb-facade.avif&size=md")
     })
 
     test("returns empty string for empty URL", () => {

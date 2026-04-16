@@ -10,21 +10,6 @@ import { GET } from "../src/app/api/image-proxy/route";
 import { NextRequest } from "next/server";
 
 describe("Image Proxy Recursive Protection", () => {
-  it("should reject discord-proxy URLs being passed to image-proxy", async () => {
-    const proxyUrl =
-      "http://localhost:3000/api/discord-image-proxy?channelId=123&messageId=456&attachmentId=789&timestamp=20251127";
-
-    const request = new NextRequest(
-      `http://localhost:3000/api/image-proxy?url=${encodeURIComponent(proxyUrl)}`
-    );
-
-    const response = await GET(request);
-
-    expect(response.status).toBe(400);
-    const data = await response.json();
-    expect(data.error).toContain("Cannot proxy a proxy URL");
-  });
-
   it("should reject image-proxy URLs being passed to image-proxy", async () => {
     const proxyUrl =
       "http://localhost:3000/api/image-proxy?url=https://example.com/image.jpg";
