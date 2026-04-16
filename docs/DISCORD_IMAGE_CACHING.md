@@ -2,11 +2,13 @@
 
 This document describes the Discord image caching system that stores Discord images locally to avoid expired CDN URLs.
 
+For the on-demand resize pipeline and the disk cache for resized derivatives, see [IMAGE_PROXY_RESIZING.md](./IMAGE_PROXY_RESIZING.md).
+
 ## Overview
 
 Discord CDN URLs contain authentication tokens that expire after 24 hours. To avoid broken images, we:
 1. Download images when caching Discord messages
-2. Store them locally in `data/{year}/{month}/discord/images/`
+2. Store them locally in `data/{year}/{month}/channels/discord/images/`
 3. Serve them via the image proxy API
 4. Use local images when available in the UI
 
@@ -30,7 +32,7 @@ bun run fetch-discord -- -f
 **Features:**
 - Downloads images using `proxy_url` (preferred) or `url` from Discord API
 - Stores images with attachment ID as filename: `{attachmentId}.{ext}`
-- Organizes by year/month: `data/2025/11/discord/images/`
+- Organizes by year/month: `data/2025/11/channels/discord/images/`
 - Checks for missing images and re-fetches with fresh URLs
 - `--force` flag re-fetches all messages regardless of cache
 
@@ -43,7 +45,7 @@ bun run fetch-discord -- -f
 
 **File Storage:**
 - Messages: `data/{year}/{month}/discord/{channelId}/messages.json`
-- Images: `data/{year}/{month}/discord/images/{attachmentId}.{ext}`
+- Images: `data/{year}/{month}/channels/discord/images/{attachmentId}.{ext}`
 
 **Note:** Uses Discord's `url` field directly, not `proxy_url`.
 
@@ -60,7 +62,7 @@ bun run fetch-discord -- -f
 **URL Format:**
 ```javascript
 // Local image
-/api/image-proxy?url=/data/2025/11/discord/images/1234567890.jpg
+/api/image-proxy?url=/data/2025/11/channels/discord/images/1234567890.jpg
 
 // External URL
 /api/image-proxy?url=https://cdn.discordapp.com/...
@@ -84,7 +86,7 @@ const localPath = getLocalImagePath(
   "https://cdn.discordapp.com/...",
   "2025-11-15T10:30:00Z"
 );
-// Returns: "/data/2025/11/discord/images/1234567890.jpg"
+// Returns: "/data/2025/11/channels/discord/images/1234567890.jpg"
 ```
 
 ### 4. Image Lightbox Component
@@ -259,7 +261,7 @@ Images are now served from static JSON files generated at build time:
 
 **File locations:**
 - `/data/latest/discord/{channelId}/images.json` - Latest images per channel
-- `/data/{year}/{month}/discord/images.json` - Monthly images with reactions
+- `/data/{year}/{month}/channels/discord/images.json` - Monthly images with reactions
 - `/data/{year}/{month}/discord/{channelId}/messages.json` - Cached channel messages
 
 **Components using static files:**
@@ -271,7 +273,7 @@ Images are now served from static JSON files generated at build time:
 ### Images not loading
 1. Check if images exist locally:
    ```bash
-   ls -la data/2025/11/discord/images/
+   ls -la data/2025/11/channels/discord/images/
    ```
 
 2. Re-run warmup with force:

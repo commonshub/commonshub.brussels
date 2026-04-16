@@ -187,15 +187,11 @@ There is an image proxy that on-demand resizes images and caches them in `data/t
 
 ### Image proxy endpoints
 
-1. **/api/image-proxy** - Proxies external images
+1. **/api/image-proxy** - Proxies local `/data/...` files and allowed external images
    - Query params: `url` (required), `size` (optional: xs|sm|md|lg)
    - Example: `/api/image-proxy?url=https://example.com/image.jpg&size=md`
+   - Example: `/api/image-proxy?url=/data/2026/04/channels/discord/images/123.jpg&size=sm`
    - Caches resized versions as `{imageId}-{size}.jpg` in `data/tmp/`
-
-2. **/api/discord-image-proxy** - Proxies Discord CDN images
-   - Query params: `attachmentId`, `url`, `size`
-   - Handles Discord's expiring URLs by re-fetching from message data
-   - Example: `/api/discord-image-proxy?attachmentId=123&size=sm`
 
 ### Processing
 - Uses Sharp library for image resizing
