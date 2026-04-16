@@ -1,8 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import { RecentContributors } from "@/components/recent-contributors";
 import { DiscordStatsDisplay } from "@/components/discord-stats";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
@@ -15,6 +12,10 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import * as fs from "fs";
+import * as path from "path";
+import type { MembersFile } from "@/types/members";
+import { DATA_DIR } from "@/lib/data-paths";
 
 interface Partner {
   name: string;
@@ -25,26 +26,40 @@ interface Partner {
 
 const partners: Partner[] = partnersData;
 
-export default function MembersPage() {
-  const [activeCommoners, setActiveCommoners] = useState<number | null>(null);
+function readLatestMembersFile(): MembersFile | null {
+  try {
+    const years = fs
+      .readdirSync(DATA_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^\d{4}$/.test(entry.name))
+      .map((entry) => entry.name)
+      .sort()
+      .reverse();
 
-  useEffect(() => {
-    // Fetch current month's active members count
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    
-    fetch(`/api/members?year=${year}&month=${month}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.summary?.activeMembers) {
-          setActiveCommoners(data.summary.activeMembers);
-        }
-      })
-      .catch(() => {
-        // Silently fail - the stat just won't show
-      });
-  }, []);
+    for (const year of years) {
+      const yearPath = path.join(DATA_DIR, year);
+      const months = fs
+        .readdirSync(yearPath, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && /^\d{2}$/.test(entry.name))
+        .map((entry) => entry.name)
+        .sort()
+        .reverse();
+
+      for (const month of months) {
+        const filePath = path.join(yearPath, month, "members.json");
+        if (!fs.existsSync(filePath)) continue;
+        return JSON.parse(fs.readFileSync(filePath, "utf-8")) as MembersFile;
+      }
+    }
+  } catch {
+    // Ignore file system issues and hide the stat.
+  }
+
+  return null;
+}
+
+export default function MembersPage() {
+  const membersData = readLatestMembersFile();
+  const activeCommoners = membersData?.summary?.activeMembers ?? null;
   return (
     <div className="min-h-screen bg-background">
       <main className="pt-24">

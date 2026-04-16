@@ -320,11 +320,11 @@ export function getLocalImagePath(attachmentId: string, url: string, timestamp: 
 
     // Construct local file path
     const filename = `${attachmentId}${ext}`
-    const localPath = path.join(DATA_DIR, year, month, "messages", "discord", "images", filename)
+    const localPath = path.join(DATA_DIR, year, month, "channels", "discord", "images", filename)
 
     // Check if file exists
     if (fs.existsSync(localPath)) {
-      return `/data/${year}/${month}/messages/discord/images/${filename}`
+      return `/data/${year}/${month}/channels/discord/images/${filename}`
     }
   } catch (error) {
     // Invalid URL or other error, return null

@@ -3,7 +3,8 @@
  * Use this in server components before passing data to client components
  */
 
-import { getProxiedDiscordImage, getProxiedImageUrl } from "./image-proxy"
+import { getLocalImagePath } from "./discord-cache"
+import { getProxiedImageUrl } from "./image-proxy"
 
 interface ImageAttachment {
   id: string
@@ -21,18 +22,11 @@ export function resolveImageUrl(
   messageId?: string,
   channelId?: string
 ): ImageAttachment {
-  // If we have all the metadata, use the new parameter-based proxy API
-  if (messageId && channelId) {
-    const proxiedUrl = getProxiedDiscordImage(channelId, messageId, attachment.id, timestamp)
-    return {
-      ...attachment,
-      url: proxiedUrl,
-      proxyUrl: proxiedUrl,
-    }
-  }
+  const localPath = getLocalImagePath(attachment.id, attachment.url, timestamp)
 
-  // Otherwise fall back to legacy URL-based proxy
-  const proxiedUrl = getProxiedImageUrl(attachment.url, { messageId, channelId })
+  // Prefer serving the locally cached Discord file via the generic image proxy.
+  // Fall back to the stored attachment URL only if the local file is missing.
+  const proxiedUrl = getProxiedImageUrl(localPath || attachment.url)
   return {
     ...attachment,
     url: proxiedUrl,

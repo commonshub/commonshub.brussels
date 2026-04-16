@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Calendar, MapPin, Euro, ArrowRight } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import Link from "next/link";
 
 export default function LegoSeriousPlayPage() {
@@ -465,5 +465,4 @@ export default function LegoSeriousPlayPage() {
     </main>
   );
 }
-
 

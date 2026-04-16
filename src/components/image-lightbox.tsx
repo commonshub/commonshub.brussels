@@ -8,7 +8,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {

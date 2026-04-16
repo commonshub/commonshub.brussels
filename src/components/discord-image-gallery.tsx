@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
-import Image from "next/image"
+import Image from "@/components/optimized-image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DiscordMessage } from "./discord-message"
 import { ImageLightbox, ImageLightboxHandle } from "./image-lightbox"

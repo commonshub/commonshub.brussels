@@ -11,7 +11,7 @@ import { getLocalImagePath } from "./discord-cache";
 import type { StripeTransaction } from "./stripe";
 import type { TokenTransfer } from "./etherscan";
 import { parseTokenValue } from "./etherscan";
-import { getProxiedDiscordImage } from "./image-proxy";
+import { getProxiedImageUrl } from "./image-proxy";
 import { DATA_DIR } from "./data-paths";
 
 // ========== Type Definitions ==========
@@ -407,15 +407,7 @@ export function getPopularPhotos(
       return sum + r.count * weight;
     }, 0);
 
-    // Generate proxy URL
-    const proxyUrl = getProxiedDiscordImage(
-      msg.channel_id || "",
-      msg.id,
-      attachment.id,
-      msg.timestamp,
-      undefined,
-      options
-    );
+    const proxyUrl = getProxiedImageUrl(imageUrl, undefined, options);
 
     photos.push({
       url: proxyUrl,
@@ -490,15 +482,7 @@ export function getAllPhotos(
       const imageUrl = localPath || attachment.url;
       if (!imageUrl) continue;
 
-      // Generate proxy URL with all required metadata
-      const proxyUrl = getProxiedDiscordImage(
-        msg.channel_id || "",
-        msg.id,
-        attachment.id,
-        msg.timestamp,
-        undefined,
-        options
-      );
+      const proxyUrl = getProxiedImageUrl(imageUrl, undefined, options);
 
       photos.push({
         url: proxyUrl,

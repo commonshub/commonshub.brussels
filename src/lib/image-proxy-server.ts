@@ -3,19 +3,15 @@ import path from "path";
 import sharp from "sharp";
 import { DATA_DIR } from "./data-paths";
 import { NextResponse } from "next/server";
+import {
+  SIZE_CONFIG,
+  type ImageSize,
+  resolveRequestedImageSize,
+} from "./image-size";
+export { SIZE_CONFIG, type ImageSize, resolveRequestedImageSize } from "./image-size";
 
 // Cache images for 30 days
 export const CACHE_DURATION = 60 * 60 * 24 * 30;
-
-// Size configurations
-export const SIZE_CONFIG = {
-  xs: 320,
-  sm: 640,
-  md: 1024,
-  lg: 1920,
-} as const;
-
-export type ImageSize = keyof typeof SIZE_CONFIG;
 
 /**
  * Resize an image and cache it
@@ -49,6 +45,7 @@ export async function resizeAndCacheImage(
   console.log(`[resize] Resizing image to ${size} (maxWidth: ${maxWidth}px)`);
 
   const resizedBuffer = await sharp(sourceBuffer)
+    .rotate()
     .resize(maxWidth, undefined, {
       width: maxWidth,
       fit: "inside",

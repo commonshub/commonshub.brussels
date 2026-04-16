@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Mail, ExternalLink, Calendar } from "lucide-react"
 import useSWR from "swr"
-import Image from "next/image"
+import Image from "@/components/optimized-image"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
@@ -47,7 +47,7 @@ export function NewsletterSection() {
                 {issue.coverImage && (
                   <div className="relative h-48 w-full overflow-hidden">
                     <Image
-                      src={getProxiedImageUrl(issue.coverImage, undefined, { relative: true }) || "/placeholder.svg"}
+                      src={getProxiedImageUrl(issue.coverImage, "md", { relative: true }) || "/placeholder.svg"}
                       alt={issue.title}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"

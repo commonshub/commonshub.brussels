@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Calendar, Clock, Users, ArrowRight, Euro } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import Link from "next/link";
 import { getAllCalendarEvents } from "@/lib/luma";
 import settings from "@/settings/settings.json";

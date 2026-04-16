@@ -8,6 +8,7 @@ import {
   type ImageSize,
   SIZE_CONFIG,
   CACHE_DURATION,
+  resolveRequestedImageSize,
 } from "@/lib/image-proxy-server";
 
 function getCacheControl(request: NextRequest, localFile: boolean): string {
@@ -25,16 +26,20 @@ function getCacheControl(request: NextRequest, localFile: boolean): string {
  * Image Proxy API - Handles both local data paths and external image URLs
  *
  * Query parameters:
- * - url: Image URL or local path (e.g., /data/2025/11/messages/discord/images/123.jpg) (required)
+ * - url: Image URL or local path (e.g., /data/2025/11/channels/discord/images/123.jpg or /images/foo.jpg) (required)
  * - size: Optional size parameter (xs|sm|md|lg) for resizing
  *
- * Example: /api/image-proxy?url=/data/2025/11/messages/discord/images/123.jpg&size=sm
+ * Example: /api/image-proxy?url=/data/2025/11/channels/discord/images/123.jpg&size=sm
+ * Example: /api/image-proxy?url=/images/chb-facade.avif&size=md
  * Example: /api/image-proxy?url=https://example.com/image.jpg&size=md
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url");
-  const sizeParam = searchParams.get("size") as ImageSize | null;
+  const sizeParam = resolveRequestedImageSize(
+    searchParams.get("size"),
+    searchParams.get("w")
+  );
 
   console.log("[image-proxy] Request - url:", url, "size:", sizeParam);
 
@@ -46,7 +51,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Prevent recursive proxying - reject if URL is already a proxy URL
-  if (url.includes("/api/image-proxy") || url.includes("/api/discord-image-proxy")) {
+  if (url.includes("/api/image-proxy")) {
     console.log("[image-proxy] Rejected recursive proxy attempt:", url);
     return NextResponse.json(
       { error: "Cannot proxy a proxy URL" },
@@ -56,7 +61,17 @@ export async function GET(request: NextRequest) {
 
   // Check if this is a local data path
   if (url.startsWith("/data/")) {
-    return handleLocalDataPath(request, url, sizeParam);
+    return handleLocalPath(request, url, sizeParam, {
+      rootDir: DATA_DIR,
+      urlPrefix: "/data/",
+    });
+  }
+
+  if (url.startsWith("/images/")) {
+    return handleLocalPath(request, url, sizeParam, {
+      rootDir: path.join(process.cwd(), "public"),
+      urlPrefix: "/",
+    });
   }
 
   // Otherwise, handle as external URL
@@ -66,27 +81,31 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Handle local data directory paths
+ * Handle local file paths rooted in a specific directory
  */
-async function handleLocalDataPath(
+async function handleLocalPath(
   request: NextRequest,
   localPath: string,
-  sizeParam: ImageSize | null
+  sizeParam: ImageSize | null,
+  options: {
+    rootDir: string;
+    urlPrefix: string;
+  }
 ): Promise<NextResponse> {
   try {
-    const dataDir = DATA_DIR;
-    // Remove leading /data/ and construct absolute path
-    const relativePath = localPath.replace(/^\/data\//, "");
-    const absolutePath = path.join(dataDir, relativePath);
+    const { rootDir, urlPrefix } = options;
+    const normalizedPrefix = urlPrefix.endsWith("/") ? urlPrefix : `${urlPrefix}/`;
+    const relativePath = localPath.replace(new RegExp(`^${normalizedPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`), "");
+    const absolutePath = path.join(rootDir, relativePath);
 
     console.log("[image-proxy] Serving local file:", absolutePath);
 
-    // Security check - ensure path is within data directory
-    const resolvedDataDir = path.resolve(dataDir);
+    // Security check - ensure path is within the configured root directory
+    const resolvedRootDir = path.resolve(rootDir);
     const resolvedPath = path.resolve(absolutePath);
-    if (!resolvedPath.startsWith(resolvedDataDir)) {
+    if (!resolvedPath.startsWith(resolvedRootDir)) {
       console.log("[image-proxy] Security: Path outside data directory:", resolvedPath);
-      console.log("[image-proxy] Expected to be within:", resolvedDataDir);
+      console.log("[image-proxy] Expected to be within:", resolvedRootDir);
       return NextResponse.json({ error: "Invalid path" }, { status: 403 });
     }
 
@@ -105,6 +124,7 @@ async function handleLocalDataPath(
       ".png": "image/png",
       ".gif": "image/gif",
       ".webp": "image/webp",
+      ".avif": "image/avif",
     };
     let contentType = contentTypeMap[ext] || "image/jpeg";
 

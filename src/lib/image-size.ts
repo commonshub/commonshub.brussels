@@ -1,0 +1,35 @@
+export const SIZE_CONFIG = {
+  xs: 320,
+  sm: 640,
+  md: 1024,
+  lg: 1920,
+} as const;
+
+export type ImageSize = keyof typeof SIZE_CONFIG;
+
+export function getImageSizeForWidth(width: number): ImageSize {
+  if (width <= SIZE_CONFIG.xs) return "xs";
+  if (width <= SIZE_CONFIG.sm) return "sm";
+  if (width <= SIZE_CONFIG.md) return "md";
+  return "lg";
+}
+
+export function resolveRequestedImageSize(
+  sizeParam: string | null,
+  widthParam: string | null
+): ImageSize | null {
+  if (sizeParam && sizeParam in SIZE_CONFIG) {
+    return sizeParam as ImageSize;
+  }
+
+  if (!widthParam) {
+    return null;
+  }
+
+  const width = Number.parseInt(widthParam, 10);
+  if (Number.isNaN(width) || width <= 0) {
+    return null;
+  }
+
+  return getImageSizeForWidth(width);
+}

@@ -12,7 +12,7 @@ import {
 import { DiscordImageGallery } from "@/components/discord-image-gallery";
 import { ReportFinancialCharts } from "@/components/report-financial-charts";
 import { Users, TrendingUp, TrendingDown, Loader2, ChevronDown } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import Link from "next/link";
 
 interface YearlyReportData {

@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { ImageLightbox, ImageLightboxHandle } from "./image-lightbox";
-import { getProxiedDiscordImage, getProxiedImageUrl } from "@/lib/image-proxy";
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 import settings from "@/settings/settings.json";
 
 interface ActivityImage {
@@ -52,7 +52,6 @@ export function CommunityActivityGallery({
   const searchParams = useSearchParams();
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
   const [externalFallbackIds, setExternalFallbackIds] = useState<Set<string>>(new Set());
-  const [discordFallbackIds, setDiscordFallbackIds] = useState<Set<string>>(new Set());
 
   // Fetch from static JSON file
   const { data } = useSWR<{
@@ -82,7 +81,6 @@ export function CommunityActivityGallery({
   useEffect(() => {
     setFailedImageIds(new Set());
     setExternalFallbackIds(new Set());
-    setDiscordFallbackIds(new Set());
   }, [channelId, data]);
 
   useEffect(() => {
@@ -110,33 +108,13 @@ export function CommunityActivityGallery({
   const allImages: ActivityImage[] = channelImages.map((image) => {
     const localPath = normalizeDataFilePath(image.filePath);
     const useExternalFallback = externalFallbackIds.has(image.id);
-    const useDiscordFallback = discordFallbackIds.has(image.id);
-
-    const primarySource = useDiscordFallback
-      ? getProxiedDiscordImage(
-          image.channelId,
-          image.messageId,
-          image.id,
-          image.timestamp,
-          "lg",
-          { relative: true }
-        )
-      : useExternalFallback
+    const primarySource = useExternalFallback
       ? getProxiedImageUrl(image.url, "lg", { relative: true })
       : getProxiedImageUrl(localPath || image.url, "lg", {
           relative: true,
         });
 
-    const thumbnailSource = useDiscordFallback
-      ? getProxiedDiscordImage(
-          image.channelId,
-          image.messageId,
-          image.id,
-          image.timestamp,
-          "sm",
-          { relative: true }
-        )
-      : useExternalFallback
+    const thumbnailSource = useExternalFallback
       ? getProxiedImageUrl(image.url, "sm", { relative: true })
       : getProxiedImageUrl(localPath || image.url, "sm", {
           relative: true,
@@ -191,22 +169,6 @@ export function CommunityActivityGallery({
         return;
       }
 
-      if (!discordFallbackIds.has(image.id)) {
-        console.warn("[CommunityActivityGallery] Stored URL failed, retrying via Discord proxy", {
-          channelId,
-          imageId: image.id,
-          filePath: image.filePath,
-          messageId: image.messageId,
-        });
-        setDiscordFallbackIds((prev) => {
-          if (prev.has(image.id)) return prev;
-          const next = new Set(prev);
-          next.add(image.id);
-          return next;
-        });
-        return;
-      }
-
       console.warn("[CommunityActivityGallery] All image fallbacks failed", {
         channelId,
         imageId: image.id,
@@ -221,7 +183,7 @@ export function CommunityActivityGallery({
         return next;
       });
     },
-    [channelId, discordFallbackIds, externalFallbackIds]
+    [channelId, externalFallbackIds]
   );
 
   // Check if URL has an image parameter and open that image

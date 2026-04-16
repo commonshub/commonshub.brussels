@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Mail, Calendar } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import Link from "next/link";
 import useSWR from "swr";
 import { Logo } from "@/components/logo";
@@ -124,7 +124,7 @@ export default function NewsletterPage() {
                       <div className="aspect-video relative overflow-hidden bg-muted">
                         <Image
                           src={
-                            getProxiedImageUrl(issue.coverImage, undefined, { relative: true }) ||
+                            getProxiedImageUrl(issue.coverImage, "md", { relative: true }) ||
                             "/placeholder.svg"
                           }
                           alt={issue.title}

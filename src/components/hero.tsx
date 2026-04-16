@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, Calendar } from "lucide-react";
 import useSWR from "swr";

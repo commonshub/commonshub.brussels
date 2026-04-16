@@ -6,12 +6,15 @@
  */
 
 import { describe, test, expect, jest, beforeEach } from "@jest/globals"
+import fs from "fs"
+import path from "path"
 
 // Mock fetch for external URL tests
 global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>
 
 // Mock sharp for image resizing
 const mockSharp = {
+  rotate: jest.fn().mockReturnThis(),
   resize: jest.fn().mockReturnThis(),
   jpeg: jest.fn().mockReturnThis(),
   toBuffer: jest.fn().mockResolvedValue(Buffer.from("resized-image-data")),
@@ -28,6 +31,18 @@ import { GET } from "@/app/api/image-proxy/route"
 describe("Image Proxy API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockSharp.rotate.mockReturnThis()
+    mockSharp.resize.mockReturnThis()
+    mockSharp.jpeg.mockReturnThis()
+    const cachedPaths = [
+      path.join(process.cwd(), "tests/data/tmp/chb-facade-sm.jpg"),
+      path.join(process.cwd(), "tests/data/tmp/523cf9fe7b2bcc01f6e01c516fe59f4e-sm.jpg"),
+    ]
+    for (const cachedPath of cachedPaths) {
+      if (fs.existsSync(cachedPath)) {
+        fs.unlinkSync(cachedPath)
+      }
+    }
   })
 
   describe("Request Validation", () => {

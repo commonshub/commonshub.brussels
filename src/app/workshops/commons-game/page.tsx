@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Clock, Users, Euro, CheckCircle2 } from "lucide-react"
-import Image from "next/image"
+import Image from "@/components/optimized-image"
 
 const ostromPrinciples = [
   {

@@ -1,4 +1,4 @@
-import Image from "next/image"
+import Image from "@/components/optimized-image"
 
 export function CommonsSection() {
   return (

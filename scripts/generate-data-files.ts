@@ -38,7 +38,7 @@ import {
 } from "../src/lib/reports";
 import { type CachedMessage } from "../src/lib/discord-cache";
 import { getGuildMembers, getGuildRoles, isDiscordConfigured } from "../src/lib/discord";
-import { getProxiedDiscordImage } from "../src/lib/image-proxy";
+import { getProxiedImageUrl } from "../src/lib/image-proxy";
 import { getAccountAddressFromDiscordUserId } from "../src/lib/citizenwallet";
 import { parseTokenValue } from "../src/lib/etherscan";
 import {
@@ -146,15 +146,9 @@ function generateChannelImages(year: string, month: string): void {
           const ext = path.extname(urlWithoutQuery) || ".jpg";
           const filePath = `/data/${year}/${month}/channels/discord/images/${attachment.id}${ext}`;
 
-          // Generate proxy URL with all required metadata (relative for static files)
-          const proxyUrl = getProxiedDiscordImage(
-            channelId,
-            msg.id,
-            attachment.id,
-            msg.timestamp,
-            undefined,
-            { relative: true }
-          );
+          const proxyUrl = getProxiedImageUrl(filePath, undefined, {
+            relative: true,
+          });
 
           channelImages.push({
             id: attachment.id,
@@ -267,15 +261,9 @@ function generateLatestImages(): number {
           // Use "latest" path since images are stored in data/latest/channels/discord/images/
           const filePath = `/data/latest/channels/discord/images/${attachment.id}${ext}`;
 
-          // Generate proxy URL with all required metadata (relative for static files)
-          const proxyUrl = getProxiedDiscordImage(
-            channelId,
-            msg.id,
-            attachment.id,
-            msg.timestamp,
-            undefined,
-            { relative: true }
-          );
+          const proxyUrl = getProxiedImageUrl(filePath, undefined, {
+            relative: true,
+          });
 
           const imageData = {
             id: attachment.id,

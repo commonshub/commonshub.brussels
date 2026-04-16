@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/optimized-image";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, Users } from "lucide-react";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
