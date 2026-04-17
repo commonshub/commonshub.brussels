@@ -133,7 +133,7 @@
     "type": "organisation",
     "logo": "/images/partners/octopusheart.png",
     "website": "https://octopus-heart.be",
-    "description": "Creative space in Brussels offering affordable exhibition, workshop, and studio space for artists and artisans."
+    "description": "Octopus Heart is a synergic art center and gallery in the Marolles. Artists, artisans and other creatives can meet, exchange and share space to exhibit and develop their projects at a fair price with support from our team."
   },
   {
     "name": "Dare to Be!",
@@ -141,5 +141,19 @@
     "logo": "/images/partners/daretobe.png",
     "website": "https://daretobe.be/bart",
     "description": "Coaching and training practice guiding leaders and teams toward authentic collaboration and sustainable organizational change."
+  },
+  {
+    "name": "Zinne",
+    "type": "organisation",
+    "logo": "/images/partners/zinne.png",
+    "website": "https://zinne.brussels",
+    "description": "A local currency to give value to your values / la monnaie locale pour rendre Brussels Sprout / Een solidariteitsmunt om spruitjes te maken."
+  },
+  {
+    "name": "Groeien in Verbinding",
+    "type": "organisation",
+    "logo": "/images/partners/groeieninverbinden.png",
+    "website": "https://groeien-in-verbinding.be",
+    "description": "Connecting Communication for an authentic and fulfilling life. Training courses in Nonviolent Communication."
   }
 ]
