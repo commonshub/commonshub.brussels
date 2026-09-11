@@ -66,6 +66,15 @@ export function DonateSection() {
               Scan the QR code with your banking app to donate via SEPA
               transfer.
             </p>
+            {/*
+              EPC069-12 "SEPA credit transfer" QR. To change the beneficiary,
+              IBAN or message, regenerate the PNG (lines joined with \n):
+                BCD / 001 / 1 / SCT / LHVBEE22 / Commons Hub Brussels ASBL /
+                EE727777000138317915 / EUR / CHAR / (empty) /
+                Donation for the Commons Hub Brussels /
+                QR code to initiate a SEPA transfer
+              e.g. npx qrcode -e M -w 1095 -o public/images/donate-qrcode.png "$payload"
+            */}
             <Image
               src="/images/donate-qrcode.png"
               alt="QR code for donating via bank transfer"
