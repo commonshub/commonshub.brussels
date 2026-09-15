@@ -1,3 +1,4 @@
+import { htmlToPlainText } from "@/lib/plain-text";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -115,7 +116,7 @@ function loadUpcomingEvents(): HomepageEvent[] {
       events.push({
         id: event.id || "",
         name: event.name || "",
-        description: event.description || "",
+        description: htmlToPlainText(event.description || ""),
         start_at: startAt,
         end_at: event.endAt || event.end_at || "",
         cover_url: coverUrl,
