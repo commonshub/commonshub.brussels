@@ -155,5 +155,12 @@
     "logo": "/images/partners/groeieninverbinden.png",
     "website": "https://groeien-in-verbinding.be",
     "description": "Connecting Communication for an authentic and fulfilling life. Training courses in Nonviolent Communication."
+  },
+  {
+    "name": "WikiPolicy",
+    "type": "organisation",
+    "logo": "/images/partners/wikipolicy.png",
+    "website": "https://wikipolicy.net",
+    "description": "Democratic infrastructure where citizens inform, deliberate, co-create and decide on the policies that shape their future."
   }
 ]
