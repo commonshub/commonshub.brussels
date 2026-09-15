@@ -45,6 +45,13 @@ export function htmlToPlainText(value: string): string {
       const same = label.replace(/\/$/, "") === href.replace(/\/$/, "") || href.endsWith(label);
       return same ? href : `${label} (${href})`;
     })
+    // An anchor that was cut off before its closing tag (a truncated
+    // description) still has an address worth keeping; the dangling text
+    // is usually the start of that same address.
+    .replace(/<a\b[^>]*href=["']?([^"'\s>]+)["']?[^>]*>([^<]*)$/i, (_, href: string, tail: string) => {
+      const label = tail.trim();
+      return !label || href.startsWith(label) ? href : `${label} (${href})`;
+    })
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|h[1-6]|tr|blockquote)>/gi, "\n")
     .replace(/<li\b[^>]*>/gi, "• ")

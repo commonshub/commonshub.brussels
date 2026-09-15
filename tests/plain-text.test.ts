@@ -28,6 +28,12 @@ describe("htmlToPlainText", () => {
     expect(looksLikeHtml(text)).toBe(false)
   })
 
+  test("a link cut off before its closing tag still yields its address", () => {
+    expect(htmlToPlainText('<a href="https://luma.com/brussels-satellite">https://luma.com/')).toBe(
+      "https://luma.com/brussels-satellite",
+    )
+  })
+
   test("empty stays empty", () => {
     expect(htmlToPlainText("")).toBe("")
   })
