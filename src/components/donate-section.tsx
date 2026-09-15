@@ -1,6 +1,7 @@
 import Image from "next/image"
 import { CreditCard, ExternalLink, Sparkles } from "lucide-react"
 
+import { BankTransferDetails } from "@/components/bank-transfer-details"
 import { Button } from "@/components/ui/button"
 
 const ARTIZEN_DONATION_URL =
@@ -49,18 +50,17 @@ export function DonateSection() {
                 height={240}
                 className="rounded-md"
               />
-              <p className="text-sm text-muted-foreground">
-                Scan with your phone, or{" "}
+              <Button asChild size="lg" className="mt-auto">
                 <a
                   href={ARTIZEN_DONATION_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline hover:text-foreground"
+                  className="hover:text-foreground"
                 >
-                  open the Artizen page
+                   <ExternalLink className="w-5 h-5" />
+                  Donate online with matched funding
                 </a>
-                .
-              </p>
+              </Button>
             </div>
 
             <Button asChild size="lg" className="md:hidden mt-auto">
@@ -83,7 +83,8 @@ export function DonateSection() {
               <p className="text-muted-foreground mb-6">
                 Donate online via Stripe with a credit card or Bancontact.
               </p>
-              <Button asChild size="lg" className="mt-auto">
+              <Button asChild size="lg" className="mt-auto"
+                      variant="outline">
                 <a
                   href={STRIPE_DONATION_URL}
                   target="_blank"
@@ -95,21 +96,32 @@ export function DonateSection() {
               </Button>
             </div>
 
-            <div className="hidden md:flex bg-card p-8 rounded-lg border border-border flex-col items-center text-center">
+            <div className="bg-card p-8 rounded-lg border border-border flex flex-col items-center text-center">
               <h2 className="text-2xl font-bold text-foreground mb-3">
                 Bank transfer
               </h2>
               <p className="text-muted-foreground mb-6">
-                Scan the QR code with your banking app to donate via SEPA
-                transfer.
+                <span className="hidden md:inline">
+                  Scan the QR code with your banking app to donate via SEPA
+                  transfer.
+                </span>
+                <span className="md:hidden">
+                  Copy the details below into your banking app, or save the QR
+                  code image and import it from your banking app&apos;s scanner.
+                </span>
               </p>
+              {/*
+                EPC069-12 SEPA transfer QR, generated from src/lib/bank-details.ts
+                with: bun run generate:donate-qrcode
+              */}
               <Image
                 src="/images/donate-qrcode.png"
                 alt="QR code for donating via bank transfer"
                 width={240}
                 height={240}
-                className="rounded-md"
+                className="rounded-md mb-6"
               />
+              <BankTransferDetails />
             </div>
           </div>
         </div>
