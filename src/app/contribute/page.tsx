@@ -47,7 +47,7 @@ function ExpenseCard({ expense }: { expense: ContributableExpense }) {
         )}
       </div>
       <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-        Cover {recurring ? "a month" : "this"}
+        {recurring ? "Chip in for a month" : "Chip in"}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </span>
     </Link>
@@ -113,8 +113,9 @@ export default function ContributePage() {
               Recurring costs
             </h2>
             <p className="mt-2 text-muted-foreground">
-              What keeping the doors open costs every month. Cover a month of one of them, or half of
-              it, or make it a standing order.
+              What keeping the doors open costs every month. You don&apos;t have to cover a whole
+              month: chip in whatever part you like, from €10. Or make it a standing order and
+              become the person behind it.
             </p>
             {expenses.recurring.length > 0 ? (
               <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -141,7 +142,7 @@ export default function ContributePage() {
             <p className="mt-2 text-muted-foreground">
               Things we bought for the space over the last year, straight from our books. Food and
               drinks are left out: they are gone by the next day. Everything here is still in the
-              space.
+              space. Cover one in full, or chip in a part of it.
             </p>
             {expenses.oneTime.length > 0 ? (
               <div className="mt-6 grid gap-4 md:grid-cols-2">
