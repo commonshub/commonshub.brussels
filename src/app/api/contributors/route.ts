@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { DATA_DIR } from "@/lib/data-paths";
 import { dataCacheHeaders } from "@/lib/data-route";
+import { publicContributors, type ContributorsFile } from "@/lib/contributors";
 
 // Read the dataset at request time; prerendering baked a 404 into the image.
 export const dynamic = "force-dynamic";
@@ -17,7 +18,8 @@ export async function GET() {
   }
   try {
     const content = fs.readFileSync(filePath, "utf-8");
-    return new NextResponse(content, {
+    const file = publicContributors(JSON.parse(content) as ContributorsFile);
+    return new NextResponse(JSON.stringify(file), {
       status: 200,
       headers: {
         "Content-Type": "application/json",

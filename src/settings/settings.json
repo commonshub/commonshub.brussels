@@ -363,5 +363,11 @@
     },
     "oneTimeMonths": 12,
     "oneTimeMinAmount": 20
+  },
+  "contributors": {
+    "_comment": "Discord usernames never shown as individual contributors on /community: bots and organisation accounts (Open Collective is already listed as a partner).",
+    "exclude": [
+      "opencollective"
+    ]
   }
 }

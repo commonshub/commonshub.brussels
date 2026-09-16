@@ -131,23 +131,32 @@ export interface YearlyReportData {
  * Get all available years with data
  * @param excludeFuture - If true, exclude years in the future (default: true for UI display)
  */
+/**
+ * The hub opened in 2024. The dataset also holds a 2023 folder (imported
+ * history from before the space existed), which is not a year to report on.
+ */
+export const FIRST_REPORT_YEAR = 2024;
+
+/** Keep the years worth a report: from the opening year up to today. */
+export function reportYears(candidates: string[], excludeFuture = true, now = new Date()): string[] {
+  const currentYear = now.getFullYear();
+  return candidates
+    .filter((year) => /^\d{4}$/.test(year))
+    .filter((year) => parseInt(year, 10) >= FIRST_REPORT_YEAR)
+    .filter((year) => !excludeFuture || parseInt(year, 10) <= currentYear)
+    .sort();
+}
+
 export function getAvailableYears(excludeFuture: boolean = true): string[] {
   try {
     if (!fs.existsSync(DATA_DIR)) return [];
 
-    let years = fs
+    const dirs = fs
       .readdirSync(DATA_DIR, { withFileTypes: true })
-      .filter((dirent) => dirent.isDirectory() && /^\d{4}$/.test(dirent.name))
-      .map((dirent) => dirent.name)
-      .sort();
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
 
-    // Filter out future years if requested
-    if (excludeFuture) {
-      const currentYear = new Date().getFullYear();
-      years = years.filter((year) => parseInt(year, 10) <= currentYear);
-    }
-
-    return years;
+    return reportYears(dirs, excludeFuture);
   } catch (error) {
     console.error("Error reading available years:", error);
     return [];
