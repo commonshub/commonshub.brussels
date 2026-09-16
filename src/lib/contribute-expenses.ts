@@ -5,17 +5,20 @@
  * Two kinds:
  *
  *   - recurring: rent, furniture, internet, electricity… Named in
- *     settings.json, matched by vendor (and, for rent, by bill title, since
- *     the landlord also sends other invoices). The amount shown is what a
- *     month of it costs, read from the most recent bills.
+ *     settings.json, matched by vendor name or by what the bill line says
+ *     (and, for rent, by title, since the landlord also sends other
+ *     invoices). The amount shown is what a month of it costs, read from the
+ *     most recent bills.
  *   - one-time: every other posted bill of the last year, minus catering —
  *     food and drinks are bought for a day and gone, there is nothing left in
  *     the space to point at.
  *
  * Bills that only carry a category on 1 in 10 rows cannot be classified by
- * category, so everything here goes by vendor name. Individuals are never
- * named: a bill from a person shows as "Individual supplier", as on the
- * quarterly reports.
+ * category, so everything here goes by vendor name and line text. Vendor
+ * names live in the private half of the export, which the public site may
+ * not receive at all; the line text is in the public half, so every rule
+ * also matches on that. Individuals are never named: a bill from a person
+ * shows as "Individual supplier", as on the quarterly reports.
  */
 
 import * as fs from "fs"
@@ -102,7 +105,11 @@ export interface Bill {
 interface RecurringRule {
   slug: string
   label: string
-  vendor: string
+  /** Vendor name, regex — needs the private export. */
+  vendor?: string
+  /** Bill line text, regex — works from the public export alone. */
+  line?: string
+  /** Extra condition on the bill/line text, for vendors that bill other things too. */
   title?: string
   description?: string
   monthlyAmount?: number
@@ -161,18 +168,20 @@ export function readMonthBills(dataDir: string, year: string, month: string): Bi
   const root = fs.existsSync(path.join(providerRoot, "bills.json")) ? providerRoot : legacyRoot
 
   const pub = readJson<{ bills: PublicBill[] }>(path.join(root, "bills.json"))
+  if (!pub) return null
+  // The private half carries the partner. The public site may run without
+  // it, in which case bills have no vendor and are matched on their lines.
   const prv = readJson<{ bills: PrivateBill[] }>(path.join(root, "private", "bills.json"))
-  if (!pub || !prv) return null
+  const privById = new Map((prv?.bills ?? []).map((b) => [b.id, b]))
 
-  const privById = new Map(prv.bills.map((b) => [b.id, b]))
   const bills: Bill[] = []
   for (const record of pub.bills) {
     const priv = privById.get(record.id)
-    if (!priv) continue
-    const partner = priv.partner ?? {}
+    if (prv && !priv) continue
+    const partner = priv?.partner ?? {}
     const isCompany = partner.companyType === "company" || partner.isCompany === true
-    const name = partner.displayName || partner.name || priv.partnerDisplayName || ""
-    const moveType = priv.moveType || record.moveType || "in_invoice"
+    const name = partner.displayName || partner.name || priv?.partnerDisplayName || ""
+    const moveType = priv?.moveType || record.moveType || "in_invoice"
     bills.push({
       id: record.id,
       title: record.title || "",
@@ -181,14 +190,14 @@ export function readMonthBills(dataDir: string, year: string, month: string): Bi
       refund: moveType === "in_refund",
       totalAmount: record.totalAmount ?? 0,
       category: record.category ?? null,
-      vendor: isCompany ? name : "Individual supplier",
+      vendor: !priv ? "" : isCompany ? name : "Individual supplier",
       vendorIsCompany: isCompany,
       vendorName: name,
-      reference: priv.number || priv.ref || priv.reference || record.title || `#${record.id}`,
+      reference: priv?.number || priv?.ref || priv?.reference || record.title || `#${record.id}`,
       lines: (record.lineItems ?? [])
         .filter((line) => !line.displayType || line.displayType === "product")
         .map((line) => cleanLine(line.title ?? ""))
-        .map((line) => (isCompany ? line : withoutPersonName(line, name)))
+        .map((line) => (isCompany || !name ? line : withoutPersonName(line, name)))
         .filter(Boolean),
     })
   }
@@ -211,19 +220,21 @@ export function recentMonths(now: Date, count: number): Array<{ year: string; mo
 
 const regex = (source?: string) => (source ? new RegExp(source, "i") : null)
 
+const inText = (bill: Bill, pattern: RegExp | null) =>
+  !!pattern && (pattern.test(bill.title) || bill.lines.some((line) => pattern.test(line)))
+
 function matchesRule(bill: Bill, rule: RecurringRule): boolean {
-  if (!regex(rule.vendor)?.test(bill.vendorName)) return false
+  const byVendor = !!bill.vendorName && !!regex(rule.vendor)?.test(bill.vendorName)
+  const byLine = inText(bill, regex(rule.line))
+  if (!byVendor && !byLine) return false
   const title = regex(rule.title)
-  if (!title) return true
-  return title.test(bill.title) || bill.lines.some((line) => title.test(line))
+  return !title || inText(bill, title)
 }
 
 function isExcluded(bill: Bill, exclude: ContributeSettings["exclude"]): boolean {
   if (regex(exclude.vendor)?.test(bill.vendorName)) return true
   if (bill.category && exclude.categories?.includes(bill.category)) return true
-  const title = regex(exclude.title)
-  if (title && (title.test(bill.title) || bill.lines.some((line) => title.test(line)))) return true
-  return false
+  return inText(bill, regex(exclude.title))
 }
 
 /** A label short enough for a card; a bill with no usable line gets the vendor. */
@@ -273,7 +284,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       slug: rule.slug,
       kind: "recurring",
       label: rule.label,
-      vendor: latest?.vendor ?? rule.label,
+      vendor: latest?.vendor || rule.label,
       amountEur,
       date: latest?.date ?? "",
       reference: rule.slug,
