@@ -1,0 +1,10 @@
+# What Coolify "builds" on the production host: nothing. The real image is
+# built by .github/workflows/build-image.yml on GitHub's runners and pushed to
+# ghcr.io; this file just points Coolify at the image for the commit it is
+# deploying. Building the site on the 2-CPU production box took 20 minutes and
+# took the site down meanwhile.
+#
+# Coolify passes SOURCE_COMMIT as a build arg. The workflow tags every image
+# with the full commit sha, so the deploy is pinned to exactly what CI built.
+ARG SOURCE_COMMIT=latest
+FROM ghcr.io/commonshub/commonshub.brussels:${SOURCE_COMMIT}
