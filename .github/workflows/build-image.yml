@@ -1,0 +1,71 @@
+# Build the production image here, on GitHub's runners, instead of on the
+# 2-CPU / 4 GB box that also serves the site. Building there took 20 minutes
+# and starved the running site; here it takes a few minutes and the host only
+# has to pull the result.
+#
+# Coolify deploys the image from ghcr.io (a "Docker Image" resource pointing
+# at ghcr.io/commonshub/commonshub.brussels:latest). The last step asks
+# Coolify to redeploy once the push is done; it needs three repository
+# secrets and is skipped when they are missing:
+#   COOLIFY_URL       https://coolify.commonshub.brussels
+#   COOLIFY_TOKEN     an API token with the "deploy" permission
+#   COOLIFY_APP_UUID  the uuid of the Docker Image resource
+name: Build image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Commit message for git-info.json
+        id: commit
+        run: echo "message=$(git log -1 --pretty=%s | tr -d '\"')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
+            COMMIT_MSG=${{ steps.commit.outputs.message }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Ask Coolify to redeploy
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: |
+          if [ -z "$COOLIFY_URL" ] || [ -z "$COOLIFY_TOKEN" ] || [ -z "$COOLIFY_APP_UUID" ]; then
+            echo "Coolify secrets not set; image pushed, deploy it from Coolify."
+            exit 0
+          fi
+          curl -fsS -X POST -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_URL/api/v1/deploy?uuid=$COOLIFY_APP_UUID"

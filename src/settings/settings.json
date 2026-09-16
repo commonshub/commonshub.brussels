@@ -317,7 +317,8 @@
         "vendor": "XL Collective",
         "title": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b",
         "description": "The lease for the space itself, 1000 m² in the centre of Brussels. Every other contribution only makes sense because this one is covered.",
-        "line": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b"
+        "line": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b",
+        "monthlyAmount": 6546.76
       },
       {
         "slug": "furniture-relieve",
