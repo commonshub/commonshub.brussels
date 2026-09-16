@@ -309,38 +309,43 @@
     }
   },
   "contribute": {
-    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, case-insensitive) and optionally by bill/line title; monthlyAmount overrides the amount read from the bills. Bills matching exclude go nowhere (catering is bought and consumed on the day).",
+    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount overrides the amount read from the bills. Bills matching exclude go nowhere (catering is bought and consumed on the day).",
     "recurring": [
       {
         "slug": "rent",
         "label": "Rent",
         "vendor": "XL Collective",
-        "title": "rent|sous.?location|subrent|loyer",
-        "description": "The lease for the space itself, 1000 m² in the centre of Brussels. Every other contribution only makes sense because this one is covered."
+        "title": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b",
+        "description": "The lease for the space itself, 1000 m² in the centre of Brussels. Every other contribution only makes sense because this one is covered.",
+        "line": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b"
       },
       {
         "slug": "furniture-relieve",
         "label": "Furniture rental (Relieve)",
         "vendor": "Relieve",
-        "description": "Tables, chairs and sofas are rented from Relieve, a Brussels circular-furniture company, rather than bought. When the space changes, the furniture changes with it."
+        "description": "Tables, chairs and sofas are rented from Relieve, a Brussels circular-furniture company, rather than bought. When the space changes, the furniture changes with it.",
+        "line": "relieve"
       },
       {
         "slug": "acoustic-booth-wenap",
         "label": "Acoustic booth rental (WeNap)",
         "vendor": "WeNap",
-        "description": "The phone booth, for calls that should not be taken in the middle of the coworking."
+        "description": "The phone booth, for calls that should not be taken in the middle of the coworking.",
+        "line": "wenap|kosy|cabine acoustique"
       },
       {
         "slug": "internet",
         "label": "Internet (Proximus)",
         "vendor": "Proximus",
-        "description": "Business fibre for the whole building: the coworking, the event rooms, the livestreams."
+        "description": "Business fibre for the whole building: the coworking, the event rooms, the livestreams.",
+        "line": "proximus|business internet|internet box"
       },
       {
         "slug": "electricity",
         "label": "Electricity (Electrabel)",
         "vendor": "Electrabel",
-        "description": "Lights, heating pumps, the coffee machine, the projectors."
+        "description": "Lights, heating pumps, the coffee machine, the projectors.",
+        "line": "electrabel|electricit|sibelga"
       }
     ],
     "exclude": {

@@ -20,6 +20,7 @@ const CONFIG = {
     { slug: "rent", label: "Rent", vendor: "XL Collective", title: "rent|subrent" },
     { slug: "furniture-relieve", label: "Furniture rental (Relieve)", vendor: "Relieve" },
     { slug: "internet", label: "Internet (Proximus)", vendor: "Proximus" },
+    { slug: "electricity", label: "Electricity", line: "electricit" },
   ],
   exclude: {
     vendor: "mezze|pistolei",
@@ -65,6 +66,7 @@ describe("classifyBills", () => {
     bill({ vendorName: "DAPPNODE", totalAmount: 2150, date: "2026-07-26", refund: true, title: "Reversal of duplicate" }),
     bill({ vendorName: "Hetzner", totalAmount: 49.23, date: "2026-06-01", state: "draft" }),
     bill({ vendorName: "Festi", totalAmount: 198.26, date: "2026-04-10", lines: ["?"] }),
+    bill({ vendorName: "", totalAmount: 165.37, date: "2026-07-18", lines: ["Electricité"] }),
   ].sort((a, b) => (a.date < b.date ? 1 : -1))
 
   const result = classifyBills(bills, CONFIG)
@@ -85,7 +87,7 @@ describe("classifyBills", () => {
   })
 
   test("a recurring rule with no bills is left out rather than shown at zero", () => {
-    expect(result.recurring.map((e) => e.slug)).toEqual(["rent", "furniture-relieve", "internet"])
+    expect(result.recurring.map((e) => e.slug)).toEqual(["rent", "furniture-relieve", "internet", "electricity"])
     const none = classifyBills([], CONFIG)
     expect(none.recurring).toEqual([])
     expect(none.empty).toBe(true)
@@ -121,6 +123,12 @@ describe("classifyBills", () => {
     for (const e of [...result.recurring, ...result.oneTime]) {
       expect(e.vendor).not.toBe("Jane Doe")
     }
+  })
+
+  test("a rule on the line text works without any vendor name", () => {
+    const electricity = result.recurring.find((e) => e.slug === "electricity")!
+    expect(electricity.amountEur).toBe(165.37)
+    expect(electricity.vendor).toBe("Electricity")
   })
 
   test("findExpense looks across both lists", () => {
@@ -205,6 +213,25 @@ describe("reading the dataset", () => {
     const expenses = loadContributeExpenses({ dataDir, now: new Date("2026-08-15T12:00:00Z"), config: CONFIG })
     expect(expenses.recurring.map((e) => e.slug)).toEqual(["internet"])
     expect(expenses.oneTime).toEqual([])
+  })
+
+  test("a month with only the public half still yields its bills, unnamed", () => {
+    const root = path.join(dataDir, "2026", "05", "providers", "odoo", "commonshub")
+    fs.mkdirSync(root, { recursive: true })
+    fs.writeFileSync(
+      path.join(root, "bills.json"),
+      JSON.stringify({
+        bills: [
+          { id: 9, title: "708733797986", state: "posted", date: "2026-05-18", totalAmount: 165.37, lineItems: [{ title: "Electricité" }] },
+        ],
+      }),
+    )
+    const bills = readMonthBills(dataDir, "2026", "05")!
+    expect(bills).toHaveLength(1)
+    expect(bills[0].vendor).toBe("")
+    expect(bills[0].reference).toBe("708733797986")
+    const expenses = loadContributeExpenses({ dataDir, now: new Date("2026-08-15T12:00:00Z"), config: CONFIG })
+    expect(expenses.recurring.map((e) => e.slug)).toEqual(["internet", "electricity"])
   })
 
   test("recentMonths walks back across a year boundary", () => {
