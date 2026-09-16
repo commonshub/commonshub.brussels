@@ -96,10 +96,10 @@ export function ContributionPanel({
   return (
     <div className="flex flex-col gap-8">
       <section className="bg-card rounded-lg border border-border p-6 sm:p-8">
-        <h2 className="text-xl font-bold text-foreground">How much would you like to cover?</h2>
+        <h2 className="text-xl font-bold text-foreground">How much would you like to chip in?</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          The whole expense is {formatEur(expenseEur)}. Half is a great start; any amount from{" "}
-          {formatEur(MIN_CONTRIBUTION_EUR)} helps.
+          The whole amount is {formatEur(expenseEur)}. Half is a great start, but any amount from{" "}
+          {formatEur(MIN_CONTRIBUTION_EUR)} helps. Slide, or type a number.
         </p>
 
         <div className="mt-6 flex items-end justify-between gap-4">

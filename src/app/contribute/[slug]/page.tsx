@@ -100,11 +100,11 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
           )}
 
           <div className="max-w-2xl">
-            <h2 className="text-2xl font-bold text-foreground">Take it on</h2>
+            <h2 className="text-2xl font-bold text-foreground">Chip in</h2>
             <p className="mt-2 text-muted-foreground">
               {recurring
-                ? "Cover a month of it, or part of one. If you would like to cover it every month, set up a standing order with the bank details below: the message stays the same each time."
-                : "Cover this bill, or part of it. The stewards then do not have to find the money for it elsewhere, and you know exactly what you paid for."}
+                ? `A month of it costs ${formatEur(expense.amountEur)}. You don't have to cover all of it: any amount from €10 helps, and the slider starts at half a month. Want to be the person behind it every month? Set up a standing order with the bank details below; the message stays the same each time.`
+                : "Cover this bill in full, or chip in a part of it: any amount from €10 helps. The stewards then do not have to find the money for it elsewhere, and you know exactly what you paid for."}
             </p>
           </div>
 
