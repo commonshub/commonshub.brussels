@@ -14,9 +14,11 @@ export function formatIban(iban: string): string {
 
 /**
  * EPC069-12 "SEPA credit transfer" QR payload (version 002, UTF-8).
- * Amount is left empty so the donor chooses it in their banking app.
+ * Amount is left empty so the donor chooses it in their banking app; the
+ * message defaults to the general donation one but a page for a specific
+ * expense passes its own so the transfer can be matched to it.
  */
-export function epcQrPayload(amountEur?: number): string {
+export function epcQrPayload(amountEur?: number, message: string = BANK_DETAILS.message): string {
   return [
     "BCD",
     "002",
@@ -28,6 +30,7 @@ export function epcQrPayload(amountEur?: number): string {
     amountEur ? `EUR${amountEur.toFixed(2)}` : "",
     "CHAR",
     "",
-    BANK_DETAILS.message,
+    // The unstructured remittance field is capped at 140 characters.
+    message.slice(0, 140),
   ].join("\n")
 }
