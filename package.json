@@ -78,6 +78,7 @@
     "nostr-tools": "^2.23.3",
     "open-graph-scraper": "^6.11.0",
     "path": "latest",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-day-picker": "latest",
     "react-dom": "19.2.3",
@@ -116,7 +117,6 @@
     "jest-environment-jsdom": "^29.7.0",
     "node-fetch": "^2.7.0",
     "postcss": "^8.5",
-    "qrcode": "^1.5.4",
     "tailwindcss": "^4.1.9",
     "ts-node": "^10.9.0",
     "typescript": "^5"

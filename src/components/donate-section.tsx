@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { CreditCard, ExternalLink, Sparkles } from "lucide-react"
 
 import { BankTransferDetails } from "@/components/bank-transfer-details"
@@ -19,6 +20,13 @@ export function DonateSection() {
             </h1>
             <p className="mt-6 text-xl text-muted-foreground">
               Help us keep the Commons Hub open. Contribute to our costs.
+            </p>
+            <p className="mt-4 text-muted-foreground">
+              Rather cover something specific, like a month of rent or the internet?{" "}
+              <Link href="/contribute" className="underline hover:text-foreground">
+                See all the ways to contribute
+              </Link>
+              .
             </p>
           </div>
         </div>
