@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import roomsData from "@/settings/rooms.json";
+import { hostedEventPath, hostedEvents } from "@/lib/hosted-events";
 
 const BASE_URL = "https://commonshub.brussels";
 
@@ -120,5 +121,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
     }));
 
-  return [...staticPages, ...roomPages, ...roomIcsPages];
+  // Pages of events we host (Open Commons Day, Open Source Village, ...)
+  const hostedEventPages: MetadataRoute.Sitemap = hostedEvents.map((event) => ({
+    url: `${BASE_URL}${hostedEventPath(event)}`,
+    lastModified: now,
+    changeFrequency: "daily" as const,
+    priority: 0.8,
+  }));
+
+  return [...staticPages, ...roomPages, ...roomIcsPages, ...hostedEventPages];
 }
