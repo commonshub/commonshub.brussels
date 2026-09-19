@@ -1,3 +1,4 @@
+import { isProxyableImageUrl } from "@/lib/image-proxy-server";
 import { htmlToPlainText } from "@/lib/plain-text";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
@@ -111,6 +112,10 @@ function loadUpcomingEvents(): HomepageEvent[] {
         coverUrl = `/data/${event.coverImageLocal}`;
       } else {
         coverUrl = event.coverImage || event.cover_url || "";
+        // A cover the proxy would refuse (an og:image on some random host
+        // that chb has not downloaded yet) shows as a broken image; the
+        // calendar placeholder is better than that.
+        if (!isProxyableImageUrl(coverUrl)) coverUrl = "";
       }
 
       events.push({
