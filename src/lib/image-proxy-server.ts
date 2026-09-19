@@ -133,6 +133,58 @@ export async function resizeAndCacheImage(
   return resizedBuffer;
 }
 
+/** Hosts the proxy will fetch images from. Anything else is refused. */
+const ALLOWED_IMAGE_DOMAINS = [
+  "framerusercontent.com",
+  "framer.com",
+  "commonshub.brussels",
+  "cdn.discordapp.com",
+  "media.discordapp.net",
+  "images.lumacdn.com",
+  "lumacdn.com",
+  "og.luma.com",
+  "cdn.lu.ma",
+  "lu.ma",
+  "luma.com",
+  "img.evbuc.com",
+  "eventbrite.com",
+  "cdn.evbuc.com",
+  "evbuc.com",
+  "secure.meetupstatic.com",
+  "meetupstatic.com",
+  "meetup.com",
+  "images.unsplash.com",
+  "unsplash.com",
+  "pbs.twimg.com",
+  "twimg.com",
+  "twitter.com",
+  "x.com",
+  // Additional common image CDNs
+  "res.cloudinary.com",
+  "cloudinary.com",
+  "imgix.net",
+  "amazonaws.com",
+  "googleusercontent.com",
+  "storage.googleapis.com",
+];
+
+/**
+ * True when the proxy would serve this image: a local dataset path, or a
+ * remote URL on an allowed host. Used by the events API to drop covers it
+ * cannot show, so a card falls back to its placeholder instead of a broken
+ * image.
+ */
+export function isProxyableImageUrl(url: string): boolean {
+  if (!url) return false;
+  if (url.startsWith("/")) return true;
+  try {
+    const { hostname } = new URL(url);
+    return ALLOWED_IMAGE_DOMAINS.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Fetch and process an external image
  * @param url - Image URL to fetch
@@ -143,49 +195,11 @@ export async function fetchAndProcessExternalImage(
   url: string,
   sizeParam: ImageSize | null
 ): Promise<NextResponse> {
-  // Allowed domains for external image proxying
-  const allowedDomains = [
-    "framerusercontent.com",
-    "framer.com",
-    "commonshub.brussels",
-    "cdn.discordapp.com",
-    "media.discordapp.net",
-    "images.lumacdn.com",
-    "lumacdn.com",
-    "og.luma.com",
-    "cdn.lu.ma",
-    "lu.ma",
-    "luma.com",
-    "img.evbuc.com",
-    "eventbrite.com",
-    "cdn.evbuc.com",
-    "evbuc.com",
-    "secure.meetupstatic.com",
-    "meetupstatic.com",
-    "meetup.com",
-    "images.unsplash.com",
-    "unsplash.com",
-    "pbs.twimg.com",
-    "twimg.com",
-    "twitter.com",
-    "x.com",
-    // Additional common image CDNs
-    "res.cloudinary.com",
-    "cloudinary.com",
-    "imgix.net",
-    "amazonaws.com",
-    "googleusercontent.com",
-    "storage.googleapis.com",
-  ];
 
   try {
     const parsedUrl = new URL(url);
 
-    const isAllowed = allowedDomains.some((domain) =>
-      parsedUrl.hostname.endsWith(domain)
-    );
-
-    if (!isAllowed) {
+    if (!isProxyableImageUrl(url)) {
       console.log("[image-proxy] Domain not allowed:", parsedUrl.hostname);
       return NextResponse.json(
         { error: "Domain not allowed" },
