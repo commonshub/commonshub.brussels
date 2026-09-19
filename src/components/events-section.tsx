@@ -58,6 +58,8 @@ function EventCard({
 
   const isLarge = size === "large";
   const eventUrl = event.isExternal ? event.externalUrl : event.url;
+  // Hosted events have a page on this site; everything else opens Luma etc.
+  const isOwnPage = !!eventUrl?.startsWith("/");
 
   // Helper function to shorten URLs in text
   const shortenUrlsInText = (text: string): string => {
@@ -75,8 +77,8 @@ function EventCard({
   return (
     <a
       href={eventUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={isOwnPage ? undefined : "_blank"}
+      rel={isOwnPage ? undefined : "noopener noreferrer"}
       className="block"
     >
       <Card
