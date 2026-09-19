@@ -225,7 +225,7 @@ function DaySchedule({ items }: { items: ScheduleItem[] }) {
                       {items
                         .filter((i) => i.start === time && i.column === column)
                         .map((item) => (
-                          <SessionEntry key={item.title} item={item} />
+                          <SessionEntry key={`${item.start}-${item.column}-${item.title}`} item={item} />
                         ))}
                     </div>
                   </td>
