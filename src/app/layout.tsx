@@ -13,6 +13,8 @@ const dmSans = DM_Sans({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  // Resolves relative og:image and other metadata URLs to absolute ones
+  metadataBase: new URL("https://commonshub.brussels"),
   title: "Commons Hub Brussels",
   description:
     "A common space for your community to meet, dream and work. A space to rediscover the commons. Come visit us in front of Central Station.",
