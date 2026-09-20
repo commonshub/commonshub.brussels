@@ -1,5 +1,6 @@
 import { isProxyableImageUrl } from "@/lib/image-proxy-server";
 import { htmlToPlainText } from "@/lib/plain-text";
+import { applyHandManagedEvents } from "@/lib/pinned-events";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -164,7 +165,7 @@ export async function GET() {
   }
 
   try {
-    const events = loadUpcomingEvents();
+    const events = applyHandManagedEvents(loadUpcomingEvents());
 
     cachedData = {
       events,
