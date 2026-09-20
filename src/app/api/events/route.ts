@@ -1,5 +1,5 @@
 import { isProxyableImageUrl } from "@/lib/image-proxy-server";
-import { htmlToPlainText } from "@/lib/plain-text";
+import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
 import { applyHandManagedEvents } from "@/lib/pinned-events";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
@@ -122,7 +122,7 @@ function loadUpcomingEvents(): HomepageEvent[] {
       events.push({
         id: event.id || "",
         name: event.name || "",
-        description: htmlToPlainText(event.description || ""),
+        description: redactContactDetails(htmlToPlainText(event.description || "")),
         start_at: startAt,
         end_at: event.endAt || event.end_at || "",
         cover_url: coverUrl,
