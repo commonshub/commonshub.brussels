@@ -34,6 +34,16 @@ describe("htmlToPlainText", () => {
     )
   })
 
+  test("a tag cut off mid-attribute is dropped, keeping an address if it has one", () => {
+    expect(htmlToPlainText('Paid booking via Ralph. Details to follow. <a href="lum')).toBe(
+      "Paid booking via Ralph. Details to follow. lum",
+    )
+    expect(htmlToPlainText('<a href="https://www.speculativefutures.design/" target="_blank')).toBe(
+      "https://www.speculativefutures.design/",
+    )
+    expect(htmlToPlainText("Doors open at 18:00 <a")).toBe("Doors open at 18:00")
+  })
+
   test("empty stays empty", () => {
     expect(htmlToPlainText("")).toBe("")
   })

@@ -22,9 +22,12 @@ function decodeEntities(value: string): string {
     .replace(/&([a-z]+);/gi, (match, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? match);
 }
 
-/** True when the text carries markup, not just a stray "<" in prose. */
+/**
+ * True when the text carries markup, not just a stray "<" in prose. A tag
+ * cut off before its ">" (a description truncated mid-attribute) counts too.
+ */
 export function looksLikeHtml(value: string): boolean {
-  return /<\/?[a-z][^>]*>/i.test(value);
+  return /<\/?[a-z][^>]*>/i.test(value) || /<[a-z][a-z0-9]*(\s+[a-z-]+(=("[^"]*"?|'[^']*'?|[^\s>]*))?)*\s*$/i.test(value);
 }
 
 /**
@@ -51,6 +54,12 @@ export function htmlToPlainText(value: string): string {
     .replace(/<a\b[^>]*href=["']?([^"'\s>]+)["']?[^>]*>([^<]*)$/i, (_, href: string, tail: string) => {
       const label = tail.trim();
       return !label || href.startsWith(label) ? href : `${label} (${href})`;
+    })
+    // A tag cut off before its ">" (no closing bracket anywhere after it):
+    // keep the address if the fragment got that far, otherwise drop it.
+    .replace(/<[a-z][^<>]*$/i, (fragment: string) => {
+      const href = fragment.match(/href=["']?([^"'\s>]+)/i);
+      return href ? href[1] : "";
     })
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|h[1-6]|tr|blockquote)>/gi, "\n")
