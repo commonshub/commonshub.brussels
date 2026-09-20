@@ -1,6 +1,7 @@
 import { isProxyableImageUrl } from "@/lib/image-proxy-server";
 import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
 import { applyHandManagedEvents } from "@/lib/pinned-events";
+import { isPublicEventUrl, unwrapGoogleRedirect } from "@/lib/public-events";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -76,8 +77,11 @@ function loadUpcomingEvents(): HomepageEvent[] {
       // Only include future events
       if (startAt && new Date(startAt) < now) continue;
 
+      // A room-calendar entry with no event page is a private booking.
+      if (!isPublicEventUrl(event.url)) continue;
+
       // Determine if external (non-Luma source without a lu.ma URL)
-      const eventUrl = event.url || "";
+      const eventUrl = unwrapGoogleRedirect(event.url || "");
       const isLuma = eventUrl.includes("lu.ma") || eventUrl.includes("luma.com");
       const isExternal = !isLuma && !!eventUrl;
 
