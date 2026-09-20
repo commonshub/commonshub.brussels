@@ -6,7 +6,7 @@ import { ArrowLeft, Calendar, MapPin, Users, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EventsList } from "@/components/events-list";
-import { htmlToPlainText } from "@/lib/plain-text";
+import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
 
 interface PageProps {
   params: Promise<{
@@ -64,7 +64,7 @@ async function loadEvents(year: string, month: string): Promise<Event[]> {
     const data: EventsFile = JSON.parse(fileContent);
     return (data.events || []).map((event) => ({
       ...event,
-      description: event.description ? htmlToPlainText(event.description) : event.description,
+      description: event.description ? redactContactDetails(htmlToPlainText(event.description)) : event.description,
     }));
   } catch (error) {
     console.error(`Error reading events file:`, error);
