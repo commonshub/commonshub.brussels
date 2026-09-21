@@ -1,4 +1,9 @@
 import { isProxyableImageUrl } from "@/lib/image-proxy-server";
+import {
+  mergeHostedEvents,
+  type EventTag,
+  type HomepageEvent,
+} from "@/lib/hosted-events";
 import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
 import { applyHandManagedEvents } from "@/lib/pinned-events";
 import { isPublicEvent, unwrapGoogleRedirect } from "@/lib/public-events";
@@ -29,27 +34,6 @@ const EMPTY_CACHE_DURATION = EMPTY_CACHE_SECONDS * 1000;
 
 function cacheDurationFor(events: HomepageEvent[]): number {
   return events.length > 0 ? CACHE_DURATION : EMPTY_CACHE_DURATION;
-}
-
-interface EventTag {
-  name: string;
-  color: string;
-}
-
-interface HomepageEvent {
-  id: string;
-  name: string;
-  description: string;
-  start_at: string;
-  end_at: string;
-  cover_url: string;
-  url: string;
-  location?: string;
-  isExternal: boolean;
-  externalPlatform?: string;
-  externalUrl?: string;
-  tags?: EventTag[];
-  isFeatured?: boolean;
 }
 
 /**
@@ -140,12 +124,8 @@ function loadUpcomingEvents(): HomepageEvent[] {
       });
     }
 
-    // Sort by date
-    events.sort(
-      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-    );
-
-    return events;
+    // Link hosted events to their own page, sorted by date
+    return mergeHostedEvents(events, now);
   } catch (error) {
     console.error(`[events] Error reading ${eventsPath}:`, error);
     return [];

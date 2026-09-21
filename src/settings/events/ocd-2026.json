@@ -1,0 +1,93 @@
+{
+  "slug": "ocd-2026",
+  "name": "Open Commons Day 2026",
+  "tagline": "Talks, workshops, cake, conversations and a fundraiser for our shared space.",
+  "description": "Pass by the Commons Hub for a day of workshops in all our rooms, coffee and cake, a kicker tournament, and a chance to visit the space and meet the community.",
+  "startAt": "2026-10-04T09:30:00+02:00",
+  "endAt": "2026-10-04T18:00:00+02:00",
+  "timezone": "Europe/Brussels",
+  "location": "Commons Hub Brussels, Rue de la Madeleine 51, 1000 Brussels",
+  "coverImage": "https://images.lumacdn.com/uploads/dz/4cd6cf21-607f-48f7-b7f1-2f30c71e6fcd.png",
+  "featured": true,
+  "tags": [{ "name": "Open Day", "color": "#ff5000" }],
+  "links": {
+    "luma": "https://luma.com/l9275g9x"
+  },
+  "lumaEventId": "evt-AoOBAKIQvpJKXdV",
+  "sessions": [
+    {
+      "start": "11:00",
+      "room": "satoshi",
+      "title": "Digital Tools for the Commons",
+      "speakers": ["Xavier Damman"]
+    },
+    {
+      "start": "12:00",
+      "room": "mushroom",
+      "title": "Digital Independence Day",
+      "speakers": ["Friedger M."]
+    },
+    {
+      "start": "13:00",
+      "room": "angel",
+      "title": "Projective Dreamwork Circle",
+      "speakers": ["Dean Lee"]
+    },
+    {
+      "start": "13:00",
+      "room": "mushroom",
+      "title": "Running and Building AI Models for Raspberry Pi AI HAT",
+      "speakers": ["Lubos"]
+    },
+    {
+      "start": "13:00",
+      "room": "satoshi",
+      "title": "Strategic LinkedIn Networking",
+      "speakers": ["Yasser Machat"]
+    },
+    {
+      "start": "14:00",
+      "room": "satoshi",
+      "title": "Your Job Stopped? Your Work Starts @ Commons Hub",
+      "speakers": ["Gabriela Sotirca", "Alain Vereecke"]
+    },
+    {
+      "start": "15:00",
+      "room": "angel",
+      "title": "Commons Game: learning the principles of Elinor Ostrom",
+      "speakers": ["Leen Schelfhout"]
+    },
+    {
+      "start": "15:00",
+      "room": "ostrom",
+      "title": "Finding Ground When the World Feels Too Much",
+      "speakers": ["Diana Socoliuc"]
+    }
+  ],
+  "relatedEvents": [
+    {
+      "date": "2026-10-02",
+      "title": "Walk: Brussels — History of Cooperatives",
+      "speakers": ["Alain Vereecke"],
+      "url": "https://luma.com/hhfrzcha"
+    }
+  ],
+  "tournament": {
+    "name": "Kicker Tournament",
+    "start": "15:00",
+    "end": "18:00",
+    "teamSize": 2,
+    "maxTeams": 12,
+    "fee": { "amount": 10, "currency": "EUR", "per": "team" },
+    "payment": "Pay on site, or online when you register on Luma.",
+    "signupUrl": "https://luma.com/l9275g9x",
+    "rules": [
+      "Teams of two, sign up as a team.",
+      "Groups of four teams, everyone plays everyone in their group.",
+      "Games to 7 goals, switch positions whenever you like.",
+      "Top teams go to the semi-finals and the final."
+    ],
+    "bracketUrl": null,
+    "matches": []
+  }
+}

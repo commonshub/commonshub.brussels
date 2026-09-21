@@ -1,0 +1,18 @@
+{
+  "slug": "osv-2027",
+  "name": "Open Source Village 2027",
+  "tagline": "A pop-up village for the open source community, alongside FOSDEM.",
+  "description": "Twelve days of coworking, workshops, talks and evening gatherings at the Commons Hub, about 20 minutes from FOSDEM by bus or bike. Up to 100 people a day, on application.",
+  "startAt": "2027-01-25T09:00:00+01:00",
+  "endAt": "2027-02-05T18:00:00+01:00",
+  "timezone": "Europe/Brussels",
+  "location": "Commons Hub Brussels, Rue de la Madeleine 51, 1000 Brussels",
+  "coverImage": "/images/events/osv-2027.png",
+  "coverAspectRatio": "1200 / 630",
+  "featured": true,
+  "tags": [{ "name": "Open Source", "color": "#2d3b33" }],
+  "links": {
+    "website": "https://opensourcevillage.org/"
+  },
+  "sessions": []
+}
