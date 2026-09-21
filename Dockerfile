@@ -43,7 +43,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN apk add --no-cache bash curl libc6-compat su-exec
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# nextjs joins nodejs (gid 1001): on the host that gid is the chb-members group,
+# which is what makes the members/ tier of the dataset readable (0750) — and
+# only readable — from inside the container. See chb docs/website-migration.md.
+RUN adduser --system --uid 1001 --ingroup nodejs nextjs
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
