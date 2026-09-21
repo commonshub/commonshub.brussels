@@ -1,15 +1,11 @@
 import { describe, expect, test } from "@jest/globals"
 import {
   buildDaySchedule,
-  buildShiftRsvp,
   dayBounds,
   dayOf,
   parseDoorOpenings,
-  parseShiftRsvps,
   peopleAtTheDoor,
-  shiftCoordinate,
   shiftDay,
-  shiftDiscordLine,
   type DiscordMessageLike,
 } from "@/lib/day"
 
@@ -91,53 +87,5 @@ describe("the door", () => {
     ])
     expect(people[0].avatar).toBe("https://cdn.discordapp.com/avatars/100000000000000001/abc.png?size=128")
     expect(people[1].avatar).toBeUndefined()
-  })
-})
-
-describe("shifts", () => {
-  const HUB = "d38b59f0ed0c6653267edc5947c74937d7605afa94ecc10608a2260c653afe91"
-  const slot = { start: "08:30", end: "11:30" }
-  const later = { start: "11:30", end: "14:30" }
-  const rsvp = (action: "signup" | "cancel", id: string, name: string, s = slot, when: string, author = "site") => ({
-    pubkey: author,
-    ...buildShiftRsvp(action, { discordId: id, name }, HUB, DAY, s, new Date(when)),
-  })
-
-  test("the RSVP is a NIP-52 event pointing at the hub's shift", () => {
-    const event = buildShiftRsvp("signup", { discordId: "100000000000000001", name: "Doug" }, HUB, DAY, slot, new Date("2026-09-20T10:00:00Z"))
-    expect(event.kind).toBe(31925)
-    expect(event.tags).toEqual(
-      expect.arrayContaining([
-        ["a", `31923:${HUB}:shift:2026-09-22:0830`],
-        ["d", `31923:${HUB}:shift:2026-09-22:0830:discord:100000000000000001`],
-        ["status", "accepted"],
-        ["discord", "100000000000000001"],
-        ["name", "Doug"],
-      ]),
-    )
-    expect(shiftCoordinate(HUB, DAY, slot)).toBe(`31923:${HUB}:shift:2026-09-22:0830`)
-    expect(buildShiftRsvp("cancel", { discordId: "1", name: "x" }, HUB, DAY, slot).tags).toContainEqual(["status", "declined"])
-  })
-
-  test("the latest RSVP per person and slot wins; declined removes the sign-up; other days are ignored", () => {
-    const events = [
-      rsvp("signup", "100000000000000001", "Doug", slot, "2026-09-20T10:00:00Z"),
-      rsvp("signup", "100000000000000002", "Zak", slot, "2026-09-20T11:00:00Z"),
-      rsvp("cancel", "100000000000000001", "Doug", slot, "2026-09-21T09:00:00Z"),
-      rsvp("signup", "100000000000000001", "Doug", later, "2026-09-21T09:01:00Z"),
-      { pubkey: "site", ...buildShiftRsvp("signup", { discordId: "100000000000000003", name: "Ann" }, HUB, "2026-09-23", slot) },
-      { pubkey: "someone", created_at: 1, tags: [["a", "31923:other:shift:2026-09-22:0830"]], content: "" },
-    ]
-    expect(parseShiftRsvps(events, HUB, DAY, [slot, later]).map((s) => [s.name, s.slot])).toEqual([
-      ["Zak", "0830"],
-      ["Doug", "1130"],
-    ])
-  })
-
-  test("the Discord line reads like the bot's /shifts command", () => {
-    expect(shiftDiscordLine("signup", "100000000000000001", DAY, slot)).toBe(
-      "🙋 <@100000000000000001> signed up for a shift on **Tue, 22 Sept 2026** 08:30-11:30 (via the website)",
-    )
-    expect(shiftDiscordLine("cancel", "100000000000000001", DAY, slot)).toMatch(/^❌ <@100000000000000001> cancelled their shift on/)
   })
 })

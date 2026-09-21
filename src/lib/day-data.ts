@@ -1,7 +1,8 @@
 /**
  * Server-side loaders for the day page. Reads the dataset (read-only), the
- * community Nostr relay (the record for shifts) and the #door channel on
- * Discord, with a short in-memory cache so a busy day does not hammer them.
+ * community relays (the record for shifts and identities) and the #door
+ * channel on Discord, with a short in-memory cache so a busy day does not
+ * hammer them.
  */
 
 import * as fs from "fs"
@@ -9,19 +10,19 @@ import * as path from "path"
 import { DATA_DIR } from "./data-paths"
 import settings from "@/settings/settings.json"
 import { getChannelMessages, isDiscordConfigured } from "./discord"
+import { type DiscordMessageLike, type DoorOpening, type PublicEventRecord, dayBounds, parseDoorOpenings } from "./day"
 import {
-  SHIFT_RSVP_KIND,
-  type DiscordMessageLike,
-  type DoorOpening,
-  type PublicEventRecord,
-  type ShiftSignup,
+  KIND_ATTESTATION,
+  KIND_PROFILE,
+  KIND_RSVP,
   type ShiftSlot,
-  dayBounds,
-  parseDoorOpenings,
-  parseShiftRsvps,
+  type Signup,
+  parseAttestations,
+  parseProfiles,
+  parseSignups,
   shiftCoordinate,
-} from "./day"
-import { HUB_PUBKEY, queryRelays } from "./nostr-server"
+} from "./nostr-conventions"
+import { COMMUNITY, coordinatorPubkey, queryRelays, siteIdentity } from "./nostr-server"
 
 const DOOR_CHANNEL = (settings as { door?: { channelId?: string } }).door?.channelId ?? "1306678821751230514"
 export const SHIFTS_CHANNEL = settings.discord.channels.activities.shifts
@@ -81,12 +82,34 @@ export async function loadDoorOpenings(day: string): Promise<DoorOpening[]> {
   return parseDoorOpenings(await recentMessages(DOOR_CHANNEL), day)
 }
 
-// ── shifts, from the relay ────────────────────────────────────────────────
+// ── shifts, from the relays ───────────────────────────────────────────────
 
-export async function loadShiftSignups(day: string): Promise<ShiftSignup[]> {
-  const hub = HUB_PUBKEY
-  if (!hub) return []
-  const coordinates = SHIFT_SLOTS.map((slot) => shiftCoordinate(hub, day, slot))
-  const events = await queryRelays({ kinds: [SHIFT_RSVP_KIND], "#a": coordinates, limit: 200 })
-  return parseShiftRsvps(events, hub, day, SHIFT_SLOTS)
+/**
+ * Sign-ups for the day: RSVPs pointing at the day's shifts, with authors
+ * named through the site's attestations and their own profiles. Providers
+ * trusted for the discord ↔ key map: the site itself and the coordinator.
+ */
+export async function loadShiftSignups(day: string): Promise<Signup[]> {
+  const coordinator = coordinatorPubkey()
+  if (!coordinator) return []
+  const coordinates = SHIFT_SLOTS.map((slot) => shiftCoordinate(coordinator, COMMUNITY, day, slot))
+  const rsvps = await queryRelays({ kinds: [KIND_RSVP], "#a": coordinates, limit: 300 })
+  if (rsvps.length === 0) return []
+
+  const authors = [...new Set(rsvps.map((e) => e.pubkey))]
+  const providers = [...new Set([siteIdentity()?.pubkey, coordinator].filter((p): p is string => !!p))]
+  const [attestations, profiles] = await Promise.all([
+    queryRelays({ kinds: [KIND_ATTESTATION], authors: providers, "#p": authors, limit: 300 }),
+    queryRelays({ kinds: [KIND_PROFILE], authors, limit: 300 }),
+  ])
+  return parseSignups(rsvps, coordinator, COMMUNITY, day, SHIFT_SLOTS, parseAttestations(attestations, providers), parseProfiles(profiles))
 }
+
+/** The line posted in #shifts, worded like the bot's /shifts command. */
+export function shiftDiscordLine(action: "signup" | "cancel", discordId: string, day: string, slot: ShiftSlot): string {
+  const date = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+  return action === "signup"
+    ? `🙋 <@${discordId}> signed up for a shift on **${date}** ${slot.start}-${slot.end} (via the website)`
+    : `❌ <@${discordId}> cancelled their shift on **${date}** ${slot.start}-${slot.end} (via the website)`
+}
+

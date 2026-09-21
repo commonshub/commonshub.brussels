@@ -18,9 +18,9 @@ import {
   formatTime,
   peopleAtTheDoor,
   shiftDay,
-  slotId,
-  slotLabel,
 } from "@/lib/day"
+import { slotCode, slotLabel } from "@/lib/nostr-conventions"
+import { RELAYS } from "@/lib/nostr-server"
 import { MAX_SIGNUPS_PER_SLOT, SHIFTS_DESCRIPTION, SHIFT_SLOTS, loadDoorOpenings, loadPublicEventsForDay, loadShiftSignups } from "@/lib/day-data"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
 import { fetchRoomEventsForRange } from "@/lib/room-calendar"
@@ -185,13 +185,13 @@ export default async function DayPage({ params }: PageProps) {
               <p className="mt-1 text-sm text-muted-foreground">{SHIFTS_DESCRIPTION}</p>
               <div className="mt-3">
                 {member && me ? (
-                  <ShiftSignupPanel day={date} slots={SHIFT_SLOTS} initial={signups} me={me} maxPerSlot={MAX_SIGNUPS_PER_SLOT} />
+                  <ShiftSignupPanel day={date} slots={SHIFT_SLOTS} initial={signups} me={me} maxPerSlot={MAX_SIGNUPS_PER_SLOT} relays={RELAYS} />
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {SHIFT_SLOTS.map((slot) => {
-                      const taken = signups.filter((s) => s.slot === slotId(slot)).length
+                      const taken = signups.filter((s) => s.slotCode === slotCode(slot)).length
                       return (
-                        <li key={slotId(slot)} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5 text-sm">
+                        <li key={slotCode(slot)} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5 text-sm">
                           <span className="font-semibold tabular-nums text-foreground">{slotLabel(slot)}</span>
                           <span className="text-muted-foreground">
                             {taken === 0 ? "Nobody yet" : `${taken}/${MAX_SIGNUPS_PER_SLOT}`}
