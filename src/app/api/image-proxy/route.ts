@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/data-paths";
+import { isServableDataPath } from "@/lib/served-paths";
 import {
   fetchAndProcessExternalImage,
   resizeAndCacheImage,
@@ -18,60 +19,55 @@ function getCacheControl(request: NextRequest, localFile: boolean): string {
     request.nextUrl.hostname === "127.0.0.1";
 
   if (isLocalDev) return "no-store, max-age=0";
+
   const maxAge = localFile ? CACHE_DURATION * 7 : CACHE_DURATION;
   return `public, max-age=${maxAge}, s-maxage=${maxAge}`;
 }
+
+const IMAGE_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+};
 
 /**
  * Image Proxy API - Handles both local data paths and external image URLs
  *
  * Query parameters:
- * - url: Image URL or local path (e.g., /data/2025/11/channels/discord/images/123.jpg or /images/foo.jpg) (required)
+ * - url: Image URL or local path (e.g., /data/2026/09/public/events/images/evt.png or /images/foo.jpg) (required)
  * - size: Optional size parameter (xs|sm|md|lg) for resizing
- *
- * Example: /api/image-proxy?url=/data/2025/11/channels/discord/images/123.jpg&size=sm
- * Example: /api/image-proxy?url=/images/chb-facade.avif&size=md
- * Example: /api/image-proxy?url=https://example.com/image.jpg&size=md
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url");
-  const sizeParam = resolveRequestedImageSize(
-    searchParams.get("size"),
-    searchParams.get("w")
-  );
-
-  console.log("[image-proxy] Request - url:", url, "size:", sizeParam);
+  const sizeParam = resolveRequestedImageSize(searchParams.get("size"), searchParams.get("w"));
 
   if (!url) {
-    return NextResponse.json(
-      { error: "Missing required parameter: url" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing required parameter: url" }, { status: 400 });
   }
 
   // Prevent recursive proxying - reject if URL is already a proxy URL
   if (url.includes("/api/image-proxy")) {
-    console.log("[image-proxy] Rejected recursive proxy attempt:", url);
-    return NextResponse.json(
-      { error: "Cannot proxy a proxy URL" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Cannot proxy a proxy URL" }, { status: 400 });
   }
 
-  // Check if this is a local data path
   if (url.startsWith("/data/")) {
-    return handleLocalPath(request, url, sizeParam, {
-      rootDir: DATA_DIR,
-      urlPrefix: "/data/",
-    });
+    const relativePath = url.slice("/data/".length);
+    if (!isServableDataPath(relativePath)) {
+      return NextResponse.json({ error: "Not a served file" }, { status: 403 });
+    }
+    return handleLocalPath(request, relativePath, sizeParam, DATA_DIR);
   }
 
   if (url.startsWith("/images/")) {
-    return handleLocalPath(request, url, sizeParam, {
-      rootDir: path.join(process.cwd(), "public"),
-      urlPrefix: "/",
-    });
+    const relativePath = url.slice(1);
+    if (!IMAGE_TYPES[path.extname(relativePath).toLowerCase()] || relativePath.split("/").some((p) => p === "" || p === "..")) {
+      return NextResponse.json({ error: "Not a served file" }, { status: 403 });
+    }
+    return handleLocalPath(request, relativePath, sizeParam, path.join(process.cwd(), "public"));
   }
 
   // Otherwise, handle as external URL
@@ -80,57 +76,24 @@ export async function GET(request: NextRequest) {
   return response;
 }
 
-/**
- * Handle local file paths rooted in a specific directory
- */
-async function handleLocalPath(
-  request: NextRequest,
-  localPath: string,
-  sizeParam: ImageSize | null,
-  options: {
-    rootDir: string;
-    urlPrefix: string;
-  }
-): Promise<NextResponse> {
+/** Serve one image from under `rootDir`; the path must stay inside it. */
+async function handleLocalPath(request: NextRequest, relativePath: string, sizeParam: ImageSize | null, rootDir: string): Promise<NextResponse> {
   try {
-    const { rootDir, urlPrefix } = options;
-    const normalizedPrefix = urlPrefix.endsWith("/") ? urlPrefix : `${urlPrefix}/`;
-    const relativePath = localPath.replace(new RegExp(`^${normalizedPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`), "");
-    const absolutePath = path.join(rootDir, relativePath);
-
-    console.log("[image-proxy] Serving local file:", absolutePath);
-
-    // Security check - ensure path is within the configured root directory
     const resolvedRootDir = path.resolve(rootDir);
-    const resolvedPath = path.resolve(absolutePath);
-    if (!resolvedPath.startsWith(resolvedRootDir)) {
-      console.log("[image-proxy] Security: Path outside data directory:", resolvedPath);
-      console.log("[image-proxy] Expected to be within:", resolvedRootDir);
+    const resolvedPath = path.resolve(rootDir, relativePath);
+    // Compare against root + separator: "/data-other/x" must not pass for root "/data".
+    if (!resolvedPath.startsWith(resolvedRootDir + path.sep)) {
       return NextResponse.json({ error: "Invalid path" }, { status: 403 });
     }
-
-    // Check if file exists
-    if (!fs.existsSync(resolvedPath)) {
-      console.log("[image-proxy] File not found:", resolvedPath);
+    if (!fs.existsSync(resolvedPath) || !fs.statSync(resolvedPath).isFile()) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Read the file
     let buffer: Buffer = fs.readFileSync(resolvedPath);
     const ext = path.extname(resolvedPath).toLowerCase();
-    const contentTypeMap: Record<string, string> = {
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".png": "image/png",
-      ".gif": "image/gif",
-      ".webp": "image/webp",
-      ".avif": "image/avif",
-    };
-    let contentType = contentTypeMap[ext] || "image/jpeg";
+    let contentType = IMAGE_TYPES[ext] || "image/jpeg";
 
-    // Apply resizing if size parameter is provided
     if (sizeParam && SIZE_CONFIG[sizeParam]) {
-      // Use filename without extension as imageId
       const imageId = path.basename(resolvedPath, ext);
       buffer = await resizeAndCacheImage(buffer, imageId, sizeParam);
       contentType = "image/jpeg"; // Resized images are always JPEG
@@ -140,14 +103,10 @@ async function handleLocalPath(
       headers: {
         "Content-Type": contentType,
         "Cache-Control": getCacheControl(request, true),
-        "Access-Control-Allow-Origin": "*",
       },
     });
   } catch (error) {
     console.error("[image-proxy] Error serving local file:", error);
-    return NextResponse.json(
-      { error: "Failed to serve local file" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to serve image" }, { status: 500 });
   }
 }
