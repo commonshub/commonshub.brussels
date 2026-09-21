@@ -391,7 +391,7 @@
     "channelId": "1306678821751230514"
   },
   "shifts": {
-    "_comment": "Same slots, cap and wording as the Discord bot's /shifts command (opencollective/token-bot data/<guild>/shifts-settings.json). Sign-ups are NIP-52 RSVPs on the relay, announced in discord.channels.activities.shifts.",
+    "_comment": "Same slots, cap and wording as the Discord bot's /shifts command (opencollective/token-bot). Sign-ups are NIP-52 RSVPs signed by the member's own key; announced in discord.channels.activities.shifts.",
     "description": "Sign up for a caretaking shift to take care of our common space and help hosting events.",
     "maxSignupsPerSlot": 3,
     "slots": [
@@ -418,10 +418,10 @@
     ]
   },
   "nostr": {
-    "_comment": "The community relay is the record for actions (shift RSVPs…); Discord and the pages read from it. hubNpub is the hub's identity (chb signs with it); shift calendar events hang off it. The site's own signing key derives from AUTH_SECRET (see /api/nostr/identity) and must be allow-listed on the relay.",
+    "_comment": "Community relays are the record (relay.commonshub.brussels first, relay.commonshub.dev as backup); every event carries i=discord:<guild> and t=app:commonshub.brussels. The site signs with a key derived from AUTH_SECRET (see /api/nostr/identity) and acts as identity provider (kind 31926) and, until a bot takes over, as shift coordinator (kind 31923). Set coordinatorNpub to hand coordination to a bot. Conventions: docs/nostr.md and https://commonshub.dev/docs.",
     "relays": [
-      "wss://relay.commonshub.brussels"
-    ],
-    "hubNpub": "npub1d8z6e7rkscejnym7m3v5036fh04s94755anqsvzxg3xp3jn4l6gsvza3qc"
+      "wss://relay.commonshub.brussels",
+      "wss://relay.commonshub.dev"
+    ]
   }
 }

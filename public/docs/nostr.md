@@ -1,0 +1,81 @@
+# commonshub.brussels on Nostr
+
+The community relays are the record of what happens at the Commons Hub.
+Discord, this website and any bot are just ways to read and write it. This
+page says exactly what the website publishes, so any other app — the
+Discord bot, a calendar, an agent — can read the same events and add its own.
+It follows the conventions of [commonshub.dev/docs](https://commonshub.dev/docs),
+which does the same for Telegram groups: swap `telegram` for `discord`.
+
+Live view of what this site knows about itself: [/api/nostr/identity](/api/nostr/identity).
+
+## Relays
+
+| Relay | Role |
+|---|---|
+| `wss://relay.commonshub.brussels` | primary; open reads, writes for community members (see *Who can write*) |
+| `wss://relay.commonshub.dev` | backup; open |
+
+Everything is published to both and read back from both, merged.
+
+## Two tags on every event
+
+| Tag | Meaning | Filter |
+|---|---|---|
+| `["i","discord:<guild id>"]` + `["k","discord"]` | the community (the Discord server) | `{"#i":["discord:1280532848604086365"]}` |
+| `["t","app:commonshub.brussels"]` + `["client","commonshub.brussels","31990:<site pubkey>:web"]` | the app that produced it (NIP-89 `client` for display, `t` for filtering) | `{"#t":["app:commonshub.brussels"]}` |
+
+## Identity
+
+A member is an npub. Their browser holds a key (generated on first visit,
+kept in `localStorage`); a member may have several, one per device.
+
+- **Profile — kind 0** (signed by the member): `name`, `display_name`,
+  `picture` taken from their Discord profile, with a NIP-39 claim
+  `["i","discord:<user id>"]`, `["k","discord"]`.
+- **Attestation — kind 31926** (signed by the site, acting as identity
+  provider): `d = discord:<user id>`, one `p` tag per key the site has
+  verified for that member (they signed in with Discord and used the key),
+  `content = {"name": "…"}`. Addressable: each republish carries the
+  complete current list; a key missing from it is unlinked.
+
+To keep a `discord user id → [npubs]` map, subscribe to
+`{"kinds":[31926],"authors":["<site pubkey>"]}`; the site's pubkey is in
+[/api/nostr/identity](/api/nostr/identity). Other apps can publish their own
+attestations under their own key; consumers merge them.
+
+### Who can write on relay.commonshub.brussels
+
+The relay accepts an event when its author is on the allow-list, **or** when
+the author's key appears as a `p` tag in a kind 31926 attestation published
+by an allow-listed key. So: allow-list your app's key once, and the members
+it attests can write with their own keys. Drop a `p` tag to revoke.
+
+## Shifts (NIP-52)
+
+- **Occurrence — kind 31923** (signed by the coordinator; today the site,
+  tomorrow a bot): `d = shift-<guild id>-<YYYY-MM-DD>-<HHMM>`, `title`,
+  `start`/`end` (unix seconds, Brussels time), `capacity`, `["t","shift"]`,
+  `["t","group-<guild id>"]`, `["a","34550:<coordinator>:dc<guild id>"]`.
+  Slots and capacity are the Discord bot's: 08:30–11:30, 11:30–14:30,
+  14:30–17:30, 17:30–20:30, 20:30–22:30, three people each.
+- **RSVP — kind 31925** (signed by the member): `["a","31923:<coordinator>:shift-…"]`,
+  `d = rsvp-<guild id>-<date>-<HHMM>`, `status` = `accepted` or `declined`,
+  `["p","<coordinator>"]`, `["t","shift"]`. Latest per (author, `d`) wins, so
+  cancelling is republishing with `declined`.
+- **Community — kind 34550** (NIP-72, signed by the site): `d = dc<guild id>`.
+
+Read a day's sign-ups: `{"kinds":[31925],"#a":["31923:<coordinator>:shift-<guild>-<date>-0830", …]}`,
+then name the authors through the attestations (`{"kinds":[31926],"#p":[…]}`)
+and their profiles (`{"kinds":[0],"authors":[…]}`).
+
+## What the site does on a sign-up
+
+1. The browser asks the site to link its key: the site publishes/refreshes the
+   member's attestation, and hands back a profile to sign if the key has none.
+2. The browser signs the RSVP with the member's key and sends it to both relays.
+3. The site checks the RSVP is on a relay, publishes the shift occurrence and
+   community definition if they are not there yet, and posts one line in
+   `#shifts` on Discord, worded like the bot's `/shifts` command.
+
+Nothing is stored on the web server.

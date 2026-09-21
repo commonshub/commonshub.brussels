@@ -1,26 +1,46 @@
 /**
- * The website's own Nostr identity, for the actions it publishes on the
- * community relay (relay.commonshub.brussels). The relay is the record;
- * Discord and the pages are ways to read and write it.
+ * The website's Nostr identity and its relay access, server side.
  *
- * The key is derived from AUTH_SECRET, which every deployment already has,
- * so no second secret to manage: the same deployment always signs with the
- * same key, and a fresh AUTH_SECRET is a fresh identity. The relay only
- * accepts writes from allow-listed pubkeys; /api/nostr/identity prints this
- * deployment's npub so it can be added.
+ * The community relays are the record; Discord and the pages are ways to
+ * read and write it. Everything is published to every relay in
+ * settings.nostr.relays (relay.commonshub.brussels first, relay.commonshub.dev
+ * as backup) and read back from all of them, merged.
+ *
+ * The site key derives from AUTH_SECRET, which every deployment already has,
+ * so no second secret to manage; a fresh AUTH_SECRET is a fresh identity.
+ * relay.commonshub.brussels only takes writes from allow-listed keys and from
+ * keys those have attested (kind 31926), so the site key is allow-listed
+ * once and members' keys follow through the site's attestations.
+ * /api/nostr/identity prints this deployment's npub.
  */
 
 import { createHash } from "crypto"
-import { finalizeEvent, getPublicKey, type Event as NostrEvent, type EventTemplate } from "nostr-tools/pure"
+import { finalizeEvent, getPublicKey, type Event as NostrEvent } from "nostr-tools/pure"
 import { SimplePool } from "nostr-tools/pool"
 import * as nip19 from "nostr-tools/nip19"
 import settings from "@/settings/settings.json"
+import {
+  KIND_ATTESTATION,
+  KIND_COMMUNITY,
+  KIND_PROFILE,
+  KIND_SHIFT,
+  type Community,
+  type DiscordIdentity,
+  type ShiftSlot,
+  type Template,
+  buildAttestation,
+  buildCommunityDefinition,
+  buildShiftOccurrence,
+  communityD,
+  latestAddressable,
+  parseAttestations,
+  shiftD,
+} from "./nostr-conventions"
 
-const NOSTR = (settings as { nostr?: { relays?: string[]; hubNpub?: string } }).nostr ?? {}
-export const RELAYS: string[] = NOSTR.relays ?? ["wss://relay.commonshub.brussels"]
+const NOSTR = (settings as { nostr?: { relays?: string[]; coordinatorNpub?: string } }).nostr ?? {}
+export const RELAYS: string[] = NOSTR.relays ?? ["wss://relay.commonshub.brussels", "wss://relay.commonshub.dev"]
 
-/** The hub's own identity (chb signs with it); calendar events hang off it. */
-export const HUB_PUBKEY: string | null = NOSTR.hubNpub ? (nip19.decode(NOSTR.hubNpub).data as string) : null
+export const COMMUNITY: Community = { guildId: settings.discord.guildId, name: "Commons Hub Brussels" }
 
 let cached: { secretKey: Uint8Array; pubkey: string } | null = null
 
@@ -36,31 +56,99 @@ export function siteIdentity(): { secretKey: Uint8Array; pubkey: string; npub: s
   return { ...cached, npub: nip19.npubEncode(cached.pubkey) }
 }
 
-let pool: SimplePool | null = null
-function getPool(): SimplePool {
-  if (!pool) pool = new SimplePool()
-  return pool
+/** Who publishes shift occurrences: the site, unless a bot has taken over (settings.nostr.coordinatorNpub). */
+export function coordinatorPubkey(): string | null {
+  if (NOSTR.coordinatorNpub) return nip19.decode(NOSTR.coordinatorNpub).data as string
+  return siteIdentity()?.pubkey ?? null
 }
 
-/** Sign with the site key and publish; resolves once one relay accepted it. */
-export async function publishAsSite(template: EventTemplate): Promise<NostrEvent> {
+let pool: SimplePool | null = null
+const getPool = () => (pool ??= new SimplePool())
+
+export interface PublishResult {
+  event: NostrEvent
+  accepted: string[]
+  rejected: Array<{ relay: string; reason: string }>
+}
+
+/** Publish an already-signed event; resolves once every relay answered. */
+export async function publishSigned(event: NostrEvent): Promise<PublishResult> {
+  const results = await Promise.allSettled(getPool().publish(RELAYS, event))
+  const accepted: string[] = []
+  const rejected: PublishResult["rejected"] = []
+  results.forEach((r, i) => (r.status === "fulfilled" ? accepted.push(RELAYS[i]) : rejected.push({ relay: RELAYS[i], reason: String(r.reason).slice(0, 200) })))
+  if (accepted.length === 0) throw new Error(`No relay accepted the event: ${rejected.map((r) => `${r.relay}: ${r.reason}`).join("; ")}`)
+  return { event, accepted, rejected }
+}
+
+/** Sign with the site key and publish. */
+export async function publishAsSite(template: Template): Promise<PublishResult> {
   const identity = siteIdentity()
   if (!identity) throw new Error("No Nostr identity: AUTH_SECRET is not set")
-  const event = finalizeEvent(template, identity.secretKey)
-  const results = await Promise.allSettled(getPool().publish(RELAYS, event))
-  if (!results.some((r) => r.status === "fulfilled")) {
-    const reason = results.map((r) => (r.status === "rejected" ? String(r.reason) : "")).filter(Boolean).join("; ")
-    throw new Error(`No relay accepted the event: ${reason || "unknown"}`)
-  }
-  return event
+  return publishSigned(finalizeEvent(template, identity.secretKey))
 }
 
-/** Query the relays; a slow relay does not block the page. */
+/** Query every relay, merged and deduplicated by id; a slow relay does not block the page. */
 export async function queryRelays(filter: Parameters<SimplePool["querySync"]>[1], timeoutMs = 2500): Promise<NostrEvent[]> {
   try {
-    return await getPool().querySync(RELAYS, filter, { maxWait: timeoutMs })
+    const events = await getPool().querySync(RELAYS, filter, { maxWait: timeoutMs })
+    const seen = new Set<string>()
+    return events.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)))
   } catch (error) {
     console.error("[nostr] query failed:", error)
     return []
   }
+}
+
+/** True once at least one relay has the event. */
+export async function eventExists(id: string): Promise<boolean> {
+  return (await queryRelays({ ids: [id] }, 3000)).length > 0
+}
+
+// ── addressable things the site maintains ──────────────────────────────────
+
+const ensured = new Set<string>()
+
+/** Publish the community definition once per process (it is addressable, so repeats are harmless). */
+export async function ensureCommunityDefinition(): Promise<void> {
+  const identity = siteIdentity()
+  if (!identity || ensured.has("community")) return
+  const existing = await queryRelays({ kinds: [KIND_COMMUNITY], authors: [identity.pubkey], "#d": [communityD(COMMUNITY)] })
+  if (existing.length === 0) {
+    await publishAsSite(buildCommunityDefinition(COMMUNITY, identity.pubkey, "The Commons Hub Brussels community: a common space to meet, dream and work, Rue de la Madeleine 51."))
+  }
+  ensured.add("community")
+}
+
+/** Publish the shift occurrence for a day and slot if the coordinator (the site) has not yet. */
+export async function ensureShiftOccurrence(day: string, slot: ShiftSlot, capacity: number, title: string): Promise<void> {
+  const identity = siteIdentity()
+  if (!identity || coordinatorPubkey() !== identity.pubkey) return
+  const d = shiftD(COMMUNITY, day, slot)
+  if (ensured.has(d)) return
+  const existing = await queryRelays({ kinds: [KIND_SHIFT], authors: [identity.pubkey], "#d": [d] })
+  if (existing.length === 0) await publishAsSite(buildShiftOccurrence(COMMUNITY, identity.pubkey, day, slot, capacity, title))
+  ensured.add(d)
+}
+
+/**
+ * Record that `pubkey` belongs to this Discord member. The previous
+ * attestation's keys are kept (a member may have several devices, each
+ * with its own key), so the published list is always complete.
+ */
+export async function attestMember(user: DiscordIdentity, pubkey: string): Promise<{ keys: string[]; changed: boolean }> {
+  const identity = siteIdentity()
+  if (!identity) throw new Error("No Nostr identity")
+  const previous = await queryRelays({ kinds: [KIND_ATTESTATION], authors: [identity.pubkey], "#d": [`discord:${user.id}`] })
+  const known = parseAttestations(previous, [identity.pubkey]).find((l) => l.discordId === user.id)
+  const keys = [...new Set([...(known?.keys ?? []), pubkey])]
+  const changed = !known || !known.keys.includes(pubkey) || known.name !== user.name
+  if (changed) await publishAsSite(buildAttestation(user, keys, COMMUNITY, identity.pubkey))
+  return { keys, changed }
+}
+
+/** The member's kind 0 as the relays have it, if any. */
+export async function memberProfile(pubkey: string): Promise<NostrEvent | null> {
+  const events = await queryRelays({ kinds: [KIND_PROFILE], authors: [pubkey] })
+  return latestAddressable(events)[0] ?? null
 }

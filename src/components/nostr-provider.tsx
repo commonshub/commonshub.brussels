@@ -58,6 +58,15 @@ type NostrContextValue = {
   getAnnotation: (uri: string | null | undefined) => Annotation | undefined;
   sync: () => void;
   removeFromOutbox: (eventIds: string[]) => void;
+  /**
+   * Sign any event template with this browser's key and send it to the
+   * given relays right away (no outbox). Resolves with the signed event and
+   * which relays accepted it; rejects only if none did.
+   */
+  signAndPublish: (
+    template: { kind: number; created_at: number; tags: string[][]; content: string },
+    relays: string[]
+  ) => Promise<{ event: NostrEvent; accepted: string[]; rejected: Array<{ relay: string; reason: string }> }>;
 };
 
 const NostrContext = createContext<NostrContextValue | null>(null);
@@ -390,6 +399,52 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
     flushOutbox();
   }, [flushOutbox]);
 
+  const signAndPublish = useCallback<NostrContextValue["signAndPublish"]>(
+    async (template, relays) => {
+      if (!secretKey) throw new Error("No key yet");
+      const event = finalizeEvent(template, secretKey);
+      const results = await Promise.all(
+        relays.map(
+          (url) =>
+            new Promise<{ relay: string; ok: boolean; reason: string }>((resolve) => {
+              let settled = false;
+              const done = (ok: boolean, reason: string) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                try {
+                  ws.close();
+                } catch {
+                  /* already closed */
+                }
+                resolve({ relay: url, ok, reason });
+              };
+              const timer = setTimeout(() => done(false, "timeout"), 8000);
+              const ws = new WebSocket(url);
+              ws.onopen = () => ws.send(JSON.stringify(["EVENT", event]));
+              ws.onmessage = (m) => {
+                try {
+                  const msg = JSON.parse(m.data);
+                  if (msg[0] === "OK" && msg[1] === event.id) done(Boolean(msg[2]), String(msg[3] ?? ""));
+                } catch {
+                  /* ignore */
+                }
+              };
+              ws.onerror = () => done(false, "connection failed");
+              ws.onclose = () => done(false, "closed before answering");
+            })
+        )
+      );
+      const accepted = results.filter((r) => r.ok).map((r) => r.relay);
+      const rejected = results.filter((r) => !r.ok).map((r) => ({ relay: r.relay, reason: r.reason }));
+      if (accepted.length === 0) {
+        throw new Error(`No relay accepted the event: ${rejected.map((r) => `${r.relay.replace("wss://", "")}: ${r.reason}`).join("; ")}`);
+      }
+      return { event, accepted, rejected };
+    },
+    [secretKey]
+  );
+
   const removeFromOutbox = useCallback((eventIds: string[]) => {
     const ids = new Set(eventIds);
     setOutbox((prev) => prev.filter((i) => !ids.has(i.event.id)));
@@ -427,6 +482,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       getAnnotation,
       sync,
       removeFromOutbox,
+      signAndPublish,
     }),
     [
       pubkey,
@@ -437,6 +493,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       getAnnotation,
       sync,
       removeFromOutbox,
+      signAndPublish,
     ]
   );
 
@@ -459,6 +516,9 @@ export function useNostr(): NostrContextValue {
       getAnnotation: () => undefined,
       sync: () => {},
       removeFromOutbox: () => {},
+      signAndPublish: async () => {
+        throw new Error("Nostr is not available on this page");
+      },
     };
   }
   return ctx;

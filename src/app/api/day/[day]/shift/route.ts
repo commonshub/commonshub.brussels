@@ -1,66 +1,72 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { isMember } from "@/lib/admin-check"
+import { DAY_RE } from "@/lib/day"
 import { isDiscordConfigured, sendMessage } from "@/lib/discord"
-import { DAY_RE, buildShiftRsvp, shiftDiscordLine, slotId } from "@/lib/day"
-import { MAX_SIGNUPS_PER_SLOT, SHIFTS_CHANNEL, SHIFT_SLOTS, loadShiftSignups } from "@/lib/day-data"
-import { HUB_PUBKEY, publishAsSite } from "@/lib/nostr-server"
+import { MAX_SIGNUPS_PER_SLOT, SHIFTS_CHANNEL, SHIFT_SLOTS, loadShiftSignups, shiftDiscordLine } from "@/lib/day-data"
+import { buildRsvp, shiftCoordinate, slotCode, slotLabel } from "@/lib/nostr-conventions"
+import { COMMUNITY, coordinatorPubkey, ensureCommunityDefinition, ensureShiftOccurrence, eventExists, siteIdentity } from "@/lib/nostr-server"
 
 export const dynamic = "force-dynamic"
 
 /**
- * Take or drop a shift. Members only.
- *
- * The record is a NIP-52 RSVP on the community relay, signed by the site's
- * key on the member's behalf. A line also goes to #shifts on Discord, worded
- * like the bot's /shifts command, so Discord readers see the same thing.
+ * GET: what a member's browser needs to sign an RSVP for a slot — the
+ * template, with the coordinator and community filled in — plus who has
+ * already signed up. The browser signs and publishes it with the member's
+ * own key, then POSTs the event id back here.
+ */
+export async function GET(request: Request, context: { params: Promise<{ day: string }> }) {
+  const { day } = await context.params
+  if (!DAY_RE.test(day)) return NextResponse.json({ error: "Invalid day" }, { status: 400 })
+  const url = new URL(request.url)
+  const slot = SHIFT_SLOTS.find((s) => slotCode(s) === url.searchParams.get("slot"))
+  const action = url.searchParams.get("action") === "cancel" ? "cancel" : "signup"
+  const coordinator = coordinatorPubkey()
+  const site = siteIdentity()
+  if (!slot || !coordinator || !site) return NextResponse.json({ error: "Unknown shift" }, { status: 400 })
+  return NextResponse.json({ template: buildRsvp(action, COMMUNITY, coordinator, site.pubkey, day, slot), coordinate: shiftCoordinate(coordinator, COMMUNITY, day, slot) })
+}
+
+/**
+ * POST after the browser published the member's RSVP: check it exists on a
+ * relay, make sure the shift occurrence and community definition exist,
+ * announce it in #shifts, and return the day's sign-ups.
  */
 export async function POST(request: Request, context: { params: Promise<{ day: string }> }) {
   const { day } = await context.params
   if (!DAY_RE.test(day)) return NextResponse.json({ error: "Invalid day" }, { status: 400 })
 
   const session = await auth()
-  const user = session?.user as { discordId?: string; username?: string; name?: string | null } | undefined
+  const user = session?.user as { discordId?: string } | undefined
   if (!user?.discordId || !(await isMember())) {
     return NextResponse.json({ error: "Sign in as a member to take a shift" }, { status: 401 })
   }
-  if (!HUB_PUBKEY) {
-    return NextResponse.json({ error: "Shifts are not configured: no hub Nostr identity" }, { status: 503 })
-  }
 
-  let body: { slot?: unknown; action?: unknown }
+  let body: { slot?: unknown; action?: unknown; eventId?: unknown }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
-  const slot = SHIFT_SLOTS.find((s) => slotId(s) === body.slot)
+  const slot = SHIFT_SLOTS.find((s) => slotCode(s) === body.slot)
   const action = body.action === "cancel" ? "cancel" : "signup"
-  if (!slot) return NextResponse.json({ error: "Unknown shift" }, { status: 400 })
+  const eventId = typeof body.eventId === "string" && /^[0-9a-f]{64}$/.test(body.eventId) ? body.eventId : null
+  if (!slot || !eventId) return NextResponse.json({ error: "Unknown shift or event" }, { status: 400 })
 
-  const before = await loadShiftSignups(day)
-  const taken = before.filter((s) => s.slot === slotId(slot))
-  if (action === "signup" && !taken.some((s) => s.userId === user.discordId) && taken.length >= MAX_SIGNUPS_PER_SLOT) {
-    return NextResponse.json({ error: `This shift already has ${MAX_SIGNUPS_PER_SLOT} people` }, { status: 409 })
+  if (!(await eventExists(eventId))) {
+    return NextResponse.json({ error: "The relays do not have that RSVP" }, { status: 404 })
   }
 
-  const name = (user.name || user.username || "a member").slice(0, 60)
   try {
-    await publishAsSite(buildShiftRsvp(action, { discordId: user.discordId, name }, HUB_PUBKEY, day, slot))
+    await ensureCommunityDefinition()
+    await ensureShiftOccurrence(day, slot, MAX_SIGNUPS_PER_SLOT, `Caretaking shift ${slotLabel(slot)}`)
   } catch (error) {
-    console.error("[day] could not publish the shift RSVP:", error)
-    return NextResponse.json({ error: "The relay did not accept the sign-up" }, { status: 502 })
+    console.error("[day] could not publish the shift occurrence:", error)
   }
 
   if (isDiscordConfigured()) {
-    sendMessage(SHIFTS_CHANNEL, shiftDiscordLine(action, user.discordId, day, slot)).catch((error) =>
-      console.error("[day] could not post to #shifts:", error),
-    )
+    sendMessage(SHIFTS_CHANNEL, shiftDiscordLine(action, user.discordId, day, slot)).catch((error) => console.error("[day] could not post to #shifts:", error))
   }
 
-  // Reflect the change without waiting for the relay to serve it back.
-  const mine = { userId: user.discordId, name, slot: slotId(slot), day, at: new Date().toISOString() }
-  const signups = before.filter((s) => !(s.userId === user.discordId && s.slot === slotId(slot)))
-  if (action === "signup") signups.push(mine)
-  return NextResponse.json({ ok: true, signups })
+  return NextResponse.json({ ok: true, signups: await loadShiftSignups(day) })
 }
