@@ -391,18 +391,37 @@
     "channelId": "1306678821751230514"
   },
   "shifts": {
-    "_comment": "Shift slots offered on the day page; sign-ups are posted to discord.channels.activities.shifts.",
+    "_comment": "Same slots, cap and wording as the Discord bot's /shifts command (opencollective/token-bot data/<guild>/shifts-settings.json). Sign-ups are NIP-52 RSVPs on the relay, announced in discord.channels.activities.shifts.",
+    "description": "Sign up for a caretaking shift to take care of our common space and help hosting events.",
+    "maxSignupsPerSlot": 3,
     "slots": [
       {
-        "id": "morning",
-        "label": "Morning",
-        "time": "09:00–13:00"
+        "start": "08:30",
+        "end": "11:30"
       },
       {
-        "id": "afternoon",
-        "label": "Afternoon",
-        "time": "13:00–18:00"
+        "start": "11:30",
+        "end": "14:30"
+      },
+      {
+        "start": "14:30",
+        "end": "17:30"
+      },
+      {
+        "start": "17:30",
+        "end": "20:30"
+      },
+      {
+        "start": "20:30",
+        "end": "22:30"
       }
     ]
+  },
+  "nostr": {
+    "_comment": "The community relay is the record for actions (shift RSVPs…); Discord and the pages read from it. hubNpub is the hub's identity (chb signs with it); shift calendar events hang off it. The site's own signing key derives from AUTH_SECRET (see /api/nostr/identity) and must be allow-listed on the relay.",
+    "relays": [
+      "wss://relay.commonshub.brussels"
+    ],
+    "hubNpub": "npub1d8z6e7rkscejnym7m3v5036fh04s94755anqsvzxg3xp3jn4l6gsvza3qc"
   }
 }

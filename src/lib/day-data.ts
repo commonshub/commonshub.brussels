@@ -1,7 +1,7 @@
 /**
- * Server-side loaders for the day page. Reads the dataset (read-only) and
- * the two Discord channels behind the door and the shifts, with a short
- * in-memory cache so a busy day does not hammer Discord.
+ * Server-side loaders for the day page. Reads the dataset (read-only), the
+ * community Nostr relay (the record for shifts) and the #door channel on
+ * Discord, with a short in-memory cache so a busy day does not hammer them.
  */
 
 import * as fs from "fs"
@@ -10,6 +10,7 @@ import { DATA_DIR } from "./data-paths"
 import settings from "@/settings/settings.json"
 import { getChannelMessages, isDiscordConfigured } from "./discord"
 import {
+  SHIFT_RSVP_KIND,
   type DiscordMessageLike,
   type DoorOpening,
   type PublicEventRecord,
@@ -17,16 +18,25 @@ import {
   type ShiftSlot,
   dayBounds,
   parseDoorOpenings,
-  parseShiftSignups,
+  parseShiftRsvps,
+  shiftCoordinate,
 } from "./day"
+import { HUB_PUBKEY, queryRelays } from "./nostr-server"
 
 const DOOR_CHANNEL = (settings as { door?: { channelId?: string } }).door?.channelId ?? "1306678821751230514"
-const SHIFTS_CHANNEL = settings.discord.channels.activities.shifts
+export const SHIFTS_CHANNEL = settings.discord.channels.activities.shifts
 
-export const SHIFT_SLOTS: ShiftSlot[] = (settings as { shifts?: { slots?: ShiftSlot[] } }).shifts?.slots ?? [
-  { id: "morning", label: "Morning", time: "09:00–13:00" },
-  { id: "afternoon", label: "Afternoon", time: "13:00–18:00" },
+const SHIFTS = (settings as { shifts?: { slots?: ShiftSlot[]; maxSignupsPerSlot?: number; description?: string } }).shifts ?? {}
+/** Same slots as the bot's /shifts command (shifts-settings.json). */
+export const SHIFT_SLOTS: ShiftSlot[] = SHIFTS.slots ?? [
+  { start: "08:30", end: "11:30" },
+  { start: "11:30", end: "14:30" },
+  { start: "14:30", end: "17:30" },
+  { start: "17:30", end: "20:30" },
+  { start: "20:30", end: "22:30" },
 ]
+export const MAX_SIGNUPS_PER_SLOT = SHIFTS.maxSignupsPerSlot ?? 3
+export const SHIFTS_DESCRIPTION = SHIFTS.description ?? "Sign up for a caretaking shift to take care of our common space and help hosting events."
 
 /** Public events from the month's events.json that touch the day. */
 export function loadPublicEventsForDay(day: string): PublicEventRecord[] {
@@ -52,10 +62,10 @@ export function loadPublicEventsForDay(day: string): PublicEventRecord[] {
 const cache = new Map<string, { at: number; messages: DiscordMessageLike[] }>()
 const CACHE_MS = 60_000
 
-async function recentMessages(channelId: string, force = false): Promise<DiscordMessageLike[]> {
+async function recentMessages(channelId: string): Promise<DiscordMessageLike[]> {
   if (!isDiscordConfigured()) return []
   const hit = cache.get(channelId)
-  if (!force && hit && Date.now() - hit.at < CACHE_MS) return hit.messages
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.messages
   try {
     const messages = (await getChannelMessages(channelId, { limit: 100 })) as DiscordMessageLike[]
     cache.set(channelId, { at: Date.now(), messages })
@@ -66,17 +76,17 @@ async function recentMessages(channelId: string, force = false): Promise<Discord
   }
 }
 
-export function forgetShiftMessages(): void {
-  cache.delete(SHIFTS_CHANNEL)
-}
-
-/** Who opened the door that day. Only the last ~100 messages are read, which covers a day comfortably. */
+/** Who opened the door that day. The last ~100 messages cover a day comfortably. */
 export async function loadDoorOpenings(day: string): Promise<DoorOpening[]> {
   return parseDoorOpenings(await recentMessages(DOOR_CHANNEL), day)
 }
 
-export async function loadShiftSignups(day: string, force = false): Promise<ShiftSignup[]> {
-  return parseShiftSignups(await recentMessages(SHIFTS_CHANNEL, force), day)
-}
+// ── shifts, from the relay ────────────────────────────────────────────────
 
-export { SHIFTS_CHANNEL }
+export async function loadShiftSignups(day: string): Promise<ShiftSignup[]> {
+  const hub = HUB_PUBKEY
+  if (!hub) return []
+  const coordinates = SHIFT_SLOTS.map((slot) => shiftCoordinate(hub, day, slot))
+  const events = await queryRelays({ kinds: [SHIFT_RSVP_KIND], "#a": coordinates, limit: 200 })
+  return parseShiftRsvps(events, hub, day, SHIFT_SLOTS)
+}

@@ -182,15 +182,21 @@ export interface DiscordMessageLike {
   id: string
   content: string
   timestamp: string
-  author: { id: string; username: string; global_name?: string | null; bot?: boolean }
+  author: { id: string; username: string; global_name?: string | null; avatar?: string | null; bot?: boolean }
 }
 
 export interface DoorOpening {
   /** Discord user id when known. */
   userId?: string
   name: string
+  /** Discord avatar URL when the opener posted "Open" themselves. */
+  avatar?: string
   at: string
   via: "app" | "shortcut" | "event" | "other"
+}
+
+export function discordAvatarUrl(author: { id: string; avatar?: string | null }): string | undefined {
+  return author.avatar ? `https://cdn.discordapp.com/avatars/${author.id}/${author.avatar}.png?size=128` : undefined
 }
 
 const GREETING = /^Good (?:morning|afternoon|evening|night) (.+?)!/
@@ -218,9 +224,11 @@ export function parseDoorOpenings(messages: DiscordMessageLike[], day: string): 
     const opened = content.match(OPENED_BY)
     if (opened) {
       const via = (opened[2] || "other").toLowerCase()
+      const opener = pendingOpen && pendingOpen.author.id === opened[1] ? pendingOpen.author : null
       openings.push({
         userId: opened[1],
-        name: pendingOpen && pendingOpen.author.id === opened[1] ? displayName(pendingOpen.author) : `<@${opened[1]}>`,
+        name: opener ? displayName(opener) : `<@${opened[1]}>`,
+        avatar: opener ? discordAvatarUrl(opener) : undefined,
         at: message.timestamp,
         via: via === "shortcut" || via === "app" || via === "event" ? via : "other",
       })
@@ -233,6 +241,7 @@ export function parseDoorOpenings(messages: DiscordMessageLike[], day: string): 
       openings.push({
         userId: pendingOpen?.author.id,
         name: greeting[1].trim(),
+        avatar: pendingOpen ? discordAvatarUrl(pendingOpen.author) : undefined,
         at: message.timestamp,
         via: "app",
       })
@@ -247,66 +256,147 @@ export function displayName(author: { username: string; global_name?: string | n
   return (author.global_name || author.username).trim()
 }
 
-/** One line per person, most recent first. */
-export function peopleAtTheDoor(openings: DoorOpening[]): Array<{ name: string; userId?: string; count: number; lastAt: string }> {
-  const byPerson = new Map<string, { name: string; userId?: string; count: number; lastAt: string }>()
-  for (const opening of openings) {
+export interface PersonAtTheDoor {
+  name: string
+  userId?: string
+  avatar?: string
+  /** When they first came in that day. */
+  firstAt: string
+}
+
+/** One entry per person, at the time they first opened the door, earliest first. */
+export function peopleAtTheDoor(openings: DoorOpening[]): PersonAtTheDoor[] {
+  const byPerson = new Map<string, PersonAtTheDoor>()
+  for (const opening of [...openings].sort((a, b) => a.at.localeCompare(b.at))) {
     const key = opening.userId || opening.name.toLowerCase()
     const existing = byPerson.get(key)
     if (existing) {
-      existing.count += 1
-      if (opening.at > existing.lastAt) existing.lastAt = opening.at
       if (existing.name.startsWith("<@") && !opening.name.startsWith("<@")) existing.name = opening.name
+      if (!existing.avatar && opening.avatar) existing.avatar = opening.avatar
     } else {
-      byPerson.set(key, { name: opening.name, userId: opening.userId, count: 1, lastAt: opening.at })
+      byPerson.set(key, { name: opening.name, userId: opening.userId, avatar: opening.avatar, firstAt: opening.at })
     }
   }
-  return [...byPerson.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt))
+  return [...byPerson.values()]
 }
 
 // ── shifts ─────────────────────────────────────────────────────────────────
+//
+// A shift is a NIP-52 calendar event (kind 31923) that belongs to the hub's
+// Nostr identity, with a deterministic `d` so nobody has to publish it first:
+// "shift:2026-09-22:0830". Taking or dropping a shift is a NIP-52 RSVP
+// (kind 31925) that points at it. The relay is the record; the #shifts
+// channel on Discord gets a line as well, worded like the bot's /shifts
+// command, so both read the same.
+
+export const SHIFT_EVENT_KIND = 31923
+export const SHIFT_RSVP_KIND = 31925
 
 export interface ShiftSlot {
-  id: string
-  label: string
-  time: string
+  /** "08:30", as in the bot's shifts-settings.json */
+  start: string
+  end: string
+}
+
+export const slotId = (slot: ShiftSlot) => slot.start.replace(":", "")
+export const slotLabel = (slot: ShiftSlot) => `${slot.start}–${slot.end}`
+
+/** `31923:<hub pubkey>:shift:<day>:<HHMM>` */
+export function shiftCoordinate(hubPubkey: string, day: string, slot: ShiftSlot): string {
+  return `${SHIFT_EVENT_KIND}:${hubPubkey}:shift:${day}:${slotId(slot)}`
 }
 
 export interface ShiftSignup {
-  userId: string
+  /** Discord user id, when the sign-up came through the site or the bot. */
+  userId?: string
+  /** Nostr pubkey of the author, when it came straight from the relay. */
+  pubkey?: string
   name: string
   slot: string
   day: string
   at: string
 }
 
-/** What the site posts in #shifts. Machine-readable, and readable in Discord. */
-export function shiftMessage(action: "signup" | "cancel", user: { id: string; name: string }, slot: ShiftSlot, day: string): string {
-  const verb = action === "signup" ? "signed up for" : "can no longer do"
-  const emoji = action === "signup" ? "🙋" : "🚫"
-  return `${emoji} <@${user.id}> (${user.name}) ${verb} the **${slot.label}** shift (${slot.time}) on **${day}** · \`shift:${action}:${slot.id}:${day}\``
+export interface ShiftRsvpTemplate {
+  kind: number
+  created_at: number
+  tags: string[][]
+  content: string
 }
 
-const SHIFT_TAG = /`shift:(signup|cancel):([a-z0-9-]+):(\d{4}-\d{2}-\d{2})`/
-const SHIFT_WHO = /<@!?(\d+)> \(([^)]+)\)/
-
 /**
- * Current sign-ups for a day: the latest message per person and slot wins,
- * so a cancellation after a sign-up removes it.
+ * The RSVP the site publishes on behalf of a signed-in member. The site key
+ * is the author; the member is named in `discord` and `name` tags, and a
+ * cancellation is the same RSVP with status "declined" (same `d`, so it
+ * replaces the sign-up).
  */
-export function parseShiftSignups(messages: DiscordMessageLike[], day: string): ShiftSignup[] {
-  const latest = new Map<string, { action: string; signup: ShiftSignup }>()
-  const ordered = [...messages].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-  for (const message of ordered) {
-    const tag = message.content.match(SHIFT_TAG)
-    if (!tag || tag[3] !== day) continue
-    const who = message.content.match(SHIFT_WHO)
-    if (!who) continue
-    const signup: ShiftSignup = { userId: who[1], name: who[2], slot: tag[2], day, at: message.timestamp }
-    latest.set(`${signup.userId}:${signup.slot}`, { action: tag[1], signup })
+export function buildShiftRsvp(
+  action: "signup" | "cancel",
+  member: { discordId: string; name: string },
+  hubPubkey: string,
+  day: string,
+  slot: ShiftSlot,
+  now = new Date(),
+): ShiftRsvpTemplate {
+  const coordinate = shiftCoordinate(hubPubkey, day, slot)
+  return {
+    kind: SHIFT_RSVP_KIND,
+    created_at: Math.floor(now.getTime() / 1000),
+    tags: [
+      ["d", `${coordinate}:discord:${member.discordId}`],
+      ["a", coordinate],
+      ["p", hubPubkey],
+      ["status", action === "signup" ? "accepted" : "declined"],
+      ["discord", member.discordId],
+      ["name", member.name],
+      ["t", "shift"],
+    ],
+    content:
+      action === "signup"
+        ? `${member.name} signed up for the ${slotLabel(slot)} shift on ${day}`
+        : `${member.name} can no longer do the ${slotLabel(slot)} shift on ${day}`,
+  }
+}
+
+interface RelayEventLike {
+  pubkey: string
+  created_at: number
+  tags: string[][]
+}
+
+/** Current sign-ups from RSVP events: the newest per (author, d) wins, "accepted" only. */
+export function parseShiftRsvps(events: RelayEventLike[], hubPubkey: string, day: string, slots: ShiftSlot[]): ShiftSignup[] {
+  const bySlot = new Map(slots.map((slot) => [shiftCoordinate(hubPubkey, day, slot), slotId(slot)]))
+  const latest = new Map<string, { status: string; signup: ShiftSignup }>()
+  const tag = (event: RelayEventLike, name: string) => event.tags.find((t) => t[0] === name)?.[1]
+  for (const event of [...events].sort((a, b) => a.created_at - b.created_at)) {
+    const coordinate = tag(event, "a")
+    const slot = coordinate ? bySlot.get(coordinate) : undefined
+    if (!slot) continue
+    const discordId = tag(event, "discord")
+    const key = `${event.pubkey}:${tag(event, "d") ?? coordinate}`
+    latest.set(key, {
+      status: tag(event, "status") ?? "accepted",
+      signup: {
+        userId: discordId,
+        pubkey: event.pubkey,
+        name: tag(event, "name") ?? (discordId ? `<@${discordId}>` : event.pubkey.slice(0, 8)),
+        slot,
+        day,
+        at: new Date(event.created_at * 1000).toISOString(),
+      },
+    })
   }
   return [...latest.values()]
-    .filter((entry) => entry.action === "signup")
-    .map((entry) => entry.signup)
+    .filter((e) => e.status === "accepted")
+    .map((e) => e.signup)
     .sort((a, b) => a.at.localeCompare(b.at))
+}
+
+/** The line posted in #shifts, worded like the bot's /shifts command. */
+export function shiftDiscordLine(action: "signup" | "cancel", discordId: string, day: string, slot: ShiftSlot): string {
+  const date = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+  return action === "signup"
+    ? `🙋 <@${discordId}> signed up for a shift on **${date}** ${slot.start}-${slot.end} (via the website)`
+    : `❌ <@${discordId}> cancelled their shift on **${date}** ${slot.start}-${slot.end} (via the website)`
 }

@@ -1,13 +1,15 @@
 import { describe, expect, test } from "@jest/globals"
 import {
   buildDaySchedule,
+  buildShiftRsvp,
   dayBounds,
   dayOf,
   parseDoorOpenings,
-  parseShiftSignups,
+  parseShiftRsvps,
   peopleAtTheDoor,
+  shiftCoordinate,
   shiftDay,
-  shiftMessage,
+  shiftDiscordLine,
   type DiscordMessageLike,
 } from "@/lib/day"
 
@@ -58,7 +60,7 @@ describe("day schedule", () => {
 })
 
 const door: DiscordMessageLike[] = [
-  { id: "1", content: "Open", timestamp: "2026-09-22T09:05:49+02:00", author: { id: "100000000000000001", username: "dougpetrich", global_name: "Doug" } },
+  { id: "1", content: "Open", timestamp: "2026-09-22T09:05:49+02:00", author: { id: "100000000000000001", username: "dougpetrich", global_name: "Doug", avatar: "abc" } },
   { id: "2", content: "Good morning Doug! 🌞 (Members can open the door anytime)\n**Fun fact**: …", timestamp: "2026-09-22T09:05:50+02:00", author: { id: "bot", username: "door", bot: true } },
   { id: "3", content: "🚪 Door opened by <@100000000000000002> via shortcut 📲", timestamp: "2026-09-22T11:42:25+02:00", author: { id: "bot", username: "door", bot: true } },
   { id: "4", content: "Open", timestamp: "2026-09-22T12:17:49+02:00", author: { id: "100000000000000003", username: "bouday" } },
@@ -80,38 +82,62 @@ describe("the door", () => {
     expect(openings[0].userId).toBe("100000000000000001")
   })
 
-  test("people are listed once, most recent first, with a count", () => {
+  test("people are listed once, at the time they first came in, with their avatar", () => {
     const people = peopleAtTheDoor(parseDoorOpenings(door, DAY))
-    expect(people.map((p) => [p.name, p.count])).toEqual([
-      ["Doug", 2],
-      ["Cedric Sounard", 1],
-      ["<@100000000000000002>", 1],
+    expect(people.map((p) => [p.name, p.firstAt.slice(11, 16)])).toEqual([
+      ["Doug", "09:05"],
+      ["<@100000000000000002>", "11:42"],
+      ["Cedric Sounard", "12:17"],
     ])
+    expect(people[0].avatar).toBe("https://cdn.discordapp.com/avatars/100000000000000001/abc.png?size=128")
+    expect(people[1].avatar).toBeUndefined()
   })
 })
 
 describe("shifts", () => {
-  const morning = { id: "morning", label: "Morning", time: "09:00–13:00" }
-  const afternoon = { id: "afternoon", label: "Afternoon", time: "13:00–18:00" }
-  const msg = (content: string, ts: string): DiscordMessageLike => ({ id: ts, content, timestamp: ts, author: { id: "site", username: "commonshub", bot: true } })
-
-  test("the posted line is readable and carries a machine tag", () => {
-    const line = shiftMessage("signup", { id: "100000000000000001", name: "Doug" }, morning, DAY)
-    expect(line).toBe("🙋 <@100000000000000001> (Doug) signed up for the **Morning** shift (09:00–13:00) on **2026-09-22** · `shift:signup:morning:2026-09-22`")
+  const HUB = "d38b59f0ed0c6653267edc5947c74937d7605afa94ecc10608a2260c653afe91"
+  const slot = { start: "08:30", end: "11:30" }
+  const later = { start: "11:30", end: "14:30" }
+  const rsvp = (action: "signup" | "cancel", id: string, name: string, s = slot, when: string, author = "site") => ({
+    pubkey: author,
+    ...buildShiftRsvp(action, { discordId: id, name }, HUB, DAY, s, new Date(when)),
   })
 
-  test("the latest message per person and slot wins; a cancellation removes the sign-up", () => {
-    const messages = [
-      msg(shiftMessage("signup", { id: "100000000000000001", name: "Doug" }, morning, DAY), "2026-09-20T10:00:00Z"),
-      msg(shiftMessage("signup", { id: "100000000000000002", name: "Zak" }, morning, DAY), "2026-09-20T11:00:00Z"),
-      msg(shiftMessage("cancel", { id: "100000000000000001", name: "Doug" }, morning, DAY), "2026-09-21T09:00:00Z"),
-      msg(shiftMessage("signup", { id: "100000000000000001", name: "Doug" }, afternoon, DAY), "2026-09-21T09:01:00Z"),
-      msg(shiftMessage("signup", { id: "100000000000000003", name: "Ann" }, morning, "2026-09-23"), "2026-09-21T09:02:00Z"),
-      msg("random chatter about shifts", "2026-09-21T09:03:00Z"),
+  test("the RSVP is a NIP-52 event pointing at the hub's shift", () => {
+    const event = buildShiftRsvp("signup", { discordId: "100000000000000001", name: "Doug" }, HUB, DAY, slot, new Date("2026-09-20T10:00:00Z"))
+    expect(event.kind).toBe(31925)
+    expect(event.tags).toEqual(
+      expect.arrayContaining([
+        ["a", `31923:${HUB}:shift:2026-09-22:0830`],
+        ["d", `31923:${HUB}:shift:2026-09-22:0830:discord:100000000000000001`],
+        ["status", "accepted"],
+        ["discord", "100000000000000001"],
+        ["name", "Doug"],
+      ]),
+    )
+    expect(shiftCoordinate(HUB, DAY, slot)).toBe(`31923:${HUB}:shift:2026-09-22:0830`)
+    expect(buildShiftRsvp("cancel", { discordId: "1", name: "x" }, HUB, DAY, slot).tags).toContainEqual(["status", "declined"])
+  })
+
+  test("the latest RSVP per person and slot wins; declined removes the sign-up; other days are ignored", () => {
+    const events = [
+      rsvp("signup", "100000000000000001", "Doug", slot, "2026-09-20T10:00:00Z"),
+      rsvp("signup", "100000000000000002", "Zak", slot, "2026-09-20T11:00:00Z"),
+      rsvp("cancel", "100000000000000001", "Doug", slot, "2026-09-21T09:00:00Z"),
+      rsvp("signup", "100000000000000001", "Doug", later, "2026-09-21T09:01:00Z"),
+      { pubkey: "site", ...buildShiftRsvp("signup", { discordId: "100000000000000003", name: "Ann" }, HUB, "2026-09-23", slot) },
+      { pubkey: "someone", created_at: 1, tags: [["a", "31923:other:shift:2026-09-22:0830"]], content: "" },
     ]
-    expect(parseShiftSignups(messages, DAY).map((s) => [s.name, s.slot])).toEqual([
-      ["Zak", "morning"],
-      ["Doug", "afternoon"],
+    expect(parseShiftRsvps(events, HUB, DAY, [slot, later]).map((s) => [s.name, s.slot])).toEqual([
+      ["Zak", "0830"],
+      ["Doug", "1130"],
     ])
+  })
+
+  test("the Discord line reads like the bot's /shifts command", () => {
+    expect(shiftDiscordLine("signup", "100000000000000001", DAY, slot)).toBe(
+      "🙋 <@100000000000000001> signed up for a shift on **Tue, 22 Sept 2026** 08:30-11:30 (via the website)",
+    )
+    expect(shiftDiscordLine("cancel", "100000000000000001", DAY, slot)).toMatch(/^❌ <@100000000000000001> cancelled their shift on/)
   })
 })
