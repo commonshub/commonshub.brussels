@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import { DATA_DIR } from "@/lib/data-paths";
+import { getLocalImagePath } from "@/lib/discord-cache";
+
+interface ImageRecord {
+  id?: string
+  url: string
+  /** Where chb saved the file, relative to DATA_DIR. */
+  filePath?: string
+  timestamp?: string
+  [key: string]: unknown
+}
+
+/**
+ * Discord attachment links are signed and expire after a day, so a month-old
+ * `url` is dead. chb downloads every attachment; point at that copy when it
+ * is there (served through /api/image-proxy), and only fall back to Discord.
+ */
+export function withLocalImages<T extends { images?: ImageRecord[] }>(data: T, dataDir = DATA_DIR): T {
+  const images = (data.images ?? []).map((image) => {
+    const local =
+      (image.filePath && fs.existsSync(path.join(dataDir, image.filePath)) ? `/data/${image.filePath}` : null) ??
+      (image.id && image.timestamp ? getLocalImagePath(image.id, image.url, image.timestamp) : null)
+    return local ? { ...image, url: local, sourceUrl: image.url } : image
+  })
+  return { ...data, images }
+}
 
 
 /**
@@ -35,7 +60,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const content = fs.readFileSync(filePath, "utf-8");
-    return new NextResponse(content, {
+    const data = withLocalImages(JSON.parse(content));
+    return new NextResponse(JSON.stringify(data), {
       status: 200,
       headers: {
         "Content-Type": "application/json",

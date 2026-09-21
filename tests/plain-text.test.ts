@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals"
-import { htmlToPlainText, looksLikeHtml } from "@/lib/plain-text"
+import { htmlToPlainText, looksLikeHtml, redactContactDetails } from "@/lib/plain-text"
 
 describe("htmlToPlainText", () => {
   test("a link whose text is its address becomes the bare address", () => {
@@ -34,7 +34,30 @@ describe("htmlToPlainText", () => {
     )
   })
 
+  test("a tag cut off mid-attribute is dropped, keeping an address if it has one", () => {
+    expect(htmlToPlainText('Paid booking via Ralph. Details to follow. <a href="lum')).toBe(
+      "Paid booking via Ralph. Details to follow. lum",
+    )
+    expect(htmlToPlainText('<a href="https://www.speculativefutures.design/" target="_blank')).toBe(
+      "https://www.speculativefutures.design/",
+    )
+    expect(htmlToPlainText("Doors open at 18:00 <a")).toBe("Doors open at 18:00")
+  })
+
   test("empty stays empty", () => {
     expect(htmlToPlainText("")).toBe("")
+  })
+})
+
+describe("redactContactDetails", () => {
+  test("emails and phone numbers from a room booking never reach a public card", () => {
+    expect(
+      redactContactDetails("https://example.org/.\nTravis K\nTravisK@pm.me\n+32 470 12 34 56\n0470/12.34.56\n24 people max"),
+    ).toBe("https://example.org/.\nTravis K\n24 people max")
+  })
+
+  test("ordinary text, times and prices are untouched", () => {
+    const text = "Doors 18:00, talks 18:30. Tickets €12, 30 seats. Room 2 on floor 1."
+    expect(redactContactDetails(text)).toBe(text)
   })
 })
