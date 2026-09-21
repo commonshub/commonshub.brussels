@@ -7,8 +7,11 @@
  * calendar, means it is a booking note for the stewards, not an invitation.
  */
 
-/** Hosts that are private tools, never an event page. */
+/** Hosts that are private tools or plain locations, never an event page. */
 const PRIVATE_HOSTS = [
+  "collective.email",
+  "maps.google.com",
+  "maps.app.goo.gl",
   "mail.google.com",
   "calendar.google.com",
   "drive.google.com",
@@ -42,10 +45,25 @@ export function isPublicEventUrl(url: string | undefined | null): boolean {
   if (!url) return false
   const target = unwrapGoogleRedirect(url)
   try {
-    const { hostname, protocol } = new URL(target)
+    const { hostname, protocol, pathname, search } = new URL(target)
     if (protocol !== "http:" && protocol !== "https:") return false
-    return !PRIVATE_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`))
+    if (PRIVATE_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`))) return false
+    // A map pin is where something is, not what it is.
+    if (hostname.endsWith("google.com") && pathname.startsWith("/maps")) return false
+    // An organisation's homepage is who is coming, not an event page.
+    if ((pathname === "" || pathname === "/") && !search) return false
+    return true
   } catch {
     return false
   }
+}
+
+/** "Brusano Booking", "Bevestigd: …", "Réservation …": the calendar's own word for a private booking. */
+const BOOKING_TITLE = /\b(booking|bevestigd|bevestiging|confirmed|confirmation|r[ée]serv(ation|é|ed)?)\b/i
+
+/** A calendar entry worth listing publicly: an event page, and not filed as a booking. */
+export function isPublicEvent(event: { name?: string; title?: string; url?: string | null }): boolean {
+  const name = event.name ?? event.title ?? ""
+  if (BOOKING_TITLE.test(name)) return false
+  return isPublicEventUrl(event.url)
 }

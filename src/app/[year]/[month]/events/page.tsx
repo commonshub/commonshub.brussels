@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { EventsList } from "@/components/events-list";
 import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
-import { isPublicEventUrl } from "@/lib/public-events";
+import { isPublicEvent } from "@/lib/public-events";
 
 interface PageProps {
   params: Promise<{
@@ -63,7 +63,7 @@ async function loadEvents(year: string, month: string): Promise<Event[]> {
   try {
     const fileContent = fs.readFileSync(filePath, "utf-8");
     const data: EventsFile = JSON.parse(fileContent);
-    return (data.events || []).filter((event) => isPublicEventUrl(event.url)).map((event) => ({
+    return (data.events || []).filter((event) => isPublicEvent(event)).map((event) => ({
       ...event,
       description: event.description ? redactContactDetails(htmlToPlainText(event.description)) : event.description,
     }));
