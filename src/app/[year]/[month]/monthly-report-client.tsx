@@ -229,30 +229,10 @@ export function MonthlyReportClient() {
           </CardContent>
         </Card>
 
-        {/* Euros */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Euros</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className={`text-3xl font-bold whitespace-nowrap ${isProfit ? "text-green-600" : "text-red-600"}`}>
-              {isProfit ? "+" : ""}{formatCurrency(data.financials.net)}
-            </p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Income:</span>
-              <span className="font-medium text-green-600">{formatCurrency(data.financials.income)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Expenses:</span>
-              <span className="font-medium text-red-600">{formatCurrency(data.financials.expenses)}</span>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Tokens */}
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Tokens (CHT)</CardDescription>
+            <CardDescription>Tokens</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <p className={`text-3xl font-bold whitespace-nowrap ${(data.financials.tokens?.net || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -270,6 +250,26 @@ export function MonthlyReportClient() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Transactions:</span>
               <span className="font-medium">{data.financials.tokens?.transactionCount || 0}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Euros */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Euros</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className={`text-3xl font-bold whitespace-nowrap ${isProfit ? "text-green-600" : "text-red-600"}`}>
+              {isProfit ? "+" : ""}{formatCurrency(data.financials.net)}
+            </p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Income:</span>
+              <span className="font-medium text-green-600">{formatCurrency(data.financials.income)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Expenses:</span>
+              <span className="font-medium text-red-600">{formatCurrency(data.financials.expenses)}</span>
             </div>
           </CardContent>
         </Card>
@@ -294,7 +294,12 @@ export function MonthlyReportClient() {
 
       {/* Financial Flow and Breakdowns */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-bold">Financial Flows</h2>
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="text-2xl font-bold">Financial Flows</h2>
+          <Link href={`/${year}/${month}/transactions`} className="text-sm font-medium text-primary hover:underline">
+            All transactions →
+          </Link>
+        </div>
         <MoneyFlowSankey
           income={data.financials.income}
           expenses={data.financials.expenses}
@@ -383,7 +388,12 @@ export function MonthlyReportClient() {
       <section className="space-y-4">
         <div>
           <h2 className="text-2xl font-bold">Financial Breakdown</h2>
-          <p className="text-muted-foreground">Income and expenses by account</p>
+          <p className="text-muted-foreground">
+            Income and expenses by account.{" "}
+            <Link href={`/${year}/${month}/transactions`} className="font-medium text-primary hover:underline">
+              See every transaction →
+            </Link>
+          </p>
         </div>
         <Card>
           <CardContent className="pt-6">

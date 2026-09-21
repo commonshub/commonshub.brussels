@@ -359,13 +359,13 @@ export function getLocalImagePath(attachmentId: string, url: string, timestamp: 
     const year = zonedDate.getFullYear().toString()
     const month = String(zonedDate.getMonth() + 1).padStart(2, "0")
 
-    // Construct local file path
+    // chb writes downloaded attachments under providers/discord/images;
+    // channels/discord/images is the layout of older months.
     const filename = `${attachmentId}${ext}`
-    const localPath = path.join(DATA_DIR, year, month, "channels", "discord", "images", filename)
-
-    // Check if file exists
-    if (fs.existsSync(localPath)) {
-      return `/data/${year}/${month}/channels/discord/images/${filename}`
+    for (const dir of ["providers/discord/images", "channels/discord/images"]) {
+      if (fs.existsSync(path.join(DATA_DIR, year, month, ...dir.split("/"), filename))) {
+        return `/data/${year}/${month}/${dir}/${filename}`
+      }
     }
   } catch (error) {
     // Invalid URL or other error, return null

@@ -8,30 +8,6 @@ export interface MoneyFlowBreakdownRow {
   net: number;
 }
 
-interface SankeyNode {
-  id: string;
-  label: string;
-  value: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  color: string;
-  textAnchor: "start" | "middle" | "end";
-}
-
-interface SankeyLink {
-  id: string;
-  from: SankeyNode;
-  to: SankeyNode;
-  value: number;
-  width: number;
-  color: string;
-  offsetFrom: number;
-  offsetTo: number;
-  label?: string;
-}
-
 interface MoneyFlowSankeyProps {
   income: number;
   expenses: number;
@@ -41,318 +17,272 @@ interface MoneyFlowSankeyProps {
   openingBalance?: number | null;
   closingBalance?: number | null;
   title?: string;
+  /** Rendered top-right of the card header, e.g. a link to all transactions. */
+  action?: React.ReactNode;
 }
 
-const SVG_WIDTH = 980;
-const SVG_HEIGHT = 500;
-const NODE_WIDTH = 24;
-const MIN_NODE_HEIGHT = 24;
-const MAX_NODE_HEIGHT = 230;
-const MIN_LINK_WIDTH = 6;
-const MAX_LINK_WIDTH = 64;
+// ── layout ─────────────────────────────────────────────────────────────────
+//
+// A real Sankey: every band is as tall as the money it carries, on one scale
+// for the whole picture, so the sources stack, the treasury bar and the uses
+// stack are all the same height. Labels sit outside the bands (left of the
+// sources, right of the uses) so nothing is ever drawn over text.
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+export const SVG_WIDTH = 960;
+const LABEL_COLUMN = 190; // room for a label on each side
+const NODE_WIDTH = 18;
+const LEFT_X = LABEL_COLUMN;
+const RIGHT_X = SVG_WIDTH - LABEL_COLUMN - NODE_WIDTH;
+const CENTER_X = SVG_WIDTH / 2 - NODE_WIDTH / 2;
+const TOP = 64; // below the column headings
+const BOTTOM = 24;
+const GAP = 14; // between stacked nodes
+/** A node never gets thinner than this, so its two-line label has a home. */
+const MIN_NODE = 34;
+const MAX_ROWS = 6;
+
+export type NodeKind = "source" | "opening" | "use" | "closing" | "treasury";
+
+export interface LayoutNode {
+  id: string;
+  label: string;
+  value: number;
+  kind: NodeKind;
+  x: number;
+  y: number;
+  height: number;
 }
 
-function compactCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "EUR",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
+export interface LayoutLink {
+  id: string;
+  from: LayoutNode;
+  to: LayoutNode;
+  value: number;
+  /** Top of the band on each end, in SVG units. */
+  fromY: number;
+  toY: number;
+  height: number;
+  kind: NodeKind;
 }
 
-function sanitizeRows(rows: MoneyFlowBreakdownRow[] | undefined, side: "income" | "expenses") {
-  return (rows ?? [])
-    .map((row) => ({
-      id: row.key,
-      label: row.label,
-      value: side === "income" ? row.income : row.expenses,
-    }))
+export interface MoneyFlowLayout {
+  width: number;
+  height: number;
+  nodes: LayoutNode[];
+  links: LayoutLink[];
+  treasury: LayoutNode;
+  opening: number;
+  closing: number;
+}
+
+const COLORS: Record<NodeKind, string> = {
+  source: "#16a34a",
+  opening: "#d97706",
+  use: "#dc2626",
+  closing: "#2563eb",
+  treasury: "#1e3a8a",
+};
+
+function rowsFor(rows: MoneyFlowBreakdownRow[] | undefined, side: "income" | "expenses", total: number, fallback: string) {
+  const sorted = (rows ?? [])
+    .map((row) => ({ id: row.key, label: row.label, value: side === "income" ? row.income : row.expenses }))
     .filter((row) => row.value > 0)
     .sort((a, b) => b.value - a.value);
+  if (!sorted.length) return total > 0 ? [{ id: fallback.toLowerCase(), label: fallback, value: total }] : [];
+  // A row too small to show as a band of its own (under 2.5% of the side)
+  // is folded into "Other" rather than padded up to a labelled node.
+  const floor = total * 0.025;
+  const top = sorted.filter((row) => row.value >= floor).slice(0, MAX_ROWS);
+  const rest = Math.max(0, total - top.reduce((sum, row) => sum + row.value, 0));
+  if (rest > 0.5) top.push({ id: `${fallback.toLowerCase()}-other`, label: "Other", value: rest });
+  return top;
 }
 
-function topRowsWithOther(
-  rows: Array<{ id: string; label: string; value: number }>,
-  total: number,
-  fallbackLabel: string
-) {
-  if (!rows.length && total > 0) {
-    return [{ id: fallbackLabel.toLowerCase(), label: fallbackLabel, value: total }];
-  }
-
-  const topRows = rows.slice(0, 6);
-  const remainder = Math.max(0, total - topRows.reduce((sum, row) => sum + row.value, 0));
-  if (remainder > 0.5) {
-    topRows.push({ id: `${fallbackLabel.toLowerCase()}-other`, label: "Other", value: remainder });
-  }
-  return topRows;
-}
-
-function stackNodes(
-  rows: Array<{ id: string; label: string; value: number }>,
-  x: number,
-  color: string,
-  textAnchor: "start" | "middle" | "end",
-  total: number,
-  top = 92,
-  availableHeight = 315
-): SankeyNode[] {
-  if (!rows.length) return [];
-
-  const gap = rows.length > 5 ? 11 : 15;
-  const maxValue = Math.max(...rows.map((row) => row.value), 1);
-  const scale = Math.min(MAX_NODE_HEIGHT / maxValue, availableHeight / Math.max(total, 1));
-  const heights = rows.map((row) => Math.max(MIN_NODE_HEIGHT, row.value * scale));
-  const totalHeight = heights.reduce((sum, height) => sum + height, 0) + gap * (rows.length - 1);
-  let y = top + Math.max(0, (availableHeight - totalHeight) / 2);
-
-  return rows.map((row, index) => {
-    const node: SankeyNode = {
-      id: row.id,
-      label: row.label,
-      value: row.value,
-      x,
-      y,
-      width: NODE_WIDTH,
-      height: heights[index],
-      color,
-      textAnchor,
-    };
-    y += heights[index] + gap;
+/** Stack rows into a column; heights on `scale`, never under MIN_NODE. */
+function stack(rows: Array<{ id: string; label: string; value: number; kind: NodeKind }>, x: number, scale: number): LayoutNode[] {
+  let y = TOP;
+  return rows.map((row) => {
+    const height = Math.max(MIN_NODE, row.value * scale);
+    const node: LayoutNode = { id: row.id, label: row.label, value: row.value, kind: row.kind, x, y, height };
+    y += height + GAP;
     return node;
   });
 }
 
-function linkPath(link: SankeyLink) {
-  const sourceX = link.from.x + link.from.width;
-  const sourceY = link.from.y + link.offsetFrom;
-  const targetX = link.to.x;
-  const targetY = link.to.y + link.offsetTo;
-  const controlPadding = Math.max(105, (targetX - sourceX) * 0.52);
-  return `M ${sourceX} ${sourceY} C ${sourceX + controlPadding} ${sourceY}, ${targetX - controlPadding} ${targetY}, ${targetX} ${targetY}`;
+function stackHeight(nodes: LayoutNode[]): number {
+  if (!nodes.length) return 0;
+  const last = nodes[nodes.length - 1];
+  return last.y + last.height - TOP;
 }
 
-function buildLinks(
-  incomeNodes: SankeyNode[],
-  expenseNodes: SankeyNode[],
-  treasury: SankeyNode,
-  closingNode: SankeyNode | null,
-  total: number
-): SankeyLink[] {
-  const scaleWidth = (value: number) => Math.max(MIN_LINK_WIDTH, Math.min(MAX_LINK_WIDTH, (value / Math.max(total, 1)) * 92));
-  let treasuryIncomeOffset = 12;
-  let treasuryExpenseOffset = 12;
+/**
+ * Pure layout, so the geometry can be tested: every band's height equals
+ * its value on the shared scale, and the picture is as tall as it needs.
+ */
+export function layoutMoneyFlow(props: Omit<MoneyFlowSankeyProps, "title" | "action">, targetHeight = 420): MoneyFlowLayout {
+  const { income, expenses, net, incomeBreakdown, expenseBreakdown, openingBalance, closingBalance } = props;
+  const opening = openingBalance ?? Math.max(0, (closingBalance ?? 0) - net);
+  const closing = closingBalance ?? Math.max(0, opening + net);
+  // The picture shows the month's money, not the whole bank balance: what
+  // income did not cover came out of the reserves, what was left over went
+  // into them. Either way both sides add up to the same total.
+  const openingUsed = Math.max(0, expenses - income);
+  const closingFlow = Math.max(0, income - expenses);
+  const total = Math.max(income + openingUsed, expenses + closingFlow, 1);
 
-  const incomeLinks = incomeNodes.map((node) => {
-    const width = scaleWidth(node.value);
-    const link: SankeyLink = {
-      id: `income-${node.id}`,
-      from: node,
-      to: treasury,
-      value: node.value,
-      width,
-      color: node.id === "opening-balance" ? "url(#opening-flow)" : "url(#income-flow)",
-      offsetFrom: node.height / 2,
-      offsetTo: Math.min(treasury.height - 10, treasuryIncomeOffset + width / 2),
-    };
-    treasuryIncomeOffset += width + 6;
-    return link;
-  });
+  const inflows = [
+    ...(openingUsed > 0.5 ? [{ id: "opening-balance", label: "From reserves", value: openingUsed, kind: "opening" as const }] : []),
+    ...rowsFor(incomeBreakdown, "income", income, "Income").map((row) => ({ ...row, kind: "source" as const })),
+  ];
+  const outflows = [
+    ...rowsFor(expenseBreakdown, "expenses", expenses, "Expenses").map((row) => ({ ...row, kind: "use" as const })),
+    ...(closingFlow > 0.5 ? [{ id: "closing-balance", label: "Added to reserves", value: closingFlow, kind: "closing" as const }] : []),
+  ];
 
-  const outgoingNodes = closingNode ? [...expenseNodes, closingNode] : expenseNodes;
-  const expenseLinks = outgoingNodes.map((node) => {
-    const width = scaleWidth(node.value);
-    const link: SankeyLink = {
-      id: `out-${node.id}`,
-      from: treasury,
-      to: node,
-      value: node.value,
-      width,
-      color: node === closingNode ? "url(#closing-flow)" : "url(#expense-flow)",
-      offsetFrom: Math.min(treasury.height - 10, treasuryExpenseOffset + width / 2),
-      offsetTo: node.height / 2,
-    };
-    treasuryExpenseOffset += width + 6;
-    return link;
-  });
+  // One scale for everything: the taller stack must fit the target height
+  // once gaps and minimum node heights are accounted for.
+  const fits = (rows: Array<{ value: number }>, scale: number) =>
+    rows.reduce((sum, row) => sum + Math.max(MIN_NODE, row.value * scale), 0) + GAP * Math.max(0, rows.length - 1);
+  let scale = targetHeight / total;
+  for (let i = 0; i < 8; i++) {
+    const tallest = Math.max(fits(inflows, scale), fits(outflows, scale), 1);
+    if (tallest <= targetHeight + 0.5) break;
+    scale *= targetHeight / tallest;
+  }
 
-  return [...incomeLinks, ...expenseLinks];
-}
-
-function truncateLabel(label: string, length = 26) {
-  return label.length > length ? `${label.slice(0, length - 1)}…` : label;
-}
-
-export function MoneyFlowSankey({
-  income,
-  expenses,
-  net,
-  incomeBreakdown,
-  expenseBreakdown,
-  openingBalance,
-  closingBalance,
-  title = "Money Flow",
-}: MoneyFlowSankeyProps) {
-  const inferredOpening = openingBalance ?? Math.max(0, (closingBalance ?? 0) - net);
-  const inferredClosing = closingBalance ?? Math.max(0, inferredOpening + net);
-  const openingTopUp = Math.max(0, expenses + inferredClosing - income);
-  const closingFlow = Math.max(0, income + openingTopUp - expenses);
-  const totalThroughTreasury = Math.max(income + openingTopUp, expenses + closingFlow, 1);
-
-  const incomeRows = topRowsWithOther(sanitizeRows(incomeBreakdown, "income"), income, "Income");
-  const inflowRows = openingTopUp > 0.5
-    ? [{ id: "opening-balance", label: "Opening balance used", value: openingTopUp }, ...incomeRows]
-    : incomeRows;
-  const expenseRows = topRowsWithOther(sanitizeRows(expenseBreakdown, "expenses"), expenses, "Expenses");
-
-  const incomeNodes = stackNodes(inflowRows, 74, "#16a34a", "start", Math.max(income + openingTopUp, 1)).map((node) =>
-    node.id === "opening-balance" ? { ...node, color: "#f59e0b" } : node
-  );
-  const expenseNodes = stackNodes(expenseRows, 800, "#dc2626", "end", Math.max(expenses, 1));
-  const treasuryHeight = Math.max(130, Math.min(285, totalThroughTreasury / Math.max(totalThroughTreasury, 1) * 260));
-  const treasury: SankeyNode = {
+  const sources = stack(inflows, LEFT_X, scale);
+  const uses = stack(outflows, RIGHT_X, scale);
+  // Bands keep their true share of the treasury; a node padded to MIN_NODE
+  // simply gets a band thinner than itself, joined at the node's middle.
+  const bandHeight = (value: number) => value * scale;
+  const treasuryHeight = Math.max(MIN_NODE, total * scale);
+  const columnHeight = Math.max(stackHeight(sources), stackHeight(uses), treasuryHeight);
+  const treasury: LayoutNode = {
     id: "treasury",
-    label: "Commons Hub treasury",
-    value: totalThroughTreasury,
-    x: 478,
-    y: (SVG_HEIGHT - treasuryHeight) / 2,
-    width: 34,
+    label: "Treasury",
+    value: total,
+    kind: "treasury",
+    x: CENTER_X,
+    y: TOP + (columnHeight - treasuryHeight) / 2,
     height: treasuryHeight,
-    color: "#2563eb",
-    textAnchor: "middle",
   };
-  const closingNode: SankeyNode | null = closingFlow > 0.5 ? {
-    id: "closing-balance",
-    label: "Closing balance",
-    value: closingFlow,
-    x: 800,
-    y: 418,
-    width: NODE_WIDTH,
-    height: Math.max(MIN_NODE_HEIGHT, Math.min(88, (closingFlow / totalThroughTreasury) * 190)),
-    color: "#2563eb",
-    textAnchor: "end",
-  } : null;
 
-  const links = buildLinks(incomeNodes, expenseNodes, treasury, closingNode, totalThroughTreasury);
-  const allNodes = [...incomeNodes, treasury, ...expenseNodes, ...(closingNode ? [closingNode] : [])];
+  const links: LayoutLink[] = [];
+  let inY = treasury.y;
+  for (const node of sources) {
+    const height = bandHeight(node.value);
+    links.push({ id: `in-${node.id}`, from: node, to: treasury, value: node.value, fromY: node.y + (node.height - height) / 2, toY: inY, height, kind: node.kind });
+    inY += height;
+  }
+  let outY = treasury.y;
+  for (const node of uses) {
+    const height = bandHeight(node.value);
+    links.push({ id: `out-${node.id}`, from: treasury, to: node, value: node.value, fromY: outY, toY: node.y + (node.height - height) / 2, height, kind: node.kind });
+    outY += height;
+  }
+
+  return {
+    width: SVG_WIDTH,
+    height: TOP + columnHeight + BOTTOM,
+    nodes: [...sources, treasury, ...uses],
+    links,
+    treasury,
+    opening,
+    closing,
+  };
+}
+
+/** A filled band between two vertical segments. */
+function bandPath(link: LayoutLink): string {
+  const x0 = link.from.x + NODE_WIDTH;
+  const x1 = link.to.x;
+  const c0 = x0 + (x1 - x0) * 0.5;
+  const c1 = x1 - (x1 - x0) * 0.5;
+  const top0 = link.fromY;
+  const top1 = link.toY;
+  const bot0 = link.fromY + link.height;
+  const bot1 = link.toY + link.height;
+  return `M ${x0} ${top0} C ${c0} ${top0}, ${c1} ${top1}, ${x1} ${top1} L ${x1} ${bot1} C ${c1} ${bot1}, ${c0} ${bot0}, ${x0} ${bot0} Z`;
+}
+
+// ── formatting ─────────────────────────────────────────────────────────────
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+}
+
+/** €575, €3,224, €25.7K: exact while it fits a label, compact beyond. */
+function shortCurrency(value: number): string {
+  if (Math.abs(value) < 10000) return formatCurrency(value);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
+function truncate(label: string, max = 24): string {
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label;
+}
+
+// ── component ──────────────────────────────────────────────────────────────
+
+export function MoneyFlowSankey(props: MoneyFlowSankeyProps) {
+  const { income, expenses, net, title = "Money flow", action } = props;
+  const layout = layoutMoneyFlow(props);
+  const { nodes, links, treasury } = layout;
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-linear-to-r from-slate-50 to-transparent dark:from-slate-900/50">
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>Where money came from, how it moved through the Commons Hub treasury, and where it went.</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div className="space-y-1.5">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>Where the money came from, and where it went.</CardDescription>
+        </div>
+        {action}
       </CardHeader>
       <CardContent className="space-y-4 p-4 sm:p-6">
         <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
-            <div className="text-muted-foreground">Started with</div>
-            <div className="text-lg font-bold text-amber-700 dark:text-amber-300">{formatCurrency(inferredOpening)}</div>
-          </div>
-          <div className="rounded-xl border border-green-200 bg-green-50 p-3 dark:border-green-900/60 dark:bg-green-950/20">
-            <div className="text-muted-foreground">Income</div>
-            <div className="text-lg font-bold text-green-700 dark:text-green-300">{formatCurrency(income)}</div>
-          </div>
-          <div className="rounded-xl border bg-background p-3 shadow-xs">
-            <div className="text-muted-foreground">Net change</div>
-            <div className={`text-lg font-bold ${net >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {net >= 0 ? "+" : ""}{formatCurrency(net)}
-            </div>
-          </div>
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-950/20">
-            <div className="text-muted-foreground">Expenses</div>
-            <div className="text-lg font-bold text-red-700 dark:text-red-300">{formatCurrency(expenses)}</div>
-          </div>
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
-            <div className="text-muted-foreground">Ended with</div>
-            <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{formatCurrency(inferredClosing)}</div>
-          </div>
+          <Stat label="Started with" value={formatCurrency(layout.opening)} tone="amber" />
+          <Stat label="Income" value={formatCurrency(income)} tone="green" />
+          <Stat label="Net change" value={`${net >= 0 ? "+" : ""}${formatCurrency(net)}`} tone={net >= 0 ? "green" : "red"} plain />
+          <Stat label="Expenses" value={formatCurrency(expenses)} tone="red" />
+          <Stat label="Ended with" value={formatCurrency(layout.closing)} tone="blue" />
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border bg-linear-to-br from-white via-slate-50 to-slate-100 p-3 shadow-inner dark:from-slate-950 dark:via-slate-950 dark:to-slate-900" role="img" aria-label={`Money flow Sankey diagram showing ${formatCurrency(income)} income and ${formatCurrency(expenses)} expenses`}>
-          <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="h-[500px] min-w-[820px] w-full" aria-hidden="true">
-            <defs>
-              <linearGradient id="income-flow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.72" />
-                <stop offset="100%" stopColor="#2563eb" stopOpacity="0.42" />
-              </linearGradient>
-              <linearGradient id="expense-flow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#2563eb" stopOpacity="0.42" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.70" />
-              </linearGradient>
-              <linearGradient id="opening-flow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.74" />
-                <stop offset="100%" stopColor="#2563eb" stopOpacity="0.38" />
-              </linearGradient>
-              <linearGradient id="closing-flow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#2563eb" stopOpacity="0.38" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.72" />
-              </linearGradient>
-              <filter id="sankey-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.18" />
-              </filter>
-              <pattern id="sankey-grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                <path d="M 32 0 L 0 0 0 32" fill="none" stroke="currentColor" strokeOpacity="0.05" strokeWidth="1" />
-              </pattern>
-            </defs>
-
-            <rect width={SVG_WIDTH} height={SVG_HEIGHT} rx="18" fill="url(#sankey-grid)" className="text-slate-900 dark:text-white" />
-            <text x="76" y="42" className="fill-muted-foreground text-[12px] font-semibold uppercase tracking-[0.2em]">Sources</text>
-            <text x="495" y="42" textAnchor="middle" className="fill-muted-foreground text-[12px] font-semibold uppercase tracking-[0.2em]">Treasury</text>
-            <text x="824" y="42" textAnchor="end" className="fill-muted-foreground text-[12px] font-semibold uppercase tracking-[0.2em]">Uses</text>
+        <div
+          className="overflow-x-auto rounded-xl border bg-background"
+          role="img"
+          aria-label={`Money flow: ${formatCurrency(income)} income and ${formatCurrency(expenses)} expenses through the treasury`}
+        >
+          <svg viewBox={`0 0 ${layout.width} ${layout.height}`} className="w-full min-w-[720px]" style={{ height: "auto" }} aria-hidden="true">
+            <text x={LEFT_X + NODE_WIDTH} y={30} textAnchor="end" className="fill-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">Sources</text>
+            <text x={SVG_WIDTH / 2} y={30} textAnchor="middle" className="fill-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">Treasury</text>
+            <text x={RIGHT_X} y={30} textAnchor="start" className="fill-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">Uses</text>
+            <text x={SVG_WIDTH / 2} y={48} textAnchor="middle" className="fill-foreground text-[13px] font-semibold">{formatCurrency(treasury.value)}</text>
 
             {links.map((link) => (
-              <g key={link.id}>
-                <path
-                  d={linkPath(link)}
-                  fill="none"
-                  stroke="rgba(15, 23, 42, 0.10)"
-                  strokeWidth={link.width + 4}
-                  strokeLinecap="round"
-                />
-                <path
-                  d={linkPath(link)}
-                  fill="none"
-                  stroke={link.color}
-                  strokeWidth={link.width}
-                  strokeLinecap="round"
-                >
-                  <title>{`${link.from.label} → ${link.to.label}: ${formatCurrency(link.value)}`}</title>
-                </path>
-              </g>
+              <path key={link.id} d={bandPath(link)} fill={COLORS[link.kind]} fillOpacity={0.28}>
+                <title>{`${link.from.label} → ${link.to.label}: ${formatCurrency(link.value)}`}</title>
+              </path>
             ))}
 
-            {allNodes.map((node) => {
-              const labelX = node.textAnchor === "start" ? node.x + node.width + 12 : node.textAnchor === "end" ? node.x - 12 : node.x + node.width / 2;
-              const labelY = node.id === "treasury" ? node.y + node.height / 2 - 12 : node.y + node.height / 2 - 6;
+            {nodes.map((node) => {
+              const onLeft = node.x === LEFT_X;
+              const onRight = node.x === RIGHT_X;
+              const labelX = onLeft ? node.x - 12 : node.x + NODE_WIDTH + 12;
+              const midY = node.y + node.height / 2;
               return (
-                <g key={node.id} filter="url(#sankey-shadow)">
-                  <rect x={node.x} y={node.y} width={node.width} height={node.height} rx="10" fill={node.color} />
-                  <rect x={node.x + 3} y={node.y + 3} width={Math.max(1, node.width - 6)} height={Math.max(1, node.height - 6)} rx="7" fill="white" opacity="0.16" />
-                  <text
-                    x={labelX}
-                    y={labelY}
-                    textAnchor={node.textAnchor}
-                    className="fill-foreground text-[13px] font-semibold"
-                  >
-                    {truncateLabel(node.label, node.id === "treasury" ? 30 : 28)}
-                  </text>
-                  <text
-                    x={labelX}
-                    y={labelY + 19}
-                    textAnchor={node.textAnchor}
-                    className="fill-muted-foreground text-[12px] font-medium"
-                  >
-                    {compactCurrency(node.value)}
-                  </text>
+                <g key={node.id}>
+                  <rect x={node.x} y={node.y} width={NODE_WIDTH} height={node.height} rx="5" fill={COLORS[node.kind]}>
+                    <title>{`${node.label}: ${formatCurrency(node.value)}`}</title>
+                  </rect>
+                  {(onLeft || onRight) && (
+                    <>
+                      <text x={labelX} y={midY - 3} textAnchor={onLeft ? "end" : "start"} className="fill-foreground text-[13px] font-semibold">
+                        {truncate(node.label)}
+                      </text>
+                      <text x={labelX} y={midY + 14} textAnchor={onLeft ? "end" : "start"} className="fill-muted-foreground text-[12px]">
+                        {shortCurrency(node.value)}
+                      </text>
+                    </>
+                  )}
                 </g>
               );
             })}
@@ -360,5 +290,21 @@ export function MoneyFlowSankey({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function Stat({ label, value, tone, plain }: { label: string; value: string; tone: "amber" | "green" | "red" | "blue"; plain?: boolean }) {
+  const tones = {
+    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300",
+    green: "border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/20 dark:text-green-300",
+    red: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300",
+    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-300",
+  };
+  const textOnly = { amber: "text-amber-700", green: "text-green-600", red: "text-red-600", blue: "text-blue-700" };
+  return (
+    <div className={`rounded-xl border p-3 ${plain ? "bg-background shadow-xs" : tones[tone]}`}>
+      <div className="text-muted-foreground">{label}</div>
+      <div className={`text-lg font-bold ${plain ? textOnly[tone] : ""}`}>{value}</div>
+    </div>
   );
 }
