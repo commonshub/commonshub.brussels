@@ -44,6 +44,22 @@ describe("hand-managed events", () => {
     expect(out[0].isFeatured).toBe(true)
   })
 
+  test("an event we host is not listed twice when its Luma URL is pinned", () => {
+    // mergeHostedEvents has already turned the Luma record into our own page
+    // and kept the Luma link as an alias; pinning that URL must not add a card.
+    const hosted = imported({
+      id: "hosted-ocd-2026",
+      name: "Open Commons Day 2026",
+      url: "/events/ocd-2026",
+      start_at: "2026-10-04T09:30:00+02:00",
+      aliases: ["https://luma.com/l9275g9x"],
+    })
+    const out = applyHandManagedEvents([hosted], now, config)
+    expect(out.map((e) => e.name)).toEqual(["Open Commons Day 2026"])
+    // …and featuring it by its Luma URL still marks our page as featured.
+    expect(out[0].isFeatured).toBe(true)
+  })
+
   test("eventKey treats luma.com, lu.ma, slashes and query strings alike", () => {
     expect(eventKey("https://lu.ma/l9275g9x/")).toBe("luma.com/l9275g9x")
     expect(eventKey("http://www.luma.com/l9275g9x?utm=x")).toBe("luma.com/l9275g9x")

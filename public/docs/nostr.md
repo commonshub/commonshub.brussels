@@ -55,8 +55,9 @@ it attests can write with their own keys. Drop a `p` tag to revoke.
 
 ## Shifts (NIP-52)
 
-- **Occurrence — kind 31923** (signed by the coordinator; today the site,
-  tomorrow a bot): `d = shift-<guild id>-<YYYY-MM-DD>-<HHMM>`, `title`,
+- **Occurrence — kind 31923** (signed by the coordinator: the Discord bot,
+  `npub1828zsgu6xv0j0y0axr4agq5uf0yh8djxtd89guqgg8vuymqgc8es3ge93h`, see
+  *Two apps, one record* below): `d = shift-<guild id>-<YYYY-MM-DD>-<HHMM>`, `title`,
   `start`/`end` (unix seconds, Brussels time), `capacity`, `["t","shift"]`,
   `["t","group-<guild id>"]`, `["a","34550:<coordinator>:dc<guild id>"]`.
   Slots and capacity are the Discord bot's: 08:30–11:30, 11:30–14:30,
@@ -87,13 +88,37 @@ implementation is `parseSignups` in
 pure and unit-tested; the whole protocol from another app's point of view
 is in [`docs/website.md`](https://github.com/commonshub/commonshub.brussels/blob/main/docs/website.md).
 
+## Two apps, one record
+
+The Discord bot's `/shifts` command ([opencollective/token-bot](https://github.com/opencollective/token-bot),
+`src/lib/shifts-nostr.ts`) writes and reads the same events:
+
+- it is the **coordinator**: it publishes a slot's occurrence (kind 31923)
+  once that slot has its first sign-up, from either app, and the community
+  definition (kind 34550), under `settings.nostr.coordinatorNpub`;
+- Discord members have no key of their own, so the bot **derives one key per
+  member** from its secret and attests it (kind 31926, `d = discord:<id>`),
+  with a kind 0 profile taken from Discord. RSVPs made in Discord are signed
+  by that derived key;
+- it **tags its events** `["client","token-bot",…]` and `["t","app:token-bot"]`,
+  so the monitor can tell the two apps apart;
+- it keeps its Google Calendar (invites, rewards) in sync with the relays:
+  a sign-up made here shows in `/shifts` within seconds, a cancellation made
+  in Discord shows here on the next page load.
+
+Both apps trust each other's attestations (the site trusts itself and the
+coordinator; the bot trusts itself and the site), and both resolve the newest
+RSVP per (member, slot) whoever signed it, so a member can sign up in one app
+and cancel in the other.
+
 ## What the site does on a sign-up
 
 1. The browser asks the site to link its key: the site publishes/refreshes the
    member's attestation, and hands back a profile to sign if the key has none.
 2. The browser signs the RSVP with the member's key and sends it to both relays.
-3. The site checks the RSVP is on a relay, publishes the shift occurrence and
-   community definition if they are not there yet, and posts one line in
-   `#shifts` on Discord, worded like the bot's `/shifts` command.
+3. The site checks the RSVP is on a relay (the occurrence itself is the
+   bot's: it publishes it within seconds of this first sign-up; the RSVP
+   already points at its coordinate) and posts one line in `#shifts` on Discord, worded like the
+   bot's `/shifts` command.
 
 Nothing is stored on the web server.

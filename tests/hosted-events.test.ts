@@ -76,6 +76,20 @@ describe("mergeHostedEvents", () => {
     expect(merged[0].url).toBe("/events/ocd-2026");
   });
 
+  test("keeps the Luma link as an alias, so hand-managed entries match it", () => {
+    const merged = mergeHostedEvents(
+      [lumaEvent({ url: "https://lu.ma/l9275g9x", start_at: "2026-10-04T07:30:00.000Z" })],
+      now,
+      [ocd]
+    );
+    expect(merged[0].url).toBe("/events/ocd-2026");
+    expect(merged[0].aliases).toContain("https://luma.com/l9275g9x");
+
+    // And the same for a hosted event Luma does not carry at all.
+    const added = mergeHostedEvents([], now, [ocd]);
+    expect(added[0].aliases).toContain("https://luma.com/l9275g9x");
+  });
+
   test("adds a hosted event that is not on Luma, in date order", () => {
     const merged = mergeHostedEvents([lumaEvent({})], now, [osv]);
     expect(merged.map((e) => e.url)).toEqual([

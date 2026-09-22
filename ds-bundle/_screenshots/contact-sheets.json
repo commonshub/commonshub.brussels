@@ -1,0 +1,37 @@
+[
+  {
+    "sheet": 1,
+    "components": [
+      "AboutSection",
+      "Badge",
+      "BookingSection",
+      "Button",
+      "Card",
+      "Checkbox",
+      "CommonsSection",
+      "CommunityActivityGallery",
+      "DiscordStatsDisplay",
+      "EconomySection",
+      "EmptyDataState",
+      "EventsSection",
+      "Hero",
+      "HoverCard",
+      "Input",
+      "Label"
+    ]
+  },
+  {
+    "sheet": 2,
+    "components": [
+      "MembershipPreviewSection",
+      "NewsletterSection",
+      "OptimizedImage",
+      "OtherMembers",
+      "RecentContributors",
+      "RoomBookingForm",
+      "Select",
+      "Textarea",
+      "WorkshopsCTA"
+    ]
+  }
+]

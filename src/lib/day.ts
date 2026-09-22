@@ -4,6 +4,7 @@
  * visitor sees versus a signed-in member) can be tested.
  */
 
+import { isServableDataPath } from "./served-paths"
 import { fromZonedTime, toZonedTime } from "date-fns-tz"
 import { htmlToPlainText, redactContactDetails } from "./plain-text"
 import { isPublicEvent, unwrapGoogleRedirect } from "./public-events"
@@ -98,6 +99,16 @@ const eventKey = (url: string | undefined) =>
     .replace(/^lu\.ma\//, "luma.com/")
     .replace(/\/+$/, "")
 
+/**
+ * chb's local copy only when the image proxy would serve it: a path left
+ * over from the pre-tier layout is refused, and a broken card is worse than
+ * the platform's own cover. See src/lib/event-cover.ts.
+ */
+function coverFor(event: { coverImageLocal?: string; coverImage?: string }): string | undefined {
+  if (event.coverImageLocal && isServableDataPath(event.coverImageLocal)) return `/data/${event.coverImageLocal}`
+  return event.coverImage || undefined
+}
+
 function cleanText(text: string | undefined): string | undefined {
   if (!text) return undefined
   const cleaned = redactContactDetails(htmlToPlainText(text)).trim()
@@ -136,7 +147,7 @@ export function buildDaySchedule(
       title: event.name,
       description: cleanText(event.description),
       url: event.url ? unwrapGoogleRedirect(event.url) : undefined,
-      cover: event.coverImageLocal ? `/data/${event.coverImageLocal}` : event.coverImage || undefined,
+      cover: coverFor(event),
     })
   }
 

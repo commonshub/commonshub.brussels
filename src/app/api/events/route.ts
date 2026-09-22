@@ -1,11 +1,11 @@
 import { tierDir } from "@/lib/data-paths";
-import { isProxyableImageUrl } from "@/lib/image-proxy-server";
 import {
   mergeHostedEvents,
   type EventTag,
   type HomepageEvent,
 } from "@/lib/hosted-events";
 import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
+import { coverUrlFor } from "@/lib/event-cover";
 import { applyHandManagedEvents } from "@/lib/pinned-events";
 import { isPublicEvent, unwrapGoogleRedirect } from "@/lib/public-events";
 import { NextResponse } from "next/server";
@@ -96,17 +96,9 @@ function loadUpcomingEvents(): HomepageEvent[] {
         (t) => t.name.toLowerCase() === "featured"
       );
 
-      // Prefer local cover image path (served via image proxy with caching/resizing)
-      let coverUrl = "";
-      if (event.coverImageLocal) {
-        coverUrl = `/data/${event.coverImageLocal}`;
-      } else {
-        coverUrl = event.coverImage || event.cover_url || "";
-        // A cover the proxy would refuse (an og:image on some random host
-        // that chb has not downloaded yet) shows as a broken image; the
-        // calendar placeholder is better than that.
-        if (!isProxyableImageUrl(coverUrl)) coverUrl = "";
-      }
+      // chb's local copy when the proxy will serve it, else the platform's
+      // own cover, else nothing: never a URL that renders as a broken image.
+      const coverUrl = coverUrlFor(event);
 
       events.push({
         id: event.id || "",
