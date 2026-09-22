@@ -93,9 +93,9 @@ is in [`docs/website.md`](https://github.com/commonshub/commonshub.brussels/blob
 The Discord bot's `/shifts` command ([opencollective/token-bot](https://github.com/opencollective/token-bot),
 `src/lib/shifts-nostr.ts`) writes and reads the same events:
 
-- it is the **coordinator**: it publishes the shift occurrences (kind 31923)
-  for the next four weeks and the community definition (kind 34550), under
-  `settings.nostr.coordinatorNpub`;
+- it is the **coordinator**: it publishes a slot's occurrence (kind 31923)
+  once that slot has its first sign-up, from either app, and the community
+  definition (kind 34550), under `settings.nostr.coordinatorNpub`;
 - Discord members have no key of their own, so the bot **derives one key per
   member** from its secret and attests it (kind 31926, `d = discord:<id>`),
   with a kind 0 profile taken from Discord. RSVPs made in Discord are signed
@@ -117,8 +117,8 @@ and cancel in the other.
    member's attestation, and hands back a profile to sign if the key has none.
 2. The browser signs the RSVP with the member's key and sends it to both relays.
 3. The site checks the RSVP is on a relay (the occurrence itself is the
-   bot's; if the bot has not published it yet the RSVP still points at its
-   coordinate) and posts one line in `#shifts` on Discord, worded like the
+   bot's: it publishes it within seconds of this first sign-up; the RSVP
+   already points at its coordinate) and posts one line in `#shifts` on Discord, worded like the
    bot's `/shifts` command.
 
 Nothing is stored on the web server.
