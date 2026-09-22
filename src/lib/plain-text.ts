@@ -99,3 +99,42 @@ export function redactContactDetails(value: string): string {
   }
   return lines.join("\n").trim();
 }
+
+/**
+ * A URL as a reader should see it: without the protocol, and — when it is
+ * long — the host plus its first path segment only.
+ *
+ * A URL is a single unbreakable word. A Discord message link is about ninety
+ * characters, which is wider than a phone screen, so a description carrying
+ * one pushed the whole day page sideways. Cutting at a path boundary keeps
+ * what tells you where the link goes and drops the ids that tell you
+ * nothing.
+ */
+export function shortenUrl(url: string, maxLength = 32): string {
+  const bare = url.replace(/^https?:\/\/(?:www\.)?/i, "").replace(/\/+$/, "");
+  if (bare.length <= maxLength) return bare;
+  const [host, ...segments] = bare.split("/");
+  const first = segments.find(Boolean);
+  const head = first && `${host}/${first}`.length <= maxLength ? `${host}/${first}` : host;
+  return `${head}/…`;
+}
+
+/** Every URL inside a piece of text, shortened for display. */
+export function shortenUrls(value: string, maxLength = 32): string {
+  return value.replace(/\bhttps?:\/\/[^\s<>"']+/gi, (match) => {
+    // A URL at the end of a sentence keeps the punctuation out of the link.
+    const trailing = match.match(/[.,;:!?)\]]+$/)?.[0] ?? "";
+    return shortenUrl(trailing ? match.slice(0, -trailing.length) : match, maxLength) + trailing;
+  });
+}
+
+/**
+ * The token is called "tokens" in everything we publish. The booking bot
+ * writes "1.50 CHT" into the calendar entry it creates, so that ticker
+ * reaches the site through other people's descriptions; this puts our own
+ * wording back. Only the standalone ticker is touched, never a word that
+ * merely contains those letters.
+ */
+export function tokensWording(value: string): string {
+  return value.replace(/\bCHT\b/g, "tokens");
+}

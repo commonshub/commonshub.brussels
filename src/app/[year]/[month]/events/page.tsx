@@ -5,7 +5,7 @@ import { ArrowLeft, Calendar, MapPin, Users, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EventsList } from "@/components/events-list";
-import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
+import { htmlToPlainText, redactContactDetails, shortenUrls } from "@/lib/plain-text";
 import { isPublicEvent } from "@/lib/public-events";
 
 interface PageProps {
@@ -56,7 +56,7 @@ async function loadEvents(year: string, month: string): Promise<Event[]> {
     const events = readEventsForMonth("public", year, month) as unknown as Event[];
     return events.filter((event) => isPublicEvent(event)).map((event) => ({
       ...event,
-      description: event.description ? redactContactDetails(htmlToPlainText(event.description)) : event.description,
+      description: event.description ? shortenUrls(redactContactDetails(htmlToPlainText(event.description))) : event.description,
     }));
   } catch (error) {
     console.error(`Error reading events file:`, error);

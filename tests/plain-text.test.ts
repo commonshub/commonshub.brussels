@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals"
-import { htmlToPlainText, looksLikeHtml, redactContactDetails } from "@/lib/plain-text"
+import { htmlToPlainText, looksLikeHtml, redactContactDetails, shortenUrl, shortenUrls, tokensWording } from "@/lib/plain-text"
 
 describe("htmlToPlainText", () => {
   test("a link whose text is its address becomes the bare address", () => {
@@ -59,5 +59,51 @@ describe("redactContactDetails", () => {
   test("ordinary text, times and prices are untouched", () => {
     const text = "Doors 18:00, talks 18:30. Tickets €12, 30 seats. Room 2 on floor 1."
     expect(redactContactDetails(text)).toBe(text)
+  })
+})
+
+describe("shortening URLs for display", () => {
+  test("a long URL is cut at a path boundary, not mid-token", () => {
+    // The link that pushed the day page sideways on a phone.
+    expect(shortenUrl("https://discord.com/channels/1280532848604086365/1354115945718878269/1551678021617066140")).toBe(
+      "discord.com/channels/…"
+    )
+    expect(shortenUrl("https://images.lumacdn.com/uploads/dz/4cd6cf21-607f-48f7-b7f1-2f30c71e6fcd.png")).toBe(
+      "images.lumacdn.com/uploads/…"
+    )
+    // Nothing left to cut: the host alone is already too long.
+    expect(shortenUrl("https://a-very-long-hostname-that-never-ends.example.com/x", 20)).toBe("a-very-long-hostname-that-never-ends.example.com/…")
+  })
+
+  test("a short URL only loses its protocol", () => {
+    expect(shortenUrl("https://luma.com/l9275g9x")).toBe("luma.com/l9275g9x")
+    expect(shortenUrl("https://www.wikipolicy.net/")).toBe("wikipolicy.net")
+  })
+
+  test("URLs inside a description are shortened in place, punctuation kept out", () => {
+    const text = "Booked by Dean on Monday.\nSee https://discord.com/channels/1280532848604086365/1354115945718878269/1551678021617066140 for details."
+    expect(shortenUrls(text)).toBe("Booked by Dean on Monday.\nSee discord.com/channels/… for details.")
+    expect(shortenUrls("Also (https://luma.com/hhfrzcha).")).toBe("Also (luma.com/hhfrzcha).")
+    expect(shortenUrls("no links here")).toBe("no links here")
+  })
+
+  test("every shortened URL fits a phone-width card", () => {
+    const urls = [
+      "https://discord.com/channels/1280532848604086365/1354115945718878269/1551678021617066140",
+      "https://www.google.com/maps/place/Rue+de+la+Madeleine+51,+1000+Bruxelles/@50.8455,4.3547,17z/data=!3m1!4b1",
+      "https://luma.com/l9275g9x",
+    ]
+    for (const url of urls) expect(shortenUrl(url).length).toBeLessThanOrEqual(34)
+  })
+})
+
+describe("our own wording for the token", () => {
+  test("the booking bot's ticker becomes tokens", () => {
+    expect(tokensWording("Booked by Dean on Monday for 1.50 CHT")).toBe("Booked by Dean on Monday for 1.50 tokens")
+  })
+
+  test("a word that merely contains those letters is left alone", () => {
+    expect(tokensWording("CHTistoric CHT-ish archtype")).toBe("CHTistoric tokens-ish archtype")
+    expect(tokensWording("nothing to change")).toBe("nothing to change")
   })
 })

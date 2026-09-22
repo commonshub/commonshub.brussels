@@ -225,6 +225,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    /*
+     * Descriptions come from other people's calendars and carry URLs, which
+     * are single unbreakable words — one Discord message link is wider than
+     * a phone screen and used to push the whole page sideways. This inherits
+     * everywhere and only acts on a word that would not fit, so nothing that
+     * already fits moves. Long URLs are also shortened for readability
+     * (shortenUrls in src/lib/plain-text.ts).
+     */
+    overflow-wrap: break-word;
   }
 }
 
