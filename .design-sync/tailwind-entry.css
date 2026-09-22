@@ -1,0 +1,9 @@
+/* Compile source for the synced stylesheet: the app's own globals.css plus
+   the class scan that has to cover the components AND their preview cards.
+   The app self-hosts DM Sans and Geist Mono through next/font; there is no
+   font file in the repo, so the synced bundle loads the same families from
+   the font host at runtime. */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist+Mono:wght@100..900&display=swap");
+@import "../src/app/globals.css";
+@source "../src";
+@source "../.design-sync/previews";

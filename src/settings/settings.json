@@ -418,10 +418,11 @@
     ]
   },
   "nostr": {
-    "_comment": "Community relays are the record (relay.commonshub.brussels first, relay.commonshub.dev as backup); every event carries i=discord:<guild> and t=app:commonshub.brussels. The site signs with a key derived from AUTH_SECRET (see /api/nostr/identity) and acts as identity provider (kind 31926) and, until a bot takes over, as shift coordinator (kind 31923). Set coordinatorNpub to hand coordination to a bot. Conventions: docs/nostr.md and https://commonshub.dev/docs.",
+    "_comment": "Community relays are the record (relay.commonshub.brussels first, relay.commonshub.dev as backup); every event carries i=discord:<guild> and t=app:commonshub.brussels. The site signs with a key derived from AUTH_SECRET (see /api/nostr/identity) and acts as identity provider (kind 31926) for members' browser keys. The Discord bot (opencollective/token-bot, /shifts) is the shift coordinator (kind 31923 occurrences) and attests the keys it derives for Discord members; coordinatorNpub is its key, so RSVPs from both apps point at the same occurrences and both apps trust each other's attestations. Conventions: docs/nostr.md and https://commonshub.dev/docs.",
     "relays": [
       "wss://relay.commonshub.brussels",
       "wss://relay.commonshub.dev"
-    ]
+    ],
+    "coordinatorNpub": "npub1828zsgu6xv0j0y0axr4agq5uf0yh8djxtd89guqgg8vuymqgc8es3ge93h"
   }
 }
