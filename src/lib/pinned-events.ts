@@ -7,6 +7,10 @@
  *   - pinned: events that are not in the Luma calendar (yet) — created on
  *     someone's personal Luma calendar, say — listed until Luma has them. A
  *     pinned event with the same URL as an imported one steps aside for it.
+ *
+ * "Same URL" means the URL an event is listed under *or* any of its aliases:
+ * an event we host has its own page (/events/<slug>) and keeps its Luma link
+ * as an alias, so pinning that Luma URL does not list it a second time.
  */
 
 import settings from "@/settings/settings.json"
@@ -41,6 +45,8 @@ export interface ListedEvent {
   externalUrl?: string
   tags?: Array<{ name: string; color: string }>
   isFeatured?: boolean
+  /** Other URLs that mean this same event (see mergeHostedEvents). */
+  aliases?: string[]
 }
 
 const CONFIG = ((settings as { events?: EventsConfig }).events ?? {}) as EventsConfig
@@ -83,13 +89,14 @@ export function applyHandManagedEvents(
   config: EventsConfig = CONFIG,
 ): ListedEvent[] {
   const featured = new Set((config.featured ?? []).map(eventKey))
-  const present = new Set(events.map((e) => eventKey(e.url)).filter(Boolean))
+  const keysOf = (e: ListedEvent) => [e.url, ...(e.aliases ?? [])].map(eventKey).filter(Boolean)
+  const present = new Set(events.flatMap(keysOf))
 
   const extra = (config.pinned ?? [])
     .filter((p) => new Date(p.startAt) >= now && !present.has(eventKey(p.url)))
     .map(fromPinned)
 
   return [...events, ...extra]
-    .map((e) => (featured.has(eventKey(e.url)) ? { ...e, isFeatured: true } : e))
+    .map((e) => (keysOf(e).some((key) => featured.has(key)) ? { ...e, isFeatured: true } : e))
     .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
 }

@@ -371,20 +371,9 @@
     ]
   },
   "events": {
-    "_comment": "Hand-managed events. `featured`: URLs shown as Featured on the homepage whatever their Luma tags. `pinned`: events not (yet) in the Commons Hub Luma calendar, listed until Luma has them (same URL → the Luma record wins) or until they are past.",
-    "featured": [
-      "https://luma.com/l9275g9x"
-    ],
-    "pinned": [
-      {
-        "name": "Commons Hub OPEN DAY",
-        "url": "https://luma.com/l9275g9x",
-        "startAt": "2026-10-04T09:30:00+02:00",
-        "endAt": "2026-10-04T18:00:00+02:00",
-        "coverImage": "https://images.lumacdn.com/uploads/dz/4cd6cf21-607f-48f7-b7f1-2f30c71e6fcd.png",
-        "description": "Open Commons Day at the Commons Hub! Join several workshops, pass by for some coffee and cake, and visit our space. And a kicker tournament!\n\nPs. Check out the Cooperatives Walk in Brussels on Oct 2nd as well: https://luma.com/hhfrzcha"
-      }
-    ]
+    "_comment": "Hand-managed events. `featured`: URLs shown as Featured on the homepage whatever their Luma tags. `pinned`: events not (yet) in the Commons Hub Luma calendar, listed until Luma has them or until they are past. Both match an event's URL or its aliases, so an event we host ourselves (src/settings/events/*.json, linked as /events/<slug>) is matched by its Luma URL and never listed twice — those events set `featured` in their own file.",
+    "featured": [],
+    "pinned": []
   },
   "door": {
     "_comment": "The #door channel: members post \"Open\" and the door bot answers; the day page reads it for who is in the space.",

@@ -1,3 +1,4 @@
+import { localCoverUrl } from "@/lib/event-cover";
 import { tierDir } from "@/lib/data-paths";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
@@ -224,8 +225,9 @@ function linkifyBareUrls(value: string): string {
 }
 
 function getCoverImageUrl(event: ExportEvent, baseUrl: string): string {
-  if (event.coverImageLocal) {
-    return new URL(`/data/${event.coverImageLocal}`, baseUrl).toString();
+  const local = localCoverUrl(event.coverImageLocal);
+  if (local) {
+    return new URL(local, baseUrl).toString();
   }
 
   const coverImage = event.coverImage || event.cover_url || "";

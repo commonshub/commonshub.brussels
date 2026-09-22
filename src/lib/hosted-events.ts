@@ -96,6 +96,12 @@ export interface HomepageEvent {
   externalUrl?: string;
   tags?: EventTag[];
   isFeatured?: boolean;
+  /**
+   * Other URLs that mean this same event — a hosted event's Luma page, which
+   * the card no longer links to. Hand-managed entries in settings.json match
+   * on these too, so the same event cannot be listed twice.
+   */
+  aliases?: string[];
 }
 
 export const hostedEvents: HostedEvent[] = [ocd2026, osv2027] as HostedEvent[];
@@ -118,6 +124,11 @@ function lumaSlug(url: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+/** The URLs this hosted event is also known by, now that it links to our page. */
+function hostedAliases(event: HostedEvent, ...extra: Array<string | undefined>): string[] {
+  return [event.links?.luma, ...extra].filter((url): url is string => !!url && url !== hostedEventPath(event));
 }
 
 function isSameEvent(hosted: HostedEvent, event: HomepageEvent): boolean {
@@ -155,6 +166,7 @@ export function mergeHostedEvents(
         externalPlatform: undefined,
         externalUrl: undefined,
         isFeatured: existing.isFeatured || !!event.featured,
+        aliases: hostedAliases(event, existing.url),
       };
       continue;
     }
@@ -170,6 +182,7 @@ export function mergeHostedEvents(
       isExternal: false,
       tags: event.tags || [],
       isFeatured: !!event.featured,
+      aliases: hostedAliases(event),
     });
   }
 
