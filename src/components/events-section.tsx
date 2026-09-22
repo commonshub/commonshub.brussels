@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Star, Rss, Mail } from "lucide-react";
 import Link from "next/link";
 import settings from "@/settings/settings.json";
-import { displayUrl } from "@/lib/utils";
+import { shortenUrls } from "@/lib/plain-text";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
 interface EventTag {
   name: string;
@@ -61,17 +61,11 @@ function EventCard({
   // Hosted events have a page on this site; everything else opens Luma etc.
   const isOwnPage = !!eventUrl?.startsWith("/");
 
-  // Helper function to shorten URLs in text
-  const shortenUrlsInText = (text: string): string => {
-    const urlRegex = /https?:\/\/[^\s]+/g;
-    return text.replace(urlRegex, (url) => displayUrl(url, 40));
-  };
-
-  // Get first 2 lines of description (roughly 150 chars) and shorten any URLs
+  // First couple of lines, with long URLs cut down to something that fits a
+  // phone-width card (see shortenUrls).
   const shortDescription = event.description
-    ? shortenUrlsInText(
-        event.description.substring(0, 150).replace(/\n/g, " ").trim()
-      ) + (event.description.length > 150 ? "..." : "")
+    ? shortenUrls(event.description.substring(0, 150).replace(/\n/g, " ").trim()) +
+      (event.description.length > 150 ? "..." : "")
     : "";
 
   return (

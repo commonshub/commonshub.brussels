@@ -6,7 +6,7 @@
 
 import { isServableDataPath } from "./served-paths"
 import { fromZonedTime, toZonedTime } from "date-fns-tz"
-import { htmlToPlainText, redactContactDetails } from "./plain-text"
+import { htmlToPlainText, redactContactDetails, shortenUrls, tokensWording } from "./plain-text"
 import { isPublicEvent, unwrapGoogleRedirect } from "./public-events"
 
 export const HUB_TZ = "Europe/Brussels"
@@ -111,7 +111,7 @@ function coverFor(event: { coverImageLocal?: string; coverImage?: string }): str
 
 function cleanText(text: string | undefined): string | undefined {
   if (!text) return undefined
-  const cleaned = redactContactDetails(htmlToPlainText(text)).trim()
+  const cleaned = tokensWording(shortenUrls(redactContactDetails(htmlToPlainText(text)))).trim()
   return cleaned || undefined
 }
 

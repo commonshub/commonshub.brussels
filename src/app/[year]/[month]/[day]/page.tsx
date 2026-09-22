@@ -51,14 +51,14 @@ function Item({ item }: { item: ScheduleItem }) {
       <div className="w-24 shrink-0 text-sm tabular-nums text-muted-foreground sm:w-28">{time}</div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`font-semibold ${hidden ? "text-muted-foreground" : "text-foreground"}`}>{item.title}</span>
+          <span className={`min-w-0 break-words font-semibold ${hidden ? "text-muted-foreground" : "text-foreground"}`}>{item.title}</span>
           <Badge variant={isBooking ? "outline" : "secondary"}>{isBooking ? "booking" : "public event"}</Badge>
         </div>
         <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           {item.roomName}
         </div>
-        {item.description && <p className="mt-2 line-clamp-3 whitespace-pre-line text-sm text-muted-foreground">{item.description}</p>}
+        {item.description && <p className="mt-2 line-clamp-3 break-words whitespace-pre-line text-sm text-muted-foreground">{item.description}</p>}
       </div>
     </div>
   )
