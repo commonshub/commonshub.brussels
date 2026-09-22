@@ -120,7 +120,10 @@ export default async function DayPage({ params }: PageProps) {
 
       <section className="py-8 sm:py-12 bg-background">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-[1fr_320px] lg:gap-10">
-          <div className="flex flex-col gap-5">
+          {/* min-w-0: a grid item's automatic minimum is its content's
+              min-content width, so without this a long booking description
+              widens the column past the screen instead of wrapping. */}
+          <div className="flex min-w-0 flex-col gap-5">
             {!member && (
               <SignInPrompt>
                 <Lock className="mr-1 inline h-4 w-4" />
@@ -141,7 +144,7 @@ export default async function DayPage({ params }: PageProps) {
             </div>
           </div>
 
-          <aside className="flex flex-col gap-8">
+          <aside className="flex min-w-0 flex-col gap-8">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-foreground sm:text-xl">
                 <DoorOpen className="h-5 w-5 text-primary" />
