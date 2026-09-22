@@ -36,8 +36,10 @@ kept in `localStorage`); a member may have several, one per device.
 - **Attestation — kind 31926** (signed by the site, acting as identity
   provider): `d = discord:<user id>`, one `p` tag per key the site has
   verified for that member (they signed in with Discord and used the key),
-  `content = {"name": "…"}`. Addressable: each republish carries the
-  complete current list; a key missing from it is unlinked.
+  one `["role","steward"]` tag when the member holds a steward role on
+  Discord, `content = {"name": "…", "roles": ["steward"]}`. Addressable:
+  each republish carries the complete current list; a key missing from it
+  is unlinked, a role missing from it is revoked.
 
 To keep a `discord user id → [npubs]` map, subscribe to
 `{"kinds":[31926],"authors":["<site pubkey>"]}`; the site's pubkey is in
@@ -61,13 +63,29 @@ it attests can write with their own keys. Drop a `p` tag to revoke.
   14:30–17:30, 17:30–20:30, 20:30–22:30, three people each.
 - **RSVP — kind 31925** (signed by the member): `["a","31923:<coordinator>:shift-…"]`,
   `d = rsvp-<guild id>-<date>-<HHMM>`, `status` = `accepted` or `declined`,
-  `["p","<coordinator>"]`, `["t","shift"]`. Latest per (author, `d`) wins, so
-  cancelling is republishing with `declined`.
+  `["p","<coordinator>"]`, `["t","shift"]`. Cancelling is republishing with
+  `declined`.
+- **RSVP on behalf of someone** (signed by a steward): the same, plus
+  `["discord","<attendee user id>"]`, `["name","<attendee>"]`, `["t","on-behalf"]`
+  and `d = rsvp-<guild id>-<date>-<HHMM>-discord:<attendee user id>` (one
+  `d` per attendee, so a steward can book several people). Readers honour
+  it only when the signer's attestation carries `["role","steward"]`, or the
+  signer is the coordinator itself (the site's own older sign-ups).
+
+  **Who is on a shift** = per (attendee, slot) the newest accepted RSVP,
+  whoever signed it. The attendee is the `discord` tag when present, else
+  the author's attested Discord id. So a member can cancel what a steward
+  booked for them (their own `declined` RSVP for that slot, newer), and a
+  steward can cancel what a member booked (a `declined` on-behalf RSVP).
 - **Community — kind 34550** (NIP-72, signed by the site): `d = dc<guild id>`.
 
 Read a day's sign-ups: `{"kinds":[31925],"#a":["31923:<coordinator>:shift-<guild>-<date>-0830", …]}`,
 then name the authors through the attestations (`{"kinds":[31926],"#p":[…]}`)
-and their profiles (`{"kinds":[0],"authors":[…]}`).
+and their profiles (`{"kinds":[0],"authors":[…]}`). The reference
+implementation is `parseSignups` in
+[`src/lib/nostr-conventions.ts`](https://github.com/commonshub/commonshub.brussels/blob/main/src/lib/nostr-conventions.ts),
+pure and unit-tested; the whole protocol from another app's point of view
+is in [`docs/website.md`](https://github.com/commonshub/commonshub.brussels/blob/main/docs/website.md).
 
 ## What the site does on a sign-up
 

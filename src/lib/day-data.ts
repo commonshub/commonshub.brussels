@@ -7,7 +7,7 @@
 
 import { readEventsForMonth } from "./dataset"
 import settings from "@/settings/settings.json"
-import { getChannelMessages, isDiscordConfigured } from "./discord"
+import { discordGet, getChannelMessages, isDiscordConfigured } from "./discord"
 import { type DiscordMessageLike, type DoorOpening, type PublicEventRecord, dayBounds, parseDoorOpenings } from "./day"
 import {
   KIND_ATTESTATION,
@@ -96,10 +96,31 @@ export async function loadShiftSignups(day: string): Promise<Signup[]> {
 }
 
 /** The line posted in #shifts, worded like the bot's /shifts command. */
-export function shiftDiscordLine(action: "signup" | "cancel", discordId: string, day: string, slot: ShiftSlot): string {
+export function shiftDiscordLine(action: "signup" | "cancel", discordId: string, day: string, slot: ShiftSlot, byDiscordId?: string): string {
   const date = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+  const via = byDiscordId && byDiscordId !== discordId ? `(by <@${byDiscordId}> via the website)` : "(via the website)"
   return action === "signup"
-    ? `🙋 <@${discordId}> signed up for a shift on **${date}** ${slot.start}-${slot.end} (via the website)`
-    : `❌ <@${discordId}> cancelled their shift on **${date}** ${slot.start}-${slot.end} (via the website)`
+    ? `🙋 <@${discordId}> signed up for a shift on **${date}** ${slot.start}-${slot.end} ${via}`
+    : `❌ <@${discordId}> cancelled their shift on **${date}** ${slot.start}-${slot.end} ${via}`
+}
+
+/** A guild member by id, as a steward may name them: only members with the member role. */
+export async function lookupMember(discordId: string): Promise<{ id: string; name: string; username?: string; avatar?: string } | null> {
+  if (!/^\d{5,25}$/.test(discordId) || !isDiscordConfigured()) return null
+  try {
+    const response = await discordGet(`/guilds/${settings.discord.guildId}/members/${discordId}`)
+    if (!response.ok) return null
+    const member = (await response.json()) as { user?: { id: string; username: string; global_name?: string | null; avatar?: string | null }; nick?: string | null; roles?: string[] }
+    if (!member.user || !member.roles?.includes(settings.discord.roles.member)) return null
+    return {
+      id: member.user.id,
+      name: (member.nick || member.user.global_name || member.user.username).slice(0, 60),
+      username: member.user.username,
+      avatar: member.user.avatar ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png?size=256` : undefined,
+    }
+  } catch (error) {
+    console.error("[day] member lookup failed:", error)
+    return null
+  }
 }
 

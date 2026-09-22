@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { isMember } from "@/lib/admin-check"
+import { isMember, isSteward } from "@/lib/admin-check"
 import { type DiscordIdentity, buildProfile, parseProfiles } from "@/lib/nostr-conventions"
 import { RELAYS, attestMember, ensureCommunityDefinition, memberProfile } from "@/lib/nostr-server"
 
@@ -40,7 +40,9 @@ export async function POST(request: Request) {
 
   try {
     await ensureCommunityDefinition()
-    const { keys, changed } = await attestMember(identity, pubkey)
+    // The attestation also carries the member's community roles: a steward's
+    // sign-ups on behalf of others are trusted through it.
+    const { keys, changed } = await attestMember(identity, pubkey, (await isSteward()) ? ["steward"] : [])
     const existing = await memberProfile(pubkey)
     const profile = existing ? parseProfiles([existing])[0] : null
     const needsProfile = !profile || !profile.name || profile.discordId !== user.discordId
