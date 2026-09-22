@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { readFileSync, existsSync, readdirSync, statSync, accessSync, constants } from "fs";
 import { join } from "path";
 import { DATA_DIR } from "@/lib/data-paths";
+import { latestIntegrity } from "@/lib/integrity";
 
 // Store when the application started (runtime)
 const startTime = new Date();
@@ -188,6 +189,12 @@ export async function GET() {
       },
       environment: process.env.NODE_ENV || "development",
       dataDir,
+      // The newest month's integrity manifest (chb's hash of the raw
+      // sources), so a mirror can check this deployment at a glance.
+      integrity: (() => {
+        const latest = latestIntegrity();
+        return latest ? { ...latest, url: "/integrity", json: `/api/integrity/${latest.month.replace("-", "/")}` } : null;
+      })(),
     };
 
     return NextResponse.json(response, {
