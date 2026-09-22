@@ -8,7 +8,8 @@ import { ShiftSignupPanel } from "@/components/day/shift-signup"
 import { SignInPrompt } from "@/components/day/sign-in-prompt"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { isMember } from "@/lib/admin-check"
+import { isMember, isSteward } from "@/lib/admin-check"
+import settings from "@/settings/settings.json"
 import {
   DAY_RE,
   type ScheduleItem,
@@ -78,6 +79,7 @@ export default async function DayPage({ params }: PageProps) {
   const session = await auth()
   const me = (session?.user as { discordId?: string } | undefined)?.discordId
   const member = !!me && (await isMember())
+  const steward = member && (await isSteward())
   const { start, end } = dayBounds(date)
 
   const [bookings, publicEvents, openings, signups] = await Promise.all([
@@ -185,7 +187,7 @@ export default async function DayPage({ params }: PageProps) {
               <p className="mt-1 text-sm text-muted-foreground">{SHIFTS_DESCRIPTION}</p>
               <div className="mt-3">
                 {member && me ? (
-                  <ShiftSignupPanel day={date} slots={SHIFT_SLOTS} initial={signups} me={me} maxPerSlot={MAX_SIGNUPS_PER_SLOT} relays={RELAYS} />
+                  <ShiftSignupPanel day={date} slots={SHIFT_SLOTS} initial={signups} me={me} maxPerSlot={MAX_SIGNUPS_PER_SLOT} relays={RELAYS} steward={steward} memberRoleId={settings.discord.roles.member} />
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {SHIFT_SLOTS.map((slot) => {

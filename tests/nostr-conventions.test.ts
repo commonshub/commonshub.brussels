@@ -68,7 +68,8 @@ describe("shifts", () => {
       at(doug, "cancel", slot, "2026-09-21T09:00:00Z"),
       at(doug, "signup", later, "2026-09-21T09:01:00Z"),
       { pubkey: ann, ...buildRsvp("signup", community, SITE, SITE, "2026-09-23", slot, when) },
-      { pubkey: "site", kind: KIND_RSVP, created_at: 1, tags: [["a", shiftCoordinate(SITE, community, DAY, later)], ["d", "legacy"], ["status", "accepted"], ["discord", "9"], ["name", "Legacy Lou"]], content: "" },
+      // The site's own older sign-ups named the member under the site key.
+      { pubkey: SITE, kind: KIND_RSVP, created_at: 1, tags: [["a", shiftCoordinate(SITE, community, DAY, later)], ["d", "legacy"], ["status", "accepted"], ["discord", "9"], ["name", "Legacy Lou"]], content: "" },
     ]
     const links = parseAttestations([{ pubkey: SITE, ...buildAttestation({ id: "100", name: "Doug D." }, [doug], community, SITE, when) }], [SITE])
     const profiles = parseProfiles([{ pubkey: zak, ...buildProfile({ id: "200", name: "Zak", avatar: "https://cdn/x.png" }, when) }])
@@ -79,6 +80,40 @@ describe("shifts", () => {
       ["Doug D.", "1130", "100"],
     ])
     expect(signups[1].picture).toBe("https://cdn/x.png")
+    expect(signups[0].signedBy?.name).toBe("the site")
+  })
+
+  test("a steward can sign someone else up and either side can cancel; non-stewards cannot", () => {
+    const steward = "d".repeat(64), doug = "a".repeat(64), rando = "e".repeat(64)
+    const forDoug = { id: "100", name: "Doug D." }
+    const rsvpFor = (pubkey: string, action: "signup" | "cancel", t: string, s = slot) => ({ pubkey, ...buildRsvp(action, community, SITE, SITE, DAY, s, new Date(t), forDoug) })
+    const links = parseAttestations(
+      [
+        { pubkey: SITE, ...buildAttestation({ id: "300", name: "Sam Steward" }, [steward], community, SITE, when, ["steward"]) },
+        { pubkey: SITE, ...buildAttestation({ id: "100", name: "Doug D." }, [doug], community, SITE, when) },
+      ],
+      [SITE],
+    )
+    expect(links.find((l) => l.discordId === "300")?.roles).toEqual(["steward"])
+
+    const template = buildRsvp("signup", community, SITE, SITE, DAY, slot, when, forDoug)
+    expect(template.tags).toContainEqual(["d", "rsvp-1280532848604086365-2026-09-22-0830-discord:100"])
+    expect(template.tags).toContainEqual(["discord", "100"])
+    expect(template.tags).toContainEqual(["t", "on-behalf"])
+
+    // Steward books Doug; a stranger's attempt is ignored.
+    let signups = parseSignups([rsvpFor(steward, "signup", "2026-09-20T10:00:00Z"), rsvpFor(rando, "signup", "2026-09-20T10:00:00Z", later)], SITE, community, DAY, [slot, later], links, [])
+    expect(signups.map((s) => [s.name, s.slotCode, s.discordId, s.signedBy?.name])).toEqual([["Doug D.", "0830", "100", "Sam Steward"]])
+    expect(signups[0].pubkey).toBe(doug)
+
+    // Doug cancels it himself with his own key: newest per (attendee, slot) wins.
+    const dougCancels = { pubkey: doug, ...buildRsvp("cancel", community, SITE, SITE, DAY, slot, new Date("2026-09-21T10:00:00Z")) }
+    expect(parseSignups([rsvpFor(steward, "signup", "2026-09-20T10:00:00Z"), dougCancels], SITE, community, DAY, [slot], links, [])).toEqual([])
+
+    // And the steward can cancel what Doug booked himself.
+    const dougSigns = { pubkey: doug, ...buildRsvp("signup", community, SITE, SITE, DAY, slot, new Date("2026-09-20T10:00:00Z")) }
+    expect(parseSignups([dougSigns, rsvpFor(steward, "cancel", "2026-09-21T10:00:00Z")], SITE, community, DAY, [slot], links, [])).toEqual([])
+    expect(parseSignups([dougSigns], SITE, community, DAY, [slot], links, [])).toHaveLength(1)
   })
 })
 
@@ -98,6 +133,6 @@ describe("identity", () => {
     expect(first.kind).toBe(KIND_ATTESTATION)
     expect(first.tags).toContainEqual(["d", "discord:100"])
     const links = parseAttestations([second, first, rogue], [SITE])
-    expect(links).toEqual([{ discordId: "100", name: "Doug", keys: [k1, k2] }])
+    expect(links).toEqual([{ discordId: "100", name: "Doug", keys: [k1, k2], roles: [] }])
   })
 })

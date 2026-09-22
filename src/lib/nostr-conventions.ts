@@ -16,6 +16,12 @@
  *     them. Republishing replaces the list; dropping a key unlinks it.
  *   - A shift is a NIP-52 occurrence (31923) of the coordinator, with a
  *     deterministic d, and a sign-up is a NIP-52 RSVP (31925) by the member.
+ *   - A steward may sign someone else up: the RSVP is signed by the steward,
+ *     names the attendee with ["discord","<user id>"] and carries
+ *     ["t","on-behalf"]; readers accept it only when the author's attestation
+ *     carries ["role","steward"] or the author is the coordinator itself.
+ *     Per (attendee, slot) the newest RSVP wins whoever signed it, so a
+ *     member can cancel what a steward booked and the other way round.
  *
  * Pure: no I/O, so the shapes can be tested.
  */
@@ -134,7 +140,11 @@ export function buildShiftOccurrence(
   }
 }
 
-/** The member's RSVP, to sign with their own key. */
+/**
+ * The member's RSVP, to sign with their own key — or, with `onBehalfOf`, a
+ * steward's RSVP for another member: the attendee is named by Discord id,
+ * the d is distinct per attendee so one steward can book several people.
+ */
 export function buildRsvp(
   action: "signup" | "cancel",
   community: Community,
@@ -143,19 +153,23 @@ export function buildRsvp(
   day: string,
   slot: ShiftSlot,
   now = new Date(),
+  onBehalfOf?: DiscordIdentity,
 ): Template {
+  const base = `rsvp-${community.guildId}-${day}-${slotCode(slot)}`
+  const who = onBehalfOf ? `${onBehalfOf.name} ` : ""
   return {
     kind: KIND_RSVP,
     created_at: nowSeconds(now),
     tags: [
       ["a", shiftCoordinate(coordinator, community, day, slot)],
-      ["d", `rsvp-${community.guildId}-${day}-${slotCode(slot)}`],
+      ["d", onBehalfOf ? `${base}-discord:${onBehalfOf.id}` : base],
       ["status", action === "signup" ? "accepted" : "declined"],
       ["p", coordinator],
       ["t", "shift"],
+      ...(onBehalfOf ? [["discord", onBehalfOf.id], ["name", onBehalfOf.name], ["t", "on-behalf"]] : []),
       ...baseTags(community, sitePubkey),
     ],
-    content: action === "signup" ? `Signed up for the ${slotLabel(slot)} shift on ${day}` : `Can no longer do the ${slotLabel(slot)} shift on ${day}`,
+    content: action === "signup" ? `Signed up ${who}for the ${slotLabel(slot)} shift on ${day}` : `${who ? who.trim() + " can" : "Can"} no longer do the ${slotLabel(slot)} shift on ${day}`,
   }
 }
 
@@ -181,17 +195,23 @@ export function buildProfile(user: DiscordIdentity, now = new Date()): Template 
   }
 }
 
+/** Community roles the site attests, as it sees them on Discord. */
+export type MemberRole = "steward"
+
 /**
  * The site's attestation that these keys belong to this Discord member.
  * `keys` must be the complete current list: the event replaces the last one.
+ * `roles` are the member's community roles (["role","steward"]), which is
+ * what lets readers trust their sign-ups on behalf of others.
  */
-export function buildAttestation(user: DiscordIdentity, keys: string[], community: Community, sitePubkey: string, now = new Date()): Template {
+export function buildAttestation(user: DiscordIdentity, keys: string[], community: Community, sitePubkey: string, now = new Date(), roles: MemberRole[] = []): Template {
   const unique = [...new Set(keys.filter((k) => /^[0-9a-f]{64}$/.test(k)))]
+  const uniqueRoles = [...new Set(roles)]
   return {
     kind: KIND_ATTESTATION,
     created_at: nowSeconds(now),
-    tags: [["d", `discord:${user.id}`], ...unique.map((k) => ["p", k]), ...baseTags(community, sitePubkey)],
-    content: JSON.stringify({ name: user.name }),
+    tags: [["d", `discord:${user.id}`], ...unique.map((k) => ["p", k]), ...uniqueRoles.map((r) => ["role", r]), ...baseTags(community, sitePubkey)],
+    content: JSON.stringify({ name: user.name, ...(uniqueRoles.length ? { roles: uniqueRoles } : {}) }),
   }
 }
 
@@ -212,6 +232,8 @@ export interface MemberLink {
   discordId: string
   name?: string
   keys: string[]
+  /** Community roles from the attestation's ["role", …] tags. */
+  roles: string[]
 }
 
 /** discord id → keys, from attestations by trusted providers (newest per d). */
@@ -228,9 +250,10 @@ export function parseAttestations(events: SignedLike[], providers: string[]): Me
     } catch {
       /* no name */
     }
-    const link = out.get(discordId) ?? { discordId, name, keys: [] }
+    const link = out.get(discordId) ?? { discordId, name, keys: [], roles: [] }
     link.name = link.name ?? name
     for (const key of tags(event, "p")) if (!link.keys.includes(key)) link.keys.push(key)
+    for (const role of tags(event, "role")) if (!link.roles.includes(role)) link.roles.push(role)
     out.set(discordId, link)
   }
   return [...out.values()]
@@ -258,6 +281,7 @@ export function parseProfiles(events: SignedLike[]): ProfileInfo[] {
 }
 
 export interface Signup {
+  /** The attendee's key, or the signer's when a steward booked them. */
   pubkey: string
   discordId?: string
   name: string
@@ -265,11 +289,17 @@ export interface Signup {
   slotCode: string
   day: string
   at: string
+  /** Set when a steward signed this member up: who did it. */
+  signedBy?: { pubkey: string; discordId?: string; name: string }
 }
 
 /**
- * Current sign-ups for a day: newest RSVP per (author, d) wins, accepted
- * only; the author is named through the attestations and profiles.
+ * Current sign-ups for a day. Per (attendee, slot) the newest RSVP wins,
+ * whoever signed it — the member or a steward on their behalf — and only
+ * accepted ones remain. Attendees are named through the attestations and
+ * profiles. An RSVP that names someone else is honoured only when its
+ * author is the coordinator (the site's own older sign-ups) or attested
+ * as a steward.
  */
 export function parseSignups(
   rsvps: SignedLike[],
@@ -283,29 +313,48 @@ export function parseSignups(
   const codeByCoordinate = new Map(slots.map((slot) => [shiftCoordinate(coordinator, community, day, slot), slotCode(slot)]))
   const linkByKey = new Map<string, MemberLink>()
   for (const link of links) for (const key of link.keys) linkByKey.set(key, link)
+  const linkByDiscord = new Map(links.map((l) => [l.discordId, l]))
   const profileByKey = new Map(profiles.map((p) => [p.pubkey, p]))
+  const profileByDiscord = new Map(profiles.filter((p) => p.discordId).map((p) => [p.discordId!, p]))
 
-  return latestAddressable(rsvps.filter((e) => e.kind === KIND_RSVP))
-    .filter((event) => (tag(event, "status") ?? "accepted") === "accepted")
-    .flatMap((event) => {
-      const code = tags(event, "a").map((a) => codeByCoordinate.get(a)).find(Boolean)
-      if (!code) return []
-      const link = linkByKey.get(event.pubkey)
-      const profile = profileByKey.get(event.pubkey)
-      // Sign-ups the site made under its own key, before members had keys.
-      const legacyDiscord = tag(event, "discord")
-      const legacyName = tag(event, "name")
-      return [
-        {
-          pubkey: event.pubkey,
-          discordId: link?.discordId ?? profile?.discordId ?? legacyDiscord,
-          name: profile?.name || link?.name || legacyName || `${event.pubkey.slice(0, 8)}…`,
-          picture: profile?.picture,
-          slotCode: code,
-          day,
-          at: new Date(event.created_at * 1000).toISOString(),
-        },
-      ]
-    })
+  const nameOf = (pubkey: string | undefined, discordId: string | undefined, fallback?: string) => {
+    const profile = (pubkey && profileByKey.get(pubkey)) || (discordId && profileByDiscord.get(discordId)) || undefined
+    const link = (pubkey && linkByKey.get(pubkey)) || (discordId && linkByDiscord.get(discordId)) || undefined
+    return { name: profile?.name || link?.name || fallback || `${(pubkey ?? "").slice(0, 8)}…`, picture: profile?.picture }
+  }
+
+  // Newest RSVP per (attendee, slot), whoever signed it.
+  const latest = new Map<string, { event: SignedLike; signup: Signup }>()
+  for (const event of rsvps.filter((e) => e.kind === KIND_RSVP)) {
+    const code = tags(event, "a").map((a) => codeByCoordinate.get(a)).find(Boolean)
+    if (!code) continue
+    const authorLink = linkByKey.get(event.pubkey)
+    const authorProfile = profileByKey.get(event.pubkey)
+    const authorDiscord = authorLink?.discordId ?? authorProfile?.discordId
+    const named = tag(event, "discord")
+    const onBehalf = !!named && named !== authorDiscord
+    if (onBehalf && event.pubkey !== coordinator && !authorLink?.roles.includes("steward")) continue
+
+    const attendeeDiscord = named ?? authorDiscord
+    const attendeeKey = onBehalf ? linkByDiscord.get(named)?.keys[0] : event.pubkey
+    const who = nameOf(attendeeKey, attendeeDiscord, tag(event, "name"))
+    const signup: Signup = {
+      pubkey: attendeeKey ?? event.pubkey,
+      discordId: attendeeDiscord,
+      name: who.name,
+      picture: who.picture,
+      slotCode: code,
+      day,
+      at: new Date(event.created_at * 1000).toISOString(),
+      ...(onBehalf ? { signedBy: { pubkey: event.pubkey, discordId: authorDiscord, name: nameOf(event.pubkey, authorDiscord, event.pubkey === coordinator ? "the site" : undefined).name } } : {}),
+    }
+    const key = `${attendeeDiscord ?? event.pubkey}:${code}`
+    const current = latest.get(key)
+    if (!current || current.event.created_at < event.created_at) latest.set(key, { event, signup })
+  }
+
+  return [...latest.values()]
+    .filter(({ event }) => (tag(event, "status") ?? "accepted") === "accepted")
+    .map(({ signup }) => signup)
     .sort((a, b) => a.at.localeCompare(b.at))
 }

@@ -14,6 +14,20 @@ export async function isMember(): Promise<boolean> {
 }
 
 /**
+ * Whether the signed-in user holds a steward role on the guild: any role
+ * whose name contains "steward" (as the /stewards page defines it), or the
+ * role id in settings.discord.roles.steward when one is configured.
+ */
+export async function isSteward(): Promise<boolean> {
+  const session = await auth();
+  const user = session?.user as { roles?: string[]; roleDetails?: Array<{ id: string; name: string }> } | undefined;
+  if (!user) return false;
+  const stewardRoleId = (settings.discord.roles as { steward?: string }).steward;
+  if (stewardRoleId && user.roles?.includes(stewardRoleId)) return true;
+  return (user.roleDetails ?? []).some((role) => role.name.toLowerCase().includes("steward"));
+}
+
+/**
  * Check if the current user is an admin of the Discord guild
  * Admins are users who have the Administrator permission flag
  */

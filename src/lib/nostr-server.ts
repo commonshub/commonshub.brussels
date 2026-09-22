@@ -26,6 +26,7 @@ import {
   KIND_SHIFT,
   type Community,
   type DiscordIdentity,
+  type MemberRole,
   type ShiftSlot,
   type Template,
   buildAttestation,
@@ -136,14 +137,15 @@ export async function ensureShiftOccurrence(day: string, slot: ShiftSlot, capaci
  * attestation's keys are kept (a member may have several devices, each
  * with its own key), so the published list is always complete.
  */
-export async function attestMember(user: DiscordIdentity, pubkey: string): Promise<{ keys: string[]; changed: boolean }> {
+export async function attestMember(user: DiscordIdentity, pubkey: string, roles: MemberRole[] = []): Promise<{ keys: string[]; changed: boolean }> {
   const identity = siteIdentity()
   if (!identity) throw new Error("No Nostr identity")
   const previous = await queryRelays({ kinds: [KIND_ATTESTATION], authors: [identity.pubkey], "#d": [`discord:${user.id}`] })
   const known = parseAttestations(previous, [identity.pubkey]).find((l) => l.discordId === user.id)
   const keys = [...new Set([...(known?.keys ?? []), pubkey])]
-  const changed = !known || !known.keys.includes(pubkey) || known.name !== user.name
-  if (changed) await publishAsSite(buildAttestation(user, keys, COMMUNITY, identity.pubkey))
+  const sameRoles = known ? known.roles.length === roles.length && roles.every((r) => known.roles.includes(r)) : roles.length === 0
+  const changed = !known || !known.keys.includes(pubkey) || known.name !== user.name || !sameRoles
+  if (changed) await publishAsSite(buildAttestation(user, keys, COMMUNITY, identity.pubkey, new Date(), roles))
   return { keys, changed }
 }
 
