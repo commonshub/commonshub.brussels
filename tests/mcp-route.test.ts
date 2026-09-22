@@ -40,7 +40,7 @@ describe("/mcp route", () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "chb-mcp-"));
-    writeJson(path.join(tmpDir, "2026", "05", "generated", "transactions.json"), {
+    writeJson(path.join(tmpDir, "2026", "05", "public", "transactions.json"), {
       year: "2026",
       month: "05",
       transactions: [
@@ -48,18 +48,18 @@ describe("/mcp route", () => {
         { id: "tx-2", type: "BURN", amount: 25, timestamp: 1770000010 },
       ],
     });
-    writeJson(path.join(tmpDir, "2026", "05", "generated", "contributors.json"), {
+    writeJson(path.join(tmpDir, "2026", "05", "public", "contributors.json"), {
       year: "2026",
       month: "05",
       summary: { totalContributors: 1 },
       contributors: [{ id: "alice" }],
     });
-    writeJson(path.join(tmpDir, "2026", "05", "generated", "events.json"), {
+    writeJson(path.join(tmpDir, "2026", "05", "public", "events.json"), {
       month: "05",
       events: [{ id: "evt-1", name: "Assembly", source: "luma" }],
     });
-    writeJson(path.join(tmpDir, "2026", "05", "generated", "calendars", "public.ics"), "BEGIN:VCALENDAR");
-    writeJson(path.join(tmpDir, "latest", "generated", "rooms.json"), {
+    writeJson(path.join(tmpDir, "2026", "05", "public", "calendars", "public.ics"), "BEGIN:VCALENDAR");
+    writeJson(path.join(tmpDir, "latest", "public", "rooms.json"), {
       rooms: [{ id: "main", name: "Main room" }],
     });
   });
@@ -106,7 +106,7 @@ describe("/mcp route", () => {
     ]);
   });
 
-  it("summarizes public periods and generated dataset files", async () => {
+  it("summarizes public periods and dataset files", async () => {
     const { POST } = await loadRoute(tmpDir, "secret");
     const response = await POST(mcpRequest({
       jsonrpc: "2.0",
@@ -127,7 +127,7 @@ describe("/mcp route", () => {
     ]));
   });
 
-  it("reads only allowlisted public generated files", async () => {
+  it("reads only allowlisted public files", async () => {
     const { POST } = await loadRoute(tmpDir, "secret");
     const response = await POST(mcpRequest({
       jsonrpc: "2.0",

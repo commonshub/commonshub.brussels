@@ -810,7 +810,7 @@ function DetailRow({
 /**
  * Reveal panel shown below a row when a member clicks on it.
  * Surfaces the raw chb tags + metadata + identifiers from
- * generated/transactions.json — useful for spot-checking what the
+ * the tier's transactions.json — useful for spot-checking what the
  * pipeline actually wrote for a given row. Identifiers are turned into
  * deep-links into the relevant dashboard/explorer when possible. The
  * Enrichment section is only populated when the parent passes the
@@ -1332,7 +1332,7 @@ export function FinanceTransactionTable({
 
   // Extract unique values for filter dropdowns
   // Best human-readable label for a row's counterparty: the annotated
-  // name from generated/counterparties.json, or null when there's no
+  // name from the tier's counterparties.json, or null when there's no
   // entry for this counterparty.
   function counterpartLabelForTx(tx: EnrichedTransaction): string | null {
     return counterpartyLabel(tx.counterpartyMetadata) || null;

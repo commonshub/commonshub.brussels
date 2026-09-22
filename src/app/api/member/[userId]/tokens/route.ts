@@ -1,3 +1,5 @@
+import { tierDir } from "@/lib/data-paths"
+import { isMember } from "@/lib/admin-check"
 import { NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
@@ -29,12 +31,7 @@ async function fetchDiscordContributions(userId: string): Promise<Map<string, Se
   const monthlyActiveDays = new Map<string, Set<string>>()
 
   try {
-    const contributorsPath = path.join(
-      DATA_DIR,
-      "latest",
-      "generated",
-      "contributors.json"
-    )
+    const contributorsPath = path.join(tierDir("public"), "contributors.json")
     if (!fs.existsSync(contributorsPath)) return monthlyActiveDays
     const contributorsData = JSON.parse(fs.readFileSync(contributorsPath, "utf-8"))
     const contributor = contributorsData.contributors?.find(
@@ -42,12 +39,9 @@ async function fetchDiscordContributions(userId: string): Promise<Map<string, Se
     )
     if (!contributor) return monthlyActiveDays
 
-    const profilePath = path.join(
-      DATA_DIR,
-      "generated",
-      "profiles",
-      `${contributor.username}.json`
-    )
+    // Profiles (a member's message timestamps) exist only in the members tier.
+    if (!(await isMember())) return monthlyActiveDays
+    const profilePath = path.join(tierDir("members"), "profiles", `${contributor.username}.json`)
     if (!fs.existsSync(profilePath)) return monthlyActiveDays
     const profile = JSON.parse(fs.readFileSync(profilePath, "utf-8"))
     const contributions = profile.contributions || []

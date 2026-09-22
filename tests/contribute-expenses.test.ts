@@ -158,10 +158,11 @@ describe("withoutPersonName", () => {
 describe("reading the dataset", () => {
   let dataDir: string
 
+  // chb's public-tier projection: the partner is inline for companies.
   beforeAll(() => {
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "contribute-"))
-    const root = path.join(dataDir, "2026", "07", "providers", "odoo", "commonshub")
-    fs.mkdirSync(path.join(root, "private"), { recursive: true })
+    const root = path.join(dataDir, "2026", "07", "public")
+    fs.mkdirSync(root, { recursive: true })
     fs.writeFileSync(
       path.join(root, "bills.json"),
       JSON.stringify({
@@ -172,25 +173,15 @@ describe("reading the dataset", () => {
             state: "posted",
             date: "2026-07-09",
             totalAmount: 54.45,
+            moveType: "in_invoice",
+            ref: "7604598980",
+            partner: { id: 1571, displayName: "Proximus SA de droit public", isCompany: true },
             lineItems: [
               { title: "[103] Business Internet Mega Fiber", displayType: "product" },
               { title: "Note", displayType: "line_note" },
             ],
           },
-          { id: 2, title: "orphan", state: "posted", date: "2026-07-10", totalAmount: 10 },
-        ],
-      }),
-    )
-    fs.writeFileSync(
-      path.join(root, "private", "bills.json"),
-      JSON.stringify({
-        bills: [
-          {
-            id: 1,
-            moveType: "in_invoice",
-            ref: "7604598980",
-            partner: { id: 1571, displayName: "Proximus SA de droit public", isCompany: true },
-          },
+          { id: 2, title: "unnamed", state: "posted", date: "2026-07-10", totalAmount: 10 },
         ],
       }),
     )
@@ -198,14 +189,22 @@ describe("reading the dataset", () => {
 
   afterAll(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-  test("joins the public and private halves and drops orphans", () => {
+  test("reads the public tier, partner inline when the projection carries it", () => {
     const bills = readMonthBills(dataDir, "2026", "07")!
-    expect(bills).toHaveLength(1)
+    expect(bills).toHaveLength(2)
     expect(bills[0]).toMatchObject({
       vendor: "Proximus SA de droit public",
       reference: "7604598980",
       lines: ["Business Internet Mega Fiber"],
     })
+    expect(bills[1]).toMatchObject({ vendor: "", reference: "unnamed" })
+  })
+
+  test("never reads the provider archive", () => {
+    const archive = path.join(dataDir, "2026", "04", "providers", "odoo", "commonshub")
+    fs.mkdirSync(archive, { recursive: true })
+    fs.writeFileSync(path.join(archive, "bills.json"), JSON.stringify({ bills: [{ id: 3, title: "x", state: "posted", date: "2026-04-01", totalAmount: 1 }] }))
+    expect(readMonthBills(dataDir, "2026", "04")).toBeNull()
   })
 
   test("a month with no export is skipped, not an error", () => {
@@ -215,8 +214,8 @@ describe("reading the dataset", () => {
     expect(expenses.oneTime).toEqual([])
   })
 
-  test("a month with only the public half still yields its bills, unnamed", () => {
-    const root = path.join(dataDir, "2026", "05", "providers", "odoo", "commonshub")
+  test("a bill without a partner still yields its expense, unnamed", () => {
+    const root = path.join(dataDir, "2026", "05", "public")
     fs.mkdirSync(root, { recursive: true })
     fs.writeFileSync(
       path.join(root, "bills.json"),

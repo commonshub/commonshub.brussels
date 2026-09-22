@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { isProxyableImageUrl } from "@/lib/image-proxy-server";
 import {
   mergeHostedEvents,
@@ -42,7 +43,7 @@ function cacheDurationFor(events: HomepageEvent[]): number {
  */
 function loadUpcomingEvents(): HomepageEvent[] {
   const now = new Date();
-  const eventsPath = path.join(DATA_DIR, "latest", "generated", "events.json");
+  const eventsPath = path.join(tierDir("public"), "events.json");
 
   if (!fs.existsSync(eventsPath)) {
     console.log("[events] Events file not found:", eventsPath);

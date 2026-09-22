@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -6,7 +7,7 @@ import { DATA_DIR } from "@/lib/data-paths";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const filePath = path.join(DATA_DIR, "latest", "generated", "events.md");
+  const filePath = path.join(tierDir("public"), "events.md");
 
   if (!fs.existsSync(filePath)) {
     return new NextResponse("Events markdown not yet generated", {

@@ -1,6 +1,5 @@
+import { readEventsForMonth } from "@/lib/dataset";
 import { notFound } from "next/navigation";
-import * as fs from "fs";
-import * as path from "path";
 import Link from "next/link";
 import { ArrowLeft, Calendar, MapPin, Users, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,17 +52,9 @@ const MONTH_NAMES = [
  * Load events for a specific month
  */
 async function loadEvents(year: string, month: string): Promise<Event[]> {
-  const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-  const filePath = path.join(dataDir, year, month, "events.json");
-
-  if (!fs.existsSync(filePath)) {
-    return [];
-  }
-
   try {
-    const fileContent = fs.readFileSync(filePath, "utf-8");
-    const data: EventsFile = JSON.parse(fileContent);
-    return (data.events || []).filter((event) => isPublicEvent(event)).map((event) => ({
+    const events = readEventsForMonth("public", year, month) as unknown as Event[];
+    return events.filter((event) => isPublicEvent(event)).map((event) => ({
       ...event,
       description: event.description ? redactContactDetails(htmlToPlainText(event.description)) : event.description,
     }));

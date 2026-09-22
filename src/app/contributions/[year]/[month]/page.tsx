@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths"
 import { notFound } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
@@ -114,7 +115,7 @@ export default async function MonthlyContributionsPage({ params }: PageProps) {
 
   try {
     // Read images from static file
-    const imagesPath = path.join(dataDir, year, month, "generated", "images.json")
+    const imagesPath = path.join(tierDir("public", year, month), "images.json")
     if (!fs.existsSync(imagesPath)) {
       throw new Error(`Images file not found: ${imagesPath}`)
     }

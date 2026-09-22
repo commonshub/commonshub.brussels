@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import settings from "@/settings/settings.json";
-import { DATA_DIR } from "@/lib/data-paths";
+import { DATA_DIR, tierDir } from "@/lib/data-paths";
 import { isInternalTransfer } from "@/lib/transactions";
 import type { Transaction, TransactionsFile } from "@/types/transactions";
 
@@ -39,7 +39,7 @@ export interface AccountData {
   balance: number;
   /** Where `balance` came from: chb's live balances.json vs summing transactions. */
   balanceSource?: "live" | "derived";
-  /** Balance computed by summing generated transactions (for diagnostics). */
+  /** Balance computed by summing the dataset's transactions (for diagnostics). */
   derivedBalance?: number;
   totalInflow: number;
   totalOutflow: number;
@@ -61,7 +61,7 @@ export interface FinancialsOverview {
 const FINANCE_CACHE_FILE = path.join(DATA_DIR, "finance.json");
 
 /**
- * Get the last modified time of the most recently updated generated finance file.
+ * Get the last modified time of the most recently updated finance file.
  * Returns null if no files exist.
  */
 function getCurrentMonthLastModified(): number | null {
@@ -94,13 +94,13 @@ function getCurrentMonthLastModified(): number | null {
         .filter((dirent) => dirent.isDirectory() && /^\d{2}$/.test(dirent.name));
 
       for (const monthDir of monthDirs) {
-        const generatedDir = path.join(yearPath, monthDir.name, "generated");
-        if (!fs.existsSync(generatedDir)) continue;
-        for (const file of fs.readdirSync(generatedDir, {
+        const tierPath = tierDir("public", yearDir.name, monthDir.name);
+        if (!fs.existsSync(tierPath)) continue;
+        for (const file of fs.readdirSync(tierPath, {
           withFileTypes: true,
         })) {
           if (file.isFile() && file.name.endsWith(".json")) {
-            trackMtime(path.join(generatedDir, file.name));
+            trackMtime(path.join(tierPath, file.name));
           }
         }
       }
@@ -167,8 +167,8 @@ function transactionValue(tx: Transaction): number {
 }
 
 /**
- * Load normalized transactions for an account from the generated
- * data/year/month/generated/transactions.json files.
+ * Load normalized transactions for an account from the public tier's
+ * YYYY/MM/public/transactions.json files (amounts are the same in every tier).
  *
  * Generated transactions are keyed by `accountSlug`, which is the human slug
  * for on-chain accounts (savings, checking, …) but the provider account id for
@@ -203,12 +203,7 @@ function loadNormalizedTransactions(account: any): Transaction[] {
         .sort();
 
       for (const month of monthDirs) {
-        const transactionsPath = path.join(
-          yearPath,
-          month,
-          "generated",
-          "transactions.json"
-        );
+        const transactionsPath = path.join(tierDir("public", year, month), "transactions.json");
 
         if (!fs.existsSync(transactionsPath)) {
           continue;

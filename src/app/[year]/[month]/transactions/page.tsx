@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import { isAdmin, isMember } from "@/lib/admin-check";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FinanceTransactionTable } from "@/components/finance-transaction-table";
+import { tierFor } from "@/lib/data-paths";
 import {
   readMonthlyTransactions,
   readMonthlyCounterpartyMetadata,
-  readMonthlyEnrichments,
   augmentTransaction,
 } from "@/lib/transactions";
 
@@ -19,18 +19,16 @@ interface PageProps {
 export default async function MonthlyTransactionsPage({ params }: PageProps) {
   const { year, month } = await params;
 
-  const transactions = readMonthlyTransactions(year, month);
+  const [userIsAdmin, userIsMember] = await Promise.all([isAdmin(), isMember()]);
+  const canEdit = userIsAdmin || userIsMember;
+  // Members read the members tier (counterparty names inline), everyone
+  // else the public one. Never both.
+  const tier = tierFor(canEdit);
+  const transactions = readMonthlyTransactions(year, month, tier);
   if (transactions.length === 0) {
     notFound();
   }
-
-  const [userIsAdmin, userIsMember] = await Promise.all([isAdmin(), isMember()]);
-  const canEdit = userIsAdmin || userIsMember;
-  const counterpartyMetadataMap = readMonthlyCounterpartyMetadata(year, month);
-  // Enrichment data is PII (e.g., IBANs) — only forward to admins/members.
-  const enrichments = canEdit
-    ? Object.fromEntries(readMonthlyEnrichments(year, month))
-    : undefined;
+  const counterpartyMetadataMap = readMonthlyCounterpartyMetadata(year, month, tier);
 
   const augmentedTransactions = transactions
     .map((tx) => augmentTransaction(tx, counterpartyMetadataMap))
@@ -77,7 +75,6 @@ export default async function MonthlyTransactionsPage({ params }: PageProps) {
             showExportButton={true}
             useNormalizedAmount={true}
             viewScope="month"
-            enrichments={enrichments}
           />
         </CardContent>
       </Card>

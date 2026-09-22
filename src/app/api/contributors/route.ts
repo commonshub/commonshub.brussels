@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -9,7 +10,7 @@ import { publicContributors, type ContributorsFile } from "@/lib/contributors";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const filePath = path.join(DATA_DIR, "latest", "generated", "contributors.json");
+  const filePath = path.join(tierDir("public"), "contributors.json");
   if (!fs.existsSync(filePath)) {
     return NextResponse.json(
       { error: "Contributors data not available" },

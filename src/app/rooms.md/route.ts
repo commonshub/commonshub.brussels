@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -8,7 +9,7 @@ import { dataCacheHeaders } from "@/lib/data-route";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const filePath = path.join(DATA_DIR, "latest", "generated", "rooms.md");
+  const filePath = path.join(tierDir("public"), "rooms.md");
 
   if (!fs.existsSync(filePath)) {
     return new NextResponse("Rooms markdown not yet generated", {

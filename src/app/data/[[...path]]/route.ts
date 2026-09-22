@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -32,7 +33,9 @@ type Resolved =
   | { kind: "deep"; fsPath: string };
 
 function resolve(segments: string[]): Resolved | null {
-  if (segments.some((s) => s === "private" || s === "generated" || s === "..")) {
+  // The tier is chosen here, never by the URL: an admin browsing the
+  // dataset sees the members tier. stewards/ is unreadable by this process.
+  if (segments.some((s) => ["public", "members", "stewards", "generated", "private", ".."].includes(s))) {
     return null;
   }
 
@@ -43,7 +46,7 @@ function resolve(segments: string[]): Resolved | null {
   if (first === "latest") {
     return {
       kind: "deep",
-      fsPath: path.join(DATA_DIR, "latest", "generated", ...segments.slice(1)),
+      fsPath: path.join(tierDir("members"), ...segments.slice(1)),
     };
   }
 
@@ -52,7 +55,7 @@ function resolve(segments: string[]): Resolved | null {
     if (MONTH_RE.test(second)) {
       return {
         kind: "deep",
-        fsPath: path.join(DATA_DIR, first, second, "generated", ...rest),
+        fsPath: path.join(tierDir("members", first, second), ...rest),
       };
     }
   }
@@ -216,7 +219,7 @@ function renderDeep(
         : "/data";
     const entries: ListEntry[] = fs
       .readdirSync(fsPath, { withFileTypes: true })
-      .filter((e) => !e.name.startsWith(".") && e.name !== "private")
+      .filter((e) => !e.name.startsWith("."))
       .sort((a, b) => {
         if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
         return a.name.localeCompare(b.name);

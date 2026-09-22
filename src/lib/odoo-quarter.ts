@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { DATA_DIR } from "./data-paths";
+import { tierDir, tierFor } from "./data-paths";
 
 export type Quarter = 1 | 2 | 3 | 4;
 
@@ -195,44 +195,23 @@ export function loadQuarterlyOdoo(
   const missingMonths: string[] = [];
 
   for (const month of months) {
-    // chb writes the Odoo exports under providers/odoo/<org>/; the older
-    // finance/odoo layout is kept as a fallback for pre-migration datasets.
-    const providerRoot = path.join(DATA_DIR, year, month, "providers", "odoo", "commonshub");
-    const legacyRoot = path.join(DATA_DIR, year, month, "finance", "odoo");
-    const monthRoot = fs.existsSync(path.join(providerRoot, "invoices.json"))
-      ? providerRoot
-      : legacyRoot;
-    const pubInv = readJson<{ invoices: PublicRecord[] }>(path.join(monthRoot, "invoices.json"));
-    const prvInv = readJson<{ invoices: PrivateRecord[] }>(
-      path.join(monthRoot, "private", "invoices.json"),
-    );
-    const pubBill = readJson<{ bills: PublicRecord[] }>(path.join(monthRoot, "bills.json"));
-    const prvBill = readJson<{ bills: PrivateRecord[] }>(
-      path.join(monthRoot, "private", "bills.json"),
-    );
-
-    if (!pubInv && !prvInv && !pubBill && !prvBill) {
+    // chb projects the Odoo books into the audience tiers: the members tier
+    // carries partner names inline, the public one does not. One tier per
+    // viewer; the raw provider archive is never read.
+    const monthRoot = tierDir(tierFor(options.showPii), year, month);
+    const inv = readJson<{ invoices: Array<PublicRecord & PrivateRecord> }>(path.join(monthRoot, "invoices.json"));
+    const bill = readJson<{ bills: Array<PublicRecord & PrivateRecord> }>(path.join(monthRoot, "bills.json"));
+    if (!inv && !bill) {
       missingMonths.push(month);
       continue;
     }
-
-    if (pubInv && prvInv) {
-      const privMap = new Map(prvInv.invoices.map((r) => [r.id, r]));
-      for (const pub of pubInv.invoices) {
-        if (pub.state !== "posted") continue;
-        const priv = privMap.get(pub.id);
-        if (!priv) continue;
-        rows.push(buildRow(pub, priv, "invoice", month, options.showPii, showOdooLinks));
-      }
+    for (const rec of inv?.invoices ?? []) {
+      if (rec.state !== "posted") continue;
+      rows.push(buildRow(rec, rec, "invoice", month, options.showPii, showOdooLinks));
     }
-    if (pubBill && prvBill) {
-      const privMap = new Map(prvBill.bills.map((r) => [r.id, r]));
-      for (const pub of pubBill.bills) {
-        if (pub.state !== "posted") continue;
-        const priv = privMap.get(pub.id);
-        if (!priv) continue;
-        rows.push(buildRow(pub, priv, "bill", month, options.showPii, showOdooLinks));
-      }
+    for (const rec of bill?.bills ?? []) {
+      if (rec.state !== "posted") continue;
+      rows.push(buildRow(rec, rec, "bill", month, options.showPii, showOdooLinks));
     }
   }
 

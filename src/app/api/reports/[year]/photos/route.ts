@@ -1,78 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getAvailableMonths,
-  readDiscordMessages,
-  getAllPhotos,
-  getActiveMembers,
-  filterVisiblePhotos,
-  type UserSession,
-} from "@/lib/reports";
-import { auth } from "@/auth";
+import { isMember } from "@/lib/admin-check";
+import { tierFor } from "@/lib/data-paths";
+import { getAvailableMonths, photoAuthors, readGeneratedImages } from "@/lib/reports";
 
-export const revalidate = 86400; // 24 hours
+// Reads the dataset volume, so never prerender it.
+export const dynamic = "force-dynamic";
 
 interface RouteContext {
-  params: Promise<{
-    year: string;
-  }>;
+  params: Promise<{ year: string }>;
 }
 
-export async function GET(
-  request: NextRequest,
-  context: RouteContext
-) {
+/**
+ * GET /api/reports/[year]/photos → every photo of the year, newest first,
+ * from the viewer's tier (members also get the message text).
+ */
+export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { year } = await context.params;
-
-    // Validate year format
     if (!/^\d{4}$/.test(year)) {
-      return NextResponse.json(
-        { error: "Invalid year format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid year format" }, { status: 400 });
     }
 
-    // Get user session for filtering
-    const session = await auth();
-    const userSession: UserSession | null = session?.user
-      ? {
-          userId: session.user.discordId,
-          roles: session.user.roles || [],
-        }
-      : null;
-
-    // Get all available months for this year
     const months = getAvailableMonths(year);
-
     if (months.length === 0) {
-      return NextResponse.json(
-        { error: "No data available for this year" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "No data available for this year" }, { status: 404 });
     }
 
-    // Collect all messages from all months
-    const allMessages = months.flatMap((month) => readDiscordMessages(year, month));
+    const tier = tierFor(await isMember());
+    const photos = months
+      .flatMap((month) => readGeneratedImages(year, month, tier))
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
-    // Get all photos in chronological order (use relative URLs)
-    const allPhotos = getAllPhotos(allMessages, { relative: true });
-
-    // Filter photos based on user session and visibility rules
-    const photos = filterVisiblePhotos(allPhotos, allMessages, userSession);
-
-    // Get active members for userMap
-    const activeMembers = getActiveMembers(allMessages);
-
-    return NextResponse.json({
-      year,
-      photos,
-      activeMembers,
-    });
+    return NextResponse.json(
+      { year, photos, activeMembers: photoAuthors(photos) },
+      { headers: { "Cache-Control": "private, max-age=3600" } }
+    );
   } catch (error) {
     console.error("Error generating yearly photo gallery:", error);
-    return NextResponse.json(
-      { error: "Failed to generate photo gallery" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate photo gallery" }, { status: 500 });
   }
 }

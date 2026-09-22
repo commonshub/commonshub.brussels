@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
@@ -25,7 +26,7 @@ async function fetchDiscordMemberCount(): Promise<number> {
 
 async function fetchEventCount(): Promise<number> {
   try {
-    const eventsPath = path.join(DATA_DIR, "latest", "generated", "events.json")
+    const eventsPath = path.join(tierDir("public"), "events.json")
     if (!fs.existsSync(eventsPath)) return 0
 
     const data = JSON.parse(fs.readFileSync(eventsPath, "utf-8"))

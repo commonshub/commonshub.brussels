@@ -25,7 +25,7 @@ function loadMembership(dataDir: string, salt: string | undefined) {
 }
 
 function writeHistory(dataDir: string, memberId: string, body: object) {
-  const dir = path.join(dataDir, "latest", "generated", "restricted", "members");
+  const dir = path.join(dataDir, "latest", "members", "restricted", "members");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${memberId}.json`), JSON.stringify(body));
 }
@@ -119,7 +119,7 @@ describe("membership identity", () => {
     const id = "b".repeat(64);
     const file = memberHistoryPath(id)!;
     expect(path.dirname(file)).toBe(
-      path.join(dataDir, "latest", "generated", "restricted", "members")
+      path.join(dataDir, "latest", "members", "restricted", "members")
     );
     expect(path.basename(file)).toBe(`${id}.json`);
   });
@@ -132,7 +132,7 @@ describe("membership identity", () => {
     // does not go there, and that a private copy of the same id is not read.
     expect(memberHistoryPath(id)).not.toContain(`${path.sep}private${path.sep}`);
 
-    const privateDir = path.join(dataDir, "latest", "generated", "private", "members");
+    const privateDir = path.join(dataDir, "latest", "stewards", "private", "members");
     fs.mkdirSync(privateDir, { recursive: true });
     fs.writeFileSync(
       path.join(privateDir, `${id}.json`),
@@ -172,7 +172,7 @@ describe("identifier resolution", () => {
   });
 
   function writeIndex(identifiers: Record<string, string>) {
-    const dir = path.join(dataDir, "latest", "generated", "restricted");
+    const dir = path.join(dataDir, "latest", "members", "restricted");
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
       path.join(dir, "members-index.json"),

@@ -9,6 +9,9 @@ import { MemberBalance } from "@/components/member-balance";
 import { MemberProfileContent } from "@/components/member-profile-content";
 import fs from "fs";
 import path from "path";
+import { isMember } from "@/lib/admin-check";
+import { tierDir } from "@/lib/data-paths";
+import { SignInPrompt } from "@/components/day/sign-in-prompt";
 
 interface Contributor {
   id: string;
@@ -62,7 +65,52 @@ interface DiscordData {
 
 const guildId = settings.discord.guildId;
 
-async function getMemberData(username: string): Promise<{
+interface PublicContributor {
+  id: string;
+  profile?: { username?: string; name?: string; avatar_url?: string | null };
+  username?: string;
+  displayName?: string | null;
+  avatar?: string | null;
+  joinedAt?: string | null;
+  contributionCount?: number;
+}
+
+function readPublicContributors(): PublicContributor[] {
+  try {
+    const file = path.join(tierDir("public"), "contributors.json");
+    if (!fs.existsSync(file)) return [];
+    const data = JSON.parse(fs.readFileSync(file, "utf-8")) as { contributors?: PublicContributor[] };
+    return data.contributors ?? [];
+  } catch (error) {
+    console.error("Failed to read contributors:", error);
+    return [];
+  }
+}
+
+function toContributor(c: PublicContributor): Contributor {
+  const username = c.profile?.username ?? c.username ?? c.id;
+  return {
+    id: c.id,
+    username,
+    displayName: c.profile?.name ?? c.displayName ?? username,
+    avatar: c.profile?.avatar_url ?? c.avatar ?? null,
+    contributionCount: c.contributionCount ?? 0,
+    joinedAt: c.joinedAt ?? null,
+  };
+}
+
+/** What anyone may see: the contributor as listed in the public tier. */
+function getPublicMember(username: string): Contributor | null {
+  const found = readPublicContributors().find((c) => (c.profile?.username ?? c.username) === username);
+  return found ? toContributor(found) : null;
+}
+
+/**
+ * The full profile, which chb writes only into the members tier
+ * (latest/members/profiles/<username>.json): introductions, contributions,
+ * photos. Read for member sessions only.
+ */
+function getMemberData(username: string): {
   member: Contributor;
   introductions: Introduction[];
   contributions: Contribution[];
@@ -70,33 +118,20 @@ async function getMemberData(username: string): Promise<{
   imagesByMonth: Record<string, any[]>;
   userMap: Record<string, string>;
   channelMap: Record<string, string>;
-} | null> {
+} | null {
+  if (!/^[\w.-]+$/.test(username)) return null;
   try {
-    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
+    const profilePath = path.join(tierDir("members"), "profiles", `${username}.json`);
+    if (!fs.existsSync(profilePath)) return null;
+    const profile = JSON.parse(fs.readFileSync(profilePath, "utf-8"));
 
-    // Read the profile file directly from filesystem
-    const profilePath = path.join(dataDir, "generated", "profiles", `${username}.json`);
+    const userMap: Record<string, any> = Object.fromEntries(
+      readPublicContributors().map((c) => {
+        const contributor = toContributor(c);
+        return [c.id, { username: contributor.username, displayName: contributor.displayName }];
+      })
+    );
 
-    if (!fs.existsSync(profilePath)) {
-      console.error(`Profile not found for ${username}`);
-      return null;
-    }
-
-    const profileData = fs.readFileSync(profilePath, "utf-8");
-    const profile = JSON.parse(profileData);
-
-    // Read contributors file to build userMap
-    const contributorsPath = path.join(dataDir, "contributors.json");
-    let userMap: Record<string, any> = {};
-
-    if (fs.existsSync(contributorsPath)) {
-      const contributorsData = JSON.parse(fs.readFileSync(contributorsPath, "utf-8"));
-      userMap = Object.fromEntries(
-        contributorsData.contributors.map((c: any) => [c.id, { username: c.username, displayName: c.displayName }])
-      );
-    }
-
-    // Create member object from profile
     const member: Contributor = {
       id: profile.id,
       username: profile.username,
@@ -131,21 +166,16 @@ export const dynamic = 'force-dynamic';
 
 export default async function MemberProfilePage({ params }: MemberPageProps) {
   const { username } = await params;
-  const data = await getMemberData(username);
+  const viewerIsMember = await isMember();
+  const data = viewerIsMember ? getMemberData(username) : null;
+  const publicMember = data?.member ?? getPublicMember(username);
 
-  if (!data) {
+  if (!publicMember) {
     return <MemberNotFound />;
   }
 
-  const {
-    member,
-    introductions,
-    contributions,
-    totalContributions,
-    imagesByMonth,
-    userMap,
-    channelMap,
-  } = data;
+  const member = publicMember;
+  const { introductions = [], contributions = [], totalContributions = 0, imagesByMonth = {}, userMap = {}, channelMap = {} } = data ?? {};
 
   // Resolve local image paths for all messages
   const resolvedIntroductions = resolveMessagesImages(introductions);
@@ -196,16 +226,22 @@ export default async function MemberProfilePage({ params }: MemberPageProps) {
             <MemberBalance userId={member.id} />
           </div>
 
-          <MemberProfileContent
-            member={member}
-            resolvedIntroductions={resolvedIntroductions}
-            resolvedContributions={resolvedContributions}
-            totalContributions={totalContributions}
-            imagesByMonth={imagesByMonth}
-            userMap={userMap}
-            channelMap={channelMap}
-            guildId={guildId}
-          />
+          {data ? (
+            <MemberProfileContent
+              member={member}
+              resolvedIntroductions={resolvedIntroductions}
+              resolvedContributions={resolvedContributions}
+              totalContributions={totalContributions}
+              imagesByMonth={imagesByMonth}
+              userMap={userMap}
+              channelMap={channelMap}
+              guildId={guildId}
+            />
+          ) : viewerIsMember ? (
+            <p className="text-center text-sm text-muted-foreground">No detailed profile yet for {member.displayName}.</p>
+          ) : (
+            <SignInPrompt>Members can see {member.displayName}&apos;s introduction, contributions and photos.</SignInPrompt>
+          )}
 
           <div className="mt-8 flex justify-center">
             <Button asChild variant="outline">
