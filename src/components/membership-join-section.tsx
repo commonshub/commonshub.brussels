@@ -273,41 +273,43 @@ export function MembershipJoinSection() {
               Join as:
             </Label>
             <div className="flex justify-center">
-              <div className="inline-flex rounded-lg border border-border p-1 bg-muted/50">
+              {/* Wraps instead of overflowing: three fixed-width buttons do
+                  not fit a phone screen side by side. */}
+              <div className="flex w-full max-w-md flex-wrap justify-center gap-1 rounded-lg border border-border p-1 bg-muted/50">
                 <button
                   type="button"
                   onClick={() => setMemberType("individual")}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                  className={`flex flex-1 min-w-0 items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                     memberType === "individual"
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <User className="w-4 h-4" />
+                  <User className="hidden w-4 h-4 shrink-0 sm:block" />
                   Individual
                 </button>
                 <button
                   type="button"
                   onClick={() => setMemberType("community")}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                  className={`flex flex-1 min-w-0 items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                     memberType === "community"
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Users className="w-4 h-4" />
+                  <Users className="hidden w-4 h-4 shrink-0 sm:block" />
                   Community
                 </button>
                 <button
                   type="button"
                   onClick={() => setMemberType("organisation")}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                  className={`flex flex-1 min-w-0 items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                     memberType === "organisation"
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Building2 className="w-4 h-4" />
+                  <Building2 className="hidden w-4 h-4 shrink-0 sm:block" />
                   Organisation
                 </button>
               </div>
