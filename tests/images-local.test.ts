@@ -5,7 +5,7 @@ import fs from "fs"
 import os from "os"
 import path from "path"
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals"
-import { withLocalImages } from "@/app/api/images/route"
+import { withLocalImages } from "@/lib/images-local"
 
 describe("images API serves local copies", () => {
   let dataDir: string

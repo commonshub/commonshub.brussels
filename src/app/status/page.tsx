@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, GitBranch, Server, Timer, Loader2 } from "lucide-react";
+import { Clock, GitBranch, Server, Timer, Loader2, ShieldCheck } from "lucide-react";
 
 interface StatusData {
   status: string;
@@ -42,6 +42,17 @@ interface StatusData {
     timezone: string;
   };
   environment: string;
+  integrity: {
+    month: string;
+    providers: number;
+    files: number;
+    bytes: number;
+    hash: string;
+    generatedAt: string;
+    algorithm: string;
+    url: string;
+    json: string;
+  } | null;
   dataDir: {
     raw: string | null;
     resolved: string;
@@ -216,6 +227,51 @@ export default function StatusPage() {
                 <p className="text-sm">{data.server.timezone}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Data integrity: the newest month's hash of the raw sources */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Data Integrity
+            </CardTitle>
+            <CardDescription>
+              Hash of the raw sources behind the newest completed month, as computed by chb. Anyone holding the same sources can verify it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.integrity ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Month</p>
+                    <p className="text-sm font-mono">{data.integrity.month}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Sources</p>
+                    <p className="text-sm">
+                      {data.integrity.providers} providers · {data.integrity.files} files
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Month hash ({data.integrity.algorithm})</p>
+                  <code className="text-xs bg-muted px-2 py-1 rounded break-all">{data.integrity.hash}</code>
+                </div>
+                <div className="pt-2 flex flex-wrap gap-4">
+                  <a href={data.integrity.url} className="text-sm text-primary hover:underline">
+                    All months and per-provider hashes →
+                  </a>
+                  <a href={data.integrity.json} className="text-sm text-primary hover:underline">
+                    Raw manifest (JSON) →
+                  </a>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No integrity manifest on this host yet.</p>
+            )}
           </CardContent>
         </Card>
 
