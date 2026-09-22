@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -264,7 +265,7 @@ function eventToMarkdown(event: ExportEvent, baseUrl: string): string {
 }
 
 function loadEvents(): ExportEvent[] {
-  const eventsPath = path.join(DATA_DIR, "latest", "generated", "events.json");
+  const eventsPath = path.join(tierDir("public"), "events.json");
   const content = fs.readFileSync(eventsPath, "utf-8");
   const data = JSON.parse(content);
   return Array.isArray(data.events) ? data.events : [];

@@ -54,7 +54,7 @@ function getDataDirStatus() {
     writable = true;
   } catch {}
 
-  const eventsPath = join(resolved, "latest", "generated", "events.json");
+  const eventsPath = join(resolved, "latest", "public", "events.json");
   let upcomingEvents = 0;
   let latestEventsUpdatedAt: string | null = null;
   if (existsSync(eventsPath)) {

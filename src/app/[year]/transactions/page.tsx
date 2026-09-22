@@ -1,17 +1,14 @@
 import { notFound } from "next/navigation";
-import * as fs from "fs";
-import * as path from "path";
 import { isAdmin, isMember } from "@/lib/admin-check";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FinanceTransactionTable } from "@/components/finance-transaction-table";
-import { DATA_DIR } from "@/lib/data-paths";
+import { tierFor } from "@/lib/data-paths";
+import { listMonths } from "@/lib/dataset";
 import {
   readMonthlyTransactions,
   readMonthlyCounterpartyMetadata,
-  readMonthlyEnrichments,
   augmentTransaction,
 } from "@/lib/transactions";
-import type { EnrichmentEntry } from "@/lib/transactions";
 import type { CounterpartyMetadata } from "@/types/counterparties";
 import type { Transaction } from "@/types/transactions";
 
@@ -21,43 +18,26 @@ interface PageProps {
   }>;
 }
 
-function listMonths(year: string): string[] {
-  const yearPath = path.join(DATA_DIR, year);
-  if (!fs.existsSync(yearPath)) return [];
-  return fs
-    .readdirSync(yearPath, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && /^\d{2}$/.test(d.name))
-    .map((d) => d.name)
-    .sort();
-}
 
 export default async function YearlyTransactionsPage({ params }: PageProps) {
   const { year } = await params;
-  const months = listMonths(year);
+  const [userIsAdmin, userIsMember] = await Promise.all([isAdmin(), isMember()]);
+  const canEdit = userIsAdmin || userIsMember;
+  // Members read the members tier (counterparty names inline), everyone
+  // else the public tier. One tier per viewer, never merged.
+  const tier = tierFor(canEdit);
+  const months = listMonths(year, tier);
   if (months.length === 0) notFound();
 
   const transactions: Transaction[] = [];
   const counterpartyMetadataMap = new Map<string, CounterpartyMetadata>();
   for (const month of months) {
-    transactions.push(...readMonthlyTransactions(year, month));
-    const meta = readMonthlyCounterpartyMetadata(year, month);
+    transactions.push(...readMonthlyTransactions(year, month, tier));
+    const meta = readMonthlyCounterpartyMetadata(year, month, tier);
     for (const [id, m] of meta) counterpartyMetadataMap.set(id, m);
   }
 
   if (transactions.length === 0) notFound();
-
-  const [userIsAdmin, userIsMember] = await Promise.all([isAdmin(), isMember()]);
-  const canEdit = userIsAdmin || userIsMember;
-  // Enrichment data is PII (e.g., IBANs) — only forward to admins/members.
-  let enrichments: Record<string, EnrichmentEntry> | undefined;
-  if (canEdit) {
-    enrichments = {};
-    for (const month of months) {
-      for (const [uri, info] of readMonthlyEnrichments(year, month)) {
-        enrichments[uri] = info;
-      }
-    }
-  }
 
   const augmentedTransactions = transactions
     .map((tx) => augmentTransaction(tx, counterpartyMetadataMap))
@@ -98,7 +78,6 @@ export default async function YearlyTransactionsPage({ params }: PageProps) {
             showAccountColumn={true}
             showExportButton={true}
             useNormalizedAmount={true}
-            enrichments={enrichments}
           />
         </CardContent>
       </Card>

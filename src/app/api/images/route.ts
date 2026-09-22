@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
-import { DATA_DIR } from "@/lib/data-paths";
+import { DATA_DIR, tierDir, tierFor } from "@/lib/data-paths";
+import { isMember } from "@/lib/admin-check";
 import { getLocalImagePath } from "@/lib/discord-cache";
 
 interface ImageRecord {
@@ -9,6 +10,8 @@ interface ImageRecord {
   url: string
   /** Where chb saved the file, relative to DATA_DIR. */
   filePath?: string
+  /** The Discord link the local copy replaced. */
+  sourceUrl?: string
   timestamp?: string
   [key: string]: unknown
 }
@@ -18,7 +21,7 @@ interface ImageRecord {
  * `url` is dead. chb downloads every attachment; point at that copy when it
  * is there (served through /api/image-proxy), and only fall back to Discord.
  */
-export function withLocalImages<T extends { images?: ImageRecord[] }>(data: T, dataDir = DATA_DIR): T {
+export function withLocalImages<T extends { images?: ImageRecord[] }>(data: T, dataDir = DATA_DIR): Omit<T, "images"> & { images: ImageRecord[] } {
   const images = (data.images ?? []).map((image) => {
     const local =
       (image.filePath && fs.existsSync(path.join(dataDir, image.filePath)) ? `/data/${image.filePath}` : null) ??
@@ -30,8 +33,8 @@ export function withLocalImages<T extends { images?: ImageRecord[] }>(data: T, d
 
 
 /**
- * GET /api/images                    → DATA_DIR/latest/generated/images.json
- * GET /api/images?year=YYYY&month=MM → DATA_DIR/YYYY/MM/generated/images.json
+ * GET /api/images                    → latest/<tier>/images.json
+ * GET /api/images?year=YYYY&month=MM → YYYY/MM/<tier>/images.json
  */
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic";
@@ -40,15 +43,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const year = searchParams.get("year");
   const month = searchParams.get("month");
+  // The members tier carries the message text next to each photo; the
+  // public one does not. One tier per viewer, never both.
+  const tier = tierFor(await isMember());
 
   let filePath: string;
   if (year && month) {
     if (!/^\d{4}$/.test(year) || !/^\d{2}$/.test(month)) {
       return NextResponse.json({ error: "Invalid year/month" }, { status: 400 });
     }
-    filePath = path.join(DATA_DIR, year, month, "generated", "images.json");
+    filePath = path.join(tierDir(tier, year, month), "images.json");
   } else {
-    filePath = path.join(DATA_DIR, "latest", "generated", "images.json");
+    filePath = path.join(tierDir(tier), "images.json");
   }
 
   if (!fs.existsSync(filePath)) {

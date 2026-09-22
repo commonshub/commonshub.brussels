@@ -1,14 +1,14 @@
 /**
  * Helpers for reading and augmenting the consolidated transaction file
  * produced by the chb pipeline at
- *   data/{year}/{month}/generated/transactions.json
+ *   {year}/{month}/{public,members}/transactions.json
  *
- * The frontend reads only from `generated/` — everything else is opaque.
+ * The site reads one audience tier per viewer — everything else is opaque.
  */
 
 import * as fs from "fs";
 import * as path from "path";
-import { DATA_DIR } from "./data-paths";
+import { type Tier, tierDir } from "./data-paths";
 import {
   addressFromUri,
   ethereumAddressId,
@@ -97,15 +97,10 @@ export function isInternalTransfer(tx: Transaction): boolean {
 
 export function readMonthlyTransactions(
   year: string,
-  month: string
+  month: string,
+  tier: Tier = "public"
 ): Transaction[] {
-  const filePath = path.join(
-    DATA_DIR,
-    year,
-    month,
-    "generated",
-    "transactions.json"
-  );
+  const filePath = path.join(tierDir(tier, year, month), "transactions.json");
   if (!fs.existsSync(filePath)) return [];
   try {
     const data = JSON.parse(
@@ -122,10 +117,22 @@ export function readMonthlyTransactions(
 }
 
 /**
+ * What a member-only view may know about a transaction beyond the public
+ * record. The members tier carries counterparty names inline; this shape
+ * remains for the table's expanded row, which lists whatever extra fields a
+ * caller hands it.
+ */
+export interface EnrichmentEntry {
+  name?: string;
+  iban?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Fill in names for our own finance accounts so that when one of them
  * shows up as a counterparty on another row (typical for INTERNAL
  * transfers) it renders with a human label. Only writes when the
- * generated/counterparties.json entry for that URI doesn't already
+ * tier's counterparties.json entry for that URI doesn't already
  * carry a name.
  */
 function seedWithFinanceAccounts(
@@ -141,60 +148,15 @@ function seedWithFinanceAccounts(
   }
 }
 
-/**
- * Per-tx enrichment data (e.g., Monerium bank-sender names + IBANs) lives
- * in `generated/private/enrichment.json` and is keyed by NIP-73 tx URI.
- * It contains personal info, so callers must gate this on admin/member
- * roles before exposing it to the client.
- */
-export interface EnrichmentEntry {
-  name?: string;
-  iban?: string;
-  [key: string]: unknown;
-}
 
-export function readMonthlyEnrichments(
-  year: string,
-  month: string
-): Map<string, EnrichmentEntry> {
-  const out = new Map<string, EnrichmentEntry>();
-  const filePath = path.join(
-    DATA_DIR,
-    year,
-    month,
-    "generated",
-    "private",
-    "enrichment.json"
-  );
-  if (!fs.existsSync(filePath)) return out;
-  try {
-    const data = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
-      enrichments?: Record<string, EnrichmentEntry>;
-    };
-    for (const [uri, info] of Object.entries(data.enrichments ?? {})) {
-      out.set(uri, info);
-    }
-  } catch (error) {
-    console.error(
-      `Error reading enrichment data for ${year}-${month}:`,
-      error
-    );
-  }
-  return out;
-}
 
 export function readMonthlyCounterpartyMetadata(
   year: string,
-  month: string
+  month: string,
+  tier: Tier = "public"
 ): Map<string, CounterpartyMetadata> {
   const out = new Map<string, CounterpartyMetadata>();
-  const filePath = path.join(
-    DATA_DIR,
-    year,
-    month,
-    "generated",
-    "counterparties.json"
-  );
+  const filePath = path.join(tierDir(tier, year, month), "counterparties.json");
   if (fs.existsSync(filePath)) {
     try {
       const data = JSON.parse(
@@ -265,7 +227,7 @@ const ORG_ACCOUNT_URIS: Set<string> = (() => {
  *    who's the actual "active" participant of the row — swap it in.
  *  - Monerium EURe/EURb MINT/BURN: `accountId` is one of our own org
  *    accounts (Checking, Savings, …). The real counterpart is the bank
- *    sender/recipient, which chb doesn't put in `generated/`. Don't
+ *    sender/recipient, which the public tier doesn't carry. Don't
  *    swap — accountId is *us*, not the counterpart. The row will show
  *    "—" until chb populates a real counterparty.
  */

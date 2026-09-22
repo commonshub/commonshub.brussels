@@ -1,51 +1,32 @@
 #!/bin/bash
+# Verify that the public tier of the dataset carries none of the fields the
+# audience design keeps for members and stewards (see
+# github.com/commonshub/chb/docs/audiences.md). Run it against a DATA_DIR
+# before publishing a snapshot: ./scripts/verify-no-private-data.sh [DATA_DIR]
 
-# Script to verify that no private/sensitive information exists in cached Stripe data
-# This should be run before committing to ensure no PII is being stored
+DATA_DIR="${1:-${DATA_DIR:-data}}"
+echo "🔍 Checking public tiers under $DATA_DIR ..."
 
-echo "🔍 Verifying no private data in Stripe cache files..."
-echo ""
-
-# Define sensitive fields to check for
 SENSITIVE_FIELDS=(
-  "billing_details"
-  "shipping"
-  "destination_details"
-  "receipt_email"
-  "payment_method_details"
-  "email"
+  "billing_details" "shipping" "destination_details" "receipt_email"
+  "payment_method_details" "email" "emailHash" "iban" "counterparty" "memo" "fullDescription" "reference" "address"
 )
 
-# Track if any sensitive data is found
-FOUND_SENSITIVE=0
-
-# Check each field
+FOUND=0
 for field in "${SENSITIVE_FIELDS[@]}"; do
-  count=$(grep -r "\"$field\"" data/*/*/stripe/ 2>/dev/null | wc -l | tr -d ' ')
-
+  count=$(grep -rl "\"$field\"" "$DATA_DIR"/*/*/public/ "$DATA_DIR"/*/public/ "$DATA_DIR"/latest/public/ 2>/dev/null | wc -l | tr -d ' ')
   if [ "$count" -gt 0 ]; then
-    echo "❌ FAIL: Found $count occurrences of \"$field\""
-    FOUND_SENSITIVE=1
+    echo "❌ FAIL: \"$field\" appears in $count public file(s)"
+    grep -rl "\"$field\"" "$DATA_DIR"/*/*/public/ "$DATA_DIR"/*/public/ "$DATA_DIR"/latest/public/ 2>/dev/null | head -5
+    FOUND=1
   else
-    echo "✅ PASS: No \"$field\" found"
+    echo "✅ PASS: no \"$field\""
   fi
 done
 
-echo ""
-echo "=" | head -c 60
-echo ""
-
-if [ $FOUND_SENSITIVE -eq 0 ]; then
-  echo "✅ ALL CHECKS PASSED - No sensitive data found!"
-  echo ""
-  echo "Safe to commit stripe.json files."
+if [ $FOUND -eq 0 ]; then
+  echo "✅ ALL CHECKS PASSED - the public tier is clean"
   exit 0
-else
-  echo "❌ CHECKS FAILED - Sensitive data detected!"
-  echo ""
-  echo "DO NOT commit these files. Run the following to fix:"
-  echo "  1. Delete old cache: find data -type d -name \"stripe\" -exec rm -rf {} +"
-  echo "  2. Re-sync data via the external data-sync process"
-  echo "  3. Re-run this script: ./scripts/verify-no-private-data.sh"
-  exit 1
 fi
+echo "❌ CHECKS FAILED - regenerate with chb (chb generate --force) and re-run"
+exit 1

@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths"
 import { NextResponse } from "next/server"
 import settings from "@/settings/settings.json"
 import { getGuildMembers, isDiscordConfigured } from "@/lib/discord"
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
 
     // Load contributors data to get token balances
     const currentYear = new Date().getFullYear().toString()
-    const contributorsPath = path.join(process.cwd(), "data", currentYear, "contributors.json")
+    const contributorsPath = path.join(tierDir("public", currentYear), "contributors.json")
     let contributorsMap = new Map<string, number>()
 
     try {

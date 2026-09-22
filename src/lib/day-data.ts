@@ -5,9 +5,7 @@
  * hammer them.
  */
 
-import * as fs from "fs"
-import * as path from "path"
-import { DATA_DIR } from "./data-paths"
+import { readEventsForMonth } from "./dataset"
 import settings from "@/settings/settings.json"
 import { getChannelMessages, isDiscordConfigured } from "./discord"
 import { type DiscordMessageLike, type DoorOpening, type PublicEventRecord, dayBounds, parseDoorOpenings } from "./day"
@@ -42,20 +40,12 @@ export const SHIFTS_DESCRIPTION = SHIFTS.description ?? "Sign up for a caretakin
 /** Public events from the month's events.json that touch the day. */
 export function loadPublicEventsForDay(day: string): PublicEventRecord[] {
   const [year, month] = day.split("-")
-  const file = path.join(DATA_DIR, year, month, "generated", "events.json")
-  if (!fs.existsSync(file)) return []
-  try {
-    const data = JSON.parse(fs.readFileSync(file, "utf-8")) as { events?: PublicEventRecord[] }
-    const { start, end } = dayBounds(day)
-    return (data.events ?? []).filter((event) => {
-      const s = new Date(event.startAt)
-      const e = event.endAt ? new Date(event.endAt) : s
-      return e >= start && s <= end
-    })
-  } catch (error) {
-    console.error("[day] could not read events:", error)
-    return []
-  }
+  const { start, end } = dayBounds(day)
+  return (readEventsForMonth("public", year, month) as unknown as PublicEventRecord[]).filter((event) => {
+    const s = new Date(event.startAt)
+    const e = event.endAt ? new Date(event.endAt) : s
+    return e >= start && s <= end
+  })
 }
 
 // ── Discord, cached a minute ──────────────────────────────────────────────

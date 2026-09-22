@@ -60,15 +60,6 @@ function isFileSystemAvailable(): boolean {
   return fs !== null && path !== null
 }
 
-/**
- * Path to the pipeline-generated messages for a channel/month, inside the
- * read-only DATA_DIR.
- * Format: data/{year}/{month}/messages/discord/{channelId}/messages.json
- */
-function getChannelMonthCachePath(channelId: string, year: string, month: string): string {
-  if (!path) return ""
-  return path.join(DATA_DIR, year, month, "messages", "discord", channelId, "messages.json")
-}
 
 /**
  * Path to the runtime cache for a channel/month, mirroring the DATA_DIR layout
@@ -89,7 +80,7 @@ export function getCachedMonths(channelId: string): string[] {
 
   const months: string[] = []
 
-  // Months cached at runtime, which DATA_DIR may not know about yet.
+  // Months cached at runtime by a live fetch.
   try {
     const runtimeChannelDir = runtimePath("messages", "discord", channelId)
     if (fs.existsSync(runtimeChannelDir)) {
@@ -116,39 +107,6 @@ export function getCachedMonths(channelId: string): string[] {
     console.error(`Error reading runtime cached months for channel ${channelId}:`, error)
   }
 
-  try {
-    if (!fs.existsSync(DATA_DIR)) return Array.from(new Set(months)).sort()
-
-    // Read all year directories
-    const years = fs
-      .readdirSync(DATA_DIR, { withFileTypes: true })
-      .filter((dirent) => dirent.isDirectory() && /^\d{4}$/.test(dirent.name))
-      .map((dirent) => dirent.name)
-
-    for (const year of years) {
-      const yearPath = path.join(DATA_DIR, year)
-
-      // Read all month directories in this year
-      const monthDirs = fs
-        .readdirSync(yearPath, { withFileTypes: true })
-        .filter((dirent) => dirent.isDirectory() && /^\d{2}$/.test(dirent.name))
-        .map((dirent) => dirent.name)
-
-      for (const month of monthDirs) {
-        const discordDir = path.join(yearPath, month, "messages", "discord")
-        if (fs.existsSync(discordDir)) {
-          const cacheFile = path.join(discordDir, channelId, "messages.json")
-          if (fs.existsSync(cacheFile)) {
-            months.push(`${year}-${month}`)
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error(`Error reading cached months for channel ${channelId}:`, error)
-  }
-
-  // A month can appear in both the runtime cache and DATA_DIR.
   return Array.from(new Set(months)).sort()
 }
 
@@ -160,12 +118,8 @@ export function readChannelMonthCache(channelId: string, monthKey: string): Cach
 
   const [year, month] = monthKey.split("-")
 
-  // Runtime cache first (written by a live fetch, so newer), then the
-  // pipeline-generated copy in the read-only DATA_DIR.
-  const candidates = [
-    getRuntimeChannelMonthCachePath(channelId, year, month),
-    getChannelMonthCachePath(channelId, year, month),
-  ]
+  // Only the runtime cache: chb no longer ships raw messages to the site.
+  const candidates = [getRuntimeChannelMonthCachePath(channelId, year, month)]
 
   for (const filePath of candidates) {
     try {
@@ -359,13 +313,13 @@ export function getLocalImagePath(attachmentId: string, url: string, timestamp: 
     const year = zonedDate.getFullYear().toString()
     const month = String(zonedDate.getMonth() + 1).padStart(2, "0")
 
-    // chb writes downloaded attachments under providers/discord/images;
-    // channels/discord/images is the layout of older months.
+    // chb keeps its copy of a Discord attachment under
+    // YYYY/MM/providers/discord/images/<id>.<ext>; the image proxy serves
+    // exactly that path (src/lib/served-paths.ts) and nothing else under
+    // providers/, which is otherwise the pipeline's private archive.
     const filename = `${attachmentId}${ext}`
-    for (const dir of ["providers/discord/images", "channels/discord/images"]) {
-      if (fs.existsSync(path.join(DATA_DIR, year, month, ...dir.split("/"), filename))) {
-        return `/data/${year}/${month}/${dir}/${filename}`
-      }
+    if (fs.existsSync(path.join(DATA_DIR, year, month, "providers", "discord", "images", filename))) {
+      return `/data/${year}/${month}/providers/discord/images/${filename}`
     }
   } catch (error) {
     // Invalid URL or other error, return null

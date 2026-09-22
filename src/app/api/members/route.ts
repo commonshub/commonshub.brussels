@@ -1,50 +1,34 @@
 /**
  * API route to get membership data
  *
- * Reads pre-generated data from data/{year}/{month}/generated/members.json
- * Use /api/sync to refresh data on demand.
+ * Reads chb's members.json from the viewer's tier: the public tier carries
+ * the summary only (members: []), the members tier the roster.
  *
- * GET /api/members              → current month
+ * GET /api/members                    → latest
  * GET /api/members?year=2026&month=01 → specific month
  */
 
 import { NextResponse } from "next/server";
 import * as fs from "fs";
-import * as path from "path";
 import type { MembersFile } from "@/types/members";
-import { DATA_DIR } from "@/lib/data-paths";
+import { isMember } from "@/lib/admin-check";
+import { tierFor, type Tier } from "@/lib/data-paths";
+import { listMonths, listYears, tierFile } from "@/lib/dataset";
 import { membershipEnabled } from "@/lib/membership";
 
-function findLatestMembersPath(): string | null {
-  try {
-    const years = fs
-      .readdirSync(DATA_DIR, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && /^\d{4}$/.test(entry.name))
-      .map((entry) => entry.name)
-      .sort()
-      .reverse();
+// Reads the dataset volume and the session, so never prerender it.
+export const dynamic = "force-dynamic";
 
-    for (const year of years) {
-      const yearPath = path.join(DATA_DIR, year);
-      const months = fs
-        .readdirSync(yearPath, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && /^\d{2}$/.test(entry.name))
-        .map((entry) => entry.name)
-        .sort()
-        .reverse();
-
-      for (const month of months) {
-        const membersPath = path.join(yearPath, month, "generated", "members.json");
-        if (fs.existsSync(membersPath)) {
-          return membersPath;
-        }
-      }
+/** The newest month that has a members.json in this tier, else latest/. */
+function findLatestMembersPath(tier: Tier): string | null {
+  for (const year of listYears().reverse()) {
+    for (const month of listMonths(year, tier).reverse()) {
+      const candidate = tierFile(tier, "members.json", year, month);
+      if (fs.existsSync(candidate)) return candidate;
     }
-  } catch {
-    return null;
   }
-
-  return null;
+  const latest = tierFile(tier, "members.json");
+  return fs.existsSync(latest) ? latest : null;
 }
 
 export async function GET(request: Request) {
@@ -52,30 +36,26 @@ export async function GET(request: Request) {
   // serve member data at all rather than serving a roster it cannot connect
   // anyone to. See @/lib/membership.
   if (!membershipEnabled()) {
-    return NextResponse.json(
-      { error: "Membership is not configured on this host." },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Membership is not configured on this host." }, { status: 404 });
   }
 
   const { searchParams } = new URL(request.url);
   const year = searchParams.get("year");
   const month = searchParams.get("month");
-  const membersPath =
-    year && month
-      ? path.join(DATA_DIR, year, month.padStart(2, "0"), "generated", "members.json")
-      : findLatestMembersPath();
+  if ((year && !/^\d{4}$/.test(year)) || (month && !/^\d{1,2}$/.test(month))) {
+    return NextResponse.json({ error: "Invalid year/month" }, { status: 400 });
+  }
+
+  const tier = tierFor(await isMember());
+  const membersPath = year && month ? tierFile(tier, "members.json", year, month.padStart(2, "0")) : findLatestMembersPath(tier);
 
   if (!membersPath || !fs.existsSync(membersPath)) {
-    return NextResponse.json(
-      { error: "Members data not found. Try generating members data first." },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Members data not found." }, { status: 404 });
   }
 
   try {
     const data: MembersFile = JSON.parse(fs.readFileSync(membersPath, "utf-8"));
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ error: "Failed to read members data" }, { status: 500 });
   }

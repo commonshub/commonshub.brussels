@@ -1,50 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readDiscordMessages, getAllPhotos, getActiveMembers } from "@/lib/reports";
+import { isMember } from "@/lib/admin-check";
+import { tierFor } from "@/lib/data-paths";
+import { photoAuthors, readGeneratedImages } from "@/lib/reports";
 
-export const revalidate = 86400; // 24 hours
+// Reads the dataset volume, so never prerender it.
+export const dynamic = "force-dynamic";
 
 interface RouteContext {
-  params: Promise<{
-    year: string;
-    month: string;
-  }>;
+  params: Promise<{ year: string; month: string }>;
 }
 
-export async function GET(
-  request: NextRequest,
-  context: RouteContext
-) {
+/**
+ * GET /api/reports/[year]/[month]/photos → the month's photos, newest first,
+ * from the viewer's tier (members also get the message text).
+ */
+export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const { year, month } = await context.params;
-
-    // Validate year and month format
     if (!/^\d{4}$/.test(year) || !/^(0[1-9]|1[0-2])$/.test(month)) {
-      return NextResponse.json(
-        { error: "Invalid year or month format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid year or month format" }, { status: 400 });
     }
 
-    // Get all Discord messages for the month
-    const messages = readDiscordMessages(year, month);
+    const tier = tierFor(await isMember());
+    const photos = readGeneratedImages(year, month, tier).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
-    // Get all photos in chronological order (use relative URLs)
-    const photos = getAllPhotos(messages, { relative: true });
-
-    // Get active members for userMap
-    const activeMembers = getActiveMembers(messages);
-
-    return NextResponse.json({
-      year,
-      month,
-      photos,
-      activeMembers,
-    });
+    return NextResponse.json(
+      { year, month, photos, activeMembers: photoAuthors(photos) },
+      { headers: { "Cache-Control": "private, max-age=3600" } }
+    );
   } catch (error) {
     console.error("Error generating monthly photo gallery:", error);
-    return NextResponse.json(
-      { error: "Failed to generate photo gallery" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate photo gallery" }, { status: 500 });
   }
 }

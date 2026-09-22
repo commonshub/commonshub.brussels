@@ -44,8 +44,8 @@ const MEMBER_ID_PATTERN = /^[0-9a-f]{64}$/;
  * application; `assertNotPrivate` below makes that a property of the code
  * rather than a habit.
  */
-const RESTRICTED_MEMBERS_DIR = ["latest", "generated", "restricted", "members"];
-const IDENTITY_INDEX = ["latest", "generated", "restricted", "members-index.json"];
+const RESTRICTED_MEMBERS_DIR = ["latest", "members", "restricted", "members"];
+const IDENTITY_INDEX = ["latest", "members", "restricted", "members-index.json"];
 
 /**
  * Member identifiers use the NIP-73 URI convention the dataset already uses
@@ -126,7 +126,7 @@ export function memberHistoryPath(memberId: string): string | null {
  */
 function assertNotPrivate(file: string): string | null {
   const segments = path.resolve(file).split(path.sep);
-  return segments.includes("private") ? null : file;
+  return segments.includes("private") || segments.includes("stewards") ? null : file;
 }
 
 /**

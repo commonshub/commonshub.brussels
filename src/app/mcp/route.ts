@@ -32,20 +32,20 @@ const SERVER_INFO = {
 const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: "list_periods",
-    description: "List available public dataset years/months and public generated file types.",
+    description: "List available public dataset years/months and public file types.",
     inputSchema: objectSchema({}),
   },
   {
     name: "list_dataset_files",
-    description: "List public generated files available for a year, month, or latest snapshot.",
+    description: "List public dataset files available for a year, month, or latest snapshot.",
     inputSchema: periodSchema(),
   },
   {
     name: "read_dataset_file",
-    description: "Read an allowlisted public generated dataset file such as transactions.json, contributors.json, events.json, rooms.json, or calendars/public.ics.",
+    description: "Read an allowlisted public dataset file such as transactions.json, contributors.json, events.json, rooms.json, or calendars/public.ics.",
     inputSchema: objectSchema({
       ...periodProperties(),
-      file: { type: "string", description: "Public generated file path, e.g. transactions.json or calendars/public.ics" },
+      file: { type: "string", description: "Public dataset file path, e.g. transactions.json or calendars/public.ics" },
     }, ["file"]),
   },
   {
@@ -198,7 +198,7 @@ function periodProperties() {
   return {
     year: { type: "string", pattern: "^\\d{4}$", description: "Dataset year, e.g. 2026" },
     month: { type: "string", pattern: "^\\d{2}$", description: "Dataset month, e.g. 05" },
-    latest: { type: "boolean", description: "Use /data/latest/generated instead of a year/month period" },
+    latest: { type: "boolean", description: "Use latest/public instead of a year/month period" },
   };
 }
 

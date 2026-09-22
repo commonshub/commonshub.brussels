@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import * as fs from "fs";
 import * as path from "path";
 import Link from "next/link";
@@ -24,8 +25,11 @@ interface YearReports {
 }
 
 function monthHasOdooData(year: string, month: string): boolean {
-  const p = path.join(DATA_DIR, year, month, "finance", "odoo");
-  return fs.existsSync(p);
+  // chb's members-tier projection of the Odoo books (invoices.json /
+  // bills.json); the raw provider archive is not a served surface.
+  return ["members", "public"].some((tier) =>
+    ["invoices.json", "bills.json"].some((f) => fs.existsSync(path.join(tierDir(tier as "public" | "members", year, month), f)))
+  );
 }
 
 function monthIsOver(year: string, month: string): boolean {

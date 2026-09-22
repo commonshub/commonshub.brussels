@@ -1,194 +1,84 @@
 /**
  * @jest-environment node
+ *
+ * Photos come from the tier's images.json. chb stores its copy of each
+ * attachment under YYYY/MM/providers/discord/images and points at it with
+ * `filePath`; the site turns that into an image-proxy URL. The public tier
+ * ships photos without their message text.
  */
 
-import { describe, it, expect } from "@jest/globals";
-import {
-  readDiscordMessages,
-  getAllPhotos,
-  getPopularPhotos,
-  getMonthlyReportData,
-} from "@/lib/reports";
+import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
-describe("Photos API - channelId and messageId validation", () => {
-  const testYear = "2025";
-  const testMonth = "03";
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chb-photos-"));
 
-  describe("readDiscordMessages", () => {
-    it("should add channel_id to messages when reading from files", () => {
-      const messages = readDiscordMessages(testYear, testMonth);
+function writeJson(rel: string, data: unknown) {
+  const file = path.join(tmp, rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(data));
+}
 
-      if (messages.length === 0) {
-        console.log(`⚠️  No messages found for ${testYear}/${testMonth}`);
-        return;
-      }
+const image = (id: string, reactions: number, message = "") => ({
+  url: `https://cdn.discordapp.com/attachments/1/${id}/x.jpg?ex=1`,
+  id,
+  author: { id: `u${id}`, username: `user${id}`, displayName: `User ${id}`, avatar: null },
+  reactions: [{ emoji: "❤️", count: reactions }],
+  totalReactions: reactions,
+  message,
+  timestamp: `2025-03-0${id}T10:00:00+00:00`,
+  channelId: "c1",
+  messageId: `m${id}`,
+  filePath: `2025/03/providers/discord/images/${id}.jpg`,
+});
 
-      console.log(`Found ${messages.length} messages`);
+let reports: typeof import("@/lib/reports");
 
-      // Check that messages have channel_id
-      const messagesWithChannelId = messages.filter((msg) => msg.channel_id);
-      console.log(
-        `Messages with channel_id: ${messagesWithChannelId.length}/${messages.length}`
-      );
+beforeAll(() => {
+  writeJson("2025/03/public/images.json", { images: [image("1", 2), image("2", 9), image("3", 5)] });
+  writeJson("2025/03/members/images.json", { images: [image("1", 2, "hello"), image("2", 9, "world")] });
+  writeJson("2025/03/public/contributors.json", { summary: { totalContributors: 1 }, contributors: [{ id: "u1", profile: { username: "user1", name: "User 1" } }] });
+  process.env.DATA_DIR = tmp;
+  jest.isolateModules(() => {
+    reports = require("@/lib/reports");
+  });
+});
 
-      expect(messagesWithChannelId.length).toBeGreaterThan(0);
+afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-      // Log first message
-      const firstMsg = messages[0];
-      console.log("First message:", {
-        id: firstMsg.id,
-        channel_id: firstMsg.channel_id,
-        hasAttachments: !!firstMsg.attachments?.length,
-      });
-    });
+describe("tiered photo readers", () => {
+  it("maps filePath to an image-proxy path and defaults the message", () => {
+    const photos = reports.readGeneratedImages("2025", "03");
+    expect(photos).toHaveLength(3);
+    expect(photos[0].proxyUrl).toBe("/data/2025/03/providers/discord/images/1.jpg");
+    expect(photos[0].message).toBe("");
+    expect(photos[0].reactions[0]).toEqual({ emoji: "❤️", count: 2, me: false });
   });
 
-  describe("getAllPhotos", () => {
-    it("should return photos with channelId and messageId", () => {
-      const messages = readDiscordMessages(testYear, testMonth);
-
-      if (messages.length === 0) {
-        console.log(`⚠️  No messages found for ${testYear}/${testMonth}`);
-        return;
-      }
-
-      const photos = getAllPhotos(messages);
-
-      if (photos.length === 0) {
-        console.log("⚠️  No photos found in messages");
-        return;
-      }
-
-      console.log(`Found ${photos.length} photos`);
-
-      // Check all photos
-      photos.forEach((photo, index) => {
-        // Required fields
-        expect(photo).toHaveProperty("url");
-        expect(photo).toHaveProperty("messageId");
-        expect(photo).toHaveProperty("channelId");
-        expect(photo).toHaveProperty("author");
-        expect(photo).toHaveProperty("reactions");
-
-        // Verify channelId and messageId are not empty
-        expect(photo.channelId).toBeTruthy();
-        expect(photo.messageId).toBeTruthy();
-        expect(typeof photo.channelId).toBe("string");
-        expect(typeof photo.messageId).toBe("string");
-        expect(photo.channelId).not.toBe("");
-        expect(photo.messageId).not.toBe("");
-
-        // Verify reactions have 'me' field
-        expect(Array.isArray(photo.reactions)).toBe(true);
-        if (photo.reactions.length > 0) {
-          photo.reactions.forEach((reaction) => {
-            expect(reaction).toHaveProperty("me");
-            expect(typeof reaction.me).toBe("boolean");
-          });
-        }
-
-        // Log first photo details
-        if (index === 0) {
-          console.log("First photo:", {
-            messageId: photo.messageId,
-            channelId: photo.channelId,
-            url: photo.url.substring(0, 50) + "...",
-            reactions: photo.reactions.map((r) => ({
-              emoji: r.emoji,
-              count: r.count,
-              me: r.me,
-            })),
-          });
-        }
-      });
-
-      console.log(`✅ All ${photos.length} photos have channelId and messageId`);
-      console.log(`✅ All reactions have 'me' field`);
-    });
+  it("reads the members tier when asked, and only then sees message text", () => {
+    const photos = reports.readGeneratedImages("2025", "03", "members");
+    expect(photos.map((p) => p.message)).toEqual(["hello", "world"]);
   });
 
-  describe("getPopularPhotos", () => {
-    it("should return photos with channelId and messageId", () => {
-      const messages = readDiscordMessages(testYear, testMonth);
-
-      if (messages.length === 0) {
-        console.log(`⚠️  No messages found for ${testYear}/${testMonth}`);
-        return;
-      }
-
-      const photos = getPopularPhotos(messages, 12);
-
-      if (photos.length === 0) {
-        console.log("⚠️  No photos found in messages");
-        return;
-      }
-
-      console.log(`Found ${photos.length} popular photos`);
-
-      // Check all photos
-      photos.forEach((photo) => {
-        expect(photo).toHaveProperty("channelId");
-        expect(photo).toHaveProperty("messageId");
-        expect(photo.channelId).toBeTruthy();
-        expect(photo.messageId).toBeTruthy();
-        expect(photo.channelId).not.toBe("");
-        expect(photo.messageId).not.toBe("");
-
-        // Verify reactions have 'me' field
-        if (photo.reactions.length > 0) {
-          photo.reactions.forEach((reaction) => {
-            expect(reaction).toHaveProperty("me");
-          });
-        }
-      });
-
-      console.log(`✅ All popular photos have channelId and messageId`);
-    });
+  it("returns nothing for a month without the file", () => {
+    expect(reports.readGeneratedImages("2025", "04")).toEqual([]);
+    expect(reports.readYearlyImages("2025")).toEqual([]);
   });
 
-  describe("getMonthlyReportData", () => {
-    it("should return report with photos containing channelId and messageId", () => {
-      const report = getMonthlyReportData(testYear, testMonth);
+  it("ranks popular photos by reactions and lists their authors", () => {
+    const popular = reports.popularPhotos(reports.readGeneratedImages("2025", "03"), 2);
+    expect(popular.map((p) => p.id)).toEqual(["2", "3"]);
+    expect(reports.photoAuthors(popular).userIds).toEqual(["u2", "u3"]);
+  });
 
-      expect(report).toHaveProperty("year");
-      expect(report).toHaveProperty("month");
-      expect(report).toHaveProperty("photos");
-      expect(report).toHaveProperty("activeMembers");
-      expect(report).toHaveProperty("financials");
-
-      expect(report.year).toBe(testYear);
-      expect(report.month).toBe(testMonth);
-
-      if (report.photos.length === 0) {
-        console.log("⚠️  No photos in monthly report");
-        return;
-      }
-
-      console.log(`Monthly report has ${report.photos.length} photos`);
-
-      // Check all photos in report
-      report.photos.forEach((photo, index) => {
-        expect(photo).toHaveProperty("channelId");
-        expect(photo).toHaveProperty("messageId");
-        expect(photo.channelId).toBeTruthy();
-        expect(photo.messageId).toBeTruthy();
-        expect(photo.channelId).not.toBe("");
-        expect(photo.messageId).not.toBe("");
-
-        // Log first photo
-        if (index === 0) {
-          console.log("Monthly report first photo:", {
-            messageId: photo.messageId,
-            channelId: photo.channelId,
-            reactionsWithMe: photo.reactions.map((r) => ({
-              emoji: r.emoji,
-              me: r.me,
-            })),
-          });
-        }
-      });
-
-      console.log(`✅ All photos in monthly report have channelId and messageId`);
+  it("builds the monthly report from the public tier", () => {
+    const report = reports.getMonthlyReportData("2025", "03");
+    expect(report.photos.map((p) => p.id)).toEqual(["2", "3", "1"]);
+    expect(report.activeMembers.userIds).toEqual(["u1"]);
+    report.photos.forEach((photo) => {
+      expect(photo.channelId).toBe("c1");
+      expect(photo.messageId).toMatch(/^m/);
     });
   });
 });

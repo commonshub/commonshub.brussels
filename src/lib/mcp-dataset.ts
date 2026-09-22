@@ -1,3 +1,4 @@
+import { tierDir } from "./data-paths";
 import * as fs from "fs";
 import * as path from "path";
 import { DATA_DIR } from "@/lib/data-paths";
@@ -66,7 +67,7 @@ export function listDatasetPeriods() {
   return {
     dataDir: DATA_DIR,
     periods,
-    latest: listExistingGeneratedFiles(path.join(DATA_DIR, "latest", "generated")),
+    latest: listExistingGeneratedFiles(tierDir("public")),
     generatedFiles: listPublicDatasetFiles(),
   };
 }
@@ -144,14 +145,15 @@ export function summarizeTokens(input: { year?: string; month?: string; latest?:
   return { minted, burnt, net: minted - burnt, transactionCount };
 }
 
+/** The MCP surface answers anyone with the key; it reads the public tier. */
 function resolveGeneratedDir(input: { year?: string; month?: string; latest?: boolean }) {
-  if (input.latest) return path.join(DATA_DIR, "latest", "generated");
+  if (input.latest) return tierDir("public");
   const year = requireYear(input.year);
   if (input.month !== undefined) {
     const month = requireMonth(input.month);
-    return path.join(DATA_DIR, year, month, "generated");
+    return tierDir("public", year, month);
   }
-  return path.join(DATA_DIR, year, "generated");
+  return tierDir("public", year);
 }
 
 function resolvePublicGeneratedPath(input: { year?: string; month?: string; latest?: boolean; file: string }) {
@@ -177,7 +179,7 @@ function requireMonth(month: string | undefined) {
 
 function assertPublicGeneratedFile(file: string) {
   const normalized = file.replace(/\\/g, "/").replace(/^\/+/, "");
-  if (normalized !== file || normalized.includes("..") || normalized.includes("/private/")) {
+  if (normalized !== file || normalized.includes("..")) {
     throw new Error(`Dataset file is not public: ${file}`);
   }
   if (!PUBLIC_GENERATED_FILES.has(file)) {
@@ -190,7 +192,7 @@ function listExistingGeneratedFiles(dir: string): string[] {
   const out: string[] = [];
   const walk = (current: string, prefix: string) => {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      if (entry.name.startsWith(".") || entry.name === "private") continue;
+      if (entry.name.startsWith(".")) continue;
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       const full = path.join(current, entry.name);
       if (entry.isDirectory()) {

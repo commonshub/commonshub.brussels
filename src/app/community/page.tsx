@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths";
 import Link from "next/link";
 import Image from "@/components/optimized-image";
 import { RecentContributors } from "@/components/recent-contributors";
@@ -29,7 +30,7 @@ const partners: Partner[] = partnersData;
 
 function readLatestMembersFile(): MembersFile | null {
   try {
-    const filePath = path.join(DATA_DIR, "latest", "generated", "members.json");
+    const filePath = path.join(tierDir("public"), "members.json");
     if (!fs.existsSync(filePath)) return null;
     return JSON.parse(fs.readFileSync(filePath, "utf-8")) as MembersFile;
   } catch {

@@ -1,7 +1,9 @@
 /**
  * Transactions data types
  * Schema produced by the chb pipeline in
- *   data/{year}/{month}/generated/transactions.json
+ *   {year}/{month}/{public,members}/transactions.json
+ * (same rows in every tier; the members tier adds the counterparty name and
+ * the free-text fields, see github.com/commonshub/chb/docs/audiences.md).
  */
 
 export interface TransactionMetadata {
@@ -37,6 +39,8 @@ export interface Transaction {
   accountName: string;
   /** NIP-73 URI for the counterparty, or null when there isn't one. */
   counterpartyId: string | null;
+  /** Counterparty as named by the provider (bank sender, Stripe customer). Members tier only. */
+  counterparty?: string | null;
   currency: string;
   value: string;
   amount: number;

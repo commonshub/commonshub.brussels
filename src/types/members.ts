@@ -94,7 +94,7 @@ export interface MemberHistoryMonth {
 
 /**
  * One member's month-by-month history, as written by chb to
- * data/latest/generated/private/members/<memberId>.json.
+ * the stewards tier, which this site never reads.
  *
  * A month the member does not appear in is a month they were not a member, so
  * gaps in `months` are meaningful rather than missing data.

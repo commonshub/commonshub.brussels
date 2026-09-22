@@ -1,3 +1,4 @@
+import { tierDir } from "@/lib/data-paths"
 export default async function OGImageTestPage() {
   let contributors: any[] = []
   let totalMembers = 0
@@ -6,7 +7,7 @@ export default async function OGImageTestPage() {
     const fs = await import("fs")
     const path = await import("path")
     const { DATA_DIR } = await import("@/lib/data-paths")
-    const filePath = path.join(DATA_DIR, "latest", "generated", "contributors.json")
+    const filePath = path.join(tierDir("public"), "contributors.json")
     if (fs.existsSync(filePath)) {
       const data = JSON.parse(fs.readFileSync(filePath, "utf-8"))
       contributors = data.contributors || []

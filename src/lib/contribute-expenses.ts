@@ -161,23 +161,20 @@ export function withoutPersonName(line: string, personName: string): string {
     .trim()
 }
 
-/** Join the public and private halves of one month of bills. */
+/**
+ * One month of vendor bills, from chb's public-tier projection
+ * (`YYYY/MM/public/bills.json`). The partner is inline when the projection
+ * carries it (companies); a bill without one is matched on its lines and
+ * shown unnamed. The provider archive under providers/ is never read.
+ */
 export function readMonthBills(dataDir: string, year: string, month: string): Bill[] | null {
-  const providerRoot = path.join(dataDir, year, month, "providers", "odoo", "commonshub")
-  const legacyRoot = path.join(dataDir, year, month, "finance", "odoo")
-  const root = fs.existsSync(path.join(providerRoot, "bills.json")) ? providerRoot : legacyRoot
-
-  const pub = readJson<{ bills: PublicBill[] }>(path.join(root, "bills.json"))
+  const pub = readJson<{ bills: Array<PublicBill & Partial<PrivateBill>> }>(path.join(dataDir, year, month, "public", "bills.json"))
   if (!pub) return null
-  // The private half carries the partner. The public site may run without
-  // it, in which case bills have no vendor and are matched on their lines.
-  const prv = readJson<{ bills: PrivateBill[] }>(path.join(root, "private", "bills.json"))
-  const privById = new Map((prv?.bills ?? []).map((b) => [b.id, b]))
+  const privById = new Map(pub.bills.filter((b) => b.partner || b.partnerDisplayName).map((b) => [b.id, b as PrivateBill]))
 
   const bills: Bill[] = []
   for (const record of pub.bills) {
     const priv = privById.get(record.id)
-    if (prv && !priv) continue
     const partner = priv?.partner ?? {}
     const isCompany = partner.companyType === "company" || partner.isCompany === true
     const name = partner.displayName || partner.name || priv?.partnerDisplayName || ""
