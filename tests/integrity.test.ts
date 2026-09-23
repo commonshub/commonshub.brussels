@@ -16,7 +16,7 @@ function writeJson(rel: string, data: unknown) {
 let integrity: typeof import("@/lib/integrity");
 
 beforeAll(() => {
-  writeJson("latest/public/integrity.json", {
+  writeJson("latest/hashes.json", {
     generatedAt: "2026-09-22T10:01:08Z",
     algorithm: "sha256/canonical-json-v1",
     months: [
@@ -25,7 +25,7 @@ beforeAll(() => {
       { month: "not-a-month", providers: 0, files: 0, bytes: 0, hash: "" },
     ],
   });
-  writeJson("2026/08/public/integrity.json", {
+  writeJson("2026/08/hashes.json", {
     month: "2026-08",
     generatedAt: "2026-09-22T10:01:04Z",
     algorithm: "sha256/canonical-json-v1",
@@ -35,8 +35,8 @@ beforeAll(() => {
     hash: "b".repeat(64),
     entries: [{ provider: "etherscan", summary: "4 accounts, 123 transfers", stats: { accounts: 4, transfers: 123 }, files: 4, bytes: 50315, hash: "c".repeat(64) }],
   });
-  // The manifest lives in the public tier only; a stewards copy is never read.
-  writeJson("2026/07/stewards/integrity.json", { month: "2026-07", hash: "x" });
+  // The pre-3.12.1 per-tier copies are not read any more.
+  writeJson("2026/07/public/integrity.json", { month: "2026-07", hash: "x" });
   process.env.DATA_DIR = tmp;
   jest.isolateModules(() => {
     integrity = require("@/lib/integrity");
@@ -55,7 +55,7 @@ describe("integrity manifests", () => {
     expect(integrity.latestIntegrity()).toMatchObject({ month: "2026-08", hash: "b".repeat(64), algorithm: "sha256/canonical-json-v1" });
   });
 
-  it("reads a month manifest from the public tier only", () => {
+  it("reads a month manifest from the month root, not the old per-tier copy", () => {
     expect(integrity.readMonthIntegrity("2026", "08")?.entries[0].provider).toBe("etherscan");
     expect(integrity.readMonthIntegrity("2026", "07")).toBeNull();
     expect(integrity.readMonthIntegrity("2026", "8")).toBeNull();
