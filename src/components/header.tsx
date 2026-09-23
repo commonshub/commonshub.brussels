@@ -64,12 +64,6 @@ export function Header() {
             >
               Contact
             </Link>
-            <Link
-              href="/contribute"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Contribute
-            </Link>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -136,13 +130,6 @@ export function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Contact
-            </Link>
-            <Link
-              href="/contribute"
-              className="text-muted-foreground hover:text-foreground transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Contribute
             </Link>
             <div className="flex flex-col gap-3 pt-4 border-t border-border">
               <Button

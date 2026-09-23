@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+import settings from "@/settings/settings.json"
 import fs from "fs"
 import os from "os"
 import path from "path"
@@ -239,5 +240,29 @@ describe("reading the dataset", () => {
       { year: "2026", month: "01" },
       { year: "2025", month: "12" },
     ])
+  })
+})
+
+describe("the fixed costs configured in settings", () => {
+  // chb does not publish a bills projection in the public tier yet, so on
+  // production the page reads no bills at all. Every fixed cost must still
+  // show, with the amount configured for it.
+  test("all appear with their monthly amount even when no bill is readable", () => {
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), "contribute-empty-"))
+    try {
+      const config = (settings as unknown as { contribute: typeof CONFIG }).contribute
+      const { recurring } = loadContributeExpenses({ dataDir: empty, now: new Date("2026-09-23T12:00:00Z"), config })
+      expect(recurring.map((e) => [e.slug, e.amountEur])).toEqual([
+        ["rent", 6546.76],
+        ["furniture-relieve", 504.57],
+        ["acoustic-booth-wenap", 133.1],
+        ["internet", 54.45],
+        ["electricity", 238.5],
+      ])
+      const total = recurring.reduce((sum, e) => sum + e.amountEur, 0)
+      expect(Math.round(total * 100) / 100).toBe(7477.38)
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true })
+    }
   })
 })

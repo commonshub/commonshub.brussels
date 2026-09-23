@@ -309,7 +309,7 @@
     }
   },
   "contribute": {
-    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount overrides the amount read from the bills. Bills matching exclude go nowhere (catering is bought and consumed on the day).",
+    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount is the fixed monthly cost shown on the page and wins over the amount read from bills (the fixed costs below are set from the Odoo vendor bills as of September 2026 — update them when a contract changes). Bills matching exclude go nowhere (catering is bought and consumed on the day).",
     "recurring": [
       {
         "slug": "rent",
@@ -325,28 +325,32 @@
         "label": "Furniture rental (Relieve)",
         "vendor": "Relieve",
         "description": "Tables, chairs and sofas are rented from Relieve, a Brussels circular-furniture company, rather than bought. When the space changes, the furniture changes with it.",
-        "line": "relieve"
+        "line": "relieve",
+        "monthlyAmount": 504.57
       },
       {
         "slug": "acoustic-booth-wenap",
-        "label": "Acoustic booth rental (WeNap)",
+        "label": "Furniture rental: phone booth (WeNap)",
         "vendor": "WeNap",
-        "description": "The phone booth, for calls that should not be taken in the middle of the coworking.",
-        "line": "wenap|kosy|cabine acoustique"
+        "description": "The acoustic phone booth, rented from WeNap, for calls that should not be taken in the middle of the coworking.",
+        "line": "wenap|kosy|cabine acoustique",
+        "monthlyAmount": 133.1
       },
       {
         "slug": "internet",
         "label": "Internet (Proximus)",
         "vendor": "Proximus",
         "description": "Business fibre for the whole building: the coworking, the event rooms, the livestreams.",
-        "line": "proximus|business internet|internet box"
+        "line": "proximus|business internet|internet box",
+        "monthlyAmount": 54.45
       },
       {
         "slug": "electricity",
-        "label": "Electricity (Electrabel)",
-        "vendor": "Electrabel",
-        "description": "Lights, heating pumps, the coffee machine, the projectors.",
-        "line": "electrabel|electricit|sibelga"
+        "label": "Electricity (Engie)",
+        "vendor": "Electrabel|Engie",
+        "description": "Two Engie contracts for the building: lights, heating pumps, the coffee machine, the projectors.",
+        "line": "electrabel|engie|electricit|sibelga",
+        "monthlyAmount": 238.5
       }
     ],
     "exclude": {
