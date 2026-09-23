@@ -46,9 +46,9 @@ directory and chb's Discord attachment copies, nothing else
 ### Integrity
 
 The raw archives are never published, but their hashes are. For every
-completed month `chb` writes `YYYY/MM/public/integrity.json` (one entry per
+completed month `chb` writes `YYYY/MM/hashes.json` at the month root, outside the tiers (one entry per
 provider: counts, size, sha256 over canonical JSON, plus the month hash) and
-`latest/public/integrity.json` indexes them. The site publishes them as is:
+`latest/hashes.json` indexes them. The site publishes them as is:
 
 - [`/integrity`](https://commonshub.brussels/integrity) — every month, expandable to its providers, with how to verify.
 - [`/api/integrity`](https://commonshub.brussels/api/integrity) and `/api/integrity/YYYY/MM` — the manifests raw.

@@ -5,7 +5,7 @@ import { readIntegrityIndex } from "@/lib/integrity";
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic";
 
-/** GET /api/integrity → latest/public/integrity.json: every month's hash, newest first. */
+/** GET /api/integrity → latest/hashes.json: every month's hash, newest first. */
 export async function GET() {
   const index = readIntegrityIndex();
   if (!index) {
