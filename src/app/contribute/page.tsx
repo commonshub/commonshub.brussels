@@ -117,6 +117,15 @@ export default function ContributePage() {
               month: chip in whatever part you like, from €10. Or make it a standing order and
               become the person behind it.
             </p>
+            {expenses.recurring.length > 0 && (
+              <p className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+                Together, the fixed costs come to{" "}
+                <span className="font-semibold tabular-nums">
+                  {formatEur(expenses.recurring.reduce((sum, e) => sum + e.amountEur, 0))}
+                </span>{" "}
+                per month.
+              </p>
+            )}
             {expenses.recurring.length > 0 ? (
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {expenses.recurring.map((expense) => (
