@@ -14,10 +14,13 @@ export function DiscordStatsDisplay() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const response = await fetch("/api/contributors")
+        // The live member count from Discord (approximate_member_count),
+        // which /api/stats already fetches. chb's contributors summary no
+        // longer carries a member total.
+        const response = await fetch("/api/stats")
         const data = await response.json()
         setStats({
-          totalMembers: data.summary?.totalDiscordMembers || 0,
+          totalMembers: data.communityMembers || 0,
         })
       } catch (error) {
         console.error("Failed to fetch Discord stats:", error)
