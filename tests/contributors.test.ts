@@ -24,6 +24,36 @@ describe("contributors shown on /community", () => {
   })
 })
 
+describe("chb's nested contributor shape", () => {
+  // What latest/public/contributors.json holds since the audience tiers:
+  // no top-level username, which made /api/contributors throw and broke
+  // /contributions and /community.
+  const nested = {
+    year: "2026",
+    summary: { totalContributors: 3 },
+    contributors: [
+      { id: "907", address: null, contributionDays: 49, discord: { messages: 272, mentions: 175 }, profile: { avatar_url: "https://cdn/m.png", name: "Miriam", username: "the_sweetbear" }, tokens: { in: 591.7, out: 358.25 } },
+      { id: "42", profile: { name: "Open Collective", username: "opencollective" }, discord: { messages: 30 } },
+      { id: "7", profile: { username: null, name: null }, discord: {} },
+    ],
+  }
+
+  test("is served with the flat fields too, and never throws on a missing name", () => {
+    const shown = publicContributors(nested)
+    expect(shown.contributors.map((c) => c.id)).toEqual(["907", "7"])
+    expect(shown.contributors[0]).toMatchObject({
+      username: "the_sweetbear",
+      displayName: "Miriam",
+      avatar: "https://cdn/m.png",
+      contributionCount: 272 + 592,
+      profile: { name: "Miriam" }, // the nested fields stay for the components that read them
+    })
+    expect(shown.contributors[1]).toMatchObject({ username: "7", displayName: "7", avatar: null, contributionCount: 0 })
+    expect(shown.totalMembers).toBe(3)
+    expect(shown.activeCommoners).toBe(2)
+  })
+})
+
 describe("report years", () => {
   test("start in 2024, the year the hub opened", () => {
     expect(reportYears(["2023", "2024", "2025", "2026", "generated", "latest"], true, new Date("2026-09-16"))).toEqual([

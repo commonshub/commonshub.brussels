@@ -61,13 +61,18 @@ export default function ContributionsPage() {
           fetch("/api/contributors")
         ])
 
-        const imagesData = await imagesResponse.json()
-        const contributorsData = await contributorsResponse.json()
+        // One failing endpoint must not take the whole page down: an error
+        // answer has no `images` / `contributors`, so fall back to empty.
+        const imagesData = imagesResponse.ok ? await imagesResponse.json() : {}
+        const contributorsData = contributorsResponse.ok ? await contributorsResponse.json() : {}
 
         // Merge the data - use images from static file, everything else from contributors endpoint
         const result = {
+          totalMembers: 0,
+          activeCommoners: 0,
           ...contributorsData,
-          images: imagesData.images.map((image: any) => ({
+          contributors: contributorsData.contributors ?? [],
+          images: (imagesData.images ?? []).map((image: any) => ({
             imageUrl: image.url,
             author: image.author,
             message: image.message,
