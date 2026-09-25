@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Building2, ChevronDown, Landmark, MapPinned } from "lucide-react"
 
 import { PASS_THROUGH, PENDING_TAXES, TAX_RULES, loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
-import { type PendingItem, type TaxLevel, type TaxPayment, openPending, summarizeTaxes, vatRow } from "@/lib/taxes"
+import { type PendingItem, type Settlement, type TaxLevel, type TaxPayment, explorerTxUrl, matchVatPayments, openPending, summarizeTaxes, vatRow, vatTotals } from "@/lib/taxes"
 
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic"
@@ -15,6 +15,7 @@ export const metadata = {
 const eur = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" })
 const eur0 = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 const pct = (n: number) => `${(n * 100).toFixed(2)}%`
+const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 const longDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
 const quarterLabel = (q: string) => q.replace("-", " ")
 
@@ -43,6 +44,43 @@ function Signed({ amount }: { amount: number }) {
   return (
     <span className={`tabular-nums ${amount < 0 ? "text-green-700 dark:text-green-400" : "text-foreground"}`}>
       {amount < 0 ? `−${eur.format(-amount)}` : eur.format(amount)}
+    </span>
+  )
+}
+
+/** A payment's date, linked to where it can be checked: the chain, or that month's transactions. */
+function PaymentLink({ payment }: { payment: TaxPayment }) {
+  const onChain = explorerTxUrl(payment.id)
+  const [y, m] = payment.date.split("-")
+  const label = shortDate(payment.date)
+  return onChain ? (
+    <a href={onChain} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap underline decoration-dotted underline-offset-2 hover:text-foreground" title="See the transaction on the blockchain">
+      {label} ↗
+    </a>
+  ) : (
+    <Link href={`/${y}/${m}/transactions`} className="whitespace-nowrap underline decoration-dotted underline-offset-2 hover:text-foreground" title="A bank transfer: see that month's transactions">
+      {label}
+    </Link>
+  )
+}
+
+/** How a quarter's return was settled, in words, with each payment linked. */
+function SettledCell({ net, settlement }: { net: number; settlement?: Settlement }) {
+  if (!settlement || settlement.status === "nothing-due") return <span className="text-muted-foreground">—</span>
+  if (settlement.status === "none") {
+    return <span className="text-muted-foreground">{net < 0 ? "Not refunded: carried forward" : "No payment found"}</span>
+  }
+  const verb = net < 0 ? "Refunded" : "Paid"
+  return (
+    <span className="text-muted-foreground">
+      {settlement.payments.map((p, i) => (
+        <span key={p.id}>
+          {i > 0 && ", "}
+          {settlement.status === "partial" ? `${eur.format(Math.abs(p.amount))} paid ` : `${verb} `}
+          <PaymentLink payment={p} />
+        </span>
+      ))}
+      {settlement.status === "partial" && <span className="block text-amber-700 dark:text-amber-400">{eur.format(settlement.missing)} not found</span>}
     </span>
   )
 }
@@ -93,7 +131,9 @@ export default function TaxesPage() {
   const summary = summarizeTaxes(payments, openPending(PENDING_TAXES, payments, TAX_RULES))
   const vat = loadVatReturns()
   const vatRows = (vat?.periods ?? []).map(vatRow).reverse()
-  const firstReturn = vat?.periods[0]
+  const totals = vatTotals(vatRows)
+  const { byPeriod: settlements, unmatched: strayVat } = matchVatPayments(vat?.periods ?? [], payments)
+  const vatPaid = payments.filter((p) => p.kind === "vat").reduce((s, p) => s + p.amount, 0)
   const pt = PASS_THROUGH
   const propertyShare = pt.cadastralIncome.ours / pt.cadastralIncome.building
   const officeShare = pt.cadastralIncome.ours / pt.cadastralIncome.officeTaxBase
@@ -169,7 +209,7 @@ export default function TaxesPage() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">VAT, quarter by quarter</h2>
             <p className="mt-2 max-w-3xl text-muted-foreground">
-              Every quarter we file a VAT return. When we collected more VAT on our sales than we paid on our purchases, we owe the difference to the State; when we paid more, the State refunds it (shown in green, with a minus sign).
+              Every quarter we file a VAT return. When we collected more VAT on our sales than we paid on our purchases, we owe the difference to the State; when we paid more, the State owes it to us (shown in green, with a minus sign). A credit is not always refunded: it is usually carried forward on our VAT account and offset against later quarters, so there are fewer payments than quarters.
             </p>
             {vatRows.length > 0 ? (
               <div className="mt-6 overflow-x-auto rounded-lg border border-border">
@@ -177,39 +217,67 @@ export default function TaxesPage() {
                   <thead className="bg-muted/50 text-left text-muted-foreground">
                     <tr>
                       <th className="px-4 py-2 font-medium">Quarter</th>
-                      <th className="hidden px-4 py-2 text-right font-medium md:table-cell">Sales</th>
-                      <th className="hidden px-4 py-2 text-right font-medium md:table-cell">Purchases</th>
-                      <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">VAT collected</th>
-                      <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">VAT deducted</th>
+                      <th className="hidden px-4 py-2 text-right font-medium lg:table-cell">Sales</th>
+                      <th className="hidden px-4 py-2 text-right font-medium lg:table-cell">Purchases</th>
+                      <th className="hidden px-4 py-2 text-right font-medium md:table-cell">VAT collected</th>
+                      <th className="hidden px-4 py-2 text-right font-medium md:table-cell">VAT deducted</th>
                       <th className="px-4 py-2 text-right font-medium">Result</th>
+                      <th className="hidden px-4 py-2 font-medium sm:table-cell">Settled</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {vatRows.map((row) => (
-                      <tr key={row.period}>
+                      <tr key={row.period} className="align-top">
                         <td className="px-4 py-2 font-medium text-foreground whitespace-nowrap">
                           {row.label}
                           {row.corrected && <div className="text-xs font-normal text-muted-foreground">corrected return</div>}
                         </td>
-                        <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{eur.format(row.sales)}</td>
-                        <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{eur.format(row.purchases)}</td>
-                        <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{eur.format(row.outputVat)}</td>
-                        <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{eur.format(row.inputVat)}</td>
-                        <td className="px-4 py-2 text-right">
+                        <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground lg:table-cell">{eur.format(row.sales)}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground lg:table-cell">{eur.format(row.purchases)}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums md:table-cell">{eur.format(row.outputVat)}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums md:table-cell">{eur.format(row.inputVat)}</td>
+                        <td className="px-4 py-2 text-right whitespace-nowrap">
                           <Signed amount={row.net} />
-                          <div className="text-xs text-muted-foreground">{row.net < 0 ? "refund due" : "due to the State"}</div>
+                          <div className="text-xs text-muted-foreground">{row.net < 0 ? "owed to us" : "due to the State"}</div>
+                          {/* On a phone the settlement sits under the result. */}
+                          <div className="mt-1 whitespace-normal text-xs sm:hidden">
+                            <SettledCell net={row.net} settlement={settlements.get(row.period)} />
+                          </div>
+                        </td>
+                        <td className="hidden px-4 py-2 sm:table-cell">
+                          <SettledCell net={row.net} settlement={settlements.get(row.period)} />
                         </td>
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="border-t-2 border-border bg-muted/30 font-semibold">
+                    <tr className="align-top">
+                      <td className="px-4 py-2 text-foreground">Total</td>
+                      <td className="hidden px-4 py-2 text-right tabular-nums lg:table-cell">{eur.format(totals.sales)}</td>
+                      <td className="hidden px-4 py-2 text-right tabular-nums lg:table-cell">{eur.format(totals.purchases)}</td>
+                      <td className="hidden px-4 py-2 text-right tabular-nums md:table-cell">{eur.format(totals.outputVat)}</td>
+                      <td className="hidden px-4 py-2 text-right tabular-nums md:table-cell">{eur.format(totals.inputVat)}</td>
+                      <td className="px-4 py-2 text-right whitespace-nowrap">
+                        <Signed amount={totals.net} />
+                        <div className="text-xs font-normal text-muted-foreground">{totals.net < 0 ? "owed to us" : "due to the State"}</div>
+                        <div className="mt-1 text-xs font-normal text-muted-foreground sm:hidden">{eur.format(vatPaid)} paid, net of refunds</div>
+                      </td>
+                      <td className="hidden px-4 py-2 font-normal text-muted-foreground sm:table-cell">
+                        <span className="font-semibold text-foreground tabular-nums">{eur.format(vatPaid)}</span> paid, net of refunds
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             ) : (
               <p className="mt-6 text-sm text-muted-foreground">No VAT return published yet.</p>
             )}
             <p className="mt-3 text-sm text-muted-foreground">
-              The quarterly returns as filed with the FPS Finance (Intervat){vat ? `, VAT number ${vat.vatNumber}` : ""}.
-              {firstReturn ? ` Returns before ${quarterLabel(firstReturn.period)} are not published here yet; the payments and refunds for those quarters are in the federal card above.` : ""}{" "}
+              The quarterly returns as filed with the FPS Finance (Intervat){vat ? `, VAT number ${vat.vatNumber}` : ""}. Payments
+              made from our on-chain accounts link to the transaction on the blockchain; bank transfers link to that month&apos;s
+              transactions.
+              {strayVat.length > 0 &&
+                ` ${strayVat.map((p) => `${eur.format(Math.abs(p.amount))} ${p.amount < 0 ? "refunded" : "paid"} on ${longDate(p.date)}`).join(" and ")} ${strayVat.length === 1 ? "matches" : "match"} no return.`}{" "}
               A return is filed in the month after its quarter ends, so the latest quarter can take a few weeks to appear.
             </p>
           </div>
