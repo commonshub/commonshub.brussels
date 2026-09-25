@@ -76,5 +76,11 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Run as the unprivileged user from the first instruction. The entrypoint only
+# needs root for the opt-in DNS sandbox (ENABLE_DNS_SANDBOX=1, which rewrites
+# /etc/hosts); everything else it does works as nextjs. Holding root at start
+# gave nothing but risk: root ignores file permissions on the /data bind mount.
+USER nextjs
+
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["bun", "server.js"]

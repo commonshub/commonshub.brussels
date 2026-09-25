@@ -73,7 +73,9 @@ fi
 # ============================================================
 ENABLE_DNS_SANDBOX="${ENABLE_DNS_SANDBOX:-0}"
 DOMAINS_FILE="/app/sandbox-domains.conf"
-if [ "$ENABLE_DNS_SANDBOX" = "1" ]; then
+if [ "$ENABLE_DNS_SANDBOX" = "1" ] && [ "$(id -u)" != "0" ]; then
+    echo "[sandbox] WARNING: ENABLE_DNS_SANDBOX=1 needs the container started as root (docker run --user 0); skipping"
+elif [ "$ENABLE_DNS_SANDBOX" = "1" ]; then
     if [ -f "$DOMAINS_FILE" ]; then
         echo "[sandbox] Setting up DNS domain whitelist..."
 
