@@ -105,18 +105,22 @@ export default function TaxesPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground">Taxes</h1>
           <p className="mt-6 max-w-3xl text-xl text-muted-foreground">
-            A commons still pays its share. Here is everything the Commons Hub has paid in taxes, to the City, the Region and the federal state.
+            A commons still pays its share. Here is everything the Commons Hub has paid, or still owes, in taxes to the City, the Region and the federal state.
           </p>
           <div className="mt-10">
-            <div className="text-5xl sm:text-6xl font-bold tabular-nums text-foreground">{eur.format(summary.total)}</div>
+            <div className="text-5xl sm:text-6xl font-bold tabular-nums text-foreground">{eur.format(summary.totalWithPending)}</div>
             <p className="mt-2 text-muted-foreground">
-              paid in taxes{summary.since ? ` since ${longDate(summary.since)}` : ""}, VAT refunds deducted.
+              in taxes{summary.since ? ` since ${longDate(summary.since)}` : ""}, VAT refunds deducted
+              {summary.pendingTotal > 0 && (
+                <>
+                  {" "}
+                  (including{" "}
+                  <span className="font-semibold tabular-nums text-amber-700 dark:text-amber-400">{eur.format(summary.pendingTotal)}</span> tax
+                  claims that still need to be paid)
+                </>
+              )}
+              .
             </p>
-            {summary.pendingTotal > 0 && (
-              <p className="mt-4 text-lg text-foreground">
-                <span className="font-semibold tabular-nums text-amber-700 dark:text-amber-400">+ {eur.format(summary.pendingTotal)}</span> billed and not paid yet.
-              </p>
-            )}
           </div>
         </div>
       </section>

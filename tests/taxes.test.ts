@@ -82,6 +82,8 @@ describe("pending bills", () => {
     const summary = summarizeTaxes(payments, open)
     expect(summary.pendingTotal).toBe(40717.99)
     expect(summary.total).toBe(32561.41) // pending never counts as paid
+    // The headline on /taxes: what was paid plus the claims still to pay.
+    expect(summary.totalWithPending).toBe(73279.4)
     expect(summary.levels.find((l) => l.level === "local")!.pendingTotal).toBe(25522.8)
   })
 

@@ -110,7 +110,10 @@ export interface LevelTotal {
 }
 
 export interface TaxSummary {
+  /** Paid so far, VAT refunds deducted. */
   total: number
+  /** Paid so far plus the tax claims still to pay: the headline on /taxes. */
+  totalWithPending: number
   since: string | null
   levels: LevelTotal[]
   pending: PendingItem[]
@@ -143,12 +146,15 @@ export function summarizeTaxes(payments: TaxPayment[], pending: PendingItem[] = 
       pendingTotal: round(owed.reduce((s, b) => s + b.amount, 0)),
     }
   })
+  const total = round(sorted.reduce((s, p) => s + p.amount, 0))
+  const pendingTotal = round(pending.reduce((s, b) => s + b.amount, 0))
   return {
-    total: round(sorted.reduce((s, p) => s + p.amount, 0)),
+    total,
+    totalWithPending: round(total + pendingTotal),
     since: sorted[0]?.date ?? null,
     levels,
     pending,
-    pendingTotal: round(pending.reduce((s, b) => s + b.amount, 0)),
+    pendingTotal,
   }
 }
 
