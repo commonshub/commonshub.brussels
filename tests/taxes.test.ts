@@ -1,6 +1,6 @@
 import { describe, expect, test } from "@jest/globals"
 import settings from "@/settings/settings.json"
-import { type PendingTax, type TaxRule, type VatPeriod, classifyTaxPayment, openPending, summarizeTaxes, vatQuarterOf, vatRow } from "@/lib/taxes"
+import { type PendingTax, type TaxRule, type VatPeriod, classifyTaxPayment, explorerTxUrl, matchVatPayments, openPending, summarizeTaxes, vatQuarterOf, vatRow, vatTotals } from "@/lib/taxes"
 
 const TAXES = (settings as unknown as { taxes: { rules: TaxRule[]; pending: PendingTax[] } }).taxes
 const RULES = TAXES.rules
@@ -123,3 +123,65 @@ describe("VAT returns", () => {
     })
   })
 })
+
+describe("which payment settled which VAT return", () => {
+  // The nine returns and six VAT movements on production, September 2026.
+  const period = (period: string, to: string, net: number): VatPeriod => ({
+    period,
+    year: Number(period.slice(0, 4)),
+    quarter: Number(period.slice(-1)),
+    from: "",
+    to,
+    amendments: 0,
+    grids: {},
+    totals: { outputVat: 0, inputVat: 0, due: Math.max(net, 0), credit: Math.max(-net, 0), net, consistent: true },
+  })
+  const periods = [
+    period("2024-Q2", "2024-06-30", -472.58),
+    period("2024-Q3", "2024-09-30", -7313.61),
+    period("2024-Q4", "2024-12-31", -11712.49),
+    period("2025-Q1", "2025-03-31", 3288.22),
+    period("2025-Q2", "2025-06-30", -3695.54),
+    period("2025-Q3", "2025-09-30", 2824.49),
+    period("2025-Q4", "2025-12-31", 5644.59),
+    period("2026-Q1", "2026-03-31", 4401.77),
+    period("2026-Q2", "2026-06-30", 11778.73),
+  ]
+  const payments = [
+    tx("c", "2025-03-31T10:00:00Z", 11712.49, "0804.505.132 REMBOURSEMENT TVA 4E TRIM 2024", "vat"),
+    tx("g", "2025-04-25T10:00:00Z", -3288.22, "***080/4505/13233***"),
+    tx("h", "2025-05-23T10:00:00Z", -1, "***080/4505/13233***"),
+    tx("i", "2025-10-25T10:00:00Z", -2824.49, "***080/4505/13233***"),
+    tx("ethereum:100:tx:0x4b1b760f0428b3c4634b9ef669bc5dccdd6abebb5e", "2026-04-28T10:00:00Z", -4401.71, "+++080/4505/13233+++ VAT 2026/Q1"),
+    tx("f", "2026-07-25T10:00:00Z", -8152.21, "+++080/4505/13233+++"),
+  ].map((t) => classifyTaxPayment(t, RULES)!)
+
+  test("each return shows how it was settled, and nothing is guessed", () => {
+    const { byPeriod, unmatched } = matchVatPayments(periods, payments)
+    const view = Object.fromEntries([...byPeriod].map(([p, s]) => [p, [s.status, s.payments.map((x) => x.id), s.status === "partial" ? s.missing : undefined]]))
+    expect(view).toEqual({
+      "2024-Q2": ["none", [], undefined], // a credit never refunded: carried forward
+      "2024-Q3": ["none", [], undefined],
+      "2024-Q4": ["settled", ["c"], undefined], // refunded, quarter named in French
+      "2025-Q1": ["settled", ["g"], undefined], // same amount
+      "2025-Q2": ["none", [], undefined],
+      "2025-Q3": ["settled", ["i"], undefined],
+      "2025-Q4": ["none", [], undefined], // due, no payment in our accounts
+      "2026-Q1": ["settled", ["ethereum:100:tx:0x4b1b760f0428b3c4634b9ef669bc5dccdd6abebb5e"], undefined], // named, 6 cents off
+      "2026-Q2": ["partial", ["f"], 3626.52], // paid within two months, not in full
+    })
+    expect(unmatched.map((p) => [p.id, p.amount])).toEqual([["h", 1]])
+  })
+
+  test("on-chain payments link to the explorer, bank transfers do not", () => {
+    expect(explorerTxUrl("ethereum:100:tx:0x4b1b760f0428b3c4634b9ef669bc5dccdd6abebb5e")).toBe(
+      "https://gnosisscan.io/tx/0x4b1b760f0428b3c4634b9ef669bc5dccdd6abebb5e",
+    )
+    expect(explorerTxUrl("iban:be46734072238636:tx:23371")).toBeNull()
+  })
+
+  test("the table's total row adds up the returns", () => {
+    expect(vatTotals(periods.map(vatRow)).net).toBe(4743.58)
+  })
+})
+

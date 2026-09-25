@@ -193,3 +193,88 @@ export function vatRow(period: VatPeriod) {
     corrected: period.amendments > 0,
   }
 }
+
+// ── which payment settled which return ────────────────────────────────────
+
+const EXPLORERS: Record<string, string> = {
+  gnosis: "https://gnosisscan.io",
+  celo: "https://celoscan.io",
+  ethereum: "https://etherscan.io",
+}
+
+/** The public explorer page of an on-chain payment; null for a bank transfer. */
+export function explorerTxUrl(id: string): string | null {
+  const parts = id.split(":")
+  if (parts[0] !== "ethereum" || parts[2] !== "tx" || !/^0x[0-9a-f]+$/i.test(parts[3] ?? "")) return null
+  const chain = { "1": "ethereum", "100": "gnosis", "42220": "celo" }[parts[1]]
+  return chain ? `${EXPLORERS[chain]}/tx/${parts[3].toLowerCase()}` : null
+}
+
+export type Settlement =
+  /** Paid, or refunded, in full (to the euro). */
+  | { status: "settled"; payments: TaxPayment[] }
+  /** Some was paid; the rest is not in our accounts. */
+  | { status: "partial"; payments: TaxPayment[]; missing: number }
+  /** Nothing in our accounts: for a credit, not refunded (often carried forward). */
+  | { status: "none"; payments: [] }
+  /** The return came to zero. */
+  | { status: "nothing-due"; payments: [] }
+
+const quarterEnd = (period: VatPeriod) => period.to
+const daysBetween = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 86_400_000
+
+/**
+ * Match the VAT payments and refunds in the bank to the returns they settle.
+ *
+ * A payment belongs to a return when it names the quarter; otherwise when
+ * its amount equals the return's result to the euro (a refund against a
+ * credit, a payment against an amount due), after the quarter ended.
+ * Failing both, a payment made within two months of a quarter's end, while
+ * that return is still open, is taken as a part payment of it. Anything
+ * left over is returned as unmatched: it is shown, not guessed at.
+ */
+export function matchVatPayments(periods: VatPeriod[], payments: TaxPayment[]): { byPeriod: Map<string, Settlement>; unmatched: TaxPayment[] } {
+  const vat = payments.filter((p) => p.kind === "vat").sort((a, b) => a.date.localeCompare(b.date))
+  const used = new Set<string>()
+  const matched = new Map<string, TaxPayment[]>()
+  const take = (period: VatPeriod, p: TaxPayment) => {
+    used.add(p.id)
+    matched.set(period.period, [...(matched.get(period.period) ?? []), p])
+  }
+  const sameSign = (net: number, p: TaxPayment) => Math.sign(net) === Math.sign(p.amount)
+
+  // 1. Named quarter.
+  for (const period of periods) for (const p of vat) if (!used.has(p.id) && p.quarter === period.period) take(period, p)
+  // 2. Same amount, after the quarter ended.
+  for (const period of periods) {
+    if (matched.has(period.period) || period.totals.net === 0) continue
+    const p = vat.find((x) => !used.has(x.id) && sameSign(period.totals.net, x) && Math.abs(Math.abs(x.amount) - Math.abs(period.totals.net)) <= 1 && x.date > quarterEnd(period))
+    if (p) take(period, p)
+  }
+  // 3. A part payment within two months of the quarter's end.
+  for (const period of periods) {
+    if (matched.has(period.period) || period.totals.net <= 0) continue
+    const p = vat.find((x) => !used.has(x.id) && x.amount > 0 && x.date > quarterEnd(period) && daysBetween(quarterEnd(period), x.date) <= 62)
+    if (p) take(period, p)
+  }
+
+  const byPeriod = new Map<string, Settlement>()
+  for (const period of periods) {
+    const net = period.totals.net
+    const ps = matched.get(period.period) ?? []
+    if (net === 0) byPeriod.set(period.period, { status: "nothing-due", payments: [] })
+    else if (ps.length === 0) byPeriod.set(period.period, { status: "none", payments: [] })
+    else {
+      const covered = round(ps.reduce((s, p) => s + p.amount, 0))
+      const missing = round(net - covered)
+      byPeriod.set(period.period, Math.abs(missing) <= 1 ? { status: "settled", payments: ps } : { status: "partial", payments: ps, missing })
+    }
+  }
+  return { byPeriod, unmatched: vat.filter((p) => !used.has(p.id)) }
+}
+
+/** Sums for the VAT table's total row. */
+export function vatTotals(rows: ReturnType<typeof vatRow>[]) {
+  const sum = (key: "sales" | "purchases" | "outputVat" | "inputVat" | "net") => round(rows.reduce((s, r) => s + r[key], 0))
+  return { sales: sum("sales"), purchases: sum("purchases"), outputVat: sum("outputVat"), inputVat: sum("inputVat"), net: sum("net") }
+}
