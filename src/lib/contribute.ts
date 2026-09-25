@@ -38,11 +38,13 @@ export function clampContribution(value: number, expenseEur: number): number {
 }
 
 /**
- * The transfer message that ties a bank transfer to one expense. SEPA gives
- * 140 characters; the reference goes first so it survives any truncation.
+ * The transfer message that ties a bank transfer to one expense: short, so
+ * it reads well in a bank statement and fits every banking app —
+ * "Contribution phone booth", "Contribution BILL/2026/0042". SEPA allows
+ * 140 characters.
  */
-export function contributionMessage(reference: string, label: string): string {
-  const message = `Contribution ${reference} - ${label}`.replace(/\s+/g, " ").trim()
+export function contributionMessage(key: string): string {
+  const message = `Contribution ${key}`.replace(/\s+/g, " ").trim()
   return message.length > 140 ? `${message.slice(0, 139)}…` : message
 }
 

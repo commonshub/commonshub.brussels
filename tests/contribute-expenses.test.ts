@@ -88,7 +88,7 @@ describe("classifyBills", () => {
   })
 
   test("a recurring rule with no bills is left out rather than shown at zero", () => {
-    expect(result.recurring.map((e) => e.slug)).toEqual(["rent", "furniture-relieve", "internet", "electricity"])
+    expect(result.recurring.map((e) => e.slug)).toEqual(["rent", "furniture-relieve", "electricity", "internet"])
     const none = classifyBills([], CONFIG)
     expect(none.recurring).toEqual([])
     expect(none.empty).toBe(true)
@@ -111,7 +111,7 @@ describe("classifyBills", () => {
   test("one-time expenses carry the bill reference in their transfer message", () => {
     const dishwasher = result.oneTime.find((e) => e.label === "Dishwasher")!
     expect(dishwasher.slug).toMatch(/^bill-\d+$/)
-    expect(dishwasher.message).toBe(`Contribution ${dishwasher.reference} - Dishwasher`)
+    expect(dishwasher.message).toBe(`Contribution ${dishwasher.reference}`)
     expect(dishwasher.amountEur).toBe(746)
   })
 
@@ -231,7 +231,7 @@ describe("reading the dataset", () => {
     expect(bills[0].vendor).toBe("")
     expect(bills[0].reference).toBe("708733797986")
     const expenses = loadContributeExpenses({ dataDir, now: new Date("2026-08-15T12:00:00Z"), config: CONFIG })
-    expect(expenses.recurring.map((e) => e.slug)).toEqual(["internet", "electricity"])
+    expect(expenses.recurring.map((e) => e.slug)).toEqual(["electricity", "internet"]) // largest first
   })
 
   test("recentMonths walks back across a year boundary", () => {
@@ -244,6 +244,19 @@ describe("reading the dataset", () => {
 })
 
 describe("the fixed costs configured in settings", () => {
+  // /contribute and /taxes must tell the same story: the taxes offered as
+  // costs are the bills listed on /taxes.
+  test("the taxes offered as costs are the 2026 bills on /taxes", () => {
+    const all = settings as unknown as {
+      contribute: { recurring: Array<{ slug: string; annualAmount?: number }> }
+      taxes: { pending: Array<{ kind: string; taxYear: number; amount: number }> }
+    }
+    const bill = (kind: string) => all.taxes.pending.find((b) => b.kind === kind && b.taxYear === 2026)!.amount
+    const cost = (slug: string) => all.contribute.recurring.find((r) => r.slug === slug)!.annualAmount
+    expect(cost("property-tax")).toBe(bill("property-tax"))
+    expect(cost("office-tax")).toBe(bill("office-tax"))
+  })
+
   // chb does not publish a bills projection in the public tier yet, so on
   // production the page reads no bills at all. Every fixed cost must still
   // show, with the amount configured for it.
@@ -252,15 +265,19 @@ describe("the fixed costs configured in settings", () => {
     try {
       const config = (settings as unknown as { contribute: typeof CONFIG }).contribute
       const { recurring } = loadContributeExpenses({ dataDir: empty, now: new Date("2026-09-23T12:00:00Z"), config })
-      expect(recurring.map((e) => [e.slug, e.amountEur])).toEqual([
-        ["rent", 6546.76],
-        ["furniture-relieve", 504.57],
-        ["acoustic-booth-wenap", 133.1],
-        ["internet", 54.45],
-        ["electricity", 238.5],
+      // Largest first, taxes included as a twelfth of the yearly bill.
+      expect(recurring.map((e) => [e.slug, e.amountEur, e.message])).toEqual([
+        ["rent", 6546.76, "Contribution rent"],
+        ["property-tax", 1266.27, "Contribution property tax"],
+        ["office-tax", 1076.58, "Contribution office tax"],
+        ["furniture-relieve", 504.57, "Contribution furniture"],
+        ["electricity", 238.5, "Contribution electricity"],
+        ["acoustic-booth-wenap", 133.1, "Contribution phone booth"],
+        ["internet", 54.45, "Contribution internet"],
       ])
+      expect(recurring.find((e) => e.slug === "property-tax")!.annualAmount).toBe(15195.19)
       const total = recurring.reduce((sum, e) => sum + e.amountEur, 0)
-      expect(Math.round(total * 100) / 100).toBe(7477.38)
+      expect(Math.round(total * 100) / 100).toBe(9820.23)
     } finally {
       fs.rmSync(empty, { recursive: true, force: true })
     }
