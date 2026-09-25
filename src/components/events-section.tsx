@@ -9,6 +9,7 @@ import Link from "next/link";
 import settings from "@/settings/settings.json";
 import { shortenUrls } from "@/lib/plain-text";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
+import { FeaturedEventCard } from "@/components/featured-event-card";
 interface EventTag {
   name: string;
   color: string;
@@ -33,11 +34,9 @@ interface LumaEvent {
 function EventCard({
   event,
   onTagClick,
-  size = "normal",
 }: {
   event: LumaEvent;
   onTagClick: (tag: string) => void;
-  size?: "normal" | "large";
 }) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -56,7 +55,6 @@ function EventCard({
     });
   };
 
-  const isLarge = size === "large";
   const eventUrl = event.isExternal ? event.externalUrl : event.url;
   // Hosted events have a page on this site; everything else opens Luma etc.
   const isOwnPage = !!eventUrl?.startsWith("/");
@@ -76,21 +74,17 @@ function EventCard({
       className="block"
     >
       <Card
-        className={`overflow-hidden group hover:shadow-lg transition-all cursor-pointer h-full ${isLarge ? "md:col-span-2 lg:col-span-1" : ""}`}
+        className="overflow-hidden group hover:shadow-lg transition-all cursor-pointer h-full"
       >
         <div
-          className={`relative overflow-hidden bg-muted ${isLarge ? "h-64" : "h-48"}`}
+          className="relative overflow-hidden bg-muted h-48"
         >
           {event.cover_url ? (
             <Image
               src={getProxiedImageUrl(event.cover_url, "sm", { relative: true })}
               alt={event.name}
               fill
-              sizes={
-                isLarge
-                  ? "(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  : "(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              }
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -128,7 +122,7 @@ function EventCard({
           </div>
         </div>
         <CardHeader className="py-3 pb-0">
-          <CardTitle className={`${isLarge ? "text-xl" : ""} line-clamp-2 break-words`}>
+          <CardTitle className="line-clamp-2 break-words">
             {event.name}
           </CardTitle>
           {event.location && (
@@ -225,16 +219,9 @@ export function EventsSection() {
                 Don't miss these highlighted events handpicked by our community.
               </p>
             </div>
-            <div
-              className={`grid gap-6 ${featuredEvents.length === 1 ? "max-w-lg mx-auto" : featuredEvents.length === 2 ? "md:grid-cols-2 max-w-3xl mx-auto" : "md:grid-cols-2 lg:grid-cols-3"}`}
-            >
+            <div className={`mx-auto grid gap-6 ${featuredEvents.length === 1 ? "max-w-3xl" : "max-w-6xl lg:grid-cols-2"}`}>
               {featuredEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onTagClick={setSelectedTag}
-                  size="large"
-                />
+                <FeaturedEventCard key={event.id} event={event} onTagClick={setSelectedTag} />
               ))}
             </div>
           </div>
