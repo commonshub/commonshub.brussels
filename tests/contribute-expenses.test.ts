@@ -10,6 +10,7 @@ import {
   classifyBills,
   findExpense,
   loadContributeExpenses,
+  slugAlias,
   readMonthBills,
   recentMonths,
   withoutPersonName,
@@ -270,16 +271,26 @@ describe("the fixed costs configured in settings", () => {
         ["rent", 6546.76, "Contribution rent"],
         ["property-tax", 1266.27, "Contribution property tax"],
         ["office-tax", 1076.58, "Contribution office tax"],
-        ["furniture-relieve", 504.57, "Contribution furniture"],
+        // Relieve's furniture and WeNap's phone booth, one cost: 504.57 + 133.10.
+        ["furniture", 637.67, "Contribution furniture"],
         ["electricity", 238.5, "Contribution electricity"],
-        ["acoustic-booth-wenap", 133.1, "Contribution phone booth"],
         ["internet", 54.45, "Contribution internet"],
       ])
+      expect(recurring.find((e) => e.slug === "furniture")!.vendor).toBe("Relieve and WeNap")
       expect(recurring.find((e) => e.slug === "property-tax")!.annualAmount).toBe(15195.19)
       const total = recurring.reduce((sum, e) => sum + e.amountEur, 0)
       expect(Math.round(total * 100) / 100).toBe(9820.23)
     } finally {
       fs.rmSync(empty, { recursive: true, force: true })
     }
+  })
+})
+
+describe("merged costs keep their old links", () => {
+  test("the phone booth and Relieve pages now point at furniture", () => {
+    expect(slugAlias("acoustic-booth-wenap")).toBe("furniture")
+    expect(slugAlias("furniture-relieve")).toBe("furniture")
+    expect(slugAlias("rent")).toBeNull()
+    expect(slugAlias("nothing")).toBeNull()
   })
 })

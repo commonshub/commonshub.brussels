@@ -56,7 +56,7 @@ function ExpenseCard({ expense, total }: { expense: ContributableExpense; total?
         )}
       </div>
       <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-        {recurring ? "Chip in for a month" : "Chip in"}
+        Chip in
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </span>
     </Link>

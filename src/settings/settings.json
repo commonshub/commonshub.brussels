@@ -309,7 +309,7 @@
     }
   },
   "contribute": {
-    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount is the fixed monthly cost shown on the page and wins over the amount read from bills; annualAmount is a yearly bill shown as a twelfth per month (the two taxes: the 2026 bills, the same as settings.taxes.pending); short names the cost in the transfer message, \"Contribution <short>\" (the fixed costs below are set from the Odoo vendor bills as of September 2026 — update them when a contract changes). Bills matching exclude go nowhere (catering is bought and consumed on the day).",
+    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount is the fixed monthly cost shown on the page and wins over the amount read from bills; annualAmount is a yearly bill shown as a twelfth per month (the two taxes: the 2026 bills, the same as settings.taxes.pending); short names the cost in the transfer message, \"Contribution <short>\" (the fixed costs below are set from the Odoo vendor bills as of September 2026 — update them when a contract changes). Bills matching exclude go nowhere (catering is bought and consumed on the day). vendorLabel names the suppliers on the page when a cost has several; aliases are older slugs that redirect to this one.",
     "recurring": [
       {
         "slug": "rent",
@@ -322,22 +322,18 @@
         "monthlyAmount": 6546.76
       },
       {
-        "slug": "furniture-relieve",
-        "label": "Furniture rental (Relieve)",
+        "slug": "furniture",
+        "label": "Furniture rental",
         "short": "furniture",
-        "vendor": "Relieve",
-        "description": "Tables, chairs and sofas are rented from Relieve, a Brussels circular-furniture company, rather than bought. When the space changes, the furniture changes with it.",
-        "line": "relieve",
-        "monthlyAmount": 504.57
-      },
-      {
-        "slug": "acoustic-booth-wenap",
-        "label": "Furniture rental: phone booth (WeNap)",
-        "short": "phone booth",
-        "vendor": "WeNap",
-        "description": "The acoustic phone booth, rented from WeNap, for calls that should not be taken in the middle of the coworking.",
-        "line": "wenap|kosy|cabine acoustique",
-        "monthlyAmount": 133.1
+        "vendorLabel": "Relieve and WeNap",
+        "aliases": [
+          "furniture-relieve",
+          "acoustic-booth-wenap"
+        ],
+        "vendor": "Relieve|WeNap",
+        "description": "Tables, chairs and sofas from Relieve, a Brussels circular-furniture company, and the acoustic phone booth from WeNap: rented rather than bought, so when the space changes, the furniture changes with it.",
+        "line": "relieve|wenap|kosy|cabine acoustique",
+        "monthlyAmount": 637.67
       },
       {
         "slug": "internet",

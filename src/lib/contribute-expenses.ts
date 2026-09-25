@@ -121,6 +121,10 @@ interface RecurringRule {
   annualAmount?: number
   /** What the transfer message calls it: "Contribution <short>". */
   short?: string
+  /** The suppliers, as the page names them, when a cost has several. */
+  vendorLabel?: string
+  /** Older slugs of this cost; their pages redirect here. */
+  aliases?: string[]
 }
 
 interface ContributeSettings {
@@ -291,7 +295,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       slug: rule.slug,
       kind: "recurring",
       label: rule.label,
-      vendor: latest?.vendor || rule.label,
+      vendor: rule.vendorLabel || latest?.vendor || rule.label,
       amountEur,
       date: latest?.date ?? "",
       reference: rule.slug,
@@ -351,4 +355,9 @@ export function loadContributeExpenses(
 
 export function findExpense(slug: string, expenses: ContributeExpenses): ContributableExpense | null {
   return [...expenses.recurring, ...expenses.oneTime].find((e) => e.slug === slug) ?? null
+}
+
+/** The current slug for an older one (a cost that was merged or renamed), if any. */
+export function slugAlias(slug: string, config: ContributeSettings = CONFIG): string | null {
+  return config.recurring.find((rule) => rule.aliases?.includes(slug))?.slug ?? null
 }
