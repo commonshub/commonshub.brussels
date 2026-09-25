@@ -419,7 +419,7 @@
     "coordinatorNpub": "npub1828zsgu6xv0j0y0axr4agq5uf0yh8djxtd89guqgg8vuymqgc8es3ge93h"
   },
   "taxes": {
-    "_comment": "Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `passThrough` is the owner's latest assessment of the building's property tax and office tax and our share of it, split by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'.",
+    "_comment": "Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists taxes billed to us but not paid yet; an entry disappears on its own once a payment of the same kind and tax year shows up. `passThrough` is the owner's split of the building's property tax and office tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
     "rules": [
       {
         "kind": "property-tax",
@@ -440,7 +440,24 @@
         "level": "federal",
         "label": "VAT",
         "localName": "TVA",
-        "match": "\\+\\+\\+080/4505/132\\d\\d\\+\\+\\+|rembours\\w* tva|\\bvat 20\\d\\d/q[1-4]"
+        "match": "[+*]{3}080/4505/132\\d\\d[+*]{3}|rembours\\w* tva|\\bvat 20\\d\\d/q[1-4]"
+      }
+    ],
+    "pending": [
+      {
+        "kind": "office-tax",
+        "taxYear": 2025,
+        "amount": 12603.85
+      },
+      {
+        "kind": "office-tax",
+        "taxYear": 2026,
+        "amount": 12918.95
+      },
+      {
+        "kind": "property-tax",
+        "taxYear": 2026,
+        "amount": 15195.19
       }
     ],
     "passThrough": {

@@ -11,6 +11,9 @@
  *
  * Payments are recognised by their description in the public transactions
  * (settings.taxes.rules), so a new payment shows as soon as chb has it.
+ * Taxes billed but not paid yet are listed in settings.taxes.pending and
+ * drop off once a payment for the same tax and year appears. The VAT
+ * returns themselves (what each quarter came to) are chb's vat.json.
  * Pure: the loader is in taxes-data.ts.
  */
 
@@ -52,15 +55,17 @@ export interface TaxPayment {
 const brusselsDate = (seconds: number) =>
   new Date(seconds * 1000).toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })
 
-/** The VAT quarter a payment settles: named in the description, else the quarter before it. */
-export function vatQuarterOf(description: string, date: string): string {
+/**
+ * The VAT quarter a payment names, "2026-Q1", or null. A payment that names
+ * none is not attributed: a quarter can be settled late or in parts, so
+ * guessing from the date would put money against the wrong return.
+ */
+export function vatQuarterOf(description: string): string | null {
   const named = description.match(/\bvat (\d{4})\/q([1-4])\b/i)
   if (named) return `${named[1]}-Q${named[2]}`
   const french = description.match(/\b([1-4])\s*(?:e|er|ème)\s*trim\w*\.?\s*(\d{4})\b/i)
   if (french) return `${french[2]}-Q${french[1]}`
-  const [y, m] = date.split("-").map(Number)
-  const q = Math.floor((m - 1) / 3) + 1
-  return q === 1 ? `${y - 1}-Q4` : `${y}-Q${q - 1}`
+  return null
 }
 
 /** The tax payment this transaction is, if any. */
@@ -80,40 +85,105 @@ export function classifyTaxPayment(tx: TaxTransactionLike, rules: TaxRule[]): Ta
     label: rule.label,
     amount: Math.round(-tx.amount * 100) / 100,
     description,
-    ...(rule.kind === "vat" ? { quarter: vatQuarterOf(description, date) } : year ? { taxYear: Number(year[1]) } : {}),
+    ...(rule.kind === "vat" ? { quarter: vatQuarterOf(description) ?? undefined } : year ? { taxYear: Number(year[1]) } : {}),
   }
+}
+
+/** A tax billed to us and not paid yet. */
+export interface PendingTax {
+  kind: TaxKind
+  taxYear: number
+  amount: number
+}
+
+export interface PendingItem extends PendingTax {
+  level: TaxLevel
+  label: string
 }
 
 export interface LevelTotal {
   level: TaxLevel
   total: number
   payments: TaxPayment[]
+  pending: PendingItem[]
+  pendingTotal: number
 }
 
 export interface TaxSummary {
   total: number
   since: string | null
   levels: LevelTotal[]
-  vatQuarters: Array<{ quarter: string; amount: number; payments: TaxPayment[] }>
+  pending: PendingItem[]
+  pendingTotal: number
 }
 
 const round = (n: number) => Math.round(n * 100) / 100
 export const LEVELS: TaxLevel[] = ["local", "regional", "federal"]
 
-export function summarizeTaxes(payments: TaxPayment[]): TaxSummary {
+/** Pending bills still open: none of the payments settles the same tax for the same year. */
+export function openPending(pending: PendingTax[], payments: TaxPayment[], rules: TaxRule[]): PendingItem[] {
+  return pending
+    .filter((bill) => !payments.some((p) => p.kind === bill.kind && p.taxYear === bill.taxYear))
+    .flatMap((bill) => {
+      const rule = rules.find((r) => r.kind === bill.kind)
+      return rule ? [{ ...bill, level: rule.level, label: rule.label }] : []
+    })
+}
+
+export function summarizeTaxes(payments: TaxPayment[], pending: PendingItem[] = []): TaxSummary {
   const sorted = [...payments].sort((a, b) => a.date.localeCompare(b.date))
   const levels = LEVELS.map((level) => {
     const own = sorted.filter((p) => p.level === level)
-    return { level, total: round(own.reduce((s, p) => s + p.amount, 0)), payments: own }
+    const owed = pending.filter((b) => b.level === level).sort((a, b) => a.taxYear - b.taxYear)
+    return {
+      level,
+      total: round(own.reduce((s, p) => s + p.amount, 0)),
+      payments: own,
+      pending: owed,
+      pendingTotal: round(owed.reduce((s, b) => s + b.amount, 0)),
+    }
   })
-  const byQuarter = new Map<string, TaxPayment[]>()
-  for (const p of sorted) if (p.quarter) byQuarter.set(p.quarter, [...(byQuarter.get(p.quarter) ?? []), p])
   return {
     total: round(sorted.reduce((s, p) => s + p.amount, 0)),
     since: sorted[0]?.date ?? null,
     levels,
-    vatQuarters: [...byQuarter.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([quarter, ps]) => ({ quarter, amount: round(ps.reduce((s, p) => s + p.amount, 0)), payments: ps })),
+    pending,
+    pendingTotal: round(pending.reduce((s, b) => s + b.amount, 0)),
+  }
+}
+
+// ── VAT returns (chb's vat.json, from Intervat) ────────────────────────────
+
+export interface VatPeriod {
+  period: string
+  year: number
+  quarter?: number
+  from: string
+  to: string
+  amendments: number
+  grids: Record<string, number>
+  totals: { outputVat: number; inputVat: number; due: number; credit: number; net: number; consistent: boolean }
+}
+
+export interface VatFile {
+  generatedAt: string
+  vatNumber: string
+  periods: VatPeriod[]
+}
+
+const sumGrids = (grids: Record<string, number>, plus: string[], minus: string[] = []) =>
+  round(plus.reduce((s, g) => s + (grids[g] ?? 0), 0) - minus.reduce((s, g) => s + (grids[g] ?? 0), 0))
+
+/** One row of the VAT table, as chb's docs describe the overview. */
+export function vatRow(period: VatPeriod) {
+  return {
+    period: period.period,
+    label: period.quarter ? `${period.year} Q${period.quarter}` : period.period,
+    sales: sumGrids(period.grids, ["00", "01", "02", "03", "44", "45", "46", "47"], ["48", "49"]),
+    purchases: sumGrids(period.grids, ["81", "82", "83"], ["84", "85"]),
+    outputVat: period.totals.outputVat,
+    inputVat: period.totals.inputVat,
+    net: period.totals.net,
+    corrected: period.amendments > 0,
   }
 }

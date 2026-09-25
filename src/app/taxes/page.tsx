@@ -1,8 +1,8 @@
 import Link from "next/link"
 import { Building2, ChevronDown, Landmark, MapPinned } from "lucide-react"
 
-import { PASS_THROUGH, loadTaxPayments } from "@/lib/taxes-data"
-import { type TaxLevel, type TaxPayment, summarizeTaxes } from "@/lib/taxes"
+import { PASS_THROUGH, PENDING_TAXES, TAX_RULES, loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
+import { type PendingItem, type TaxLevel, type TaxPayment, openPending, summarizeTaxes, vatRow } from "@/lib/taxes"
 
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic"
@@ -47,16 +47,29 @@ function Signed({ amount }: { amount: number }) {
   )
 }
 
-function PaymentList({ payments }: { payments: TaxPayment[] }) {
+function PaymentList({ payments, pending }: { payments: TaxPayment[]; pending: PendingItem[] }) {
   return (
     <ul className="mt-3 divide-y divide-border text-sm">
+      {pending.map((bill) => (
+        <li key={`${bill.kind}-${bill.taxYear}`} className="flex items-start justify-between gap-3 py-2">
+          <div className="min-w-0">
+            <div className="text-foreground">
+              {bill.label} {bill.taxYear}
+            </div>
+            <div className="text-xs text-amber-700 dark:text-amber-400">Billed, not paid yet</div>
+          </div>
+          <span className="tabular-nums text-amber-700 dark:text-amber-400">{eur.format(bill.amount)}</span>
+        </li>
+      ))}
       {payments.map((p) => {
         const [y, m] = p.date.split("-")
         return (
           <li key={p.id} className="flex items-start justify-between gap-3 py-2">
             <div className="min-w-0">
               <div className="text-foreground">
-                {p.kind === "vat" ? `VAT ${quarterLabel(p.quarter!)} ${p.amount < 0 ? "refund" : "payment"}` : `${p.label}${p.taxYear ? ` ${p.taxYear}` : ""}`}
+                {p.kind === "vat"
+                  ? `VAT ${p.amount < 0 ? "refund" : "payment"}${p.quarter ? ` for ${quarterLabel(p.quarter)}` : ""}`
+                  : `${p.label}${p.taxYear ? ` ${p.taxYear}` : ""}`}
               </div>
               <Link href={`/${y}/${m}/transactions`} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
                 {longDate(p.date)}
@@ -76,7 +89,11 @@ function PaymentList({ payments }: { payments: TaxPayment[] }) {
  * movements in the public dataset, so it moves as soon as a payment does.
  */
 export default function TaxesPage() {
-  const summary = summarizeTaxes(loadTaxPayments())
+  const payments = loadTaxPayments()
+  const summary = summarizeTaxes(payments, openPending(PENDING_TAXES, payments, TAX_RULES))
+  const vat = loadVatReturns()
+  const vatRows = (vat?.periods ?? []).map(vatRow).reverse()
+  const firstReturn = vat?.periods[0]
   const pt = PASS_THROUGH
   const propertyShare = pt.cadastralIncome.ours / pt.cadastralIncome.building
   const officeShare = pt.cadastralIncome.ours / pt.cadastralIncome.officeTaxBase
@@ -95,6 +112,11 @@ export default function TaxesPage() {
             <p className="mt-2 text-muted-foreground">
               paid in taxes{summary.since ? ` since ${longDate(summary.since)}` : ""}, VAT refunds deducted.
             </p>
+            {summary.pendingTotal > 0 && (
+              <p className="mt-4 text-lg text-foreground">
+                <span className="font-semibold tabular-nums text-amber-700 dark:text-amber-400">+ {eur.format(summary.pendingTotal)}</span> billed and not paid yet.
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -104,7 +126,7 @@ export default function TaxesPage() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">By level of government</h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {summary.levels.map(({ level, total, payments }) => {
+              {summary.levels.map(({ level, total, payments, pending, pendingTotal }) => {
                 const info = LEVEL_INFO[level]
                 const Icon = info.icon
                 return (
@@ -117,14 +139,21 @@ export default function TaxesPage() {
                     <div className="mt-4 text-3xl font-bold">
                       <Signed amount={total} />
                     </div>
+                    <div className="text-xs text-muted-foreground">paid so far</div>
+                    {pendingTotal > 0 && (
+                      <div className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                        + {eur.format(pendingTotal)} billed, not paid yet
+                      </div>
+                    )}
                     <p className="mt-3 text-sm text-muted-foreground">{info.what}</p>
-                    {payments.length > 0 && (
+                    {payments.length + pending.length > 0 && (
                       <details className="group mt-4">
                         <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-primary">
                           {payments.length} {payments.length === 1 ? "payment" : "payments"}
+                          {pending.length > 0 ? `, ${pending.length} pending` : ""}
                           <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                         </summary>
-                        <PaymentList payments={payments} />
+                        <PaymentList payments={payments} pending={pending} />
                       </details>
                     )}
                   </div>
@@ -136,30 +165,35 @@ export default function TaxesPage() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">VAT, quarter by quarter</h2>
             <p className="mt-2 max-w-3xl text-muted-foreground">
-              Every quarter we file a VAT return. When we collected more VAT on our invoices than we paid on our expenses, we pay the difference; when we paid more, the state refunds it. Refunds are shown in green, with a minus sign.
+              Every quarter we file a VAT return. When we collected more VAT on our sales than we paid on our purchases, we owe the difference to the State; when we paid more, the State refunds it (shown in green, with a minus sign).
             </p>
-            {summary.vatQuarters.length > 0 ? (
+            {vatRows.length > 0 ? (
               <div className="mt-6 overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-left text-muted-foreground">
                     <tr>
                       <th className="px-4 py-2 font-medium">Quarter</th>
-                      <th className="hidden px-4 py-2 font-medium sm:table-cell">Settled</th>
-                      <th className="px-4 py-2 font-medium">Result</th>
-                      <th className="px-4 py-2 text-right font-medium">Amount</th>
+                      <th className="hidden px-4 py-2 text-right font-medium md:table-cell">Sales</th>
+                      <th className="hidden px-4 py-2 text-right font-medium md:table-cell">Purchases</th>
+                      <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">VAT collected</th>
+                      <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">VAT deducted</th>
+                      <th className="px-4 py-2 text-right font-medium">Result</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {summary.vatQuarters.map((q) => (
-                      <tr key={q.quarter}>
+                    {vatRows.map((row) => (
+                      <tr key={row.period}>
                         <td className="px-4 py-2 font-medium text-foreground whitespace-nowrap">
-                          {quarterLabel(q.quarter)}
-                          <div className="text-xs font-normal text-muted-foreground sm:hidden">{q.payments.map((p) => longDate(p.date)).join(", ")}</div>
+                          {row.label}
+                          {row.corrected && <div className="text-xs font-normal text-muted-foreground">corrected return</div>}
                         </td>
-                        <td className="hidden px-4 py-2 text-muted-foreground whitespace-nowrap sm:table-cell">{q.payments.map((p) => longDate(p.date)).join(", ")}</td>
-                        <td className="px-4 py-2 text-muted-foreground">{q.amount < 0 ? "Refunded to us" : "Paid"}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{eur.format(row.sales)}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{eur.format(row.purchases)}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{eur.format(row.outputVat)}</td>
+                        <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{eur.format(row.inputVat)}</td>
                         <td className="px-4 py-2 text-right">
-                          <Signed amount={q.amount} />
+                          <Signed amount={row.net} />
+                          <div className="text-xs text-muted-foreground">{row.net < 0 ? "refund due" : "due to the State"}</div>
                         </td>
                       </tr>
                     ))}
@@ -167,8 +201,13 @@ export default function TaxesPage() {
                 </table>
               </div>
             ) : (
-              <p className="mt-6 text-sm text-muted-foreground">No VAT settlement in the data yet.</p>
+              <p className="mt-6 text-sm text-muted-foreground">No VAT return published yet.</p>
             )}
+            <p className="mt-3 text-sm text-muted-foreground">
+              The quarterly returns as filed with the FPS Finance (Intervat){vat ? `, VAT number ${vat.vatNumber}` : ""}.
+              {firstReturn ? ` Returns before ${quarterLabel(firstReturn.period)} are not published here yet; the payments and refunds for those quarters are in the federal card above.` : ""}{" "}
+              A return is filed in the month after its quarter ends, so the latest quarter can take a few weeks to appear.
+            </p>
           </div>
 
           <div>
@@ -209,7 +248,7 @@ export default function TaxesPage() {
               </table>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              That is about {eur0.format(passThroughTotal / 12)} a month. It is counted in the total above once the owner bills it and we pay.
+              {`That is about ${eur0.format(passThroughTotal / 12)} a month. The owner's bills can differ from this split by a few cents; they are counted above as pending until we pay them.`}
             </p>
           </div>
 
