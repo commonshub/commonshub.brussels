@@ -56,8 +56,12 @@ Coolify, under **Storages → Bind mount**:
 
 | Field         | Value                   |
 | ------------- | ----------------------- |
-| Source (host) | `/data/commonshub/prod` |
-| Destination   | `/data`                 |
+| Source (host) | `/data/commonshub/prod-ro` |
+| Destination   | `/data`                    |
+
+`/data/commonshub/prod-ro` is a read-only bind of `/data/commonshub/prod` on the host (systemd unit
+`data-commonshub-prod\x2dro.mount`, `Options=bind,ro`, set up 2026-09-25), so the mount is genuinely
+read-only even though Coolify cannot set `:ro`.
 
 ### Coolify has no read-only checkbox
 
@@ -65,7 +69,8 @@ Coolify, under **Storages → Bind mount**:
 bind mounts (checked as of v4, August 2026). That is fine — the mount flag was
 never what actually protected the data. Two things do:
 
-1. **The container has no write permission.** It runs as `nextjs` (uid 1001).
+1. **The container has no write permission.** It runs as `nextjs` (uid 1001)
+   from the start (`USER nextjs` in the Dockerfile; the entrypoint never holds root).
    The dataset is owned by the user the chb pipeline runs as, with the ordinary
    `755` directories / `644` files the pipeline produces. uid 1001 is neither
    the owner nor in the group, so every write is refused by the kernel whether
@@ -98,6 +103,12 @@ mount -o remount,bind,ro /data/commonshub/prod-ro
 
 Make it survive reboots with a systemd mount unit (`Options=bind,ro`), then set
 the Coolify bind mount source to `/data/commonshub/prod-ro`.
+
+### Members tier
+
+chb writes `members/` as mode `0750`, group `chb-members`, which is gid 1001 on the host. That is also the
+gid of the image's `nodejs` group, so `nextjs` reads `members/` (for signed-in members) while `stewards/`
+(`0700`, owner `chb`) stays unreadable. Nothing on the host should use uid 1001 for anything else.
 
 ### Ownership
 
