@@ -1,9 +1,9 @@
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import { ArrowLeft, CheckCircle2 } from "lucide-react"
 
 import { ContributionPanel, type StripeMode } from "@/components/contribute/contribution-panel"
-import { findExpense, loadContributeExpenses } from "@/lib/contribute-expenses"
+import { findExpense, loadContributeExpenses, slugAlias } from "@/lib/contribute-expenses"
 import { formatEur } from "@/lib/contribute"
 
 // Reads DATA_DIR, which is only mounted at runtime: never prerender.
@@ -39,7 +39,12 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
   const { slug } = await params
   const { thanks } = await searchParams
   const expense = findExpense(slug, loadContributeExpenses())
-  if (!expense) notFound()
+  if (!expense) {
+    // A cost that was merged into another (the phone booth into furniture) keeps its old links.
+    const current = slugAlias(slug)
+    if (current) permanentRedirect(`/contribute/${current}`)
+    notFound()
+  }
 
   const recurring = expense.kind === "recurring"
   // A Checkout Session needs the secret key on the server; without it the
