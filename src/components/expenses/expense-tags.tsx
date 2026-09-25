@@ -1,85 +1,86 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Loader2 } from "lucide-react"
+import { Check, Loader2, Pencil } from "lucide-react"
 
 import { useAnnotation, useNostr } from "@/components/nostr-provider"
 import settings from "@/settings/settings.json"
 
 const CATEGORIES = settings.finance.categories.debit
-const COLLECTIVES = Object.entries(settings.finance.collectives as Record<string, { name: string }>).map(([value, c]) => ({ value, label: c.name }))
 
 /**
- * An expense's category and collective, tagged on Nostr like a transaction:
+ * An expense's category, as a tag chip. Tagged on Nostr like a transaction:
  * a kind 1111 annotation whose `i` tag is the expense's identifier, the
- * latest snapshot wins. Members can change them; everyone sees them.
+ * latest snapshot wins. Everyone sees the chip; a member can add one when
+ * there is none, or click it to change it. (No collective: everything on
+ * this site is the Commons Hub's.)
  */
 export function ExpenseTags({ uri, category, canEdit }: { uri: string; category?: string | null; canEdit: boolean }) {
   const annotation = useAnnotation(uri)
   const { publish, sync } = useNostr()
-  const [saving, setSaving] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const current = {
-    category: annotation?.tagMap.category ?? category ?? "",
-    collective: annotation?.tagMap.collective ?? "commonshub",
-  }
+  const current = annotation?.tagMap.category ?? category ?? ""
 
-  const save = async (key: "category" | "collective", value: string) => {
-    setSaving(key)
+  const save = async (value: string) => {
+    setEditing(false)
+    if (!value || value === current) return
+    setSaving(true)
     setSaved(false)
     try {
-      await publish(uri, { tags: { [key]: value } })
+      await publish(uri, { tags: { category: value } })
       sync()
       setSaved(true)
     } finally {
-      setSaving(null)
+      setSaving(false)
     }
   }
 
-  const collectiveLabel = COLLECTIVES.find((c) => c.value === current.collective)?.label ?? current.collective
-  if (!canEdit) {
+  const chip = "inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-2.5 py-0.5 text-xs text-foreground"
+
+  if (canEdit && editing) {
     return (
-      <div className="flex flex-wrap gap-2 text-xs">
-        {current.category && <span className="rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">{current.category}</span>}
-        <span className="rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">{collectiveLabel}</span>
-      </div>
+      <select
+        autoFocus
+        className="h-7 rounded-full border border-border bg-background px-2.5 text-xs text-foreground"
+        defaultValue={current}
+        onChange={(e) => save(e.target.value)}
+        onBlur={() => setEditing(false)}
+        aria-label="Category"
+      >
+        <option value="" disabled>
+          Pick a category…
+        </option>
+        {CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
     )
   }
+
+  if (!current) {
+    return canEdit ? (
+      <button type="button" className={`${chip} border-dashed text-muted-foreground hover:text-foreground`} onClick={() => setEditing(true)}>
+        + Add a category
+      </button>
+    ) : null
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-3 text-sm">
-      <label className="flex items-center gap-2 text-muted-foreground">
-        Category
-        <select
-          className="h-8 rounded-md border border-border bg-background px-2 text-foreground"
-          value={current.category}
-          disabled={!!saving}
-          onChange={(e) => save("category", e.target.value)}
-        >
-          <option value="">—</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-2 text-muted-foreground">
-        Collective
-        <select
-          className="h-8 rounded-md border border-border bg-background px-2 text-foreground"
-          value={current.collective}
-          disabled={!!saving}
-          onChange={(e) => save("collective", e.target.value)}
-        >
-          {COLLECTIVES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {saving ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : saved ? <Check className="h-4 w-4 text-green-600" /> : null}
-    </div>
+    <span className="inline-flex items-center gap-2">
+      {canEdit ? (
+        <button type="button" className={`${chip} hover:border-primary`} onClick={() => setEditing(true)} title="Change the category">
+          {current}
+          <Pencil className="h-3 w-3 text-muted-foreground" />
+        </button>
+      ) : (
+        <span className={chip}>{current}</span>
+      )}
+      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : saved ? <Check className="h-3.5 w-3.5 text-green-600" /> : null}
+    </span>
   )
 }
 

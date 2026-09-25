@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react"
 import { ContributionPanel, type StripeMode } from "@/components/contribute/contribution-panel"
 import { ExpenseComments } from "@/components/expenses/expense-comments"
 import { ExpenseTags } from "@/components/expenses/expense-tags"
+import { ContributeReveal } from "@/components/expenses/contribute-reveal"
 import { isMember } from "@/lib/admin-check"
 import { loadComments } from "@/lib/comments-data"
 import { findExpense, loadContributeExpenses, resolveExpenseSlug } from "@/lib/contribute-expenses"
@@ -20,7 +21,7 @@ const STRIPE_DONATION_URL = "https://buy.stripe.com/7sIdSnbxz7AE1bi28m"
 
 interface PageProps {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ thanks?: string }>
+  searchParams: Promise<{ thanks?: string; contribute?: string }>
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -48,7 +49,7 @@ function formatDate(iso: string): string {
  */
 export default async function ExpensePage({ params, searchParams }: PageProps) {
   const { slug } = await params
-  const { thanks } = await searchParams
+  const { thanks, contribute } = await searchParams
   const expenses = loadContributeExpenses()
   const expense = findExpense(slug, expenses)
   if (!expense) {
@@ -90,7 +91,7 @@ export default async function ExpensePage({ params, searchParams }: PageProps) {
             {recurring ? " per month" : ""}
             {expense.annualAmount ? ` (${formatEur(expense.annualAmount)} a year)` : ""}
             {expense.vendor ? ` · ${expense.vendor}` : ""}
-            {expense.date ? ` · ${recurring ? "last bill" : "billed"} ${formatDate(expense.date)}` : ""}
+            {expense.date && !(recurring && expense.billCount === 0) ? ` · ${recurring ? "last bill" : "billed"} ${formatDate(expense.date)}` : ""}
             {expense.dueDate ? (
               <span>{` · due ${formatDate(expense.dueDate)}`}</span>
             ) : null}
@@ -141,40 +142,40 @@ export default async function ExpensePage({ params, searchParams }: PageProps) {
             </div>
           )}
 
-          <div className="max-w-2xl">
-            <h2 className="text-2xl font-bold text-foreground">Chip in</h2>
-            <p className="mt-2 text-muted-foreground">
-              {recurring
-                ? `A month of it costs ${formatEur(expense.amountEur)}. You don't have to cover all of it: any amount from €10 helps, and the slider starts at half a month. Want to be one of the people behind it? Make it monthly, by card or with a standing order.`
-                : "Cover this bill in full, or chip in a part of it: any amount from €10 helps. The stewards then do not have to find the money for it elsewhere, and you know exactly what you paid for."}
-            </p>
-          </div>
-
-          <ContributionPanel
-            slug={expense.slug}
-            label={expense.label}
-            expenseEur={expense.amountEur}
-            message={expense.message}
-            stripe={stripe}
-            recurring={recurring}
-            short={expense.short}
-          />
-
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Who contributed</h2>
+            <h2 className="text-2xl font-bold text-foreground">Who contributes</h2>
             {contributions.count === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">Nobody yet. Be the first.</p>
+              <p className="mt-3 text-muted-foreground">Currently paid with the income of the place and general donations.</p>
             ) : (
               <>
                 <p className="mt-3 text-muted-foreground">
                   <span className="font-semibold tabular-nums text-foreground">{formatEur(contributions.total)}</span> in{" "}
-                  {contributions.count} {contributions.count === 1 ? "contribution" : "contributions"} so far.
+                  {contributions.count} {contributions.count === 1 ? "contribution" : "contributions"} so far; the rest is paid with the
+                  income of the place and general donations.
                 </p>
                 {member && contributions.contributors.length > 0 && (
                   <p className="mt-2 text-sm leading-relaxed text-foreground">{contributions.contributors.map((c) => c.name).join(" · ")}</p>
                 )}
               </>
             )}
+            <ContributeReveal
+              open={contribute === "1"}
+              intro={
+                recurring
+                  ? `A month of it costs ${formatEur(expense.amountEur)}. You don't have to cover all of it: any amount from €10 helps, and the slider starts at half a month. Want to be one of the people behind it? Make it monthly, by card or with a standing order.`
+                  : "Cover this bill in full, or chip in a part of it: any amount from €10 helps. The stewards then do not have to find the money for it elsewhere, and you know exactly what you paid for."
+              }
+            >
+              <ContributionPanel
+                slug={expense.slug}
+                label={expense.label}
+                expenseEur={expense.amountEur}
+                message={expense.message}
+                stripe={stripe}
+                recurring={recurring}
+                short={expense.short}
+              />
+            </ContributeReveal>
           </div>
 
           {site && <ExpenseComments uri={expense.uri} initial={comments} canComment={member} sitePubkey={site.pubkey} community={COMMUNITY} relays={RELAYS} />}

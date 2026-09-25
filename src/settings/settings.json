@@ -309,13 +309,14 @@
     }
   },
   "contribute": {
-    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount is the fixed monthly cost shown on the page and wins over the amount read from bills; annualAmount is a yearly bill shown as a twelfth per month (the two taxes: the 2026 bills, the same as settings.taxes.pending); short names the cost in the transfer message, \"Contribution <short>\" (the fixed costs below are set from the Odoo vendor bills as of September 2026 — update them when a contract changes). Bills matching exclude go nowhere (catering is bought and consumed on the day). vendorLabel names the suppliers on the page when a cost has several; aliases are older slugs that redirect to this one.",
+    "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount is the fixed monthly cost shown on the page and wins over the amount read from bills; annualAmount is a yearly bill shown as a twelfth per month (the two taxes: the 2026 bills, the same as settings.taxes.pending); short names the cost in the transfer message, \"Contribution <short>\" (the fixed costs below are set from the Odoo vendor bills as of September 2026 — update them when a contract changes). Bills matching exclude go nowhere (catering is bought and consumed on the day). vendorLabel names the suppliers on the page when a cost has several; aliases are older slugs that redirect to this one. billed: false marks a cost paid under a contract (the rent): no bill is ever matched to it.",
     "recurring": [
       {
         "slug": "rent",
         "label": "Rent",
         "short": "rent",
         "vendorLabel": "",
+        "billed": false,
         "vendor": "XL Collective",
         "title": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b",
         "description": "The lease for the space itself: the first floor (235 m²) and the second floor (204 m²), 439 m² of offices in the centre of Brussels. Every other contribution only makes sense because this one is covered.",

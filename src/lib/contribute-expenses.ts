@@ -167,6 +167,8 @@ interface RecurringRule {
   vendorLabel?: string
   /** Older slugs of this cost; their pages redirect here. */
   aliases?: string[]
+  /** false for a cost paid under a contract rather than billed (the rent): bills are never matched to it. */
+  billed?: boolean
 }
 
 interface ContributeSettings {
@@ -417,7 +419,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
 
   const recurring: ContributableExpense[] = []
   for (const rule of config.recurring) {
-    const matching = positive.filter((b) => matchesRule(b, rule))
+    const matching = rule.billed === false ? [] : positive.filter((b) => matchesRule(b, rule))
     for (const bill of matching) claimed.add(bill.id)
     // Drafts count here: a furniture bill waiting for validation is still
     // this month's furniture. For the amount, posted bills come first.
