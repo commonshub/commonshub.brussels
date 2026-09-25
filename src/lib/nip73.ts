@@ -55,6 +55,10 @@ export function nip73Kind(uri: string): string {
     // stripe:customer:cus_x | stripe:txn:txn_x
     return `stripe:${parts[1] ?? ""}`;
   }
+  if (parts[0] === "chb") {
+    // chb:expense:<slug> | chb:bill:<public id>
+    return `chb:${parts[1] ?? ""}`;
+  }
   return parts[0] ?? "";
 }
 

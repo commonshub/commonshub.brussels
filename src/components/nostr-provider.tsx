@@ -145,6 +145,9 @@ function mergeAnnotations(
     });
   };
   for (const evt of relay) {
+    // Comments (NIP-22) share kind 1111 but carry an uppercase `I`; they are
+    // not annotation snapshots and must not override an item's tags.
+    if (evt.tags.some((t) => t[0] === "I")) continue;
     const uri = eventUri(evt);
     if (uri) accept(uri, evt, "relay");
   }

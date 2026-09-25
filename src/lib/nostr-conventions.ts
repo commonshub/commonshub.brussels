@@ -358,3 +358,70 @@ export function parseSignups(
     .map(({ signup }) => signup)
     .sort((a, b) => a.at.localeCompare(b.at))
 }
+
+// ── comments on an expense, a transaction, anything with a NIP-73 id ───────
+
+export const KIND_COMMENT = 1111
+
+/**
+ * A top-level NIP-22 comment on external content: `I`/`K` name the thing
+ * being discussed (the root), `i`/`k` the thing replied to, which for a
+ * top-level comment is the same. The uppercase `I` is what tells a comment
+ * apart from an annotation snapshot, which shares kind 1111 but carries
+ * only the lowercase `i`. The community is referenced through its NIP-72
+ * definition (`a`), not an extra `i` tag, which would change the parent.
+ */
+export function buildComment(uri: string, uriKind: string, content: string, community: Community, sitePubkey: string, now = new Date()): Template {
+  return {
+    kind: KIND_COMMENT,
+    created_at: nowSeconds(now),
+    tags: [
+      ["I", uri],
+      ["K", uriKind],
+      ["i", uri],
+      ["k", uriKind],
+      ["a", communityCoordinate(sitePubkey, community)],
+      ["client", APP_NAME, `31990:${sitePubkey}:web`],
+      ["t", `app:${APP_NAME}`],
+    ],
+    content: content.trim(),
+  }
+}
+
+/** True for a NIP-22 comment, false for an annotation snapshot. */
+export const isComment = (event: { kind: number; tags: string[][] }) => event.kind === KIND_COMMENT && event.tags.some((t) => t[0] === "I")
+
+export interface CommentView {
+  id: string
+  pubkey: string
+  content: string
+  at: string
+  name: string
+  picture?: string
+  discordId?: string
+}
+
+/** The comments on `uri`, oldest first, authors named through attestations and profiles. */
+export function parseComments(events: SignedLike[], uri: string, links: MemberLink[], profiles: ProfileInfo[]): CommentView[] {
+  const linkByKey = new Map<string, MemberLink>()
+  for (const link of links) for (const key of link.keys) linkByKey.set(key, link)
+  const profileByKey = new Map(profiles.map((p) => [p.pubkey, p]))
+  const seen = new Set<string>()
+  return events
+    .filter((e) => isComment(e) && tag(e, "I") === uri && e.content.trim() !== "")
+    .filter((e) => (e.id ? (seen.has(e.id) ? false : (seen.add(e.id), true)) : true))
+    .sort((a, b) => a.created_at - b.created_at)
+    .map((e) => {
+      const profile = profileByKey.get(e.pubkey)
+      const link = linkByKey.get(e.pubkey)
+      return {
+        id: e.id ?? `${e.pubkey}:${e.created_at}`,
+        pubkey: e.pubkey,
+        content: e.content,
+        at: new Date(e.created_at * 1000).toISOString(),
+        name: profile?.name || link?.name || `${e.pubkey.slice(0, 8)}…`,
+        picture: profile?.picture,
+        discordId: link?.discordId ?? profile?.discordId,
+      }
+    })
+}

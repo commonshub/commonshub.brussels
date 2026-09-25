@@ -3,6 +3,7 @@ import { ArrowRight, Receipt } from "lucide-react"
 
 import type { ContributableExpense, PendingSummary } from "@/lib/contribute-expenses"
 import { formatEur } from "@/lib/contribute"
+import { ExpenseCategoryBadge } from "@/components/expenses/expense-tags"
 
 const day = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 const moment = (iso: string) =>
@@ -12,10 +13,13 @@ const money = (amount: number, currency: string) => new Intl.NumberFormat("en-BE
 function BillRow({ bill }: { bill: ContributableExpense }) {
   return (
     <li>
-      <Link href={`/contribute/${bill.slug}`} className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40">
+      <Link href={`/expenses/${bill.slug}`} className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40">
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-foreground">{bill.vendor}</div>
-          <div className="truncate text-sm text-muted-foreground">{bill.label}</div>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm text-muted-foreground">{bill.label}</span>
+            <ExpenseCategoryBadge uri={bill.uri} category={bill.category} />
+          </div>
         </div>
         <div className="hidden shrink-0 text-right text-sm sm:block">
           {/* Neutral on purpose: until the books are reconciled, many "overdue"
