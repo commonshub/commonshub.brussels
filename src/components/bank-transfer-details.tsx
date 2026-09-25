@@ -13,11 +13,14 @@ import {
 export function BankTransferDetails({
   message = BANK.message,
   amountEur,
+  frequency,
 }: {
   /** Transfer message; a page for one expense passes its own reference. */
   message?: string
   /** Suggested amount, shown as a row and embedded in the copied payload. */
   amountEur?: number
+  /** For a standing order: how often, shown as its own row. */
+  frequency?: string
 } = {}) {
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -28,6 +31,7 @@ export function BankTransferDetails({
     ...(amountEur
       ? [{ label: "Amount", value: `€${amountEur.toFixed(2)}`, copyValue: amountEur.toFixed(2) }]
       : []),
+    ...(frequency ? [{ label: "Frequency", value: frequency }] : []),
     { label: "Message", value: message },
   ]
 
@@ -79,6 +83,8 @@ export function BankTransferDetails({
           </div>
         ))}
       </dl>
+      {/* The payment payload fills in a one-off transfer; a standing order is set up by hand. */}
+      {!frequency && (
       <Button
         type="button"
         variant="outline"
@@ -92,6 +98,7 @@ export function BankTransferDetails({
         )}
         {copied === "all" ? "Copied" : "Copy for banking app"}
       </Button>
+      )}
     </div>
   )
 }

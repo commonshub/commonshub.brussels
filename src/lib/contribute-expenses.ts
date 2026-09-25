@@ -48,6 +48,10 @@ export interface ContributableExpense {
   billCount: number
   /** The transfer message that ties a payment to this expense. */
   message: string
+  /** For a cost billed once a year: the yearly amount; amountEur is a twelfth of it. */
+  annualAmount?: number
+  /** A short name for running text: "phone booth", "rent". */
+  short?: string
 }
 
 export interface ContributeExpenses {
@@ -113,6 +117,10 @@ interface RecurringRule {
   title?: string
   description?: string
   monthlyAmount?: number
+  /** A yearly bill (the taxes): shown as a twelfth of it per month. */
+  annualAmount?: number
+  /** What the transfer message calls it: "Contribution <short>". */
+  short?: string
 }
 
 interface ContributeSettings {
@@ -221,6 +229,7 @@ const inText = (bill: Bill, pattern: RegExp | null) =>
   !!pattern && (pattern.test(bill.title) || bill.lines.some((line) => pattern.test(line)))
 
 function matchesRule(bill: Bill, rule: RecurringRule): boolean {
+  if (!rule.vendor && !rule.line) return false
   const byVendor = !!bill.vendorName && !!regex(rule.vendor)?.test(bill.vendorName)
   const byLine = inText(bill, regex(rule.line))
   if (!byVendor && !byLine) return false
@@ -273,9 +282,10 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
     // this month's furniture. For the amount, posted bills come first.
     const posted = matching.filter((b) => b.state === "posted")
     const source = posted.length > 0 ? posted : matching
-    if (source.length === 0 && !rule.monthlyAmount) continue
+    if (source.length === 0 && !rule.monthlyAmount && !rule.annualAmount) continue
 
-    const amountEur = rule.monthlyAmount ?? typicalAmount(source.slice(0, 6))
+    const amountEur =
+      rule.monthlyAmount ?? (rule.annualAmount ? Math.round((rule.annualAmount / 12) * 100) / 100 : typicalAmount(source.slice(0, 6)))
     const latest = matching[0]
     recurring.push({
       slug: rule.slug,
@@ -288,9 +298,13 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       description: rule.description,
       lines: latest?.lines ?? [],
       billCount: source.length,
-      message: contributionMessage(rule.slug, rule.label),
+      message: contributionMessage(rule.short ?? rule.label.toLowerCase()),
+      ...(rule.annualAmount ? { annualAmount: rule.annualAmount } : {}),
+      ...(rule.short ? { short: rule.short } : {}),
     })
   }
+  // Largest first: the page shows how the fixed costs compare.
+  recurring.sort((a, b) => b.amountEur - a.amountEur)
 
   const minAmount = config.oneTimeMinAmount ?? 0
   const oneTime: ContributableExpense[] = positive
@@ -313,7 +327,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
         reference: bill.reference,
         lines: bill.lines,
         billCount: 1,
-        message: contributionMessage(bill.reference, label),
+        message: contributionMessage(bill.reference),
       }
     })
 

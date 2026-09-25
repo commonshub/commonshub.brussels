@@ -66,11 +66,19 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
           <p className="mt-3 text-lg text-muted-foreground">
             <span className="font-semibold text-foreground tabular-nums">{formatEur(expense.amountEur)}</span>
             {recurring ? " per month" : ""}
+            {expense.annualAmount ? ` (${formatEur(expense.annualAmount)} a year)` : ""}
             {" · "}
             {expense.vendor}
             {expense.date ? ` · ${recurring ? "last bill" : "billed"} ${formatDate(expense.date)}` : ""}
           </p>
           {expense.description && <p className="mt-4 max-w-2xl text-muted-foreground">{expense.description}</p>}
+          {expense.slug.endsWith("-tax") && (
+            <p className="mt-2 text-sm">
+              <Link href="/taxes" className="underline underline-offset-2 hover:text-foreground text-muted-foreground">
+                Everything we pay in taxes
+              </Link>
+            </p>
+          )}
           {!recurring && expense.lines.length > 1 && (
             <ul className="mt-4 list-disc pl-5 text-sm text-muted-foreground">
               {expense.lines.slice(0, 8).map((line, i) => (
@@ -93,8 +101,15 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
             >
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <p>
-                Thank you. Your contribution to <strong>{expense.label}</strong> went through, and a
-                bit of you now lives in the space.
+                {thanks === "monthly" ? (
+                  <>
+                    Thank you. You are now one of the people behind <strong>{expense.label}</strong>, every month. You will get a receipt by email each time, and can stop whenever you like.
+                  </>
+                ) : (
+                  <>
+                    Thank you. Your contribution to <strong>{expense.label}</strong> went through, and a bit of you now lives in the space.
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -103,7 +118,7 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
             <h2 className="text-2xl font-bold text-foreground">Chip in</h2>
             <p className="mt-2 text-muted-foreground">
               {recurring
-                ? `A month of it costs ${formatEur(expense.amountEur)}. You don't have to cover all of it: any amount from €10 helps, and the slider starts at half a month. Want to be the person behind it every month? Set up a standing order with the bank details below; the message stays the same each time.`
+                ? `A month of it costs ${formatEur(expense.amountEur)}. You don't have to cover all of it: any amount from €10 helps, and the slider starts at half a month. Want to be one of the people behind it? Make it monthly, by card or with a standing order.`
                 : "Cover this bill in full, or chip in a part of it: any amount from €10 helps. The stewards then do not have to find the money for it elsewhere, and you know exactly what you paid for."}
             </p>
           </div>
@@ -114,6 +129,8 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
             expenseEur={expense.amountEur}
             message={expense.message}
             stripe={stripe}
+            recurring={recurring}
+            short={expense.short}
           />
         </div>
       </section>

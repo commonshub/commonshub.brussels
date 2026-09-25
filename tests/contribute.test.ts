@@ -41,16 +41,15 @@ describe("contribution amounts", () => {
 })
 
 describe("transfer message", () => {
-  test("leads with the reference so a bank cannot lose it", () => {
-    expect(contributionMessage("BILL/2026/0042", "Rent September 2026")).toBe(
-      "Contribution BILL/2026/0042 - Rent September 2026",
-    )
+  test("is short: the cost's short name, or the bill reference", () => {
+    expect(contributionMessage("phone booth")).toBe("Contribution phone booth")
+    expect(contributionMessage("BILL/2026/0042")).toBe("Contribution BILL/2026/0042")
   })
 
   test("stays within SEPA's 140 characters", () => {
-    const message = contributionMessage("BILL/2026/0042", "x".repeat(300))
+    const message = contributionMessage("x".repeat(300))
     expect(message.length).toBeLessThanOrEqual(140)
-    expect(message.startsWith("Contribution BILL/2026/0042")).toBe(true)
+    expect(message.startsWith("Contribution x")).toBe(true)
   })
 
   test("ends up in the QR payload with the amount", () => {

@@ -4,6 +4,7 @@ import { ArrowRight, Heart, Receipt, Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { loadContributeExpenses, type ContributableExpense } from "@/lib/contribute-expenses"
 import { formatEur } from "@/lib/contribute"
+import { FixedCostsChart } from "@/components/contribute/fixed-costs-chart"
 
 // Reads DATA_DIR, which is only mounted at runtime: never prerender.
 export const dynamic = "force-dynamic"
@@ -23,8 +24,9 @@ function formatDate(iso: string): string {
   })
 }
 
-function ExpenseCard({ expense }: { expense: ContributableExpense }) {
+function ExpenseCard({ expense, total }: { expense: ContributableExpense; total?: number }) {
   const recurring = expense.kind === "recurring"
+  const share = recurring && total ? (expense.amountEur / total) * 100 : null
   return (
     <Link
       href={`/contribute/${expense.slug}`}
@@ -36,11 +38,18 @@ function ExpenseCard({ expense }: { expense: ContributableExpense }) {
           <div className="text-right whitespace-nowrap">
             <div className="text-lg font-bold tabular-nums text-foreground">{formatEur(expense.amountEur)}</div>
             {recurring && <div className="text-xs text-muted-foreground">per month</div>}
+            {expense.annualAmount && <div className="text-xs text-muted-foreground">{formatEur(expense.annualAmount)} a year</div>}
           </div>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {expense.vendor}
-          {!recurring && expense.date ? ` · ${formatDate(expense.date)}` : ""}
+          {[
+            // Without a bill to read the vendor from, it is the label again: skip it.
+            expense.vendor !== expense.label ? expense.vendor : null,
+            !recurring && expense.date ? formatDate(expense.date) : null,
+            share !== null ? `${share < 1 ? share.toFixed(1) : Math.round(share)}% of the fixed costs` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         {recurring && expense.description && (
           <p className="mt-3 text-sm text-muted-foreground">{expense.description}</p>
@@ -56,6 +65,7 @@ function ExpenseCard({ expense }: { expense: ContributableExpense }) {
 
 export default function ContributePage() {
   const expenses = loadContributeExpenses()
+  const recurringTotal = expenses.recurring.reduce((sum, e) => sum + e.amountEur, 0)
 
   return (
     <main className="min-h-screen">
@@ -113,23 +123,18 @@ export default function ContributePage() {
               Recurring costs
             </h2>
             <p className="mt-2 text-muted-foreground">
-              What keeping the doors open costs every month. You don&apos;t have to cover a whole
-              month: chip in whatever part you like, from €10. Or make it a standing order and
-              become the person behind it.
+              What keeping the doors open costs every month, taxes included. You don&apos;t have to
+              cover a whole month: chip in whatever part you like, from €10, once or every month.
             </p>
             {expenses.recurring.length > 0 && (
-              <p className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
-                Together, the fixed costs come to{" "}
-                <span className="font-semibold tabular-nums">
-                  {formatEur(expenses.recurring.reduce((sum, e) => sum + e.amountEur, 0))}
-                </span>{" "}
-                per month.
-              </p>
+              <div className="mt-6">
+                <FixedCostsChart costs={expenses.recurring} />
+              </div>
             )}
             {expenses.recurring.length > 0 ? (
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {expenses.recurring.map((expense) => (
-                  <ExpenseCard key={expense.slug} expense={expense} />
+                  <ExpenseCard key={expense.slug} expense={expense} total={recurringTotal} />
                 ))}
               </div>
             ) : (
