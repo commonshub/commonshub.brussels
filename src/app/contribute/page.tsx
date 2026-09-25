@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button"
 import { loadContributeExpenses, type ContributableExpense } from "@/lib/contribute-expenses"
 import { formatEur } from "@/lib/contribute"
 import { FixedCostsChart } from "@/components/contribute/fixed-costs-chart"
+import { PendingBills } from "@/components/contribute/pending-bills"
+import { Donors } from "@/components/contribute/donors"
+import { isMember } from "@/lib/admin-check"
+import { tierFor } from "@/lib/data-paths"
+import { loadDonors } from "@/lib/donors"
 
 // Reads DATA_DIR, which is only mounted at runtime: never prerender.
 export const dynamic = "force-dynamic"
@@ -63,8 +68,10 @@ function ExpenseCard({ expense, total }: { expense: ContributableExpense; total?
   )
 }
 
-export default function ContributePage() {
+export default async function ContributePage() {
   const expenses = loadContributeExpenses()
+  const member = await isMember()
+  const donors = loadDonors(tierFor(member))
   const recurringTotal = expenses.recurring.reduce((sum, e) => sum + e.amountEur, 0)
 
   return (
@@ -77,6 +84,7 @@ export default function ContributePage() {
               This space only exists because of everyone&apos;s contribution. We invite you to also
               contribute: leave a bit of you in the space, make it yours.
             </p>
+            <Donors donors={donors} member={member} />
           </div>
         </div>
       </section>
@@ -148,26 +156,30 @@ export default function ContributePage() {
             )}
           </div>
 
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-              <Receipt className="h-6 w-6 text-primary" />
-              One-time expenses
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Things we bought for the space over the last year, straight from our books. Food and
-              drinks are left out: they are gone by the next day. Everything here is still in the
-              space. Cover one in full, or chip in a part of it.
-            </p>
-            {expenses.oneTime.length > 0 ? (
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {expenses.oneTime.map((expense) => (
-                  <ExpenseCard key={expense.slug} expense={expense} />
-                ))}
-              </div>
-            ) : (
-              <p className="mt-6 text-sm text-muted-foreground">Nothing outstanding right now.</p>
-            )}
-          </div>
+          {expenses.pending ? (
+            <PendingBills bills={expenses.oneTime} summary={expenses.pending} />
+          ) : (
+            <div>
+              <h2 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+                <Receipt className="h-6 w-6 text-primary" />
+                One-time expenses
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                Things we bought for the space over the last year, straight from our books. Food and
+                drinks are left out: they are gone by the next day. Everything here is still in the
+                space. Cover one in full, or chip in a part of it.
+              </p>
+              {expenses.oneTime.length > 0 ? (
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  {expenses.oneTime.map((expense) => (
+                    <ExpenseCard key={expense.slug} expense={expense} />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-6 text-sm text-muted-foreground">Nothing outstanding right now.</p>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </main>

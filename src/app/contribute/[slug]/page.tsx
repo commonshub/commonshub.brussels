@@ -75,6 +75,9 @@ export default async function ContributeExpensePage({ params, searchParams }: Pa
             {" · "}
             {expense.vendor}
             {expense.date ? ` · ${recurring ? "last bill" : "billed"} ${formatDate(expense.date)}` : ""}
+            {expense.dueDate ? (
+              <span>{` · due ${formatDate(expense.dueDate)}`}</span>
+            ) : null}
           </p>
           {expense.description && <p className="mt-4 max-w-2xl text-muted-foreground">{expense.description}</p>}
           {expense.slug.endsWith("-tax") && (

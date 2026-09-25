@@ -52,13 +52,27 @@ export interface ContributableExpense {
   annualAmount?: number
   /** A short name for running text: "phone booth", "rent". */
   short?: string
+  /** For a bill still to pay: when it is due, ISO, and whether that is past. */
+  dueDate?: string
+  overdue?: boolean
 }
 
 export interface ContributeExpenses {
   recurring: ContributableExpense[]
+  /** Bills still to pay, most urgent first (chb's pending-bills.json). */
   oneTime: ContributableExpense[]
   /** True when the dataset had no Odoo bills at all in the window. */
   empty: boolean
+  /** What is still owed, as chb totals it; null before chb publishes the list. */
+  pending: PendingSummary | null
+}
+
+export interface PendingSummary {
+  generatedAt: string
+  count: number
+  amountDue: number
+  /** Bills in another currency than EUR: listed in their currency, not coverable here. */
+  otherCurrencies: Array<{ currency: string; count: number; amountDue: number }>
 }
 
 // ── raw records, as chb writes them ──────────────────────────────────────
@@ -80,6 +94,24 @@ interface PublicBill {
   lineItems?: PublicLineItem[]
 }
 
+/** A bill as chb ≥ 3.14 writes it (docs/bills.md). */
+export interface ChbBill {
+  id: string
+  number: string
+  type: "bill" | "credit_note"
+  status: "pending" | "partially_paid" | "paid" | "reversed"
+  date: string
+  dueDate?: string
+  vendor: { type: "business" | "individual"; name?: string; vat?: string }
+  vendorRef?: string
+  description?: string
+  lines?: Array<{ description?: string; totalAmount?: number }>
+  category?: string | null
+  currency: string
+  totalAmount: number
+  amountDue: number
+}
+
 interface PrivateBill {
   id: number
   moveType?: string
@@ -91,7 +123,7 @@ interface PrivateBill {
 }
 
 export interface Bill {
-  id: number
+  id: number | string
   title: string
   date: string
   state: string
@@ -173,20 +205,47 @@ export function withoutPersonName(line: string, personName: string): string {
     .trim()
 }
 
+const isChbBill = (record: object): record is ChbBill => "status" in record && typeof (record as ChbBill).vendor === "object"
+
+/** A chb ≥ 3.14 bill in the shape the matching rules read. */
+function fromChbBill(record: ChbBill): Bill {
+  const business = record.vendor?.type === "business"
+  const name = record.vendor?.name ?? ""
+  const lines = (record.lines ?? []).map((line) => cleanLine(line.description ?? "")).filter(Boolean)
+  return {
+    id: record.id,
+    title: record.description ? cleanLine(record.description) : "",
+    date: record.date,
+    // chb publishes posted bills only; "reversed" ones were cancelled.
+    state: record.status === "reversed" ? "cancel" : "posted",
+    refund: record.type === "credit_note",
+    totalAmount: record.totalAmount ?? 0,
+    category: record.category ?? null,
+    vendor: business ? name : "Individual supplier",
+    vendorIsCompany: business,
+    vendorName: name,
+    reference: record.number || record.vendorRef || record.id,
+    lines: business || !name ? lines : lines.map((line) => withoutPersonName(line, name)),
+  }
+}
+
 /**
  * One month of vendor bills, from chb's public-tier projection
- * (`YYYY/MM/public/bills.json`). The partner is inline when the projection
- * carries it (companies); a bill without one is matched on its lines and
- * shown unnamed. The provider archive under providers/ is never read.
+ * (`YYYY/MM/public/bills.json`). Business vendors are named, private
+ * individuals are not. The provider archive under providers/ is never read.
+ * Reads chb ≥ 3.14's schema (docs/bills.md) and the earlier one.
  */
 export function readMonthBills(dataDir: string, year: string, month: string): Bill[] | null {
-  const pub = readJson<{ bills: Array<PublicBill & Partial<PrivateBill>> }>(path.join(dataDir, year, month, "public", "bills.json"))
+  const pub = readJson<{ bills: Array<(PublicBill & Partial<PrivateBill>) | ChbBill> }>(path.join(dataDir, year, month, "public", "bills.json"))
   if (!pub) return null
-  const privById = new Map(pub.bills.filter((b) => b.partner || b.partnerDisplayName).map((b) => [b.id, b as PrivateBill]))
 
   const bills: Bill[] = []
   for (const record of pub.bills) {
-    const priv = privById.get(record.id)
+    if (isChbBill(record)) {
+      bills.push(fromChbBill(record))
+      continue
+    }
+    const priv = record.partner || record.partnerDisplayName ? (record as PrivateBill) : undefined
     const partner = priv?.partner ?? {}
     const isCompany = partner.companyType === "company" || partner.isCompany === true
     const name = partner.displayName || partner.name || priv?.partnerDisplayName || ""
@@ -211,6 +270,58 @@ export function readMonthBills(dataDir: string, year: string, month: string): Bi
     })
   }
   return bills
+}
+
+/**
+ * The bills still to pay (`latest/public/pending-bills.json`, chb ≥ 3.14),
+ * as expenses anyone can chip in for: EUR bills with something left to pay,
+ * overdue first, then by due date. Covering one is a donation to the Hub
+ * earmarked for that bill, quoted by its number; stewards then pay the
+ * vendor. Bills in another currency are summed apart and not offered.
+ */
+export function readPendingBills(dataDir: string, now: Date = new Date()): { expenses: ContributableExpense[]; summary: PendingSummary } | null {
+  const file = readJson<{ generatedAt: string; bills: ChbBill[] }>(path.join(dataDir, "latest", "public", "pending-bills.json"))
+  if (!file) return null
+  const today = now.toISOString().slice(0, 10)
+  const open = file.bills.filter((b) => b.type === "bill" && b.status !== "reversed" && b.amountDue > 0)
+  const eur = open.filter((b) => b.currency === "EUR")
+
+  const expenses = eur
+    .map((record): ContributableExpense => {
+      const bill = fromChbBill(record)
+      const label = bill.title || bill.lines[0] || `${bill.vendor || "Bill"} ${bill.reference}`
+      return {
+        slug: record.id,
+        kind: "one-time",
+        label: label.length > 80 ? `${label.slice(0, 79).trimEnd()}…` : label,
+        vendor: bill.vendor || "Individual supplier",
+        amountEur: record.amountDue,
+        date: record.date,
+        reference: bill.reference,
+        lines: bill.lines,
+        billCount: 1,
+        message: contributionMessage(bill.reference),
+        ...(record.dueDate ? { dueDate: record.dueDate, overdue: record.dueDate < today } : {}),
+      }
+    })
+    .sort((a, b) => Number(!!b.overdue) - Number(!!a.overdue) || (a.dueDate ?? a.date).localeCompare(b.dueDate ?? b.date))
+
+  const others = new Map<string, { count: number; amountDue: number }>()
+  for (const b of open.filter((b) => b.currency !== "EUR")) {
+    const entry = others.get(b.currency) ?? { count: 0, amountDue: 0 }
+    entry.count++
+    entry.amountDue = Math.round((entry.amountDue + b.amountDue) * 100) / 100
+    others.set(b.currency, entry)
+  }
+  return {
+    expenses,
+    summary: {
+      generatedAt: file.generatedAt,
+      count: expenses.length,
+      amountDue: Math.round(expenses.reduce((s, e) => s + e.amountEur, 0) * 100) / 100,
+      otherCurrencies: [...others.entries()].map(([currency, v]) => ({ currency, ...v })),
+    },
+  }
 }
 
 /** The last `count` months up to and including `now`, newest first. */
@@ -276,7 +387,7 @@ function typicalAmount(bills: Bill[]): number {
  */
 export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG): ContributeExpenses {
   const positive = bills.filter((b) => !b.refund && b.totalAmount > 0)
-  const claimed = new Set<number>()
+  const claimed = new Set<number | string>()
 
   const recurring: ContributableExpense[] = []
   for (const rule of config.recurring) {
@@ -335,7 +446,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       }
     })
 
-  return { recurring, oneTime, empty: bills.length === 0 }
+  return { recurring, oneTime, empty: bills.length === 0, pending: null }
 }
 
 /** Read the last year of bills and classify them. */
@@ -350,7 +461,11 @@ export function loadContributeExpenses(
     if (month_) bills.push(...month_)
   }
   bills.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-  return classifyBills(bills, config)
+  const classified = classifyBills(bills, config)
+  // Since chb 3.14 the list of what is still to pay is published as such;
+  // it replaces the guess from the last year of bills.
+  const pending = readPendingBills(dataDir, options.now)
+  return pending ? { ...classified, oneTime: pending.expenses, pending: pending.summary } : classified
 }
 
 export function findExpense(slug: string, expenses: ContributeExpenses): ContributableExpense | null {

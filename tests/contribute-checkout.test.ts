@@ -25,7 +25,9 @@ const { POST } = require("@/app/api/contribute/checkout/route") as typeof import
 const post = (body: object) =>
   POST(new Request("https://commonshub.brussels/api/contribute/checkout", { method: "POST", body: JSON.stringify(body) }))
 
-beforeEach(() => create.mockClear())
+beforeEach(() => {
+  create.mockClear()
+})
 
 describe("contribution checkout", () => {
   test("once: a payment, tagged with the short message", async () => {
