@@ -79,7 +79,7 @@ export function FixedCostsChart({ costs }: { costs: ContributableExpense[] }) {
           return (
             <Link
               key={cost.slug}
-              href={`/contribute/${cost.slug}`}
+              href={`/expenses/${cost.slug}`}
               title={`${cost.label}: ${formatEur(cost.amountEur)} a month, ${pct(share)}%`}
               className="block h-full min-w-[3px] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{ flexGrow: cost.amountEur, flexBasis: 0, backgroundColor: color(cost.slug) }}
@@ -96,7 +96,7 @@ export function FixedCostsChart({ costs }: { costs: ContributableExpense[] }) {
           const share = total > 0 ? (cost.amountEur / total) * 100 : 0
           return (
             <li key={cost.slug}>
-              <Link href={`/contribute/${cost.slug}`} className="group flex items-center gap-2.5 text-sm">
+              <Link href={`/expenses/${cost.slug}`} className="group flex items-center gap-2.5 text-sm">
                 <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: color(cost.slug) }} aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-foreground group-hover:text-primary">{cost.label}</span>
                 <span className="shrink-0 tabular-nums text-foreground">{formatEur(cost.amountEur)}</span>

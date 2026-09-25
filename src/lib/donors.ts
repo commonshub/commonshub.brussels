@@ -39,7 +39,7 @@ const NOT_A_NAME = /^0x[0-9a-f]{6,}$|^stripe$|^\(?none\)?$|^anonymous$|^donation
 
 /** "DAMMAN XAVIER" → "Damman Xavier"; names already in mixed case stay as they are. */
 export function tidyName(raw: string): string {
-  const name = raw.replace(/\s+/g, " ").trim()
+  const name = raw.replace(/\s+/g, " ").trim().replace(/^(?:mr|mrs|ms|miss|dr|m|mme)\.?\s+(?=\S)/i, "")
   if (name !== name.toUpperCase()) return name
   return name.toLowerCase().replace(/(^|[\s'’\-/])(\p{L})/gu, (_, sep: string, letter: string) => sep + letter.toUpperCase())
 }
@@ -50,13 +50,30 @@ export function isDonorName(raw: string | null | undefined): raw is string {
   return name.length >= 2 && !NOT_A_NAME.test(name)
 }
 
-/** One entry per donor (names compared without case or punctuation), with their total and last gift. */
+/**
+ * The same person, however their bank wrote the name: case, accents,
+ * punctuation and word order do not matter ("HANQUIN MATHIEU" is
+ * "Mathieu Hanquin"), and neither do titles ("Mr", "Mrs").
+ */
+export function donorKey(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(" ")
+    .filter((w) => w && !["mr", "mrs", "ms", "miss", "dr", "m", "mme"].includes(w))
+    .sort()
+    .join(" ")
+}
+
+/** One entry per donor (see donorKey), with their total and last gift. */
 export function rankDonors(gifts: Array<{ name: string | null | undefined; amount: number; date: string }>): { latest: Donor[]; largest: Donor[] } {
   const byKey = new Map<string, Donor>()
   for (const gift of gifts) {
     if (!isDonorName(gift.name) || gift.amount <= 0) continue
     const name = tidyName(gift.name)
-    const key = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+    const key = donorKey(name)
     const donor = byKey.get(key) ?? { name, total: 0, donations: 0, lastAt: gift.date }
     donor.total = Math.round((donor.total + gift.amount) * 100) / 100
     donor.donations++

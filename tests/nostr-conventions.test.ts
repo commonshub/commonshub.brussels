@@ -136,3 +136,30 @@ describe("identity", () => {
     expect(links).toEqual([{ discordId: "100", name: "Doug", keys: [k1, k2], roles: [] }])
   })
 })
+
+describe("comments", () => {
+  test("a comment names its subject with I/K and is told apart from an annotation", async () => {
+    const { buildComment, isComment, parseComments } = await import("@/lib/nostr-conventions")
+    const uri = "chb:bill:b-b7e6ee1b53"
+    const c = buildComment(uri, "chb:bill", "  Paid by direct debit on the 3rd, can be reconciled.  ", community, SITE, when)
+    expect(c.kind).toBe(1111)
+    expect(c.tags.slice(0, 4)).toEqual([["I", uri], ["K", "chb:bill"], ["i", uri], ["k", "chb:bill"]])
+    expect(c.content).toBe("Paid by direct debit on the 3rd, can be reconciled.")
+    expect(isComment(c)).toBe(true)
+    // An annotation snapshot has the same kind but no uppercase I.
+    expect(isComment({ kind: 1111, tags: [["i", uri], ["k", "chb:bill"], ["category", "utilities"]] })).toBe(false)
+
+    const member = "a".repeat(64)
+    const links = parseAttestations([{ pubkey: SITE, ...buildAttestation({ id: "100", name: "Doug D." }, [member], community, SITE, when) }], [SITE])
+    const events = [
+      { id: "2", pubkey: member, ...buildComment(uri, "chb:bill", "Second", community, SITE, new Date("2026-09-26T10:00:00Z")) },
+      { id: "1", pubkey: member, ...buildComment(uri, "chb:bill", "First", community, SITE, new Date("2026-09-25T10:00:00Z")) },
+      { id: "3", pubkey: member, ...buildComment("chb:bill:other", "chb:bill", "Elsewhere", community, SITE, when) },
+      { id: "4", pubkey: member, kind: 1111, created_at: 1, tags: [["i", uri]], content: "annotation" },
+    ]
+    expect(parseComments(events, uri, links, []).map((x) => [x.content, x.name])).toEqual([
+      ["First", "Doug D."],
+      ["Second", "Doug D."],
+    ])
+  })
+})

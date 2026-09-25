@@ -4,6 +4,7 @@ import { DM_Sans, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SessionProvider } from "@/components/session-provider";
 import { NostrProvider } from "@/components/nostr-provider";
+import { MemberKeyLink } from "@/components/member-key-link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { auth } from "@/auth";
@@ -61,6 +62,7 @@ export default async function RootLayout({
       <body className={`font-sans antialiased`}>
         <SessionProvider session={session}>
           <NostrProvider>
+            <MemberKeyLink />
             <Header />
             <main className="min-h-screen pt-16">{children}</main>
             <Footer />

@@ -55,6 +55,16 @@ export interface ContributableExpense {
   /** For a bill still to pay: when it is due, ISO, and whether that is past. */
   dueDate?: string
   overdue?: boolean
+  /**
+   * The expense's identifier on Nostr (NIP-73 style, the `i` tag of its
+   * annotations and the `I` tag of comments on it): `chb:expense:<slug>` for
+   * a recurring cost, `chb:bill:<chb public id>` for a bill.
+   */
+  uri: string
+  /** chb's stable public id of the bill (`b-…`), for a bill. */
+  publicId?: string
+  /** The bill's category in the books, when there is one. */
+  category?: string | null
 }
 
 export interface ContributeExpenses {
@@ -205,6 +215,19 @@ export function withoutPersonName(line: string, personName: string): string {
     .trim()
 }
 
+/** "CHB-S/2026/09/0011" → "chb-s-2026-09-0011": the bill's page, named after our accounting reference. */
+export function billSlug(reference: string): string {
+  return reference
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+export const expenseUri = (slug: string) => `chb:expense:${slug}`
+export const billUri = (publicId: string) => `chb:bill:${publicId}`
+
 const isChbBill = (record: object): record is ChbBill => "status" in record && typeof (record as ChbBill).vendor === "object"
 
 /** A chb ≥ 3.14 bill in the shape the matching rules read. */
@@ -291,7 +314,10 @@ export function readPendingBills(dataDir: string, now: Date = new Date()): { exp
       const bill = fromChbBill(record)
       const label = bill.title || bill.lines[0] || `${bill.vendor || "Bill"} ${bill.reference}`
       return {
-        slug: record.id,
+        slug: billSlug(record.number || record.id),
+        uri: billUri(record.id),
+        publicId: record.id,
+        category: record.category ?? null,
         kind: "one-time",
         label: label.length > 80 ? `${label.slice(0, 79).trimEnd()}…` : label,
         vendor: bill.vendor || "Individual supplier",
@@ -406,7 +432,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       slug: rule.slug,
       kind: "recurring",
       label: rule.label,
-      vendor: rule.vendorLabel || latest?.vendor || rule.label,
+      vendor: rule.vendorLabel ?? (latest?.vendor || rule.label),
       amountEur,
       date: latest?.date ?? "",
       reference: rule.slug,
@@ -416,6 +442,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       message: contributionMessage(rule.short ?? rule.label.toLowerCase()),
       ...(rule.annualAmount ? { annualAmount: rule.annualAmount } : {}),
       ...(rule.short ? { short: rule.short } : {}),
+      uri: expenseUri(rule.slug),
     })
   }
   // Largest first: the page shows how the fixed costs compare.
@@ -433,7 +460,8 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
     .map((bill) => {
       const label = oneTimeLabel(bill)
       return {
-        slug: `bill-${bill.id}`,
+        slug: billSlug(bill.reference),
+        uri: billUri(String(bill.id)),
         kind: "one-time" as const,
         label,
         vendor: bill.vendor,
@@ -470,6 +498,19 @@ export function loadContributeExpenses(
 
 export function findExpense(slug: string, expenses: ContributeExpenses): ContributableExpense | null {
   return [...expenses.recurring, ...expenses.oneTime].find((e) => e.slug === slug) ?? null
+}
+
+/** The page address of an expense. */
+export const expensePath = (expense: Pick<ContributableExpense, "slug">) => `/expenses/${expense.slug}`
+
+/**
+ * The expense an older or alternative address points at: chb's public
+ * bill id (`b-…`), a bill number written as-is, or a merged cost's old slug.
+ */
+export function resolveExpenseSlug(slug: string, expenses: ContributeExpenses, config: ContributeSettings = CONFIG): string | null {
+  const all = [...expenses.recurring, ...expenses.oneTime]
+  const byId = all.find((e) => e.publicId === slug || e.slug === billSlug(slug))
+  return byId?.slug ?? slugAlias(slug, config)
 }
 
 /** The current slug for an older one (a cost that was merged or renamed), if any. */

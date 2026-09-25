@@ -315,9 +315,10 @@
         "slug": "rent",
         "label": "Rent",
         "short": "rent",
+        "vendorLabel": "",
         "vendor": "XL Collective",
         "title": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b",
-        "description": "The lease for the space itself, 1000 m² in the centre of Brussels. Every other contribution only makes sense because this one is covered.",
+        "description": "The lease for the space itself: the first floor (235 m²) and the second floor (204 m²), 439 m² of offices in the centre of Brussels. Every other contribution only makes sense because this one is covered.",
         "line": "\\brent\\b|\\bsous.?location\\b|\\bsub.?rent\\b|\\bloyer\\b",
         "monthlyAmount": 6546.76
       },

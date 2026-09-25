@@ -63,8 +63,8 @@ export async function POST(request: Request) {
         ],
         metadata,
         subscription_data: { description: expense.message, metadata },
-        success_url: `${origin}/contribute/${expense.slug}?thanks=monthly`,
-        cancel_url: `${origin}/contribute/${expense.slug}`,
+        success_url: `${origin}/expenses/${expense.slug}?thanks=monthly`,
+        cancel_url: `${origin}/expenses/${expense.slug}`,
       })
       return NextResponse.json({ url: session.url })
     }
@@ -90,8 +90,8 @@ export async function POST(request: Request) {
         description: expense.message,
         metadata: { expense: expense.slug, reference: expense.reference },
       },
-      success_url: `${origin}/contribute/${expense.slug}?thanks=1`,
-      cancel_url: `${origin}/contribute/${expense.slug}`,
+      success_url: `${origin}/expenses/${expense.slug}?thanks=1`,
+      cancel_url: `${origin}/expenses/${expense.slug}`,
     })
     return NextResponse.json({ url: session.url })
   } catch (error) {

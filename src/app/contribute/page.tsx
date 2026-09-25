@@ -35,7 +35,7 @@ function ExpenseCard({ expense, total }: { expense: ContributableExpense; total?
   const share = recurring && total ? (expense.amountEur / total) * 100 : null
   return (
     <Link
-      href={`/contribute/${expense.slug}`}
+      href={`/expenses/${expense.slug}`}
       className="group flex flex-col justify-between gap-4 rounded-lg border border-border bg-card p-6 transition-all hover:border-primary hover:shadow-md"
     >
       <div>

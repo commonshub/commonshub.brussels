@@ -122,3 +122,32 @@ and cancel in the other.
    bot's `/shifts` command.
 
 Nothing is stored on the web server.
+
+## Expenses: tags and comments
+
+Every expense on the site has a page, `/expenses/<slug>`, and an identifier
+on Nostr (NIP-73 style):
+
+| Expense | Page | Identifier |
+|---|---|---|
+| A recurring cost (rent, furniture, electricity, …) | `/expenses/rent` | `chb:expense:rent` |
+| A bill from our books | `/expenses/chb-s-2026-09-0011` (its accounting reference) | `chb:bill:<chb public id>`, e.g. `chb:bill:b-b7e6ee1b53` |
+
+The bill identifier is chb's stable public id, the same on every copy of
+the same Odoo database; it does not reveal the Odoo record.
+
+- **Tags** — a kind 1111 annotation snapshot, exactly as for transactions:
+  `["i","<identifier>"]`, `["k","chb:expense"|"chb:bill"]`, then
+  `["category", …]`, `["collective", …]`; the content is a description.
+  The newest snapshot per identifier wins.
+- **Comments** — NIP-22, kind 1111, top-level comment on external content:
+  `["I","<identifier>"]`, `["K", kind]`, `["i","<identifier>"]`, `["k", kind]`,
+  `["a","34550:<site pubkey>:dc<guild id>"]` (the community), `["t","app:commonshub.brussels"]`,
+  `["client", …]`. The **uppercase `I`** is what tells a comment from an
+  annotation snapshot; readers of annotations must skip events that have one.
+  Read an expense's thread with `{"kinds":[1111],"#I":["<identifier>"]}`.
+
+Everything goes to relay.commonshub.brussels (and the backup relay). A
+member's browser key is linked to their Discord account (a kind 31926
+attestation) as soon as they sign in, which is what lets the relay accept
+their tags and comments.

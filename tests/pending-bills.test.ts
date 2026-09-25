@@ -53,10 +53,12 @@ describe("bills still to pay", () => {
   test("EUR bills with something left to pay, overdue first, credit notes and reversed bills left out", () => {
     const { expenses, summary } = readPendingBills(tmp, now)!
     expect(expenses.map((e) => [e.slug, e.amountEur, e.overdue])).toEqual([
-      ["b-2", 54.45, true],
-      ["b-1", 129.74, false],
-      ["b-3", 12.5, false],
+      ["chb-s-2026-07-0003", 54.45, true],
+      ["chb-s-2026-09-0011", 129.74, false],
+      ["chb-s-2026-09-0020", 12.5, false],
     ])
+    // On Nostr a bill is known by chb's public id, which never changes.
+    expect(expenses[0]).toMatchObject({ uri: "chb:bill:b-2", publicId: "b-2", category: "catering" })
     expect(summary).toMatchObject({ count: 3, amountDue: 196.69, otherCurrencies: [{ currency: "USD", count: 1, amountDue: 20 }] })
   })
 
@@ -69,13 +71,22 @@ describe("bills still to pay", () => {
 
   test("the page's one-off list is the pending list once chb publishes it", () => {
     const loaded = loadContributeExpenses({ dataDir: tmp, now })
-    expect(loaded.oneTime.map((e) => e.slug)).toEqual(["b-2", "b-1", "b-3"])
+    expect(loaded.oneTime.map((e) => e.slug)).toEqual(["chb-s-2026-07-0003", "chb-s-2026-09-0011", "chb-s-2026-09-0020"])
     expect(loaded.pending?.amountDue).toBe(196.69)
   })
 
   test("month files in chb 3.14's schema are read for the recurring costs", () => {
     const [aug] = readMonthBills(tmp, "2026", "08")!
     expect(aug).toMatchObject({ id: "b-9", state: "posted", vendor: "Relieve Group", title: "Relieve furniture rental August 2026", reference: "CHB-S/2026/09/0011" })
+  })
+
+  test("old addresses still find the bill: chb's public id or the number as written", async () => {
+    const { resolveExpenseSlug } = await import("@/lib/contribute-expenses")
+    const loaded = loadContributeExpenses({ dataDir: tmp, now })
+    expect(resolveExpenseSlug("b-1", loaded)).toBe("chb-s-2026-09-0011")
+    expect(resolveExpenseSlug("CHB-S/2026/09/0011", loaded)).toBe("chb-s-2026-09-0011")
+    expect(resolveExpenseSlug("acoustic-booth-wenap", loaded)).toBe("furniture")
+    expect(resolveExpenseSlug("nothing", loaded)).toBeNull()
   })
 
   test("no pending list yet: nothing to show, no error", () => {

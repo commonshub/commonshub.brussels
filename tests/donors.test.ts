@@ -54,3 +54,21 @@ describe("ranking donors", () => {
     ])
   })
 })
+
+describe("one entry per person", () => {
+  test("word order, case, accents and titles do not make a second donor", () => {
+    const { largest } = rankDonors([
+      { name: "HANQUIN MATHIEU", amount: 32.5, date: "2025-01-01" },
+      { name: "Mathieu Hanquin", amount: 10, date: "2026-01-01" },
+      { name: "Mr Thomas Suau", amount: 10, date: "2024-09-01" },
+      { name: "SUAU THOMAS", amount: 5, date: "2024-10-01" },
+      { name: "Timothée Blanc", amount: 5, date: "2024-10-01" },
+      { name: "BLANC TIMOTHEE", amount: 5, date: "2024-11-01" },
+    ])
+    expect(largest.map((d) => [d.name, d.total, d.donations])).toEqual([
+      ["Hanquin Mathieu", 42.5, 2],
+      ["Thomas Suau", 15, 2],
+      ["Timothée Blanc", 10, 2],
+    ])
+  })
+})

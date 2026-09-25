@@ -149,3 +149,17 @@ Members also annotate transactions and counterparties (category, name,
 description) with signed events that `chb` picks up from the relays and
 folds into the dataset — the site's only durable "write" path. See
 `src/components/nostr-provider.tsx` (`useAnnotation`) for the shapes.
+
+## 3. Expenses
+
+`/contribute` lists the fixed costs (settings.contribute) and the bills
+still to pay (chb's `latest/public/pending-bills.json`). Each has a page,
+`/expenses/<slug>` — a recurring cost by its slug (`/expenses/rent`), a bill
+by its accounting reference (`/expenses/chb-s-2026-09-0011`); older
+addresses (`/contribute/<slug>`, chb's `b-…` ids) redirect there. The page
+has the way to contribute, who already did (recognised by the transfer
+message, `Contribution <short name or reference>`; names for members
+only), the expense's tags and a comment thread, both on Nostr under the
+expense's identifier (`chb:expense:<slug>`, `chb:bill:<chb public id>`).
+The event shapes are in [`public/docs/nostr.md`](../public/docs/nostr.md#expenses-tags-and-comments).
+chb can pick the tags up the same way it reads transaction annotations.
