@@ -131,7 +131,8 @@
       "currency": "EUR",
       "per": "team"
     },
-    "payment": "Pay on site, or online when you register on Luma.",
+    "payment": "Everyone registers on Luma, then each team pays via our donation page.",
+    "paymentUrl": "/donate",
     "signupUrl": "https://luma.com/l9275g9x",
     "rules": ["Teams of two, sign up as a team.", "Groups of four teams, everyone plays everyone in their group.", "Games to 7 goals, switch positions whenever you like.", "Top teams go to the semi-finals and the final."],
     "bracketUrl": null,
