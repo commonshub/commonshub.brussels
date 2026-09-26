@@ -22,16 +22,33 @@
       "speakers": ["Xavier Damman"]
     },
     {
+      "start": "11:30",
+      "room": "angel",
+      "title": "Commons Game: Learning the Principles of Elinor Ostrom",
+      "speakers": ["Leen Schelfhout"],
+      "url": "/workshops/commons-game"
+    },
+    {
       "start": "12:00",
       "room": "mushroom",
       "title": "Digital Independence Day",
-      "speakers": ["Friedger M."]
+      "speakers": ["Friedger M."],
+      "description": "Explore one tool, service or app that makes you more independent of Big Tech companies.",
+      "url": "https://events.diday.org/events/94d34b47-ba67-476d-926b-b8eb09196a32"
+    },
+    {
+      "start": "12:00",
+      "room": "ostrom",
+      "title": "Commons Hub: What Happened, What’s Next?",
+      "speakers": ["Leen Schelfhout", "Xavier Damman", "members of the community"],
+      "description": "The founders of Commons Hub, Leen and Xavier, sit down with members of the community to talk openly about what happened, how we got here, and why this place is so close to our hearts. We’ll share the story of the past few years, including the recent hack, and talk about the fundraising effort to keep the Hub going. This is a conversation rather than a presentation: a space to ask questions, share experiences, and explore how we can support the Hub and its future."
     },
     {
       "start": "13:00",
       "room": "angel",
       "title": "Projective Dreamwork Circle",
-      "speakers": ["Dean Lee"]
+      "speakers": ["Dean K. Lee"],
+      "description": "Become a conscious actor in your personal revolution and more by working with the wisdom of your dreams from sleep."
     },
     {
       "start": "13:00",
@@ -43,25 +60,56 @@
       "start": "13:00",
       "room": "satoshi",
       "title": "Strategic LinkedIn Networking",
-      "speakers": ["Yasser Machat"]
+      "speakers": ["Yasser Machat"],
+      "description": "Build real relationships and expand your professional reach."
+    },
+    {
+      "start": "14:00",
+      "room": "mushroom",
+      "title": "Loss Cafe",
+      "speakers": ["David"]
+    },
+    {
+      "start": "14:00",
+      "room": "ostrom",
+      "title": "Cosmo-Localism: Global Knowledge, Local Production",
+      "speakers": ["Michel Bauwens"],
+      "description": "Michel Bauwens introduces his cosmo-localism ideas, followed by a Q&A. Cosmo-localism combines resilient, regenerative local production with globally shared knowledge, open designs and trans-local cooperation. The basic principle is that what is materially heavy should be produced locally, while knowledge, designs and other “light” resources can be shared globally."
     },
     {
       "start": "14:00",
       "room": "satoshi",
       "title": "Your Job Stopped? Your Work Starts @ Commons Hub",
-      "speakers": ["Gabriela Sotirca", "Alain Vereecke"]
+      "speakers": ["Gabriela Sotirca"],
+      "description": "Explore how Commons Hub could support people between jobs through volunteering, projects, networking and developing new skills."
     },
     {
       "start": "15:00",
       "room": "angel",
-      "title": "Commons Game: learning the principles of Elinor Ostrom",
-      "speakers": ["Leen Schelfhout"]
+      "title": "Love as a Commons",
+      "speakers": ["Kris Decoodt"],
+      "description": "What happens when we stop treating love as something we own, and start thinking of it as something we can share and care for together? An open conversation for people with experience of open relationships or polyamory, and those simply curious to learn more. Bring your stories, questions and experiences as we explore intimacy, trust, boundaries and care - and maybe what it means to open-source love."
     },
     {
       "start": "15:00",
       "room": "ostrom",
       "title": "Finding Ground When the World Feels Too Much",
-      "speakers": ["Diana Socoliuc"]
+      "speakers": ["Diana Socoliuc"],
+      "description": "Explore simple somatic practices to help you find your ground when life feels overwhelming. Discover how your body can become a resource for navigating stress, building resilience, and staying connected to yourself and others."
+    },
+    {
+      "start": "16:00",
+      "room": "ostrom",
+      "title": "Valley of the Commons: Lessons from a 4-Week Pop-Up Community",
+      "speakers": ["Leen Schelfhout", "Xavier Damman", "Inge"],
+      "description": "Leen, Xavier and Inge share their experience at the Valley of the Commons at Commons Hub Austria: a four-week immersive pop-up community in the valley where regenerative living, local economics and deep human connection are practiced, not just preached."
+    },
+    {
+      "start": "17:00",
+      "room": "ostrom",
+      "title": "Leviathan Movie Night",
+      "speakers": ["Kris Decoodt"],
+      "description": "Get comfy for a group screening of Leviathan, followed by a discussion over some chips. The film raises questions about power, institutions and community - all central to thinking about the commons."
     }
   ],
   "relatedEvents": [
@@ -78,15 +126,14 @@
     "end": "18:00",
     "teamSize": 2,
     "maxTeams": 12,
-    "fee": { "amount": 10, "currency": "EUR", "per": "team" },
+    "fee": {
+      "amount": 10,
+      "currency": "EUR",
+      "per": "team"
+    },
     "payment": "Pay on site, or online when you register on Luma.",
     "signupUrl": "https://luma.com/l9275g9x",
-    "rules": [
-      "Teams of two, sign up as a team.",
-      "Groups of four teams, everyone plays everyone in their group.",
-      "Games to 7 goals, switch positions whenever you like.",
-      "Top teams go to the semi-finals and the final."
-    ],
+    "rules": ["Teams of two, sign up as a team.", "Groups of four teams, everyone plays everyone in their group.", "Games to 7 goals, switch positions whenever you like.", "Top teams go to the semi-finals and the final."],
     "bracketUrl": null,
     "matches": []
   }
