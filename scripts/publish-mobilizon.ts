@@ -6,6 +6,7 @@
  *   bun scripts/publish-mobilizon.ts ocd-2026 --dry-run   # print the payloads
  *   bun scripts/publish-mobilizon.ts ocd-2026 --draft     # create as drafts
  *   bun scripts/publish-mobilizon.ts ocd-2026             # publish
+ *   bun scripts/publish-mobilizon.ts ocd-2026 --only day  # just one event
  *
  * Environment: MOBILIZON_EMAIL, MOBILIZON_PASSWORD, and optionally
  * MOBILIZON_URL (https://mobilizon.be) and MOBILIZON_GROUP (commonshub_bxl).
@@ -36,9 +37,11 @@ const ADDRESS = {
 };
 
 const args = process.argv.slice(2);
-const slug = args.find((a) => !a.startsWith("--"));
+const slug = args.find((a, i) => !a.startsWith("--") && args[i - 1] !== "--only");
 const dryRun = args.includes("--dry-run");
 const draft = args.includes("--draft");
+// --only <key>: just that event, e.g. "day" or "session-2026-10-04-11:00-satoshi".
+const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : undefined;
 if (!slug) {
   console.error("Usage: bun scripts/publish-mobilizon.ts <event-slug> [--dry-run] [--draft]");
   process.exit(1);
@@ -49,7 +52,7 @@ const event: HostedEvent = JSON.parse(
   readFileSync(join(root, "src/settings/events", `${slug}.json`), "utf8")
 );
 const statePath = join(root, ".data", `mobilizon-${slug}.json`);
-const state: Record<string, { id: string; uuid: string }> = existsSync(statePath)
+const state: Record<string, { id: string; uuid: string; pictureUuid?: string }> = existsSync(statePath)
   ? JSON.parse(readFileSync(statePath, "utf8"))
   : {};
 
@@ -151,7 +154,7 @@ function dayPayload(): Payload {
   };
 }
 
-const payloads = [dayPayload(), ...event.sessions.map(sessionPayload)];
+const payloads = [dayPayload(), ...event.sessions.map(sessionPayload)].filter((p) => !only || p.key === only);
 
 // --- Mobilizon API -----------------------------------------------------------
 
@@ -172,7 +175,13 @@ async function gql<T>(query: string, variables: Record<string, unknown> = {}, fi
     body = JSON.stringify({ query, variables });
   }
   const res = await fetch(`${MOBILIZON_URL}/api`, { method: "POST", headers, body });
-  const json = (await res.json()) as { data?: T; errors?: { message: string }[] };
+  const text = await res.text();
+  let json: { data?: T; errors?: { message: string }[] };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`HTTP ${res.status} from ${MOBILIZON_URL}/api: ${text.replace(/\s+/g, " ").slice(0, 200)}`);
+  }
   if (json.errors?.length) throw new Error(json.errors.map((e) => e.message).join("; "));
   if (!json.data) throw new Error(`Empty response (${res.status})`);
   return json.data;
@@ -234,14 +243,15 @@ async function uploadCover(actorId: string): Promise<string | null> {
 const EVENT_FIELDS = `
   $title: String!, $description: String!, $beginsOn: DateTime!, $endsOn: DateTime,
   $organizerActorId: ID!, $attributedToId: ID, $category: EventCategory, $tags: [String],
-  $physicalAddress: AddressInput, $picture: MediaInput, $externalParticipationUrl: String
+  $physicalAddress: AddressInput, $picture: MediaInput, $externalParticipationUrl: String,
+  $options: EventOptionsInput
 `;
 const EVENT_ARGS = `
   title: $title, description: $description, beginsOn: $beginsOn, endsOn: $endsOn,
   organizerActorId: $organizerActorId, attributedToId: $attributedToId,
   category: $category, tags: $tags, physicalAddress: $physicalAddress, picture: $picture,
   joinOptions: EXTERNAL, externalParticipationUrl: $externalParticipationUrl,
-  visibility: PUBLIC, language: "en"
+  options: $options, visibility: PUBLIC, language: "en"
 `;
 
 function variables(p: Payload, ctx: { actorId: string; groupId: string }, coverUuid: string | null) {
@@ -260,6 +270,8 @@ function variables(p: Payload, ctx: { actorId: string; groupId: string }, coverU
     },
     picture: p.withCover && coverUuid ? { mediaUuid: coverUuid } : undefined,
     externalParticipationUrl: register,
+    // Without it Mobilizon shows the times in UTC.
+    options: { timezone: event.timezone },
   };
 }
 
@@ -292,7 +304,9 @@ async function main() {
 
   await login();
   const ctx = await loadContext();
-  const coverUuid = await uploadCover(ctx.actorId);
+  // The cover is uploaded once and sent again on every update: an update
+  // without a picture removes it.
+  const coverUuid = state.day?.pictureUuid || (await uploadCover(ctx.actorId));
 
   for (const p of payloads) {
     const vars = variables(p, ctx, coverUuid);
@@ -314,7 +328,7 @@ async function main() {
       `mutation($draft: Boolean, ${EVENT_FIELDS}) { createEvent(draft: $draft, ${EVENT_ARGS}) { id uuid } }`,
       { draft, ...vars }
     );
-    state[p.key] = data.createEvent;
+    state[p.key] = { ...data.createEvent, ...(p.withCover && coverUuid && { pictureUuid: coverUuid }) };
     saveState();
     console.log(`created  ${p.title}${draft ? " (draft)" : ""}  ${MOBILIZON_URL}/events/${data.createEvent.uuid}`);
   }
