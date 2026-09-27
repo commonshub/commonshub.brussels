@@ -39,14 +39,78 @@ export async function generateMetadata({
   const event = getHostedEvent(slug);
   if (!event) return { title: "Event Not Found" };
 
+  const description = event.tagline
+    ? `${event.tagline} ${formatWhen(event)}, ${event.location}.`
+    : event.description;
+  const path = `/events/${event.slug}`;
+
+  // The image comes from ./opengraph-image.tsx.
   return {
     title: `${event.name} | Commons Hub Brussels`,
-    description: event.tagline || event.description,
+    description,
+    alternates: { canonical: path },
     openGraph: {
       title: event.name,
-      description: event.tagline || event.description,
-      images: event.coverImage ? [coverSrc(event.coverImage, "md")] : undefined,
+      description,
+      url: path,
+      siteName: "Commons Hub Brussels",
+      locale: "en_GB",
+      type: "website",
     },
+    twitter: {
+      card: "summary_large_image",
+      title: event.name,
+      description,
+    },
+  };
+}
+
+/** schema.org Event, for search engines and link previews that read it. */
+function eventJsonLd(event: HostedEvent) {
+  const url = `https://commonshub.brussels/events/${event.slug}`;
+  const image = event.coverImage
+    ? new URL(event.coverImage, "https://commonshub.brussels").toString()
+    : undefined;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.name,
+    description: event.description,
+    startDate: event.startAt,
+    endDate: event.endAt,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    url,
+    image: image ? [image] : undefined,
+    location: {
+      "@type": "Place",
+      name: "Commons Hub Brussels",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "Rue de la Madeleine 51",
+        postalCode: "1000",
+        addressLocality: "Brussels",
+        addressCountry: "BE",
+      },
+    },
+    organizer: {
+      "@type": "Organization",
+      name: "Commons Hub Brussels",
+      url: "https://commonshub.brussels",
+    },
+    subEvent: event.sessions.map((session) => ({
+      "@type": "Event",
+      name: session.title,
+      startDate: `${session.date || event.startAt.slice(0, 10)}T${session.start}:00${event.startAt.slice(19)}`,
+      ...(session.description && { description: session.description }),
+      ...(session.speakers?.length && {
+        performer: session.speakers.map((name) => ({ "@type": "Person", name })),
+      }),
+      location: {
+        "@type": "Place",
+        name: session.room ? `${roomName(session.room)}, Commons Hub Brussels` : "Commons Hub Brussels",
+      },
+    })),
   };
 }
 
@@ -372,6 +436,11 @@ export default async function HostedEventPage({ params }: EventPageProps) {
 
   return (
     <main className="min-h-screen">
+      <script
+        type="application/ld+json"
+        // JSON.stringify escapes quotes; "<" is escaped so no text can close the tag.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd(event)).replace(/</g, "\\u003c") }}
+      />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
