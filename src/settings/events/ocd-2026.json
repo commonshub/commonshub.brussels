@@ -19,7 +19,8 @@
       "start": "11:00",
       "room": "satoshi",
       "title": "Digital Tools for the Commons",
-      "speakers": ["Xavier Damman"]
+      "speakers": ["Xavier Damman"],
+      "url": "https://mobilizon.be/events/25a4ae0b-8c78-41c9-9b43-9af5f3279c96"
     },
     {
       "start": "11:30",
@@ -41,6 +42,7 @@
       "room": "ostrom",
       "title": "Commons Hub: What Happened, What’s Next?",
       "speakers": ["Leen Schelfhout", "Xavier Damman", "members of the community"],
+      "url": "https://mobilizon.be/events/9847b97a-5a87-4740-aac5-654ba42de46a",
       "description": "The founders of Commons Hub, Leen and Xavier, sit down with members of the community to talk openly about what happened, how we got here, and why this place is so close to our hearts. We’ll share the story of the past few years, including the recent hack, and talk about the fundraising effort to keep the Hub going. This is a conversation rather than a presentation: a space to ask questions, share experiences, and explore how we can support the Hub and its future."
     },
     {
@@ -48,32 +50,37 @@
       "room": "angel",
       "title": "Projective Dreamwork Circle",
       "speakers": ["Dean K. Lee"],
+      "url": "https://mobilizon.be/events/427eb151-b3fb-43b4-a01e-1af8146c618d",
       "description": "Become a conscious actor in your personal revolution and more by working with the wisdom of your dreams from sleep."
     },
     {
       "start": "13:00",
       "room": "mushroom",
       "title": "Running and Building AI Models for Raspberry Pi AI HAT",
-      "speakers": ["Lubos"]
+      "speakers": ["Lubos"],
+      "url": "https://mobilizon.be/events/b75006bd-1841-4261-b2b4-c2a6d39b24b2"
     },
     {
       "start": "13:00",
       "room": "satoshi",
       "title": "Strategic LinkedIn Networking",
       "speakers": ["Yasser Machat"],
+      "url": "https://mobilizon.be/events/66f68c1d-e01b-4cf7-bf9c-e243113cc550",
       "description": "Build real relationships and expand your professional reach."
     },
     {
       "start": "14:00",
       "room": "mushroom",
       "title": "Loss Cafe",
-      "speakers": ["David"]
+      "speakers": ["David"],
+      "url": "https://mobilizon.be/events/7a35c63a-244c-4878-b12d-c35e0e2873ba"
     },
     {
       "start": "14:00",
       "room": "ostrom",
       "title": "Cosmo-Localism: Global Knowledge, Local Production",
       "speakers": ["Michel Bauwens"],
+      "url": "https://mobilizon.be/events/31ea318a-e10c-4660-87c5-3be2db2fb92a",
       "description": "Michel Bauwens introduces his cosmo-localism ideas, followed by a Q&A. Cosmo-localism combines resilient, regenerative local production with globally shared knowledge, open designs and trans-local cooperation. The basic principle is that what is materially heavy should be produced locally, while knowledge, designs and other “light” resources can be shared globally."
     },
     {
@@ -81,6 +88,7 @@
       "room": "satoshi",
       "title": "Your Job Stopped? Your Work Starts @ Commons Hub",
       "speakers": ["Gabriela Sotirca"],
+      "url": "https://mobilizon.be/events/32c876e3-9a27-4e73-8950-ea48c5121560",
       "description": "Explore how Commons Hub could support people between jobs through volunteering, projects, networking and developing new skills."
     },
     {
@@ -88,6 +96,7 @@
       "room": "angel",
       "title": "Love as a Commons",
       "speakers": ["Kris Decoodt"],
+      "url": "https://mobilizon.be/events/ea8a5435-e035-4d95-a881-0d277428e4da",
       "description": "What happens when we stop treating love as something we own, and start thinking of it as something we can share and care for together? An open conversation for people with experience of open relationships or polyamory, and those simply curious to learn more. Bring your stories, questions and experiences as we explore intimacy, trust, boundaries and care - and maybe what it means to open-source love."
     },
     {
@@ -95,6 +104,7 @@
       "room": "ostrom",
       "title": "Finding Ground When the World Feels Too Much",
       "speakers": ["Diana Socoliuc"],
+      "url": "https://mobilizon.be/events/a802131f-4cd2-4fbb-bdf5-2e4df621f38f",
       "description": "Explore simple somatic practices to help you find your ground when life feels overwhelming. Discover how your body can become a resource for navigating stress, building resilience, and staying connected to yourself and others."
     },
     {
@@ -102,6 +112,7 @@
       "room": "ostrom",
       "title": "Valley of the Commons: Lessons from a 4-Week Pop-Up Community",
       "speakers": ["Leen Schelfhout", "Xavier Damman", "Inge"],
+      "url": "https://mobilizon.be/events/ecbfe95b-b4ab-427c-9476-8bde1fe12427",
       "description": "Leen, Xavier and Inge share their experience at the Valley of the Commons at Commons Hub Austria: a four-week immersive pop-up community in the valley where regenerative living, local economics and deep human connection are practiced, not just preached."
     },
     {
@@ -109,6 +120,7 @@
       "room": "ostrom",
       "title": "Leviathan Movie Night",
       "speakers": ["Kris Decoodt"],
+      "url": "https://mobilizon.be/events/45bf0432-8bbf-4f52-8710-33c0e7833044",
       "description": "Get comfy for a group screening of Leviathan, followed by a discussion over some chips. The film raises questions about power, institutions and community - all central to thinking about the commons."
     }
   ],

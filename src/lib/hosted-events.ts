@@ -48,7 +48,7 @@ export interface HostedTournament {
   paymentUrl?: string;
   signupUrl: string;
   rules?: string[];
-  /** Live bracket (e.g. Kickertool or Challonge) once the draw is made. */
+  /** Live bracket (e.g. a Kickertool live page) once the draw is made; embedded on the event page. */
   bracketUrl?: string | null;
   matches?: TournamentMatch[];
 }
