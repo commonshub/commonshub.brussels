@@ -44,6 +44,8 @@ export interface HostedTournament {
   maxTeams?: number;
   fee: { amount: number; currency: string; per: string };
   payment: string;
+  /** Where to pay, e.g. the donation page; linked from the payment line. */
+  paymentUrl?: string;
   signupUrl: string;
   rules?: string[];
   /** Live bracket (e.g. Kickertool or Challonge) once the draw is made. */

@@ -277,6 +277,14 @@ function TournamentSection({ tournament }: { tournament: HostedTournament }) {
                 <Ticket className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <span>
                   <strong>{formatFee(tournament.fee)}</strong>. {tournament.payment}
+                  {tournament.paymentUrl && (
+                    <>
+                      {" "}
+                      <a href={tournament.paymentUrl} className="text-primary hover:underline">
+                        Donate €{tournament.fee.amount} for your team
+                      </a>
+                    </>
+                  )}
                 </span>
               </div>
               <Button size="lg" className="w-full gap-2 cursor-pointer" asChild>
