@@ -122,12 +122,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }));
 
   // Pages of events we host (Open Commons Day, Open Source Village, ...)
-  const hostedEventPages: MetadataRoute.Sitemap = hostedEvents.map((event) => ({
-    url: `${BASE_URL}${hostedEventPath(event)}`,
-    lastModified: now,
-    changeFrequency: "daily" as const,
-    priority: 0.8,
-  }));
+  const hostedEventPages: MetadataRoute.Sitemap = [
+    { url: `${BASE_URL}/events`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 },
+    ...hostedEvents.map((event) => ({
+      url: `${BASE_URL}${hostedEventPath(event)}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+    })),
+  ];
 
   return [...staticPages, ...roomPages, ...roomIcsPages, ...hostedEventPages];
 }

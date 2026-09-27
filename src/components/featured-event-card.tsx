@@ -29,7 +29,7 @@ export interface FeaturedEvent {
  * the poster is shown whole, beside the details (stacked on a phone), and
  * nothing is laid over it.
  */
-export function FeaturedEventCard({ event, onTagClick }: { event: FeaturedEvent; onTagClick: (tag: string) => void }) {
+export function FeaturedEventCard({ event, onTagClick }: { event: FeaturedEvent; onTagClick?: (tag: string) => void }) {
   const href = event.isExternal ? event.externalUrl : event.url
   const isOwnPage = !!href?.startsWith("/")
   const tags = (event.tags ?? []).filter((tag) => tag.name.toLowerCase() !== "featured")
@@ -99,13 +99,16 @@ export function FeaturedEventCard({ event, onTagClick }: { event: FeaturedEvent;
               {tags.map((tag) => (
                 <span
                   key={tag.name}
-                  className="cursor-pointer rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${onTagClick ? "cursor-pointer transition-opacity hover:opacity-80" : ""}`}
                   style={{ backgroundColor: tag.color || "#6b7280", color: "#fff" }}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onTagClick(tag.name)
-                  }}
+                  onClick={
+                    onTagClick &&
+                    ((e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onTagClick(tag.name)
+                    })
+                  }
                 >
                   {tag.name}
                 </span>

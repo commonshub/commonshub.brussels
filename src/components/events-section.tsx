@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import Image from "@/components/optimized-image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Star, Rss, Mail } from "lucide-react";
+import { Calendar, MapPin, Rss, Mail } from "lucide-react";
 import Link from "next/link";
 import settings from "@/settings/settings.json";
 import { shortenUrls } from "@/lib/plain-text";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
-import { FeaturedEventCard } from "@/components/featured-event-card";
+import { FeaturedEventsSection } from "@/components/featured-events-section";
 interface EventTag {
   name: string;
   color: string;
@@ -210,20 +210,7 @@ export function EventsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {!loading && featuredEvents.length > 0 && (
           <div className="mb-16">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl sm:text-4xl font-bold text-foreground flex items-center justify-center gap-3">
-                <Star className="w-8 h-8 text-amber-500 fill-amber-500" />
-                Featured Events
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-                Don't miss these highlighted events handpicked by our community.
-              </p>
-            </div>
-            <div className={`mx-auto grid gap-6 ${featuredEvents.length === 1 ? "max-w-3xl" : "max-w-6xl lg:grid-cols-2"}`}>
-              {featuredEvents.map((event) => (
-                <FeaturedEventCard key={event.id} event={event} onTagClick={setSelectedTag} />
-              ))}
-            </div>
+            <FeaturedEventsSection events={featuredEvents} onTagClick={setSelectedTag} />
           </div>
         )}
 
