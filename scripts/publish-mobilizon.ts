@@ -113,7 +113,10 @@ function sessionPayload(session: HostedSession, i: number): Payload {
   const parts = [
     session.description ? `<p>${escapeHtml(session.description)}</p>` : "",
     session.speakers?.length ? `<p>With ${escapeHtml(session.speakers.join(", ").replace(/\.$/, ""))}.</p>` : "",
-    session.url ? `<p>More: ${link(session.url, session.url.startsWith("/") ? absolute(session.url) : session.url)}</p>` : "",
+    // Sessions whose url is their own Mobilizon event need no link to it.
+    session.url && !session.url.startsWith(MOBILIZON_URL)
+      ? `<p>More: ${link(session.url, session.url.startsWith("/") ? absolute(session.url) : session.url)}</p>`
+      : "",
     `<p>📍 ${escapeHtml(roomName(session.room))}, Commons Hub Brussels</p>`,
     `<p>Part of ${link(eventPage, event.name)}: a day of workshops, conversations and activities in all our rooms. ` +
       `Come for one session, stay for the day. Free, please register on ${link(register, "Luma")}.</p>`,
