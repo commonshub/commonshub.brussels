@@ -99,6 +99,16 @@ const eventPage = `${SITE_URL}/events/${event.slug}`;
 const register = event.links.luma || eventPage;
 const tagNames = [...(event.tags || []).map((t) => t.name), "Commons"];
 
+function sessionKey(session: HostedSession, i: number) {
+  return `session-${session.date || day}-${session.start}-${session.room || i}`;
+}
+
+/** The session's own Mobilizon event once it exists, else its link (e.g. diday.org). */
+function sessionHref(session: HostedSession, i: number) {
+  const published = state[sessionKey(session, i)];
+  return published ? `${MOBILIZON_URL}/events/${published.uuid}` : session.url;
+}
+
 function sessionPayload(session: HostedSession, i: number): Payload {
   const parts = [
     session.description ? `<p>${escapeHtml(session.description)}</p>` : "",
@@ -109,7 +119,7 @@ function sessionPayload(session: HostedSession, i: number): Payload {
       `Come for one session, stay for the day. Free, please register on ${link(register, "Luma")}.</p>`,
   ];
   return {
-    key: `session-${session.date || day}-${session.start}-${session.room || i}`,
+    key: sessionKey(session, i),
     title: session.title,
     description: parts.filter(Boolean).join("\n"),
     ...sessionTimes(session),
@@ -120,10 +130,11 @@ function sessionPayload(session: HostedSession, i: number): Payload {
 }
 
 function dayPayload(): Payload {
-  const programme = [...event.sessions]
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .map((s) => {
-      const title = s.url ? link(s.url, s.title) : escapeHtml(s.title);
+  const programme = event.sessions
+    .map((s, i) => ({ s, href: sessionHref(s, i) }))
+    .sort((a, b) => a.s.start.localeCompare(b.s.start))
+    .map(({ s, href }) => {
+      const title = href ? link(href, s.title) : escapeHtml(s.title);
       const who = s.speakers?.length ? `, with ${escapeHtml(s.speakers.join(", "))}` : "";
       return `<li>${s.start} · ${escapeHtml(roomName(s.room))} — ${title}${who}</li>`;
     })
@@ -154,7 +165,9 @@ function dayPayload(): Payload {
   };
 }
 
-const payloads = [dayPayload(), ...event.sessions.map(sessionPayload)].filter((p) => !only || p.key === only);
+// Built when their turn comes, the day last: its programme links to the
+// session events, including ones created earlier in the same run.
+const payloads = [...event.sessions.map((s, i) => () => sessionPayload(s, i)), () => dayPayload()];
 
 // --- Mobilizon API -----------------------------------------------------------
 
@@ -294,11 +307,13 @@ function saveState() {
 
 async function main() {
   if (dryRun) {
-    for (const p of payloads) {
+    for (const build of payloads) {
+      const p = build();
+      if (only && p.key !== only) continue;
       console.log(`\n=== ${p.title} (${p.beginsOn} → ${p.endsOn})${state[p.key] ? " [update]" : ""}`);
       console.log(p.description);
     }
-    console.log(`\n${payloads.length} events for @${GROUP} on ${MOBILIZON_URL}. Nothing was sent.`);
+    console.log(`\n${only ? 1 : payloads.length} events for @${GROUP} on ${MOBILIZON_URL}. Nothing was sent.`);
     return;
   }
 
@@ -308,7 +323,9 @@ async function main() {
   // without a picture removes it.
   const coverUuid = state.day?.pictureUuid || (await uploadCover(ctx.actorId));
 
-  for (const p of payloads) {
+  for (const build of payloads) {
+    const p = build();
+    if (only && p.key !== only) continue;
     const vars = variables(p, ctx, coverUuid);
     const known = state[p.key];
     if (known) {
