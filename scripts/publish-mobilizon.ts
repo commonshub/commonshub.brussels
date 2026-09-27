@@ -173,7 +173,20 @@ const payloads = [...event.sessions.map((s, i) => () => sessionPayload(s, i)), (
 
 let token = "";
 
+/** mobilizon.be rate-limits bursts; wait and try again rather than stop half way. */
 async function gql<T>(query: string, variables: Record<string, unknown> = {}, files?: Record<string, Blob>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await gqlOnce<T>(query, variables, files);
+    } catch (err) {
+      if (attempt >= 6 || !/too many requests|HTTP 429/i.test(String(err))) throw err;
+      console.log(`  rate limited, waiting ${attempt * 20}s…`);
+      await new Promise((resolve) => setTimeout(resolve, attempt * 20_000));
+    }
+  }
+}
+
+async function gqlOnce<T>(query: string, variables: Record<string, unknown> = {}, files?: Record<string, Blob>): Promise<T> {
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   let body: BodyInit;
   if (files) {
