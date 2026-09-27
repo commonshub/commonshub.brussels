@@ -378,7 +378,16 @@ function TournamentSection({ tournament }: { tournament: HostedTournament }) {
 
         <div className="mt-8">
           <h3 className="text-xl font-semibold text-foreground">Matches</h3>
-          {matches.length === 0 ? (
+          {tournament.bracketUrl ? (
+            // The live page from Kickertool: groups, matches and results,
+            // updated as the games are entered at the table.
+            <iframe
+              src={tournament.bracketUrl}
+              title={`${tournament.name}: live bracket`}
+              loading="lazy"
+              className="mt-4 w-full h-[75vh] min-h-[480px] max-h-[900px] rounded-lg border bg-background"
+            />
+          ) : matches.length === 0 ? (
             <p className="mt-2 text-muted-foreground">
               The match schedule is published here once the teams are known and
               the draw is made.
@@ -415,7 +424,7 @@ function TournamentSection({ tournament }: { tournament: HostedTournament }) {
           {tournament.bracketUrl && (
             <Button variant="outline" className="mt-4 gap-2 cursor-pointer" asChild>
               <a href={tournament.bracketUrl} target="_blank" rel="noopener noreferrer">
-                Live bracket
+                Open the live bracket full screen
                 <ExternalLink className="w-4 h-4" />
               </a>
             </Button>
