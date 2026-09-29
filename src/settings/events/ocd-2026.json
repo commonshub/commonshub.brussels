@@ -17,25 +17,17 @@
   "sessions": [
     {
       "start": "11:00",
-      "room": "satoshi",
-      "title": "Digital Tools for the Commons",
-      "speakers": ["Xavier Damman"],
-      "url": "https://mobilizon.be/events/25a4ae0b-8c78-41c9-9b43-9af5f3279c96"
-    },
-    {
-      "start": "11:30",
       "room": "angel",
       "title": "Commons Game: Learning the Principles of Elinor Ostrom",
       "speakers": ["Leen Schelfhout"],
       "url": "/workshops/commons-game"
     },
     {
-      "start": "12:00",
-      "room": "mushroom",
-      "title": "Digital Independence Day",
-      "speakers": ["Friedger M."],
-      "description": "Explore one tool, service or app that makes you more independent of Big Tech companies.",
-      "url": "https://events.diday.org/events/94d34b47-ba67-476d-926b-b8eb09196a32"
+      "start": "11:00",
+      "room": "satoshi",
+      "title": "Digital Tools for the Commons",
+      "speakers": ["Xavier Damman"],
+      "url": "https://mobilizon.be/events/25a4ae0b-8c78-41c9-9b43-9af5f3279c96"
     },
     {
       "start": "12:00",
@@ -73,7 +65,8 @@
       "room": "mushroom",
       "title": "Loss Cafe",
       "speakers": ["David"],
-      "url": "https://mobilizon.be/events/7a35c63a-244c-4878-b12d-c35e0e2873ba"
+      "url": "https://mobilizon.be/events/7a35c63a-244c-4878-b12d-c35e0e2873ba",
+      "description": "More information to come."
     },
     {
       "start": "14:00",
@@ -81,7 +74,7 @@
       "title": "Cosmo-Localism: Global Knowledge, Local Production",
       "speakers": ["Michel Bauwens"],
       "url": "https://mobilizon.be/events/31ea318a-e10c-4660-87c5-3be2db2fb92a",
-      "description": "Michel Bauwens introduces his cosmo-localism ideas, followed by a Q&A. Cosmo-localism combines resilient, regenerative local production with globally shared knowledge, open designs and trans-local cooperation. The basic principle is that what is materially heavy should be produced locally, while knowledge, designs and other “light” resources can be shared globally."
+      "description": "Michel Bauwens introduces his cosmo-localism ideas, followed by a Q&A. The session will also be livestreamed. Cosmo-localism combines resilient, regenerative local production with globally shared knowledge, open designs and trans-local cooperation. The basic principle is that what is materially heavy should be produced locally, while knowledge, designs and other “light” resources can be shared globally."
     },
     {
       "start": "14:00",
@@ -106,6 +99,14 @@
       "speakers": ["Diana Socoliuc"],
       "url": "https://mobilizon.be/events/a802131f-4cd2-4fbb-bdf5-2e4df621f38f",
       "description": "Explore simple somatic practices to help you find your ground when life feels overwhelming. Discover how your body can become a resource for navigating stress, building resilience, and staying connected to yourself and others."
+    },
+    {
+      "start": "16:00",
+      "room": "mushroom",
+      "title": "Digital Independence Day",
+      "speakers": ["Friedger M."],
+      "description": "Explore one tool, service or app that makes you more independent of Big Tech companies.",
+      "url": "https://events.diday.org/events/94d34b47-ba67-476d-926b-b8eb09196a32"
     },
     {
       "start": "16:00",
