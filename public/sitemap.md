@@ -38,6 +38,7 @@ Machine-readable data for developers and LLMs:
 ### Documentation
 - [DATA.md](https://commonshub.brussels/DATA.md) - Data API documentation
 - [llms.txt](https://commonshub.brussels/llms.txt) - LLM instructions
+- [opendata](https://commonshub.brussels/opendata) - Open data API (skill): public, read-only, no key
 
 ### Monthly Data (replace {year}/{month})
 - `/data/{year}/{month}/contributors.json` - Community contributors
