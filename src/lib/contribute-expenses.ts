@@ -112,7 +112,8 @@ export interface ChbBill {
   status: "pending" | "partially_paid" | "paid" | "reversed"
   date: string
   dueDate?: string
-  vendor: { type: "business" | "individual"; name?: string; vat?: string }
+  /** "business" in bills (v3.14); "organisation" / "sole_trader" in expenses.json (v3.16). */
+  vendor: { type: "business" | "organisation" | "sole_trader" | "individual"; name?: string; vat?: string }
   vendorRef?: string
   description?: string
   lines?: Array<{ description?: string; totalAmount?: number }>
@@ -234,7 +235,7 @@ const isChbBill = (record: object): record is ChbBill => "status" in record && t
 
 /** A chb ≥ 3.14 bill in the shape the matching rules read. */
 function fromChbBill(record: ChbBill): Bill {
-  const business = record.vendor?.type === "business"
+  const business = record.vendor?.type !== "individual" && !!record.vendor?.name
   const name = record.vendor?.name ?? ""
   const lines = (record.lines ?? []).map((line) => cleanLine(line.description ?? "")).filter(Boolean)
   return {
@@ -256,11 +257,19 @@ function fromChbBill(record: ChbBill): Bill {
 
 /**
  * One month of vendor bills, from chb's public-tier projection
- * (`YYYY/MM/public/bills.json`). Business vendors are named, private
+ * (`YYYY/MM/public/expenses.json`, or `bills.json` before chb 3.16). Business vendors are named, private
  * individuals are not. The provider archive under providers/ is never read.
  * Reads chb ≥ 3.14's schema (docs/bills.md) and the earlier one.
  */
 export function readMonthBills(dataDir: string, year: string, month: string): Bill[] | null {
+  // chb ≥ 3.16: the month's bills are in expenses.json, with expense claims
+  // (kind "expense"), which are reimbursements rather than bills.
+  const expenses = readJson<{ expenses: Array<Omit<ChbBill, "type"> & { kind: string }> }>(path.join(dataDir, year, month, "public", "expenses.json"))
+  if (expenses) {
+    return expenses.expenses
+      .filter((e) => e.kind === "bill" || e.kind === "credit_note")
+      .map((e) => fromChbBill({ ...e, type: e.kind as ChbBill["type"] }))
+  }
   const pub = readJson<{ bills: Array<(PublicBill & Partial<PrivateBill>) | ChbBill> }>(path.join(dataDir, year, month, "public", "bills.json"))
   if (!pub) return null
 

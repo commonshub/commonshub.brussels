@@ -1,6 +1,7 @@
 /**
  * What is in the fridge: the drinks of the latest delivery, read from the
- * vendor bills chb publishes (YYYY/MM/public/bills.json). One bill line per
+ * vendor bills chb publishes (YYYY/MM/public/expenses.json; bills.json
+ * before chb 3.16). One bill line per
  * crate, e.g. "[4504] Fritz Limo Citron (Casier de 24 x 33cl)" × 3; deposit
  * lines ("Vidanges"), returns (negative quantities) and anything that is
  * not a crate (milk, sugar) are left out.
@@ -12,7 +13,6 @@ import * as fs from "fs"
 import * as path from "path"
 import settings from "@/settings/settings.json"
 import { DATA_DIR } from "./data-paths"
-import { listMonths, listYears } from "./dataset"
 
 export interface FridgeConfig {
   vendor: string
@@ -112,27 +112,45 @@ export function drinksFromLines(lines: BillLine[], config: FridgeConfig = FRIDGE
 
 interface PublicBill {
   number: string
+  /** expenses.json (chb ≥ 3.16): bill, credit_note or expense. */
+  kind?: string
+  /** bills.json (chb 3.14). */
   type?: string
   date: string
   vendor?: { type?: string; name?: string }
   lines?: BillLine[]
 }
 
+/** A month's vendor bills: expenses.json (chb ≥ 3.16), else the older bills.json; null when neither exists. */
+function readMonthBills(dir: string): PublicBill[] | null {
+  for (const [file, key] of [["expenses.json", "expenses"], ["bills.json", "bills"]] as const) {
+    const full = path.join(dir, file)
+    if (!fs.existsSync(full)) continue
+    try {
+      return (JSON.parse(fs.readFileSync(full, "utf-8")) as Record<string, PublicBill[] | undefined>)[key] ?? []
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 /** The latest delivery from the fridge vendor, newest month first; null when none is published. */
 export function loadLatestDelivery(config: FridgeConfig = FRIDGE, dataDir: string = DATA_DIR): Delivery | null {
   const vendor = new RegExp(config.vendor, "i")
-  for (const year of listYears().reverse()) {
-    for (const month of listMonths(year, "public").reverse()) {
-      const file = path.join(dataDir, year, month, "public", "bills.json")
-      if (!fs.existsSync(file)) continue
-      let bills: PublicBill[] = []
-      try {
-        bills = (JSON.parse(fs.readFileSync(file, "utf-8")) as { bills?: PublicBill[] }).bills ?? []
-      } catch {
-        continue
-      }
+  const dirs = (dir: string, pattern: RegExp) => {
+    try {
+      return fs.readdirSync(dir).filter((name) => pattern.test(name)).sort().reverse()
+    } catch {
+      return []
+    }
+  }
+  for (const year of dirs(dataDir, /^\d{4}$/)) {
+    for (const month of dirs(path.join(dataDir, year), /^\d{2}$/)) {
+      const bills = readMonthBills(path.join(dataDir, year, month, "public"))
+      if (!bills) continue
       const latest = bills
-        .filter((b) => b.type !== "credit_note" && vendor.test(b.vendor?.name ?? ""))
+        .filter((b) => (b.kind ?? b.type ?? "bill") === "bill" && vendor.test(b.vendor?.name ?? ""))
         .sort((a, b) => b.date.localeCompare(a.date))
         .map((b) => ({ number: b.number, date: b.date, drinks: drinksFromLines(b.lines ?? [], config) }))
         .find((d) => d.drinks.length > 0)
