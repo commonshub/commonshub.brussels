@@ -202,6 +202,32 @@ describe("reading the dataset", () => {
     expect(bills[1]).toMatchObject({ vendor: "", reference: "unnamed" })
   })
 
+  test("chb 3.16: reads expenses.json, bills and credit notes only, organisations named, individuals not", () => {
+    const root = path.join(dataDir, "2026", "09", "public")
+    fs.mkdirSync(root, { recursive: true })
+    const base = { currency: "EUR", category: "Services and other goods", amountDue: 0 }
+    fs.writeFileSync(
+      path.join(root, "expenses.json"),
+      JSON.stringify({
+        expenses: [
+          { ...base, id: "b-1", number: "CHB-S/2026/09/0001", kind: "bill", status: "paid", date: "2026-09-02", totalAmount: 54.45,
+            vendor: { id: "p-1", type: "organisation", name: "Proximus SA de droit public" }, lines: [{ description: "[103] Business Internet Mega Fiber" }] },
+          { ...base, id: "b-2", number: "CHB-S/2026/09/0002", kind: "credit_note", status: "paid", date: "2026-09-03", totalAmount: 5,
+            vendor: { id: "p-2", type: "sole_trader", name: "Jane Plumber" }, lines: [] },
+          { ...base, id: "b-3", number: "CHB-S/2026/09/0003", kind: "bill", status: "paid", date: "2026-09-04", totalAmount: 80,
+            vendor: { type: "individual" }, lines: [{ description: "Cleaning" }] },
+          { ...base, id: "x-4", number: "", kind: "expense", status: "submitted", date: "2026-09-05", totalAmount: 12, vendor: { type: "individual" }, lines: [] },
+        ],
+      }),
+    )
+    const bills = readMonthBills(dataDir, "2026", "09")!
+    expect(bills.map((b) => b.id)).toEqual(["b-1", "b-2", "b-3"])
+    expect(bills[0]).toMatchObject({ vendor: "Proximus SA de droit public", vendorIsCompany: true, reference: "CHB-S/2026/09/0001", lines: ["Business Internet Mega Fiber"] })
+    expect(bills[1]).toMatchObject({ vendor: "Jane Plumber", refund: true })
+    expect(bills[2]).toMatchObject({ vendor: "Individual supplier", vendorIsCompany: false })
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
   test("never reads the provider archive", () => {
     const archive = path.join(dataDir, "2026", "04", "providers", "odoo", "commonshub")
     fs.mkdirSync(archive, { recursive: true })

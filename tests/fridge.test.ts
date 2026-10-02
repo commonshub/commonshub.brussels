@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals"
-import { drinksFromLines, orderCost, orderSummary, publicName, suggestedPrice } from "@/lib/fridge"
+import { drinksFromLines, loadLatestDelivery, orderCost, orderSummary, publicName, suggestedPrice } from "@/lib/fridge"
 
 // The Big Bag delivery of 30 September 2026, as the bill lists it.
 const L = (description: string, quantity: number, totalAmount: number) => ({ description: `${description}\n${description.replace(/^\[\w+\]\s*/, "")}`, quantity, totalAmount })
@@ -64,5 +64,46 @@ describe("costs and names", () => {
     expect(publicName("me@example.org")).toBeNull()
     expect(publicName("a".repeat(41))).toBeNull()
     expect(publicName(42)).toBeNull()
+  })
+})
+
+describe("loadLatestDelivery", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs") as typeof import("fs")
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const os = require("os") as typeof import("os")
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const path = require("path") as typeof import("path")
+  const write = (dir: string, file: string, data: unknown) => {
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, file), JSON.stringify(data))
+  }
+  const vendor = { id: "p-00c888a09d", type: "organisation", name: "DelivCo SRL (Big Bag Delivery)" }
+
+  test("reads chb 3.16 expenses.json, newest bill first, ignores credit notes and other vendors", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "fridge-"))
+    write(path.join(root, "2026", "08", "public"), "bills.json", {
+      bills: [{ number: "OLD", type: "bill", date: "2026-08-12", vendor: { type: "business", name: "Big Bag" }, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] }],
+    })
+    write(path.join(root, "2026", "09", "public"), "expenses.json", {
+      expenses: [
+        { number: "CN", kind: "credit_note", date: "2026-09-30", vendor, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] },
+        { number: "OTHER", kind: "bill", date: "2026-09-29", vendor: { type: "organisation", name: "Colruyt" }, lines: [L("[1] Cola (Casier de 24 x 33cl)", 1, 20)] },
+        { number: "CHB-S/2026/09/0013", kind: "bill", date: "2026-09-30", vendor, lines: DELIVERY },
+      ],
+    })
+    const delivery = loadLatestDelivery(config, root)
+    expect(delivery?.number).toBe("CHB-S/2026/09/0013")
+    expect(delivery?.drinks.map((d) => d.name)).toContain("Zinnebir 5,8%")
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  test("still reads the older bills.json", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "fridge-"))
+    write(path.join(root, "2026", "08", "public"), "bills.json", {
+      bills: [{ number: "OLD", type: "bill", date: "2026-08-12", vendor: { type: "business", name: "Big Bag" }, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] }],
+    })
+    expect(loadLatestDelivery(config, root)?.number).toBe("OLD")
+    fs.rmSync(root, { recursive: true, force: true })
   })
 })
