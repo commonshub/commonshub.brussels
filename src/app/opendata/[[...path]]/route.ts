@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { dataCacheHeaders } from "@/lib/data-route";
 import { OPENDATA_LICENSE, listOpendataPeriod, listOpendataPeriods, resolveOpendata } from "@/lib/opendata";
+import { OPENDATA_ANNOTATION_KINDS, OPENDATA_UPSTREAM_ISSUES, loadOpendataAnnotations } from "@/lib/opendata-annotations";
+import { OPENDATA_MONTHLY_FIELDS, buildOpendataMonthly, opendataCoverage } from "@/lib/opendata-monthly";
 import { opendataSkill } from "@/lib/opendata-skill";
 
 export const runtime = "nodejs";
@@ -62,6 +64,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         documentation: `${BASE_URL}/opendata`,
         license: OPENDATA_LICENSE,
         latest: `${BASE_URL}/opendata/latest`,
+        monthly: `${BASE_URL}/opendata/monthly.json`,
+        annotations: `${BASE_URL}/opendata/annotations.json`,
         periods: periods.map((p) => ({
           year: p.year,
           href: `${BASE_URL}/opendata/${p.year}`,
@@ -69,6 +73,38 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         })),
       },
       periods.length > 0
+    );
+  }
+
+  if (target.kind === "monthly") {
+    const all = buildOpendataMonthly(BASE_URL);
+    const months = target.year ? all.filter((m) => m.month.startsWith(`${target.year}-`)) : all;
+    if (months.length === 0) return notFound(`No open data for ${target.year ?? "any period"}`);
+    return json(
+      {
+        description: "Commons Hub Brussels open data, one row per month. Sections are null when the month has no such file.",
+        documentation: `${BASE_URL}/opendata`,
+        license: OPENDATA_LICENSE,
+        ...(target.year ? { year: target.year } : {}),
+        fields: OPENDATA_MONTHLY_FIELDS,
+        coverage: opendataCoverage(all),
+        months,
+      },
+      true
+    );
+  }
+
+  if (target.kind === "annotations") {
+    return json(
+      {
+        description: "Known one-off events in the Commons Hub Brussels open data, per month and monthly.json section. Also attached to monthly.json rows as notes.",
+        documentation: `${BASE_URL}/opendata`,
+        license: OPENDATA_LICENSE,
+        kinds: OPENDATA_ANNOTATION_KINDS,
+        annotations: loadOpendataAnnotations(),
+        upstreamIssues: OPENDATA_UPSTREAM_ISSUES,
+      },
+      true
     );
   }
 

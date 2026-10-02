@@ -94,12 +94,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.4,
     },
-    {
-      url: `${BASE_URL}/DATA.md`,
+    ...["finance.md", "economy.md", "community.md"].map((page) => ({
+      url: `${BASE_URL}/${page}`,
       lastModified: now,
-      changeFrequency: "weekly",
+      changeFrequency: "daily" as const,
       priority: 0.5,
-    },
+    })),
     // Members list
     {
       url: `${BASE_URL}/members/list`,
