@@ -1,0 +1,41 @@
+import type { Metadata } from "next"
+
+import { FridgeOrder } from "@/components/fridge/fridge-order"
+import { loadLatestDelivery } from "@/lib/fridge"
+
+// Reads the dataset volume: never prerender.
+export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+  title: "The fridge | Commons Hub Brussels",
+  description: "Take a drink from the fridge and pay what it costs, or offer a crate to the community.",
+}
+
+const day = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long" })
+
+/** Opened from the QR code on the fridge: what is in it, and paying for what you take. */
+export default async function FridgePage({ searchParams }: { searchParams: Promise<{ thanks?: string }> }) {
+  const { thanks } = await searchParams
+  const delivery = loadLatestDelivery()
+
+  return (
+    <div className="mx-auto max-w-lg px-4 pb-8 pt-6">
+      <h1 className="text-2xl font-bold text-foreground">The fridge</h1>
+      {thanks ? (
+        <p role="status" className="mt-4 rounded-xl border border-primary bg-primary/5 p-4 text-foreground">
+          Thank you! Enjoy your drink. 🍻
+        </p>
+      ) : null}
+      {delivery ? (
+        <>
+          <p className="mt-1 mb-5 text-sm text-muted-foreground">
+            Take what you like and pay what it costs us. From the delivery of {day(delivery.date)}.
+          </p>
+          <FridgeOrder drinks={delivery.drinks} />
+        </>
+      ) : (
+        <p className="mt-4 text-muted-foreground">The list of drinks is not available right now. Take what you like and make a donation at commonshub.brussels/donate.</p>
+      )}
+    </div>
+  )
+}

@@ -493,5 +493,12 @@
         "ours": 12917.78
       }
     }
+  },
+  "fridge": {
+    "_comment": "/fridge lists the drinks of the latest delivery from this vendor, read from the public bills (chb). Only crate lines count (a drink comes in a 'Casier de N x size'); deposits and anything else (milk, sugar) are left out. The suggested amount for a drink is what it cost us, rounded up to roundTo, never under minimum; people can always give more.",
+    "vendor": "big ?bag|delivco",
+    "crate": "\\((?:casier|bac|pack)\\s+de\\s+(\\d+)\\s*x\\s*([\\d.,]+\\s*c?l)\\)",
+    "roundTo": 0.5,
+    "minimum": 1.5
   }
 }
