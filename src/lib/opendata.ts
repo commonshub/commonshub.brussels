@@ -59,6 +59,10 @@ export const OPENDATA_ROOT_FILES: Record<string, string> = {
   "vat.json": "Quarterly VAT declarations filed with the Belgian State.",
 };
 
+/** Computed by the route from the month files, not read from disk. */
+export const MONTHLY_FILE = "monthly.json";
+export const MONTHLY_DESCRIPTION = "One row per month: money in/out, expenses, invoiced income, bookings, events, door, members, tokens. For charts.";
+
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"]);
 
 const YEAR_RE = /^\d{4}$/;
@@ -70,6 +74,8 @@ export type OpendataPeriod = { year?: string; month?: string; latest?: boolean }
 export type OpendataTarget =
   | { kind: "skill" }
   | { kind: "index" }
+  | { kind: "monthly"; year?: string }
+  | { kind: "annotations" }
   | { kind: "listing"; period: OpendataPeriod; label: string }
   | { kind: "file"; fsPath: string; file: string };
 
@@ -113,6 +119,11 @@ export function resolveOpendata(segments: string[]): OpendataTarget | null {
   if (segments.length === 0) return { kind: "skill" };
   if (segments.length === 1 && segments[0] === "SKILL.md") return { kind: "skill" };
   if (segments.length === 1 && segments[0] === "index.json") return { kind: "index" };
+  if (segments.length === 1 && segments[0] === MONTHLY_FILE) return { kind: "monthly" };
+  if (segments.length === 1 && segments[0] === "annotations.json") return { kind: "annotations" };
+  if (segments.length === 2 && YEAR_RE.test(segments[0]) && segments[1] === MONTHLY_FILE) {
+    return { kind: "monthly", year: segments[0] };
+  }
 
   let period: OpendataPeriod;
   let rest: string[];
@@ -161,6 +172,9 @@ export function listOpendataPeriod(period: OpendataPeriod, baseUrl: string): Ope
   };
   add(periodTier(period), OPENDATA_TIER_FILES);
   add(periodRoot(period), OPENDATA_ROOT_FILES);
+  if (period.year && !period.month && out.length > 0) {
+    out.push({ file: MONTHLY_FILE, href: `${baseUrl}/opendata/${label}/${MONTHLY_FILE}`, bytes: 0, description: MONTHLY_DESCRIPTION });
+  }
   return out.sort((a, b) => a.file.localeCompare(b.file));
 }
 

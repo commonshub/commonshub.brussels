@@ -35,28 +35,14 @@ A collaborative space in Brussels where communities gather, create, and grow tog
 
 Machine-readable data for developers and LLMs:
 
-### Documentation
-- [DATA.md](https://commonshub.brussels/DATA.md) - Data API documentation
+Start with the open-data skill: it documents every file, the privacy rules and the licence.
+
+- [opendata](https://commonshub.brussels/opendata) - Open data API (skill): public, read-only, no key, ODbL
+- [opendata/index.json](https://commonshub.brussels/opendata/index.json) - Every year and month that has data, with links
+- [opendata/monthly.json](https://commonshub.brussels/opendata/monthly.json) - One time series of every month (money, expenses, bookings, events, tokens)
 - [llms.txt](https://commonshub.brussels/llms.txt) - LLM instructions
-- [opendata](https://commonshub.brussels/opendata) - Open data API (skill): public, read-only, no key
 
-### Monthly Data (replace {year}/{month})
-- `/data/{year}/{month}/contributors.json` - Community contributors
-- `/data/{year}/{month}/transactions.json` - Financial transactions
-- `/data/{year}/{month}/events.json` - Calendar events
-- `/data/{year}/{month}/members.json` - Paying members
-
-### Example URLs (January 2026)
-- [Contributors](https://commonshub.brussels/data/2026/01/contributors.json)
-- [Transactions](https://commonshub.brussels/data/2026/01/transactions.json)
-- [Events](https://commonshub.brussels/data/2026/01/events.json)
-- [Members](https://commonshub.brussels/data/2026/01/members.json)
-
-### API Endpoints
-- `/api/members` - Members data
-- `/api/reports/{year}` - Yearly reports
-- `/api/reports/{year}/{month}` - Monthly reports
-- `/api/stats` - Community statistics
+`/data/` and `/api/` are internal to the website: do not use them.
 
 ## LLM-Friendly Content
 
@@ -65,6 +51,9 @@ Markdown versions optimized for AI consumption:
 - [about.md](https://commonshub.brussels/about.md) - About us
 - [events.md](https://commonshub.brussels/events.md) - Upcoming events
 - [rooms.md](https://commonshub.brussels/rooms.md) - Room details
+- [finance.md](https://commonshub.brussels/finance.md) - Finances, month by month
+- [economy.md](https://commonshub.brussels/economy.md) - The community token (CHT), month by month
+- [community.md](https://commonshub.brussels/community.md) - Community activity, month by month
 - [sitemap.md](https://commonshub.brussels/sitemap.md) - This file
 
 ## External Links

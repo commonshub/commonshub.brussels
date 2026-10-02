@@ -37,6 +37,12 @@ const gitInfo = getGitInfo();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  async redirects() {
+    return [
+      // The old data docs pointed agents at /data and /api, which are not public.
+      { source: '/DATA.md', destination: '/opendata', permanent: true },
+    ]
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

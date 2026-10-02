@@ -20,14 +20,24 @@ export async function GET() {
 
 Commons Hub Brussels is a community hub located at Rue de la Madeleine 51, 1000 Brussels, Belgium — right in front of Central Station. We provide infrastructure and support for communities to gather, collaborate, and thrive.
 
+## Data: start here
+
+For any question about the Hub's money, expenses, suppliers, room use, events or community token, use the open-data API, not the HTML pages:
+
+- [Open data skill](${BASE_URL}/opendata): read this first — every file, its fields, the privacy rules, known data caveats and the licence (ODbL)
+- [index.json](${BASE_URL}/opendata/index.json): every year and month that has data, with links
+- [monthly.json](${BASE_URL}/opendata/monthly.json): one row per month since the start (money in/out, expenses, invoiced income, bookings, events, tokens) — one request for a chart
+
+Read-only JSON, no key, CORS open. \`/data/\` and \`/api/\` are internal to the website: do not use them.
+
 ## Key Pages
 
 - [About](${BASE_URL}/about.md): Detailed information about Commons Hub Brussels
 - [Events](${BASE_URL}/events.md): Upcoming events at the Commons Hub
 - [Rooms](${BASE_URL}/rooms.md): Available spaces for booking
-- [Economy](${BASE_URL}/economy): Our community token economy (CHT)
-- [Finance](${BASE_URL}/finance): Transparent community finances
-- [Community](${BASE_URL}/community): Our community members
+- [Economy](${BASE_URL}/economy.md): Our community token economy (CHT), month by month
+- [Finance](${BASE_URL}/finance.md): Transparent community finances, month by month
+- [Community](${BASE_URL}/community.md): Community activity, month by month
 - [Workshops](${BASE_URL}/workshops): Workshop offerings
 - [Contact](${BASE_URL}/contact): Get in touch
 - [Apply](${BASE_URL}/apply): Apply for membership

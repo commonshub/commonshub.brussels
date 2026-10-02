@@ -1,10 +1,13 @@
 import { OPENDATA_LICENSE, OPENDATA_ROOT_FILES, OPENDATA_TIER_FILES } from "./opendata";
+import { OPENDATA_ANNOTATION_KINDS, OPENDATA_UPSTREAM_ISSUES, loadOpendataAnnotations } from "./opendata-annotations";
+import { buildOpendataMonthly, opendataCoverage } from "./opendata-monthly";
 
 /**
  * The open-data skill, served as markdown at /opendata (and
  * /opendata/SKILL.md). Written for an agent or a developer who has never
  * seen the dataset: what is there, how to fetch it, and what it will never
- * contain. Linked from /llms.txt.
+ * contain. Linked from /llms.txt. The data-quality section is generated from
+ * the data and the annotations, so it does not need editing as data arrives.
  */
 export function opendataSkill(baseUrl: string): string {
   const api = `${baseUrl}/opendata`;
@@ -42,6 +45,9 @@ everyone.
 |---|---|
 | \`${api}\` | this skill (markdown) |
 | \`${api}/index.json\` | every year and month that has data, with links |
+| \`${api}/monthly.json\` | one row per month since the start: money in/out, expenses, invoiced income, bookings, events, door, members, tokens |
+| \`${api}/{YYYY}/monthly.json\` | the same, for one year |
+| \`${api}/annotations.json\` | known one-off events in the data (test mints, incidents, changes of method) and known bugs at the source |
 | \`${api}/latest\` | the files of the current state: newest month and lifetime rollups |
 | \`${api}/{YYYY}\` | the files of a whole year (rollups) |
 | \`${api}/{YYYY}/{MM}\` | the files of one month (\`MM\` is two digits: \`2026/09\`) |
@@ -66,6 +72,9 @@ ${catalogue}
 \`\`\`bash
 # What exists?
 curl -s ${api}/index.json | jq '.periods[] | {year, months: [.months[].month]}'
+
+# The Hub's own euro cash flow, month by month (one request)
+curl -s ${api}/monthly.json | jq -r '.months[] | [.month, .money.byCollective.commonshub.in, .money.byCollective.commonshub.out] | @tsv'
 
 # Who did the Hub pay in 2026, and how much? (year rollup, largest first)
 curl -s ${api}/2026/vendors.json | jq -r '.vendors[] | [(.vendor.name // "(\\(.individuals) individuals)"), .category, .totalAmount] | @tsv'
@@ -100,7 +109,8 @@ const { bookings, rooms } = await fetch(\`\${API}/2026/bookings.json\`).then(r =
 
 - **Money** is in euros unless \`currency\` says otherwise. Accounting files (\`expenses\`, \`vendors\`,
   \`customers\`, \`bookings\`) carry \`currency: "EUR"\` and convert foreign documents
-  (\`totalAmountEUR\`). Credit notes subtract.
+  (\`totalAmountEUR\`). Credit notes and refunds subtract, so a month, a category or an income type can
+  have a negative total: a correction, not negative revenue.
 - **Time**: dates are \`YYYY-MM-DD\`; timestamps are RFC 3339 with an explicit offset; the Hub's
   timezone is \`Europe/Brussels\`. \`transactions[].timestamp\` is Unix seconds. All-day events have no clock time.
 - Every file has \`generatedAt\`. Accounting files also have \`scope\` (\`month\` | \`year\`) and \`period\` (\`2026-09\` | \`2026\`).
@@ -137,6 +147,9 @@ event tickets) are in \`transactions.json\`.
 booking hosts a public event. \`rentals[]\`: room-rental invoice lines (\`date\` = invoice date, \`room\`,
 \`product\`, amounts, \`customer\` named only when it is an organisation). Invoices and bookings are
 deliberately **not** linked one to one. The year file adds \`months[]\` for charts.
+Occupancy has been recorded this way only recently (see coverage below). For earlier months,
+\`summary.json\` \`summary.bookings\` counts entries in the room calendars: a different measure, do not
+join the two into one series.
 
 ### \`transactions.json\` (M, L) — every movement of money
 
@@ -147,16 +160,31 @@ deliberately **not** linked one to one. The year file adds \`months[]\` for char
 bank's narration). \`counterpartyId\` is present only when it names nobody (a blockchain address, one of
 the Hub's own accounts).
 
+### \`monthly.json\` — the time series
+
+Computed on request from the month files. \`months[]\`, oldest first, one row per month: \`month\`
+(\`YYYY-MM\`), \`status\` (\`closed\` | \`current\` | \`future\`), \`money\` (\`eur\`, \`byCurrency\`, \`byCollective\`, each \`{ in, out, net, transactions }\`),
+\`activity\`, \`expenses\` and \`invoicedIncome\` (the \`totals\` of \`expenses.json\` / \`customers.json\`),
+\`bookings\`, \`door\`, \`members\`, \`tokens\`. A section is \`null\` when the month has no such file.
+\`fields\` explains each section. \`money\` is summed from \`transactions.json\`: euro-denominated rows
+only (EUR, EURe, EURb), \`CREDIT\`/\`DEBIT\`/\`MINT\`/\`BURN\` only (moves between the Hub's own accounts are
+left out), Stripe net of fees. **Prefer it over \`summary.json\` for money** (see known bugs below).
+Each row has \`notes[]\` (the annotations of that month), and the file has \`coverage\`: from when each
+section holds data. \`future\` months exist because room calendars are booked ahead; they hold calendar
+entries only.
+
 ### \`summary.json\` (M, L) — aggregates
 
 Per account, collective and category for a month; \`/latest/summary.json\` is the lifetime rollup per
 collective (\`firstMonth\`, \`lastMonth\`, \`collectives[]\` with per-currency totals and balances).
+Read the known bugs below before using its amounts or balances.
 
 ### \`events.json\` (M, Y, L), \`events.csv\` (Y), \`events.md\` (L)
 
 \`events[]\`: \`id\`, \`name\`, \`description\`, \`startAt\`, \`endAt\`, \`allDay\`, \`location\`, \`url\`, \`coverImage\`,
 \`source\`, \`tags\`, \`metadata.host\` — events exactly as their organisers published them on the public
-calendar. No guest lists, no attendance, no ticket revenue.
+calendar. No guest lists, no attendance, no ticket revenue. Many gatherings at the Hub are not on the
+public calendar, so a low count does not mean little happened.
 
 ### \`pending-bills.json\` (L) — the "help us pay" list
 
@@ -225,6 +253,7 @@ The dataset is published under the **${OPENDATA_LICENSE.name}**: ${OPENDATA_LICE
 The ODbL covers the database. It does not lift the ground rules above: personal-data protection
 (GDPR) applies to anyone who processes the data, whatever the licence.
 
+${dataQuality(baseUrl)}
 ## Good to know
 
 - Odoo is pulled hourly, but a bill stays \`pending\` until it is reconciled with its payment, so
@@ -236,7 +265,9 @@ The ODbL covers the database. It does not lift the ground rules above: personal-
   https://github.com/CommonsHub/chb/blob/main/docs/website.md and
   https://github.com/CommonsHub/chb/blob/main/docs/accounting-data.md
 - Other entry points: ${baseUrl}/llms.txt (the site for agents), ${baseUrl}/events.md,
-  ${baseUrl}/rooms.md, ${baseUrl}/finance (the human view of the same data).
+  ${baseUrl}/rooms.md, ${baseUrl}/finance.md, ${baseUrl}/economy.md, ${baseUrl}/community.md
+  (month-by-month summaries), ${baseUrl}/finance (the human view of the same data).
+- \`/data/\` and \`/api/\` on the website are internal and may change or require a login: use \`/opendata\`.
 `;
 }
 
@@ -262,3 +293,49 @@ const SCOPES: Record<string, string> = {
   "hashes.json": "M, L",
   "vat.json": "Y, L",
 };
+
+/**
+ * Generated from the data: coverage from the monthly series, annotations from
+ * chb (or the built-in list), bugs from OPENDATA_UPSTREAM_ISSUES.
+ */
+function dataQuality(baseUrl: string): string {
+  const coverage = opendataCoverage(buildOpendataMonthly(baseUrl));
+  const coverageRows = Object.entries(coverage)
+    .map(([section, c]) => `| ${section} | ${c.first ?? "never"} | ${c.everyMonthSince ?? "–"} | ${c.emptyMonths} |`)
+    .join("\n");
+  const annotations = loadOpendataAnnotations()
+    .map((a) => `- **${a.month}**, \`${a.section}\` (${a.kind}): ${a.note}`)
+    .join("\n");
+  const kinds = Object.entries(OPENDATA_ANNOTATION_KINDS)
+    .map(([kind, meaning]) => `\`${kind}\` = ${meaning}`)
+    .join("; ");
+  const issues = OPENDATA_UPSTREAM_ISSUES.map(
+    (i) => `- **${i.title}**${i.url ? ` (${i.url})` : ""}. ${i.detail} Workaround: ${i.workaround}`
+  ).join("\n");
+
+  return `## Data quality
+
+The data is published as chb produces it. Work around what follows rather than reporting it as a finding.
+
+### Coverage
+
+From when each section of \`monthly.json\` holds data, over closed months (also \`coverage\` in that
+file). Before "every month since", a 0 may mean "not recorded" rather than "none": do not chart it as
+a drop. Events are sparse by nature (see \`events.json\`), so their gaps are real.
+
+| section | first month with data | every month since | empty months since first |
+|---|---|---|---|
+${coverageRows}
+
+### Annotations
+
+One-off events in the data (${kinds}). Machine-readable at \`${baseUrl}/opendata/annotations.json\`,
+and on the matching rows of \`monthly.json\` as \`notes[]\`.
+
+${annotations || "None."}
+
+### Known bugs at the source
+
+${issues || "None known."}
+`;
+}
