@@ -25,11 +25,9 @@ interface YearReports {
 }
 
 function monthHasOdooData(year: string, month: string): boolean {
-  // chb's members-tier projection of the Odoo books (invoices.json /
-  // bills.json); the raw provider archive is not a served surface.
-  return ["members", "public"].some((tier) =>
-    ["invoices.json", "bills.json"].some((f) => fs.existsSync(path.join(tierDir(tier as "public" | "members", year, month), f)))
-  );
+  // chb writes expenses.json and customers.json for every month it has
+  // data for (docs/website.md §2), the same in every tier.
+  return fs.existsSync(path.join(tierDir("public", year, month), "expenses.json"));
 }
 
 function monthIsOver(year: string, month: string): boolean {

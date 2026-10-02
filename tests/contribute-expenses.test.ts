@@ -160,30 +160,29 @@ describe("withoutPersonName", () => {
 describe("reading the dataset", () => {
   let dataDir: string
 
-  // chb's public-tier projection: the partner is inline for companies.
+  // chb's public expenses.json: organisations named, individuals typed only.
   beforeAll(() => {
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "contribute-"))
     const root = path.join(dataDir, "2026", "07", "public")
     fs.mkdirSync(root, { recursive: true })
     fs.writeFileSync(
-      path.join(root, "bills.json"),
+      path.join(root, "expenses.json"),
       JSON.stringify({
-        bills: [
+        expenses: [
           {
-            id: 1,
-            title: "7604598980",
-            state: "posted",
+            id: "b-1",
+            number: "CHB-S/2026/07/0001",
+            kind: "bill",
+            status: "paid",
             date: "2026-07-09",
+            currency: "EUR",
             totalAmount: 54.45,
-            moveType: "in_invoice",
-            ref: "7604598980",
-            partner: { id: 1571, displayName: "Proximus SA de droit public", isCompany: true },
-            lineItems: [
-              { title: "[103] Business Internet Mega Fiber", displayType: "product" },
-              { title: "Note", displayType: "line_note" },
-            ],
+            amountDue: 0,
+            vendor: { id: "p-1571", type: "organisation", name: "Proximus SA de droit public" },
+            vendorRef: "7604598980",
+            lines: [{ description: "[103] Business Internet Mega Fiber" }],
           },
-          { id: 2, title: "unnamed", state: "posted", date: "2026-07-10", totalAmount: 10 },
+          { id: "b-2", number: "CHB-S/2026/07/0002", kind: "bill", status: "paid", date: "2026-07-10", currency: "EUR", totalAmount: 10, amountDue: 0, vendor: { type: "individual" }, lines: [] },
         ],
       }),
     )
@@ -191,18 +190,18 @@ describe("reading the dataset", () => {
 
   afterAll(() => fs.rmSync(dataDir, { recursive: true, force: true }))
 
-  test("reads the public tier, partner inline when the projection carries it", () => {
+  test("reads the public tier: organisations named, individuals not", () => {
     const bills = readMonthBills(dataDir, "2026", "07")!
     expect(bills).toHaveLength(2)
     expect(bills[0]).toMatchObject({
       vendor: "Proximus SA de droit public",
-      reference: "7604598980",
+      reference: "CHB-S/2026/07/0001",
       lines: ["Business Internet Mega Fiber"],
     })
-    expect(bills[1]).toMatchObject({ vendor: "", reference: "unnamed" })
+    expect(bills[1]).toMatchObject({ vendor: "Individual supplier", reference: "CHB-S/2026/07/0002" })
   })
 
-  test("chb 3.16: reads expenses.json, bills and credit notes only, organisations named, individuals not", () => {
+  test("bills and credit notes only; sole traders named; expense claims left out", () => {
     const root = path.join(dataDir, "2026", "09", "public")
     fs.mkdirSync(root, { recursive: true })
     const base = { currency: "EUR", category: "Services and other goods", amountDue: 0 }
@@ -231,32 +230,32 @@ describe("reading the dataset", () => {
   test("never reads the provider archive", () => {
     const archive = path.join(dataDir, "2026", "04", "providers", "odoo", "commonshub")
     fs.mkdirSync(archive, { recursive: true })
-    fs.writeFileSync(path.join(archive, "bills.json"), JSON.stringify({ bills: [{ id: 3, title: "x", state: "posted", date: "2026-04-01", totalAmount: 1 }] }))
+    fs.writeFileSync(path.join(archive, "expenses.json"), JSON.stringify({ expenses: [{ id: "b-3", kind: "bill", status: "paid", date: "2026-04-01", totalAmount: 1, vendor: { type: "individual" } }] }))
     expect(readMonthBills(dataDir, "2026", "04")).toBeNull()
   })
 
-  test("a month with no export is skipped, not an error", () => {
+  test("a month that is not generated yet is skipped, not an error", () => {
     expect(readMonthBills(dataDir, "2026", "06")).toBeNull()
     const expenses = loadContributeExpenses({ dataDir, now: new Date("2026-08-15T12:00:00Z"), config: CONFIG })
     expect(expenses.recurring.map((e) => e.slug)).toEqual(["internet"])
     expect(expenses.oneTime).toEqual([])
   })
 
-  test("a bill without a partner still yields its expense, unnamed", () => {
+  test("a bill from an individual still yields its expense, unnamed", () => {
     const root = path.join(dataDir, "2026", "05", "public")
     fs.mkdirSync(root, { recursive: true })
     fs.writeFileSync(
-      path.join(root, "bills.json"),
+      path.join(root, "expenses.json"),
       JSON.stringify({
-        bills: [
-          { id: 9, title: "708733797986", state: "posted", date: "2026-05-18", totalAmount: 165.37, lineItems: [{ title: "Electricité" }] },
+        expenses: [
+          { id: "b-9", number: "CHB-S/2026/05/0009", kind: "bill", status: "paid", date: "2026-05-18", currency: "EUR", totalAmount: 165.37, amountDue: 0, vendor: { type: "individual" }, description: "Electricité", lines: [{ description: "Electricité" }] },
         ],
       }),
     )
     const bills = readMonthBills(dataDir, "2026", "05")!
     expect(bills).toHaveLength(1)
-    expect(bills[0].vendor).toBe("")
-    expect(bills[0].reference).toBe("708733797986")
+    expect(bills[0].vendor).toBe("Individual supplier")
+    expect(bills[0].reference).toBe("CHB-S/2026/05/0009")
     const expenses = loadContributeExpenses({ dataDir, now: new Date("2026-08-15T12:00:00Z"), config: CONFIG })
     expect(expenses.recurring.map((e) => e.slug)).toEqual(["electricity", "internet"]) // largest first
   })

@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { X, Lock, ExternalLink } from "lucide-react";
+import { X, Lock } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -241,11 +241,6 @@ function PartnerList({
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">
                       {p.label}
-                      {!p.isCompany && p.key.startsWith("bucket:") && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          (bucket)
-                        </span>
-                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {p.count} {p.count === 1 ? "entry" : "entries"}
@@ -323,7 +318,6 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
     setTypeFilter("all");
   };
 
-  const hasOdooLinks = useMemo(() => data.rows.some((r) => !!r.odooUrl), [data.rows]);
 
   const categoriesByType = useMemo(() => {
     function aggregate(rows: OdooRow[]) {
@@ -353,12 +347,12 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
             Q{data.quarter} {data.year} — Financial Report
           </h1>
           <p className="text-sm text-muted-foreground">
-            Posted Odoo invoices and bills, months{" "}
+            Vendor bills one by one, and invoiced income per customer, months{" "}
             {data.months.join(", ")}. Drafts and cancelled entries are excluded.
           </p>
           {data.missingMonths.length > 0 && (
             <p className="text-xs text-amber-600 mt-2">
-              No Odoo data found for month(s): {data.missingMonths.join(", ")}
+              Accounting files not generated yet for month(s): {data.missingMonths.join(", ")}
             </p>
           )}
           {!showPii && (
@@ -373,7 +367,7 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
         </div>
 
         {/* Totals */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total bills received</CardDescription>
@@ -421,7 +415,7 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
         </section>
 
         {/* Category breakdown */}
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
           <CategoryBreakdownBar
             title="Costs by category"
             items={categoriesByType.bill}
@@ -443,7 +437,7 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
         </section>
 
         {/* Top partners */}
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
           <PartnerList
             title="Top vendors"
             partners={data.topVendors}
@@ -573,16 +567,13 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
                           </SelectContent>
                         </Select>
                       </TableHead>
-                      {hasOdooLinks && (
-                        <TableHead className="w-10"></TableHead>
-                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRows.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={hasOdooLinks ? 6 : 5}
+                          colSpan={5}
                           className="text-center text-sm text-muted-foreground py-10"
                         >
                           No entries match the current filter.
@@ -629,21 +620,6 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
                             {row.status?.replace(/_/g, " ") || "—"}
                           </Badge>
                         </TableCell>
-                        {hasOdooLinks && (
-                          <TableCell className="w-10">
-                            {row.odooUrl && (
-                              <a
-                                href={row.odooUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
-                                title="Open in Odoo"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-                          </TableCell>
-                        )}
                       </TableRow>
                     ))}
                   </TableBody>

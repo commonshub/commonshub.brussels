@@ -80,16 +80,17 @@ describe("loadLatestDelivery", () => {
   }
   const vendor = { id: "p-00c888a09d", type: "organisation", name: "DelivCo SRL (Big Bag Delivery)" }
 
-  test("reads chb 3.16 expenses.json, newest bill first, ignores credit notes and other vendors", () => {
+  test("reads the year expenses.json, newest year first; bills only, from the fridge vendor", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "fridge-"))
-    write(path.join(root, "2026", "08", "public"), "bills.json", {
-      bills: [{ number: "OLD", type: "bill", date: "2026-08-12", vendor: { type: "business", name: "Big Bag" }, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] }],
+    write(path.join(root, "2025", "public"), "expenses.json", {
+      expenses: [{ number: "OLD", kind: "bill", date: "2025-12-12", vendor, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] }],
     })
-    write(path.join(root, "2026", "09", "public"), "expenses.json", {
+    write(path.join(root, "2026", "public"), "expenses.json", {
       expenses: [
         { number: "CN", kind: "credit_note", date: "2026-09-30", vendor, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] },
         { number: "OTHER", kind: "bill", date: "2026-09-29", vendor: { type: "organisation", name: "Colruyt" }, lines: [L("[1] Cola (Casier de 24 x 33cl)", 1, 20)] },
         { number: "CHB-S/2026/09/0013", kind: "bill", date: "2026-09-30", vendor, lines: DELIVERY },
+        { number: "CHB-S/2026/08/0002", kind: "bill", date: "2026-08-14", vendor, lines: DELIVERY },
       ],
     })
     const delivery = loadLatestDelivery(config, root)
@@ -98,11 +99,12 @@ describe("loadLatestDelivery", () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
-  test("still reads the older bills.json", () => {
+  test("a year with no delivery falls through to the previous one", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "fridge-"))
-    write(path.join(root, "2026", "08", "public"), "bills.json", {
-      bills: [{ number: "OLD", type: "bill", date: "2026-08-12", vendor: { type: "business", name: "Big Bag" }, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] }],
+    write(path.join(root, "2025", "public"), "expenses.json", {
+      expenses: [{ number: "OLD", kind: "bill", date: "2025-12-12", vendor, lines: [L("[2133] Zinnebir 5,8% (Casier de 24 x 33cl)", 1, 34.9)] }],
     })
+    write(path.join(root, "2026", "public"), "expenses.json", { expenses: [] })
     expect(loadLatestDelivery(config, root)?.number).toBe("OLD")
     fs.rmSync(root, { recursive: true, force: true })
   })

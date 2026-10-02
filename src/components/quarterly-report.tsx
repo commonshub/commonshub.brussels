@@ -43,7 +43,6 @@ export async function QuarterlyReport({ year, quarter }: QuarterlyReportProps) {
   const perms = await getPerms();
   const data: QuarterlyData = loadQuarterlyOdoo(year, quarter, {
     showPii: perms.isMember,
-    showOdooLinks: perms.isSteward,
   });
 
   if (data.rows.length === 0) {

@@ -76,16 +76,9 @@ export interface DatasetEvent {
   [key: string]: unknown
 }
 
-/**
- * Events touching a month. chb rolls events up per year (and in latest/),
- * not per month, so the month view is the year file filtered by start.
- */
+/** Events of a month: chb writes `YYYY/MM/<tier>/events.json` for every month (docs/website.md §2). */
 export function readEventsForMonth(tier: Tier, year: string, month: string): DatasetEvent[] {
-  const prefix = `${year}-${month}`
-  const monthly = readTierJson<{ events?: DatasetEvent[] }>(tier, "events.json", year, month)
-  if (monthly?.events) return monthly.events
-  const yearly = readTierJson<{ events?: DatasetEvent[] }>(tier, "events.json", year)
-  return (yearly?.events ?? []).filter((e) => typeof e.startAt === "string" && e.startAt.startsWith(prefix))
+  return readTierJson<{ events?: DatasetEvent[] }>(tier, "events.json", year, month)?.events ?? []
 }
 
 /** The upcoming events file, as the homepage reads it. */
