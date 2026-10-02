@@ -1,20 +1,71 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { BankTransferDetails } from "@/components/bank-transfer-details"
 import type { Drink } from "@/lib/fridge"
 
-const eur = (n: number) => new Intl.NumberFormat("en-BE", { style: "currency", currency: "EUR", minimumFractionDigits: n % 1 ? 2 : 0 }).format(n)
+const eur = (n: number) => new Intl.NumberFormat("en-BE", { style: "currency", currency: "EUR", minimumFractionDigits: 2 }).format(n)
+const round2 = (n: number) => Math.round(n * 100) / 100
+const shortName = (d: Drink) => d.name.replace(/\s+\d+(?:[.,]\d+)?\s*%$/, "")
 const sizeLabel = (d: Drink) => `${d.size}${d.abv !== undefined ? ` · ${d.abv < 1.2 ? "alcohol-free" : `${String(d.abv).replace(".", ",")}%`}` : ""}`
 
-type Step = "pick" | "pay"
+export interface FridgeSettings {
+  roundTo: number
+  minimum: number
+  timeTokensPerMonth: number
+  transferMessage: string
+  crateTransferMessage: string
+}
 
-/** How to pay: by card (Stripe) or by bank transfer with the order as the message. */
-function Pay({ amount, setAmount, payload, message }: { amount: number; setAmount: (n: number) => void; payload: object; message: string }) {
-  const [method, setMethod] = useState<"card" | "transfer">("card")
+type Step = "pick" | "donate" | "crate"
+type Method = "card" | "transfer"
+
+/** Money and time: the euros the drinks cost us, and the community's time in tokens. */
+function Costs({ lines, total, tokensPerMonth }: { lines: Array<{ label: string; amount: number }>; total: number; tokensPerMonth: number }) {
+  return (
+    <section className="rounded-xl border border-border bg-card p-4">
+      <h2 className="text-sm font-medium text-muted-foreground">What it costs us</h2>
+      <ul className="mt-2 flex flex-col gap-1">
+        {lines.map((l) => (
+          <li key={l.label} className="flex justify-between gap-3 text-foreground">
+            <span className="min-w-0">{l.label}</span>
+            <span className="shrink-0 tabular-nums">{eur(l.amount)}</span>
+          </li>
+        ))}
+        <li className="flex justify-between gap-3 text-foreground">
+          <span className="min-w-0">
+            Looking after the fridge
+            <span className="block text-xs text-muted-foreground">ordering, restocking, returning empties, done by members</span>
+          </span>
+          <span className="shrink-0 text-right tabular-nums">
+            {tokensPerMonth} {tokensPerMonth === 1 ? "token" : "tokens"}
+            <span className="block text-xs text-muted-foreground">a month</span>
+          </span>
+        </li>
+      </ul>
+      <div className="mt-3 flex justify-between gap-3 border-t border-border pt-3 font-semibold text-foreground">
+        <span>Total</span>
+        <span className="text-right tabular-nums">{eur(total)} + our time</span>
+      </div>
+    </section>
+  )
+}
+
+/** How do you want to contribute: euros, by card or bank transfer. */
+function Contribute(props: {
+  amount: number
+  setAmount: (n: number) => void
+  minimum: number
+  payload: object
+  message: string
+  listed?: boolean
+}) {
+  const { amount, setAmount, minimum, payload, message, listed } = props
+  const [method, setMethod] = useState<Method>("card")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const tooLow = !(amount >= minimum)
 
   const card = async () => {
     setBusy(true)
@@ -31,20 +82,24 @@ function Pay({ amount, setAmount, payload, message }: { amount: number; setAmoun
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <label className="flex items-center justify-between gap-3 text-sm">
-        <span className="text-muted-foreground">Your contribution</span>
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">How do you want to contribute?</h2>
+        <p className="mt-1 text-sm text-muted-foreground">The drinks are not for sale: they are there for everyone. A donation keeps the fridge stocked.</p>
+      </div>
+      <label className="flex items-center justify-between gap-3">
+        <span className="text-foreground">Donate euros</span>
         <span className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">€</span>
           <input
             type="number"
             inputMode="decimal"
-            min={1}
+            min={minimum}
             step={0.5}
             value={amount}
             onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
             className="h-11 w-28 rounded-lg border border-border bg-background pl-7 pr-3 text-right text-lg font-semibold tabular-nums"
-            aria-label="Amount in euros"
+            aria-label="Donation in euros"
           />
         </span>
       </label>
@@ -64,9 +119,10 @@ function Pay({ amount, setAmount, payload, message }: { amount: number; setAmoun
       </div>
       {method === "card" ? (
         <>
-          <button type="button" onClick={card} disabled={busy || amount < 1} className="h-12 rounded-lg bg-primary text-base font-semibold text-primary-foreground disabled:opacity-60">
-            {busy ? "Opening the payment…" : `Pay ${eur(amount)}`}
+          <button type="button" onClick={card} disabled={busy || tooLow} className="h-12 rounded-lg bg-primary text-base font-semibold text-primary-foreground disabled:opacity-60">
+            {busy ? "Opening the payment…" : `Donate ${eur(amount || 0)}`}
           </button>
+          {tooLow && <p className="text-sm text-muted-foreground">At least {eur(minimum)}.</p>}
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
@@ -74,65 +130,140 @@ function Pay({ amount, setAmount, payload, message }: { amount: number; setAmoun
           )}
         </>
       ) : (
-        <BankTransferDetails message={message} amountEur={amount} />
+        <>
+          <BankTransferDetails message={message} amountEur={amount || undefined} />
+          {listed && <p className="text-xs text-muted-foreground">Only donations by card are listed here automatically for now.</p>}
+        </>
       )}
-    </div>
+      <p className="text-xs text-muted-foreground">Members can soon contribute tokens too, for the time the fridge takes.</p>
+    </section>
+  )
+}
+
+function Back({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="self-start text-sm text-muted-foreground underline-offset-2 hover:underline">
+      ← Back to the fridge
+    </button>
+  )
+}
+
+/** People who offered a crate and asked to be listed; loaded after the page. */
+function CrateContributors() {
+  const [names, setNames] = useState<string[]>([])
+  useEffect(() => {
+    fetch("/api/fridge/contributors")
+      .then((r) => (r.ok ? r.json() : { contributors: [] }))
+      .then((d: { contributors?: Array<{ name: string }> }) => setNames((d.contributors ?? []).map((c) => c.name)))
+      .catch(() => {})
+  }, [])
+  if (names.length === 0) return null
+  return (
+    <p className="mt-3 text-sm text-muted-foreground">
+      Crates offered by <span className="text-foreground">{names.join(", ")}</span>. Thank you!
+    </p>
   )
 }
 
 /**
- * Pick drinks from the fridge, then pay for them, or offer a crate. Built
- * for a phone opened from a QR code on the fridge: big buttons, the total
- * always in view, one screen at a time.
+ * Take drinks from the fridge, see what they cost us in money and time,
+ * and donate; or offer a whole crate to the community. Built for a phone
+ * opened from a QR code on the fridge: big buttons, the total in view.
  */
-export function FridgeOrder({ drinks }: { drinks: Drink[] }) {
+export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: FridgeSettings }) {
   const [qty, setQty] = useState<Record<string, number>>({})
   const [step, setStep] = useState<Step>("pick")
   const [amount, setAmount] = useState(0)
-  const [crate, setCrate] = useState<Drink | null>(null)
+  const [crateId, setCrateId] = useState<string>(drinks[0]?.id ?? "")
+  const [name, setName] = useState("")
 
   const items = useMemo(() => drinks.filter((d) => (qty[d.id] ?? 0) > 0).map((d) => ({ drink: d, quantity: qty[d.id] })), [drinks, qty])
   const count = items.reduce((s, i) => s + i.quantity, 0)
-  const suggested = Math.round(items.reduce((s, i) => s + i.quantity * i.drink.suggested, 0) * 100) / 100
-  const message = (crate ? `Fridge crate ${crate.name}` : `Fridge ${items.map((i) => `${i.quantity} ${i.drink.name}`).join(" ")}`).slice(0, 140)
+  const cost = round2(items.reduce((s, i) => s + i.quantity * i.drink.costPerBottle, 0))
+  const crate = drinks.find((d) => d.id === crateId) ?? drinks[0]
+  const suggested = (c: number) => Math.max(settings.minimum, Math.ceil(c / settings.roundTo - 1e-9) * settings.roundTo)
 
+  const go = (next: Step) => {
+    setStep(next)
+    window.scrollTo({ top: 0 })
+  }
   const change = (id: string, delta: number) => setQty((q) => ({ ...q, [id]: Math.max(0, Math.min(50, (q[id] ?? 0) + delta)) }))
 
-  if (step === "pay") {
+  if (step === "donate") {
     return (
       <div className="flex flex-col gap-6">
-        <button type="button" onClick={() => setStep("pick")} className="self-start text-sm text-muted-foreground underline-offset-2 hover:underline">
-          ← Back to the fridge
-        </button>
-        {crate ? (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="text-sm text-muted-foreground">Offer a crate to the community</div>
-            <div className="mt-1 text-lg font-semibold text-foreground">
-              {crate.perCrate} × {crate.name}
-            </div>
-            <div className="text-sm text-muted-foreground">A crate costs us {eur(crate.crateCost)}. Thank you for sharing.</div>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="text-sm text-muted-foreground">Your order</div>
-            <ul className="mt-2 flex flex-col gap-1">
-              {items.map(({ drink, quantity }) => (
-                <li key={drink.id} className="flex justify-between gap-3 text-foreground">
-                  <span>
-                    {quantity} × {drink.name}
+        <Back onClick={() => go("pick")} />
+        <Costs
+          lines={items.map(({ drink, quantity }) => ({ label: `${quantity} × ${shortName(drink)}`, amount: round2(quantity * drink.costPerBottle) }))}
+          total={cost}
+          tokensPerMonth={settings.timeTokensPerMonth}
+        />
+        <Contribute
+          amount={amount}
+          setAmount={setAmount}
+          minimum={1}
+          payload={{ items: items.map((i) => ({ id: i.drink.id, quantity: i.quantity })) }}
+          message={settings.transferMessage}
+        />
+      </div>
+    )
+  }
+
+  if (step === "crate" && crate) {
+    const listedName = name.trim()
+    return (
+      <div className="flex flex-col gap-6">
+        <Back onClick={() => go("pick")} />
+        <section>
+          <h2 className="text-lg font-semibold text-foreground">Offer a crate to the community</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Pick a crate from our last order; everyone can then help themselves.</p>
+          <div role="radiogroup" aria-label="Crate" className="mt-3 flex flex-col gap-2">
+            {drinks.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                role="radio"
+                aria-checked={d.id === crate.id}
+                onClick={() => {
+                  setCrateId(d.id)
+                  setAmount(d.crateCost)
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${d.id === crate.id ? "border-primary bg-primary/5" : "border-border"}`}
+              >
+                <span className="min-w-0">
+                  <span className="text-foreground">
+                    {d.perCrate} × {shortName(d)}
                   </span>
-                  <span className="tabular-nums text-muted-foreground">{eur(quantity * drink.suggested)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
-              <span>Suggested</span>
-              <span className="tabular-nums">{eur(suggested)}</span>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">That is what the drinks cost us. Anything above it helps keep the space open.</p>
+                  <span className="block text-xs text-muted-foreground">{sizeLabel(d)}</span>
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums">{eur(d.crateCost)}</span>
+              </button>
+            ))}
           </div>
-        )}
-        <Pay amount={amount} setAmount={setAmount} payload={crate ? { crate: crate.id } : { items: items.map((i) => ({ id: i.drink.id, quantity: i.quantity })) }} message={message} />
+        </section>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm text-foreground">
+            Your name <span className="text-muted-foreground">(optional)</span>
+          </span>
+          <input
+            type="text"
+            value={name}
+            maxLength={40}
+            autoComplete="name"
+            onChange={(e) => setName(e.target.value)}
+            placeholder="To be listed as a contributor"
+            className="h-11 rounded-lg border border-border bg-background px-3 text-base"
+          />
+        </label>
+        <Costs lines={[{ label: `A crate of ${crate.perCrate} × ${shortName(crate)}`, amount: crate.crateCost }]} total={crate.crateCost} tokensPerMonth={settings.timeTokensPerMonth} />
+        <Contribute
+          amount={amount}
+          setAmount={setAmount}
+          minimum={crate.crateCost}
+          payload={{ crate: crate.id, name: listedName }}
+          message={listedName ? `${settings.crateTransferMessage} ${listedName}`.slice(0, 140) : settings.crateTransferMessage}
+          listed={!!listedName}
+        />
       </div>
     )
   }
@@ -145,9 +276,9 @@ export function FridgeOrder({ drinks }: { drinks: Drink[] }) {
           return (
             <li key={d.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <div className="font-medium leading-tight text-foreground">{d.name.replace(/\s+\d+(?:[.,]\d+)?\s*%$/, "")}</div>
+                <div className="font-medium leading-tight text-foreground">{shortName(d)}</div>
                 <div className="text-xs text-muted-foreground">
-                  {sizeLabel(d)} · {eur(d.suggested)}
+                  {sizeLabel(d)} · costs us {eur(d.costPerBottle)}
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -166,47 +297,36 @@ export function FridgeOrder({ drinks }: { drinks: Drink[] }) {
         })}
       </ul>
 
-      <details className="mt-6 rounded-xl border border-border bg-card p-4">
-        <summary className="cursor-pointer font-medium text-foreground">Offer a crate to the community</summary>
-        <p className="mt-2 text-sm text-muted-foreground">Pay for a whole crate and let everyone help themselves.</p>
-        <ul className="mt-3 flex flex-col gap-2">
-          {drinks.map((d) => (
-            <li key={d.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setCrate(d)
-                  setAmount(Math.ceil(d.crateCost))
-                  setStep("pay")
-                }}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-left text-sm hover:border-primary"
-              >
-                <span className="min-w-0">
-                  {d.perCrate} × {d.name}
-                </span>
-                <span className="shrink-0 font-semibold tabular-nums">{eur(d.crateCost)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </details>
+      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+        <h2 className="font-semibold text-foreground">Offer a crate to the community</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Donate a whole crate and let everyone help themselves.</p>
+        <button
+          type="button"
+          onClick={() => {
+            if (crate) setAmount(crate.crateCost)
+            go("crate")
+          }}
+          className="mt-3 h-11 w-full rounded-lg border border-primary text-sm font-semibold text-primary"
+        >
+          Choose a crate
+        </button>
+        <CrateContributors />
+      </section>
 
       {count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 backdrop-blur" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
             <div className="text-sm">
               <div className="font-semibold text-foreground">
-                {count} {count === 1 ? "drink" : "drinks"} · {eur(suggested)}
+                {count} {count === 1 ? "drink" : "drinks"}
               </div>
-              <div className="text-xs text-muted-foreground">suggested</div>
+              <div className="text-xs text-muted-foreground">cost us {eur(cost)}</div>
             </div>
             <button
               type="button"
               onClick={() => {
-                setCrate(null)
-                setAmount(suggested)
-                setStep("pay")
-                window.scrollTo({ top: 0 })
+                setAmount(suggested(cost))
+                go("donate")
               }}
               className="h-12 rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground"
             >

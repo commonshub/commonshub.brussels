@@ -499,6 +499,9 @@
     "vendor": "big ?bag|delivco",
     "crate": "\\((?:casier|bac|pack)\\s+de\\s+(\\d+)\\s*x\\s*([\\d.,]+\\s*c?l)\\)",
     "roundTo": 0.5,
-    "minimum": 1.5
+    "minimum": 1.5,
+    "timeTokensPerMonth": 1,
+    "transferMessage": "Contribution fridge",
+    "crateTransferMessage": "Contribution fridge crate"
   }
 }

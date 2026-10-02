@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
-import { loadLatestDelivery, orderSummary } from "@/lib/fridge"
+import { FRIDGE, loadLatestDelivery, orderSummary, publicName } from "@/lib/fridge"
 
 // Reads the dataset volume: never prerender.
 export const dynamic = "force-dynamic"
@@ -10,15 +10,16 @@ const MIN_EUR = 1
 const MAX_EUR = 500
 
 /**
- * Pay for drinks from the fridge, or offer a crate, by card. The order is
- * rebuilt from the current delivery so the description comes from our books,
- * not from the request; the amount is the visitor's (pay what you want).
+ * A donation to the fridge by card: for drinks taken, or a whole crate for
+ * the community. The drinks are free; what is paid is a donation, so the
+ * amount is the donor's. The order is rebuilt from the current delivery and
+ * kept in the metadata only; the description stays short, like a transfer.
  */
 export async function POST(request: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) return NextResponse.json({ error: "Online payment is not configured" }, { status: 503 })
 
-  let body: { items?: Array<{ id?: unknown; quantity?: unknown }>; crate?: unknown; amount?: unknown }
+  let body: { items?: Array<{ id?: unknown; quantity?: unknown }>; crate?: unknown; amount?: unknown; name?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -34,28 +35,32 @@ export async function POST(request: Request) {
   const byId = new Map(delivery.drinks.map((d) => [d.id, d]))
 
   let description: string
+  let metadata: Record<string, string>
   if (typeof body.crate === "string") {
     const drink = byId.get(body.crate)
     if (!drink) return NextResponse.json({ error: "Unknown drink" }, { status: 400 })
-    description = `Fridge: a crate of ${drink.name} for the community`
+    if (amount < drink.crateCost) return NextResponse.json({ error: `A crate of ${drink.name} costs €${drink.crateCost.toFixed(2)}` }, { status: 400 })
+    const name = publicName(body.name)
+    description = FRIDGE.crateTransferMessage
+    metadata = { kind: "fridge", crate: "yes", drink: `${drink.perCrate} × ${drink.name}`, delivery: delivery.number, ...(name ? { name } : {}) }
   } else {
     const items = (body.items ?? [])
       .map((i) => ({ drink: byId.get(String(i.id)), quantity: Math.floor(Number(i.quantity)) }))
       .filter((i): i is { drink: NonNullable<typeof i.drink>; quantity: number } => !!i.drink && i.quantity > 0 && i.quantity <= 50)
     if (items.length === 0) return NextResponse.json({ error: "Nothing selected" }, { status: 400 })
-    description = `Fridge: ${orderSummary(items)}`
+    description = FRIDGE.transferMessage
+    metadata = { kind: "fridge", order: orderSummary(items).slice(0, 450), delivery: delivery.number }
   }
-  description = description.length > 200 ? `${description.slice(0, 199)}…` : description
 
   const origin = new URL(request.url).origin
   try {
     const session = await new Stripe(secretKey).checkout.sessions.create({
       mode: "payment",
       submit_type: "donate",
-      line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: Math.round(amount * 100), product_data: { name: "Commons Hub fridge", description } } }],
-      metadata: { kind: "fridge", delivery: delivery.number },
-      payment_intent_data: { description, metadata: { kind: "fridge", delivery: delivery.number } },
-      success_url: `${origin}/fridge?thanks=1`,
+      line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: Math.round(amount * 100), product_data: { name: "Donation to the Commons Hub fridge", description } } }],
+      metadata,
+      payment_intent_data: { description, metadata },
+      success_url: `${origin}/fridge?thanks=${metadata.crate ? "crate" : "1"}`,
       cancel_url: `${origin}/fridge`,
     })
     return NextResponse.json({ url: session.url })
