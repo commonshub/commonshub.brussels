@@ -43,7 +43,8 @@ beforeAll(() => {
       bill({ id: "b-rev", status: "reversed", totalAmount: 70, amountDue: 70 }),
     ],
   })
-  write("2026/08/public/bills.json", { bills: [bill({ id: "b-9", status: "paid", amountDue: 0, date: "2026-08-05", vendor: { type: "business", name: "Relieve Group" }, description: "Relieve furniture rental August 2026" })] })
+  const { type: _type, ...paid } = bill({ id: "b-9", status: "paid", amountDue: 0, date: "2026-08-05", vendor: { type: "organisation", name: "Relieve Group" }, description: "Relieve furniture rental August 2026" })
+  write("2026/08/public/expenses.json", { expenses: [{ ...paid, kind: "bill" }] })
 })
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
@@ -75,7 +76,7 @@ describe("bills still to pay", () => {
     expect(loaded.pending?.amountDue).toBe(196.69)
   })
 
-  test("month files in chb 3.14's schema are read for the recurring costs", () => {
+  test("month expenses.json files are read for the recurring costs", () => {
     const [aug] = readMonthBills(tmp, "2026", "08")!
     expect(aug).toMatchObject({ id: "b-9", state: "posted", vendor: "Relieve Group", title: "Relieve furniture rental August 2026", reference: "CHB-S/2026/09/0011" })
   })

@@ -8,23 +8,20 @@ export type OdooRowType = "invoice" | "bill";
 export type OdooRowDirection = "positive" | "refund";
 
 export interface OdooRow {
-  id: number;
+  id: string;
   type: OdooRowType;
   direction: OdooRowDirection;
   date: string;
   reference: string | null;
   month: string;
-  partnerId: number | null;
   partnerKey: string;
   partnerLabel: string;
   partnerIsCompany: boolean;
   category: string;
-  journal: string;
   untaxedAmount: number;
   vatAmount: number;
   totalAmount: number;
   status: string;
-  odooUrl?: string;
 }
 
 export interface QuarterlyTotals {
@@ -70,43 +67,40 @@ export function parseQuarter(segment: string): Quarter | null {
   return parseInt(match[1], 10) as Quarter;
 }
 
-interface PublicLineItem {
-  displayType?: string;
-  totalAmount?: number;
-  subtotalAmount?: number;
+type PartyType = "organisation" | "sole_trader" | "individual";
+
+interface Party {
+  id?: string;
+  type?: PartyType;
+  name?: string;
 }
 
-interface PublicRecord {
-  id: number;
-  title?: string;
-  state: string;
-  paymentState?: string;
+/** One entry of chb's `expenses.json` (docs/accounting-data.md). */
+interface ChbExpense {
+  id: string;
+  number?: string;
+  kind: "bill" | "credit_note" | "expense";
+  status: string;
   date: string;
+  vendor?: Party;
+  vendorRef?: string;
+  category?: string | null;
   untaxedAmount?: number;
   vatAmount?: number;
+  currency?: string;
   totalAmount?: number;
-  category?: string | null;
-  journal?: { id?: number; name?: string };
-  lineItems?: PublicLineItem[];
+  totalAmountEUR?: number;
 }
 
-interface PrivatePartner {
-  id?: number;
-  name?: string;
-  displayName?: string;
-  companyType?: "company" | "person";
-  isCompany?: boolean;
-}
-
-interface PrivateRecord {
-  id: number;
-  moveType: string;
-  partner?: PrivatePartner;
-  partnerDisplayName?: string;
-  reference?: string;
-  ref?: string;
-  number?: string;
-  invoiceUrl?: string;
+/** One row of chb's `customers.json`: a customer's invoices that month. */
+interface ChbCustomer {
+  customer?: Party & { member?: boolean };
+  individuals?: number;
+  incomeType?: string;
+  invoices?: number;
+  untaxedAmount?: number;
+  totalAmount?: number;
+  amountDue?: number;
 }
 
 function readJson<T>(filePath: string): T | null {
@@ -119,48 +113,141 @@ function readJson<T>(filePath: string): T | null {
   }
 }
 
-function buildRow(
-  pub: PublicRecord,
-  priv: PrivateRecord,
-  type: OdooRowType,
-  month: string,
-  showPii: boolean,
-  showOdooLinks: boolean,
-): OdooRow {
-  const isRefund = priv.moveType === "out_refund" || priv.moveType === "in_refund";
-  const sign = isRefund ? -1 : 1;
+const INCOME_TYPES: Record<string, string> = {
+  membership: "Membership",
+  room_rental: "Room rental",
+  tickets_events: "Tickets and events",
+  sponsorship: "Sponsorship",
+  donation: "Donation",
+  reinvoiced_costs: "Re-invoiced costs",
+  sales_services: "Services",
+  other_income: "Other income",
+  other: "Other",
+};
 
-  const partner = priv.partner ?? {};
-  const isCompany = partner.companyType === "company" || partner.isCompany === true;
+const named = (party: Party | undefined) => !!party?.name;
+const isCompany = (party: Party | undefined) => party?.type === "organisation" || party?.type === "sole_trader";
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
-  let partnerKey: string;
-  let partnerLabel: string;
-  if (showPii || isCompany) {
-    partnerKey = `partner:${partner.id ?? "unknown"}`;
-    partnerLabel = partner.displayName || partner.name || priv.partnerDisplayName || "(unknown)";
-  } else {
-    partnerKey = type === "invoice" ? "bucket:individual-client" : "bucket:individual-supplier";
-    partnerLabel = type === "invoice" ? "Individual client" : "Individual supplier";
+/** A vendor bill, credit note or expense claim, one row per document. Credit notes subtract. */
+function billRow(expense: ChbExpense, month: string): OdooRow {
+  const refund = expense.kind === "credit_note";
+  const sign = refund ? -1 : 1;
+  // Amounts are in the document's currency; chb gives the total in euros,
+  // so untaxed and VAT are converted at the same rate.
+  const original = Math.abs(expense.totalAmount ?? 0);
+  const total = Math.abs(expense.totalAmountEUR ?? original);
+  const rate = original > 0 ? total / original : 1;
+  const untaxed = round2(Math.abs(expense.untaxedAmount ?? 0) * rate);
+  const vat = round2(Math.abs(expense.vatAmount ?? 0) * rate);
+  const vendor = expense.vendor;
+  return {
+    id: expense.id,
+    type: "bill",
+    direction: refund ? "refund" : "positive",
+    date: expense.date,
+    reference: expense.number || expense.vendorRef || (expense.kind === "expense" ? "Expense claim" : null),
+    month,
+    partnerKey: named(vendor) ? `vendor:${vendor!.id ?? vendor!.name}` : expense.kind === "expense" ? "bucket:expense-claims" : "bucket:individual-supplier",
+    partnerLabel: named(vendor) ? vendor!.name! : expense.kind === "expense" ? "Expense claim" : "Individual supplier",
+    partnerIsCompany: isCompany(vendor),
+    category: expense.category || "—",
+    untaxedAmount: untaxed * sign,
+    vatAmount: vat * sign,
+    totalAmount: total * sign,
+    status: expense.status,
+  };
+}
+
+/**
+ * Invoiced income: chb publishes it per customer and month (the invoice
+ * list is stewards-only), so one row per customer per month. Customers
+ * that are not organisations are merged per income type below members.
+ */
+function customerRow(row: ChbCustomer, index: number, month: string, year: string): OdooRow {
+  const customer = row.customer;
+  const incomeType = row.incomeType ?? "other";
+  const total = row.totalAmount ?? 0;
+  const untaxed = row.untaxedAmount ?? 0;
+  const due = row.amountDue ?? 0;
+  const label = named(customer)
+    ? customer!.name!
+    : `Individual clients${row.individuals ? ` (${row.individuals})` : ""}`;
+  return {
+    id: `${month}-${customer?.id ?? `${incomeType}-${index}`}`,
+    type: "invoice",
+    direction: total < 0 ? "refund" : "positive",
+    date: `${year}-${month}-01`,
+    reference: row.invoices ? `${row.invoices} invoice${row.invoices === 1 ? "" : "s"}` : null,
+    month,
+    partnerKey: named(customer) ? `customer:${customer!.id ?? customer!.name}` : "bucket:individual-client",
+    partnerLabel: label,
+    partnerIsCompany: isCompany(customer),
+    category: INCOME_TYPES[incomeType] ?? incomeType,
+    untaxedAmount: untaxed,
+    vatAmount: round2(total - untaxed),
+    totalAmount: total,
+    status: due <= 0.005 ? "paid" : due < total ? "partially_paid" : "pending",
+  };
+}
+
+export function loadQuarterlyOdoo(
+  year: string,
+  quarter: Quarter,
+  options: { showPii: boolean },
+): QuarterlyData {
+  const months = getQuarterMonths(quarter);
+  const rows: OdooRow[] = [];
+  const missingMonths: string[] = [];
+
+  for (const month of months) {
+    // chb writes expenses.json and customers.json for every month, in every
+    // tier (docs/website.md §2): public names organisations only, members
+    // everyone. One tier per viewer.
+    const monthRoot = tierDir(tierFor(options.showPii), year, month);
+    const expenses = readJson<{ expenses: ChbExpense[] }>(path.join(monthRoot, "expenses.json"));
+    const customers = readJson<{ customers: ChbCustomer[] }>(path.join(monthRoot, "customers.json"));
+    if (!expenses || !customers) {
+      missingMonths.push(month);
+      continue;
+    }
+    for (const expense of expenses.expenses) {
+      // Reversed bills are cancelled by a credit note; chb leaves them out of its totals too.
+      if (expense.status === "reversed") continue;
+      rows.push(billRow(expense, month));
+    }
+    customers.customers.forEach((row, i) => rows.push(customerRow(row, i, month, year)));
   }
 
+  rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+  const invoices = rows.filter((r) => r.type === "invoice");
+  const bills = rows.filter((r) => r.type === "bill");
+  const sum = (list: OdooRow[], key: "totalAmount" | "untaxedAmount" | "vatAmount") => round2(list.reduce((s, r) => s + r[key], 0));
+
+  const totals: QuarterlyTotals = {
+    invoicedTotal: sum(invoices, "totalAmount"),
+    invoicedUntaxed: sum(invoices, "untaxedAmount"),
+    vatCollected: sum(invoices, "vatAmount"),
+    billsTotal: sum(bills, "totalAmount"),
+    billsUntaxed: sum(bills, "untaxedAmount"),
+    vatDeductible: sum(bills, "vatAmount"),
+    vatNet: 0,
+    invoiceCount: invoices.length,
+    billCount: bills.length,
+  };
+  totals.vatNet = round2(totals.vatCollected - totals.vatDeductible);
+
   return {
-    id: pub.id,
-    type,
-    direction: isRefund ? "refund" : "positive",
-    date: pub.date,
-    reference: priv.number || priv.reference || priv.ref || pub.title || null,
-    month,
-    partnerId: partner.id ?? null,
-    partnerKey,
-    partnerLabel,
-    partnerIsCompany: isCompany,
-    category: pub.category || pub.journal?.name || "—",
-    journal: pub.journal?.name || "",
-    untaxedAmount: (pub.untaxedAmount ?? 0) * sign,
-    vatAmount: (pub.vatAmount ?? 0) * sign,
-    totalAmount: (pub.totalAmount ?? 0) * sign,
-    status: pub.paymentState || pub.state,
-    odooUrl: showOdooLinks ? priv.invoiceUrl : undefined,
+    year,
+    quarter,
+    months,
+    totals,
+    topCustomers: aggregateByPartner(invoices).slice(0, 10),
+    topVendors: aggregateByPartner(bills).slice(0, 10),
+    rows,
+    redacted: !options.showPii,
+    missingMonths,
   };
 }
 
@@ -182,69 +269,4 @@ function aggregateByPartner(rows: OdooRow[]): PartnerAggregate[] {
     }
   }
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
-}
-
-export function loadQuarterlyOdoo(
-  year: string,
-  quarter: Quarter,
-  options: { showPii: boolean; showOdooLinks?: boolean },
-): QuarterlyData {
-  const showOdooLinks = options.showOdooLinks ?? false;
-  const months = getQuarterMonths(quarter);
-  const rows: OdooRow[] = [];
-  const missingMonths: string[] = [];
-
-  for (const month of months) {
-    // chb projects the Odoo books into the audience tiers: the members tier
-    // carries partner names inline, the public one does not. One tier per
-    // viewer; the raw provider archive is never read.
-    const monthRoot = tierDir(tierFor(options.showPii), year, month);
-    const inv = readJson<{ invoices: Array<PublicRecord & PrivateRecord> }>(path.join(monthRoot, "invoices.json"));
-    const bill = readJson<{ bills: Array<PublicRecord & PrivateRecord> }>(path.join(monthRoot, "bills.json"));
-    if (!inv && !bill) {
-      missingMonths.push(month);
-      continue;
-    }
-    for (const rec of inv?.invoices ?? []) {
-      if (rec.state !== "posted") continue;
-      rows.push(buildRow(rec, rec, "invoice", month, options.showPii, showOdooLinks));
-    }
-    for (const rec of bill?.bills ?? []) {
-      if (rec.state !== "posted") continue;
-      rows.push(buildRow(rec, rec, "bill", month, options.showPii, showOdooLinks));
-    }
-  }
-
-  rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-
-  const invoices = rows.filter((r) => r.type === "invoice");
-  const bills = rows.filter((r) => r.type === "bill");
-
-  const totals: QuarterlyTotals = {
-    invoicedTotal: invoices.reduce((s, r) => s + r.totalAmount, 0),
-    invoicedUntaxed: invoices.reduce((s, r) => s + r.untaxedAmount, 0),
-    vatCollected: invoices.reduce((s, r) => s + r.vatAmount, 0),
-    billsTotal: bills.reduce((s, r) => s + r.totalAmount, 0),
-    billsUntaxed: bills.reduce((s, r) => s + r.untaxedAmount, 0),
-    vatDeductible: bills.reduce((s, r) => s + r.vatAmount, 0),
-    vatNet: 0,
-    invoiceCount: invoices.length,
-    billCount: bills.length,
-  };
-  totals.vatNet = totals.vatCollected - totals.vatDeductible;
-
-  const topCustomers = aggregateByPartner(invoices).slice(0, 10);
-  const topVendors = aggregateByPartner(bills).slice(0, 10);
-
-  return {
-    year,
-    quarter,
-    months,
-    totals,
-    topCustomers,
-    topVendors,
-    rows,
-    redacted: !options.showPii,
-    missingMonths,
-  };
 }

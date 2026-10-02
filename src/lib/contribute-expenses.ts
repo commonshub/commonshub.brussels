@@ -87,24 +87,7 @@ export interface PendingSummary {
 
 // ── raw records, as chb writes them ──────────────────────────────────────
 
-interface PublicLineItem {
-  title?: string
-  displayType?: string
-  totalAmount?: number
-}
-
-interface PublicBill {
-  id: number
-  title?: string
-  moveType?: string
-  state: string
-  date: string
-  totalAmount?: number
-  category?: string | null
-  lineItems?: PublicLineItem[]
-}
-
-/** A bill as chb ≥ 3.14 writes it (docs/bills.md). */
+/** A bill as chb writes it in latest/<tier>/pending-bills.json (docs/bills.md). */
 export interface ChbBill {
   id: string
   number: string
@@ -112,7 +95,7 @@ export interface ChbBill {
   status: "pending" | "partially_paid" | "paid" | "reversed"
   date: string
   dueDate?: string
-  /** "business" in bills (v3.14); "organisation" / "sole_trader" in expenses.json (v3.16). */
+  /** "business" in pending-bills.json; "organisation" / "sole_trader" in expenses.json. */
   vendor: { type: "business" | "organisation" | "sole_trader" | "individual"; name?: string; vat?: string }
   vendorRef?: string
   description?: string
@@ -123,15 +106,8 @@ export interface ChbBill {
   amountDue: number
 }
 
-interface PrivateBill {
-  id: number
-  moveType?: string
-  ref?: string
-  reference?: string
-  number?: string
-  partner?: { id?: number; name?: string; displayName?: string; isCompany?: boolean; companyType?: string }
-  partnerDisplayName?: string
-}
+/** An entry of chb's month `expenses.json` (docs/accounting-data.md). */
+type ChbExpense = Omit<ChbBill, "type"> & { kind: "bill" | "credit_note" | "expense" }
 
 export interface Bill {
   id: number | string
@@ -231,7 +207,6 @@ export function billSlug(reference: string): string {
 export const expenseUri = (slug: string) => `chb:expense:${slug}`
 export const billUri = (publicId: string) => `chb:bill:${publicId}`
 
-const isChbBill = (record: object): record is ChbBill => "status" in record && typeof (record as ChbBill).vendor === "object"
 
 /** A chb ≥ 3.14 bill in the shape the matching rules read. */
 function fromChbBill(record: ChbBill): Bill {
@@ -257,53 +232,16 @@ function fromChbBill(record: ChbBill): Bill {
 
 /**
  * One month of vendor bills, from chb's public-tier projection
- * (`YYYY/MM/public/expenses.json`, or `bills.json` before chb 3.16). Business vendors are named, private
+ * (`YYYY/MM/public/expenses.json`). Business vendors are named, private
  * individuals are not. The provider archive under providers/ is never read.
- * Reads chb ≥ 3.14's schema (docs/bills.md) and the earlier one.
  */
 export function readMonthBills(dataDir: string, year: string, month: string): Bill[] | null {
-  // chb ≥ 3.16: the month's bills are in expenses.json, with expense claims
-  // (kind "expense"), which are reimbursements rather than bills.
-  const expenses = readJson<{ expenses: Array<Omit<ChbBill, "type"> & { kind: string }> }>(path.join(dataDir, year, month, "public", "expenses.json"))
-  if (expenses) {
-    return expenses.expenses
-      .filter((e) => e.kind === "bill" || e.kind === "credit_note")
-      .map((e) => fromChbBill({ ...e, type: e.kind as ChbBill["type"] }))
-  }
-  const pub = readJson<{ bills: Array<(PublicBill & Partial<PrivateBill>) | ChbBill> }>(path.join(dataDir, year, month, "public", "bills.json"))
-  if (!pub) return null
-
-  const bills: Bill[] = []
-  for (const record of pub.bills) {
-    if (isChbBill(record)) {
-      bills.push(fromChbBill(record))
-      continue
-    }
-    const priv = record.partner || record.partnerDisplayName ? (record as PrivateBill) : undefined
-    const partner = priv?.partner ?? {}
-    const isCompany = partner.companyType === "company" || partner.isCompany === true
-    const name = partner.displayName || partner.name || priv?.partnerDisplayName || ""
-    const moveType = priv?.moveType || record.moveType || "in_invoice"
-    bills.push({
-      id: record.id,
-      title: record.title || "",
-      date: record.date,
-      state: record.state,
-      refund: moveType === "in_refund",
-      totalAmount: record.totalAmount ?? 0,
-      category: record.category ?? null,
-      vendor: !priv ? "" : isCompany ? name : "Individual supplier",
-      vendorIsCompany: isCompany,
-      vendorName: name,
-      reference: priv?.number || priv?.ref || priv?.reference || record.title || `#${record.id}`,
-      lines: (record.lineItems ?? [])
-        .filter((line) => !line.displayType || line.displayType === "product")
-        .map((line) => cleanLine(line.title ?? ""))
-        .map((line) => (isCompany || !name ? line : withoutPersonName(line, name)))
-        .filter(Boolean),
-    })
-  }
-  return bills
+  const file = readJson<{ expenses: ChbExpense[] }>(path.join(dataDir, year, month, "public", "expenses.json"))
+  if (!file) return null
+  // Expense claims (kind "expense") are reimbursements, not bills.
+  return file.expenses
+    .filter((e) => e.kind === "bill" || e.kind === "credit_note")
+    .map((e) => fromChbBill({ ...e, type: e.kind as ChbBill["type"] }))
 }
 
 /**
