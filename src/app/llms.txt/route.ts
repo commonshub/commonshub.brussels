@@ -32,6 +32,10 @@ Commons Hub Brussels is a community hub located at Rue de la Madeleine 51, 1000 
 - [Contact](${BASE_URL}/contact): Get in touch
 - [Apply](${BASE_URL}/apply): Apply for membership
 
+## Skills
+
+- [Open data](${BASE_URL}/opendata): How to use the public open-data API — finances, expenses line by line, vendors, customers, room bookings, events, VAT returns. Read-only JSON, no key, licensed under ODbL, GDPR-safe (private individuals are never named).
+
 ## Rooms
 
 ${roomsList}
