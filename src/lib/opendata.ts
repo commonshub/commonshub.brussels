@@ -20,6 +20,17 @@ import { DATA_DIR, tierDir } from "./data-paths";
  *    `stewards/`, `providers/` or `generated/`.
  */
 
+/**
+ * The licence of the open dataset: share-alike, so a database derived from
+ * it and used publicly must be published again under the same terms.
+ */
+export const OPENDATA_LICENSE = {
+  id: "ODbL-1.0",
+  name: "Open Database License (ODbL) v1.0",
+  url: "https://opendatacommons.org/licenses/odbl/1-0/",
+  attribution: "Contains data from Commons Hub Brussels, available under the Open Database License (ODbL): https://commonshub.brussels/opendata",
+};
+
 /** Files served from a period's `public/` directory. */
 export const OPENDATA_TIER_FILES: Record<string, string> = {
   "transactions.json": "Every transaction: amount, direction, account, category, collective. No counterparty, no bank narration.",

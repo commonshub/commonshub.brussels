@@ -1,4 +1,4 @@
-import { OPENDATA_ROOT_FILES, OPENDATA_TIER_FILES } from "./opendata";
+import { OPENDATA_LICENSE, OPENDATA_ROOT_FILES, OPENDATA_TIER_FILES } from "./opendata";
 
 /**
  * The open-data skill, served as markdown at /opendata (and
@@ -17,7 +17,7 @@ export function opendataSkill(baseUrl: string): string {
 
   return `---
 name: commonshub-opendata
-description: Fetch and analyse the open data of Commons Hub Brussels (finances, expenses line by line, vendors, customers, room bookings, events, VAT returns, integrity hashes) through the public read-only JSON API at ${api}. Use when asked about the Hub's money, suppliers, room use or events, or when building something on that data. No key needed. GDPR-safe by construction - private individuals are never named.
+description: Fetch and analyse the open data of Commons Hub Brussels (finances, expenses line by line, vendors, customers, room bookings, events, VAT returns, integrity hashes) through the public read-only JSON API at ${api}. Use when asked about the Hub's money, suppliers, room use or events, or when building something on that data. No key needed. Licensed under ODbL (attribution, share-alike). GDPR-safe by construction - private individuals are never named.
 ---
 
 # Commons Hub Brussels — open data
@@ -34,6 +34,7 @@ everyone.
 - JSON unless the file says otherwise (\`.md\`, \`.csv\`, \`.ics\`, images).
 - Responses are cached for 5 minutes. The data itself refreshes hourly.
 - Be gentle: cache what you download, do not poll more than once every few minutes.
+- Licence: [${OPENDATA_LICENSE.name}](${OPENDATA_LICENSE.url}) — see [Licence](#licence) below.
 
 ## Endpoints
 
@@ -200,7 +201,29 @@ filtering happens before a file is written, so the data simply is not there.
    attach a name, a date or a place to a private individual.
 2. If you find personal data that should not be here, stop using it and tell
    hello@commonshub.brussels: it will be removed at the source.
-3. Cite "Commons Hub Brussels open data" with the link ${api} and the \`generatedAt\` of what you used.
+3. Respect the licence (below).
+
+## Licence
+
+The dataset is published under the **${OPENDATA_LICENSE.name}**: ${OPENDATA_LICENSE.url}
+(\`license\` in \`index.json\`, and a \`Link: <…>; rel="license"\` header on every response).
+
+- **Attribute.** Wherever you use or show the data, credit it. For example:
+  > ${OPENDATA_LICENSE.attribution}
+
+  Keep the \`generatedAt\` of the files you used, so others can reproduce your result.
+- **Share alike.** If you publicly use a database derived from this one (data you combined,
+  cleaned, enriched or restructured), you must offer that derived database under the ODbL too,
+  or the changes needed to rebuild it. Public use includes a public website, app or API built on it.
+- **Produced works are yours.** Charts, articles, slides and apps made from the data may use any
+  licence, as long as they carry the attribution notice above.
+- **Keep it open.** Do not add technical restrictions (DRM) to copies you distribute without also
+  offering an unrestricted copy.
+- Private analysis owes nothing back. Sharing your derived data with the Hub is always welcome:
+  hello@commonshub.brussels.
+
+The ODbL covers the database. It does not lift the ground rules above: personal-data protection
+(GDPR) applies to anyone who processes the data, whatever the licence.
 
 ## Good to know
 

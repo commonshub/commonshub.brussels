@@ -52,6 +52,7 @@ describe("/opendata", () => {
       const text = await res.text();
       expect(text).toMatch(/^---\nname: commonshub-opendata/);
       expect(text).toContain("/opendata/{YYYY}/{MM}");
+      expect(text).toContain("Open Database License (ODbL)");
     }
   });
 
@@ -68,6 +69,7 @@ describe("/opendata", () => {
       const res = await get(...segments);
       expect(res.status).toBe(200);
       expect(res.headers.get("access-control-allow-origin")).toBe("*");
+      expect(res.headers.get("link")).toBe('<https://opendatacommons.org/licenses/odbl/1-0/>; rel="license"');
       expect(await res.text()).toBe(body);
     }
   });
@@ -94,6 +96,7 @@ describe("/opendata", () => {
     const listing = await (await get("2026", "09")).json();
     expect(listing.files.map((f: { file: string }) => f.file)).toEqual(["expenses.json", "hashes.json"]);
     const index = await (await get("index.json")).json();
+    expect(index.license).toMatchObject({ id: "ODbL-1.0", url: "https://opendatacommons.org/licenses/odbl/1-0/" });
     expect(index.periods).toEqual([
       expect.objectContaining({ year: "2026", months: [expect.objectContaining({ month: "09" })] }),
     ]);

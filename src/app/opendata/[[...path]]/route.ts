@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import { dataCacheHeaders } from "@/lib/data-route";
-import { listOpendataPeriod, listOpendataPeriods, resolveOpendata } from "@/lib/opendata";
+import { OPENDATA_LICENSE, listOpendataPeriod, listOpendataPeriods, resolveOpendata } from "@/lib/opendata";
 import { opendataSkill } from "@/lib/opendata-skill";
 
 export const runtime = "nodejs";
@@ -27,6 +27,8 @@ const CONTENT_TYPES: Record<string, string> = {
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+  "Access-Control-Expose-Headers": "Link",
+  Link: `<${OPENDATA_LICENSE.url}>; rel="license"`,
 };
 
 function json(body: unknown, hasContent: boolean, status = 200) {
@@ -58,6 +60,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       {
         description: "Commons Hub Brussels open data: the public tier of the chb dataset.",
         documentation: `${BASE_URL}/opendata`,
+        license: OPENDATA_LICENSE,
         latest: `${BASE_URL}/opendata/latest`,
         periods: periods.map((p) => ({
           year: p.year,
