@@ -12,6 +12,7 @@ jest.mock("stripe", () => jest.fn().mockImplementation(() => ({ checkout: { sess
 const drink = (id: string, name: string, crateCost: number) => ({ id, name, size: "33cl", perCrate: 24, bottles: 24, costPerBottle: crateCost / 24, crateCost, suggested: 1.5 })
 jest.mock("@/lib/fridge", () => ({
   ...(jest.requireActual("@/lib/fridge") as object),
+  FRIDGE: { transferMessage: "Contribution fridge", crateTransferMessage: "Contribution fridge crate" },
   loadLatestDelivery: () => ({ number: "CHB-S/2026/09/0013", date: "2026-09-30", drinks: [drink("2133", "Zinnebir 5,8%", 34.8), drink("4794", "Fritz Limo Citron", 32.16)] }),
 }))
 
@@ -21,22 +22,38 @@ const { POST } = require("@/app/api/fridge/checkout/route") as typeof import("@/
 
 const post = (body: object) => POST(new Request("https://commonshub.brussels/api/fridge/checkout", { method: "POST", body: JSON.stringify(body) }))
 
-beforeEach(() => create.mockClear())
+beforeEach(() => {
+  create.mockClear()
+})
 
 describe("fridge checkout", () => {
-  test("drinks: one payment described from the delivery", async () => {
+  test("drinks: a donation with a short description; the order only in the metadata", async () => {
     const res = await post({ items: [{ id: "2133", quantity: 2 }, { id: "4794", quantity: 1 }, { id: "nope", quantity: 3 }], amount: 4.5 })
     expect(res.status).toBe(200)
     const params = create.mock.calls[0][0] as any
     expect(params.mode).toBe("payment")
     expect(params.line_items[0].price_data.unit_amount).toBe(450)
-    expect(params.payment_intent_data.description).toBe("Fridge: 2× Zinnebir 5,8%, 1× Fritz Limo Citron")
-    expect(params.metadata).toEqual({ kind: "fridge", delivery: "CHB-S/2026/09/0013" })
+    expect(params.submit_type).toBe("donate")
+    expect(params.payment_intent_data.description).toBe("Contribution fridge")
+    expect(params.metadata).toEqual({ kind: "fridge", order: "2× Zinnebir 5,8%, 1× Fritz Limo Citron", delivery: "CHB-S/2026/09/0013" })
   })
 
-  test("a crate", async () => {
-    await post({ crate: "2133", amount: 35 })
-    expect((create.mock.calls[0][0] as any).payment_intent_data.description).toBe("Fridge: a crate of Zinnebir 5,8% for the community")
+  test("a crate, with the name to be listed under", async () => {
+    await post({ crate: "2133", amount: 35, name: " Alice " })
+    const params = create.mock.calls[0][0] as any
+    expect(params.payment_intent_data.description).toBe("Contribution fridge crate")
+    expect(params.payment_intent_data.metadata).toMatchObject({ kind: "fridge", crate: "yes", drink: "24 × Zinnebir 5,8%", name: "Alice" })
+    expect(params.success_url).toContain("thanks=crate")
+  })
+
+  test("a crate without a usable name is not listed", async () => {
+    await post({ crate: "2133", amount: 35, name: "see spam.com" })
+    expect((create.mock.calls[0][0] as any).metadata.name).toBeUndefined()
+  })
+
+  test("a crate costs at least what it cost us", async () => {
+    expect((await post({ crate: "2133", amount: 20 })).status).toBe(400)
+    expect(create).not.toHaveBeenCalled()
   })
 
   test("nothing known, unknown crate or a silly amount: refused before Stripe", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals"
-import { drinksFromLines, orderSummary, suggestedPrice } from "@/lib/fridge"
+import { drinksFromLines, orderCost, orderSummary, publicName, suggestedPrice } from "@/lib/fridge"
 
 // The Big Bag delivery of 30 September 2026, as the bill lists it.
 const L = (description: string, quantity: number, totalAmount: number) => ({ description: `${description}\n${description.replace(/^\[\w+\]\s*/, "")}`, quantity, totalAmount })
@@ -15,7 +15,7 @@ const DELIVERY = [
   L("[4910] Pajottenlander Pomme Jus Bio (Casier de 6 x 1L)", 1, 18.31),
   L("[4503] Vidange - Vidanges 3,42", -4, -13.68),
 ]
-const config = { vendor: "big ?bag|delivco", crate: "\\((?:casier|bac|pack)\\s+de\\s+(\\d+)\\s*x\\s*([\\d.,]+\\s*c?l)\\)", roundTo: 0.5, minimum: 1.5 }
+const config = { vendor: "big ?bag|delivco", crate: "\\((?:casier|bac|pack)\\s+de\\s+(\\d+)\\s*x\\s*([\\d.,]+\\s*c?l)\\)", roundTo: 0.5, minimum: 1.5, timeTokensPerMonth: 1, transferMessage: "Contribution fridge", crateTransferMessage: "Contribution fridge crate" }
 
 describe("what is in the fridge", () => {
   test("one drink per crate line; deposits, returns, milk and sugar left out", () => {
@@ -45,5 +45,24 @@ describe("what is in the fridge", () => {
   test("an order reads as a short line", () => {
     const [fritz, , , , zinne] = drinksFromLines(DELIVERY, config)
     expect(orderSummary([{ drink: zinne, quantity: 2 }, { drink: fritz, quantity: 1 }, { drink: fritz, quantity: 0 }])).toBe("2× Zinnebir 5,8%, 1× Fritz Limo Citron")
+  })
+})
+
+describe("costs and names", () => {
+  test("what a selection cost us, to the cent", () => {
+    const drinks = drinksFromLines(DELIVERY, config)
+    const zinne = drinks.find((d) => d.name.startsWith("Zinnebir"))!
+    const fritz = drinks.find((d) => d.name === "Fritz Limo Citron")!
+    expect(orderCost([{ drink: zinne, quantity: 2 }, { drink: fritz, quantity: 1 }])).toBe(4.24)
+  })
+
+  test("a name to be listed under: plain, short, no links", () => {
+    expect(publicName("  Alice   Dupont ")).toBe("Alice Dupont")
+    expect(publicName("")).toBeNull()
+    expect(publicName("x")).toBeNull()
+    expect(publicName("buy cheap pills at spam.com")).toBeNull()
+    expect(publicName("me@example.org")).toBeNull()
+    expect(publicName("a".repeat(41))).toBeNull()
+    expect(publicName(42)).toBeNull()
   })
 })

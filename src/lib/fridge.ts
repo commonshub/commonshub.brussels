@@ -19,6 +19,11 @@ export interface FridgeConfig {
   crate: string
   roundTo: number
   minimum: number
+  /** The community's time looking after the fridge (ordering, restocking, returning empties), in tokens a month. */
+  timeTokensPerMonth: number
+  /** Bank transfer messages: short, never the order itself. */
+  transferMessage: string
+  crateTransferMessage: string
 }
 
 export const FRIDGE: FridgeConfig = (settings as unknown as { fridge: FridgeConfig }).fridge
@@ -137,7 +142,25 @@ export function loadLatestDelivery(config: FridgeConfig = FRIDGE, dataDir: strin
   return null
 }
 
-/** "2× Zinnebir, 1× Fritz Limo Citron", for the payment description and transfer message. */
+/** "2× Zinnebir, 1× Fritz Limo Citron", kept in the card payment's metadata. */
 export function orderSummary(items: Array<{ drink: Drink; quantity: number }>): string {
   return items.filter((i) => i.quantity > 0).map((i) => `${i.quantity}× ${i.drink.name}`).join(", ")
+}
+
+/** What a selection cost us, to the cent (bottles at cost, deposit excluded). */
+export function orderCost(items: Array<{ drink: Drink; quantity: number }>): number {
+  return round2(items.reduce((sum, i) => sum + Math.max(0, i.quantity) * i.drink.costPerBottle, 0))
+}
+
+/**
+ * The name someone chose to be listed under when offering a crate: plain
+ * text, one line, at most 40 characters, no links. Null when there is none
+ * or it does not look like a name.
+ */
+export function publicName(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  const name = raw.replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim()
+  if (name.length < 2 || name.length > 40) return null
+  if (/https?:|www\.|\.[a-z]{2,}(?:\/|$)|@/i.test(name)) return null
+  return name
 }
