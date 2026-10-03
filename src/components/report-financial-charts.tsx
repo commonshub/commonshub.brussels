@@ -118,7 +118,7 @@ export function ReportFinancialCharts({ monthlyBreakdown }: ReportFinancialChart
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `€${compact.format(Number(value))}`}
+                tickFormatter={(value) => `${Number(value) < 0 ? "−" : ""}€${compact.format(Math.abs(Number(value)))}`}
                 className="text-xs"
               />
               <ChartTooltip
