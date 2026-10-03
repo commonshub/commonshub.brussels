@@ -39,6 +39,7 @@ function bill(overrides: Partial<Bill> & { vendorName: string; totalAmount: numb
   const isCompany = overrides.vendorIsCompany ?? true
   return {
     id,
+    uri: `odoo:commonshub.odoo.com:commonshub:account.move:${id}`,
     title: `BILL/${id}`,
     state: "posted",
     refund: false,

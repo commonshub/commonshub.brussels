@@ -38,12 +38,15 @@ everyone.
 - Responses are cached for 5 minutes. The data itself refreshes hourly.
 - Be gentle: cache what you download, do not poll more than once every few minutes.
 - Licence: [${OPENDATA_LICENSE.name}](${OPENDATA_LICENSE.url}) — see [Licence](#licence) below.
+- What changed lately: ${api}/changelog (also \`.md\`, \`.json\`, and an Atom feed at \`${api}/changelog.xml\`). Check it
+  when something you rely on looks different.
 
 ## Endpoints
 
 | URL | returns |
 |---|---|
 | \`${baseUrl}/opendata.md\` (or \`${api}/SKILL.md\`) | this skill, as markdown; \`${api}\` is the same page in HTML |
+| \`${api}/changelog\` (HTML), \`.md\`, \`.json\`, \`.xml\` (Atom) | what is new or has changed in the dataset, newest first; **breaking** changes are marked |
 | \`${api}/index.json\` | every year and month that has data, with links |
 | \`${api}/monthly.json\` | one row per month since the start: money in/out, expenses, invoiced income, bookings, events, door, members, tokens |
 | \`${api}/{YYYY}/monthly.json\` | the same, for one year |
@@ -229,11 +232,12 @@ Every item has a stable identifier, in the style of
 | item | identifier | where to find it | \`k\` |
 |---|---|---|---|
 | a transaction | its \`id\`: \`stripe:txn_…\`, \`ethereum:<chain id>:tx:<hash>\`, \`iban:<iban>:tx:<hash>\` | \`transactions.json\` | \`stripe:txn\`, \`ethereum:tx\`, \`iban:tx\` |
-| a vendor bill or credit note | \`chb:bill:<id>\`, e.g. \`chb:bill:b-a0299722c7\` | \`id\` in \`expenses.json\` / \`pending-bills.json\` | \`chb:bill\` |
-| a recurring cost (rent, furniture, …) | \`chb:expense:<slug>\`, e.g. \`chb:expense:rent\` | the page \`${baseUrl}/expenses/<slug>\` | \`chb:expense\` |
+| a vendor bill, credit note or customer invoice | its Odoo URI \`odoo:<host>:<db>:account.move:<id>\` | \`uri\` in \`expenses.json\` / \`pending-bills.json\`, \`invoices[]\` in \`customers.json\`, \`uri\` on \`bookings.json\` rentals | \`odoo:account.move\` |
+| an expense claim (someone reimbursed) | \`odoo:<host>:<db>:hr.expense:<id>\` | \`uri\` in \`expenses.json\` (\`kind: "expense"\`) | \`odoo:hr.expense\` |
+| a recurring cost (rent, furniture, …) | \`chb:expense:<slug>\`, e.g. \`chb:expense:rent\` | the page \`${baseUrl}/expenses/<slug>\` (shown on the website; not an accounting document, so chb does not apply it) | \`chb:expense\` |
 
-Customer invoices cannot be pointed at yet: the open data gives income per customer and month,
-not per invoice.
+The Odoo URI is the one global identifier of an accounting document: the same in the open data, on
+Nostr, on the website and in chb.
 
 ### Tag or describe an item: a kind 1111 snapshot
 
@@ -242,8 +246,8 @@ not per invoice.
   "kind": 1111,
   "content": "Crates for the fridge, September delivery",
   "tags": [
-    ["i", "chb:bill:b-a0299722c7"],
-    ["k", "chb:bill"],
+    ["i", "odoo:commonshub.odoo.com:commonshub:account.move:45973"],
+    ["k", "odoo:account.move"],
     ["category", "cold-drinks"],
     ["collective", "commonshub"],
     ["event", "open-commons-day-2026"],
@@ -274,8 +278,8 @@ with the identifier both as root (uppercase) and as parent (lowercase):
   "kind": 1111,
   "content": "This bill also covers the milk for the coffee corner.",
   "tags": [
-    ["I", "chb:bill:b-a0299722c7"], ["K", "chb:bill"],
-    ["i", "chb:bill:b-a0299722c7"], ["k", "chb:bill"],
+    ["I", "odoo:commonshub.odoo.com:commonshub:account.move:45973"], ["K", "odoo:account.move"],
+    ["i", "odoo:commonshub.odoo.com:commonshub:account.move:45973"], ["k", "odoo:account.move"],
     ["t", "app:<your app>"]
   ]
 }
@@ -293,6 +297,10 @@ pointing at the parent comment).
 - **An agent needs its own key.** Generate one, keep the secret safe, and send the npub with a line
   about what the agent will do to hello@commonshub.brussels (or a steward on Discord) to be
   allow-listed. A rejected event comes back from the relay with \`OK false\` and a reason.
+- **Which annotations count.** Anyone the relay accepts can publish, but chb applies an annotation to
+  the published data only when its author is trusted: the seeds in chb's settings (the website's key and
+  chb's own) and anyone a seed follows (their kind 3 contact list), one level deep. An untrusted
+  annotation stays visible on the relay but changes nothing. To have yours applied, ask to be followed.
 - Sign as yourself, write for people, and do not mass-edit: every event is public, permanent and
   attributable to your key.
 
@@ -304,7 +312,7 @@ import { hexToBytes } from "@noble/hashes/utils";
 
 const RELAY = "wss://relay.commonshub.brussels";
 const pool = new SimplePool();
-const id = "chb:bill:b-a0299722c7";
+const id = "odoo:commonshub.odoo.com:commonshub:account.move:45973"; // \`uri\` from expenses.json
 // Start from the current snapshot so the tags you do not touch are kept.
 const [current] = (await pool.querySync([RELAY], { kinds: [1111], "#i": [id] }))
   .filter((e) => !e.tags.some((t) => t[0] === "I"))
@@ -314,7 +322,7 @@ const event = finalizeEvent({
   kind: 1111,
   created_at: Math.floor(Date.now() / 1000),
   content: current?.content ?? "",
-  tags: [["i", id], ["k", "chb:bill"], ["category", "cold-drinks"], ...keep],
+  tags: [["i", id], ["k", "odoo:account.move"], ["category", "cold-drinks"], ...keep],
 }, hexToBytes(process.env.NOSTR_SECRET_HEX));
 pool.close([RELAY]);
 // Publish on a single connection: Relay.publish throws with the relay's
@@ -329,10 +337,12 @@ try {
 
 ### What happens next
 
-- The website shows a tag or a comment on the item's page as soon as the relay has it:
-  \`${baseUrl}/expenses/<slug>\` for bills and recurring costs, the transaction lists for members.
-- \`chb\` is meant to apply \`category\`, \`collective\`, \`event\` and \`spread\` to the transactions it
-  publishes, at the next hourly run. Check *Known bugs at the source* below for what it does today.
+- The website shows a tag or a comment on the item's page as soon as the relay has it.
+- At its next hourly run, chb applies the newest **trusted** annotation per identifier: \`category\`,
+  \`collective\`, \`event\` and \`spread\` to \`transactions.json\` (the description as \`metadata.note\`),
+  \`expenses.json\`, \`pending-bills.json\` and room rentals. Comments (uppercase \`I\`) are never applied.
+- The full guide, and a command-line way to annotate (\`chb nostr annotate <uri> --category …\`):
+  https://github.com/CommonsHub/chb/blob/main/docs/annotations.md
 
 ## Privacy: what you will and will not find
 

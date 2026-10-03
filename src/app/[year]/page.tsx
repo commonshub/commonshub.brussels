@@ -18,9 +18,8 @@ export default async function YearPage({ params }: PageProps) {
     notFound();
   }
   return (
-    <>
-      <YearlyReportClient />
+    <YearlyReportClient>
       <AnnualAccountsSection fiscalYears={readAnnualAccounts(year)} />
-    </>
+    </YearlyReportClient>
   );
 }

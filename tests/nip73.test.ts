@@ -10,7 +10,8 @@ describe("nip73Kind", () => {
     ["ethereum:100:tx:0x9ca5", "ethereum:tx"],
     ["ethereum:42220:address:0xabc", "ethereum:address"],
     ["iban:be46000000000000:tx:abc123", "iban:tx"],
-    ["chb:bill:b-a0299722c7", "chb:bill"],
+    ["odoo:commonshub.odoo.com:commonshub:account.move:45973", "odoo:account.move"],
+    ["odoo:commonshub.odoo.com:commonshub:hr.expense:12", "odoo:hr.expense"],
     ["chb:expense:rent", "chb:expense"],
   ])("%s → %s", (uri, kind) => {
     expect(nip73Kind(uri)).toBe(kind)

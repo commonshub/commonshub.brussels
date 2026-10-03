@@ -62,8 +62,12 @@ export function nip73Kind(uri: string): string {
     // iban:<iban>:tx:<hash>
     return `iban:${parts[2] ?? ""}`;
   }
+  if (parts[0] === "odoo") {
+    // odoo:<host>:<db>:<model>:<id> → odoo:<model>, as chb writes it
+    return parts.length >= 5 ? `odoo:${parts[3]}` : "odoo";
+  }
   if (parts[0] === "chb") {
-    // chb:expense:<slug> | chb:bill:<public id>
+    // chb:expense:<slug> (a recurring cost, not an Odoo document)
     return `chb:${parts[1] ?? ""}`;
   }
   return parts[0] ?? "";

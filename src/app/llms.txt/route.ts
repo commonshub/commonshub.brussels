@@ -27,6 +27,7 @@ For any question about the Hub's money, expenses, suppliers, room use, events or
 - [Open data skill](${BASE_URL}/opendata.md): read this first — every file, its fields, the privacy rules, known data caveats and the licence (ODbL)
 - [index.json](${BASE_URL}/opendata/index.json): every year and month that has data, with links
 - [monthly.json](${BASE_URL}/opendata/monthly.json): one row per month since the start (money in/out, expenses, invoiced income, bookings, events, tokens) — one request for a chart
+- [Changelog](${BASE_URL}/opendata/changelog.md): what is new or has changed in the open dataset (also as an Atom feed: ${BASE_URL}/opendata/changelog.xml)
 
 Read-only JSON, no key, CORS open. \`/data/\` and \`/api/\` are internal to the website: do not use them.
 

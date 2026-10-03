@@ -6,6 +6,7 @@ import { OPENDATA_LICENSE, listOpendataPeriod, listOpendataPeriods, resolveOpend
 import { OPENDATA_ANNOTATION_KINDS, OPENDATA_UPSTREAM_ISSUES, loadOpendataAnnotations } from "@/lib/opendata-annotations";
 import { OPENDATA_MONTHLY_FIELDS, buildOpendataMonthly, opendataCoverage } from "@/lib/opendata-monthly";
 import { opendataSkill } from "@/lib/opendata-skill";
+import { changelogAtom, changelogJson, changelogMarkdown } from "@/lib/opendata-changelog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,12 +58,22 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     });
   }
 
+  if (target.kind === "changelog") {
+    if (target.format === "json") return json(changelogJson(BASE_URL), true);
+    const [body, type] =
+      target.format === "md"
+        ? [changelogMarkdown(BASE_URL), "text/markdown; charset=utf-8"]
+        : [changelogAtom(BASE_URL), "application/atom+xml; charset=utf-8"];
+    return new NextResponse(body, { headers: { ...CORS, "Content-Type": type, "Cache-Control": "public, max-age=3600, s-maxage=3600" } });
+  }
+
   if (target.kind === "index") {
     const periods = listOpendataPeriods();
     return json(
       {
         description: "Commons Hub Brussels open data: the public tier of the chb dataset.",
         documentation: `${BASE_URL}/opendata`,
+        changelog: `${BASE_URL}/opendata/changelog.json`,
         license: OPENDATA_LICENSE,
         latest: `${BASE_URL}/opendata/latest`,
         monthly: `${BASE_URL}/opendata/monthly.json`,

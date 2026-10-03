@@ -201,7 +201,7 @@ describe("the skill explains how to contribute back on Nostr", () => {
 
   test("identifiers, event shapes, relay and access", () => {
     expect(md).toContain("## Contribute back: tag, describe and comment (Nostr)")
-    for (const needle of ["chb:bill:<id>", "chb:expense:<slug>", "stripe:txn", "iban:tx", '["I", "chb:bill:', "wss://relay.commonshub.brussels", "allow-list"]) {
+    for (const needle of ["odoo:<host>:<db>:account.move:<id>", "odoo:account.move", "chb:expense:<slug>", "stripe:txn", "iban:tx", '["I", "odoo:', "wss://relay.commonshub.brussels", "allow-list", "trusted"]) {
       expect(md).toContain(needle)
     }
   })
