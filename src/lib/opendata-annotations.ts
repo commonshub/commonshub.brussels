@@ -33,13 +33,13 @@ export const DEFAULT_OPENDATA_ANNOTATIONS: OpendataAnnotation[] = [
     month: "2025-01",
     section: "tokens.CHT",
     kind: "test",
-    note: "Test mint of about 10⁶ CHT, burnt again the same month: supply is right, minted and burnt are inflated.",
+    note: "Test mint of 10⁶ CHT, burnt again the same month. Since chb 3.26 the mint and burn are marked metadata.excluded and left out of every total.",
   },
   {
     month: "2025-09",
     section: "tokens.CHT",
     kind: "test",
-    note: "Test mint of about 2×10¹² CHT, burnt again the same month: supply is right, minted and burnt are inflated.",
+    note: "Test mint of 2×10¹² CHT, burnt again the same month (three burns). Since chb 3.26 they are marked metadata.excluded and left out of every total.",
   },
   {
     month: "2026-01",
