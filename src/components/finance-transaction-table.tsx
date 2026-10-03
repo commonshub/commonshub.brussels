@@ -133,6 +133,9 @@ interface EnrichedTransaction {
   stripeChargeId?: string;
   type?: "CREDIT" | "DEBIT";
   rawType?: "CREDIT" | "DEBIT" | "MINT" | "BURN" | "TRANSFER" | "INTERNAL";
+  /** The year/month report's category group (e.g. "other_income"), set by the page; absent when the report leaves the row out. */
+  reportCategory?: string;
+  reportCategoryLabel?: string;
   timestamp?: number;
 }
 
@@ -1099,6 +1102,8 @@ export function FinanceTransactionTable({
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [weekFilter, setWeekFilter] = useState<string>("all");
   const [accountFilter, setAccountFilter] = useState<string>("all");
+  // The report's category group, from a click on a report row (?group=other_income).
+  const [groupFilter, setGroupFilter] = useState<string>("all");
   // Pagination — page is 1-indexed in the URL. The filter aggregates
   // (totals, summary cards, dropdown counts) always reflect *all*
   // filtered rows; only the rendered <tbody> uses the paged slice.
@@ -1117,6 +1122,7 @@ export function FinanceTransactionTable({
     const month = searchParams.get("month");
     const week = searchParams.get("week");
     const account = searchParams.get("account");
+    const group = searchParams.get("group");
     const pageParam = searchParams.get("page");
     const perPageParam = searchParams.get("perPage");
 
@@ -1130,6 +1136,7 @@ export function FinanceTransactionTable({
     if (month) setMonthFilter(month);
     if (week) setWeekFilter(week);
     if (account) setAccountFilter(account);
+    if (group) setGroupFilter(group);
     if (pageParam) {
       const p = parseInt(pageParam, 10);
       if (Number.isFinite(p) && p >= 1) setPage(p);
@@ -1205,6 +1212,12 @@ export function FinanceTransactionTable({
       params.delete("account");
     }
 
+    if (groupFilter !== "all") {
+      params.set("group", groupFilter);
+    } else {
+      params.delete("group");
+    }
+
     // Pagination: leave defaults out of the URL so the cleanest URL is
     // also the canonical one (?page=1&perPage=20 == no params).
     if (page !== 1) params.set("page", String(page));
@@ -1225,6 +1238,7 @@ export function FinanceTransactionTable({
     monthFilter,
     weekFilter,
     accountFilter,
+    groupFilter,
     page,
     perPage,
     router,
@@ -1247,6 +1261,7 @@ export function FinanceTransactionTable({
     monthFilter,
     weekFilter,
     accountFilter,
+    groupFilter,
     perPage,
   ]);
 
@@ -1572,6 +1587,7 @@ export function FinanceTransactionTable({
     typeFilter,
     monthFilter,
     accountFilter,
+    groupFilter,
     tokenDecimals,
     accountAddress,
     useNormalizedAmount,
@@ -1650,6 +1666,11 @@ export function FinanceTransactionTable({
         if (tx.accountSlug !== accountFilter) return false;
       }
 
+      // Filter by the report's category group
+      if (groupFilter !== "all") {
+        if (tx.reportCategory !== groupFilter) return false;
+      }
+
       return true;
     });
   }, [
@@ -1664,6 +1685,7 @@ export function FinanceTransactionTable({
     monthFilter,
     weekFilter,
     accountFilter,
+    groupFilter,
     tokenDecimals,
     accountAddress,
     useNormalizedAmount,
@@ -1975,8 +1997,24 @@ export function FinanceTransactionTable({
     return isEur ? `${sign}€${display}` : `${sign}${display} ${currency}`;
   };
 
+  const groupLabel =
+    groupFilter !== "all"
+      ? transactions.find((t) => t.reportCategory === groupFilter)?.reportCategoryLabel ?? groupFilter
+      : null;
+
   return (
     <div>
+      {groupLabel && (
+        <div className="mx-4 mb-3 flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span>
+            Showing the report category <strong>{groupLabel}</strong>
+            {canEdit ? ": change the collective or category of a row to reclassify it." : "."}
+          </span>
+          <button type="button" onClick={() => setGroupFilter("all")} className="ml-auto text-xs text-muted-foreground underline underline-offset-2">
+            Clear
+          </button>
+        </div>
+      )}
       {showExportButton && (
         <div className="flex justify-end mb-4 px-4">
           <Button onClick={exportToCSV} variant="outline" size="sm">
@@ -2028,7 +2066,7 @@ export function FinanceTransactionTable({
                       className="flex flex-col text-xs"
                     >
                       <span
-                        className={`whitespace-nowrap font-semibold ${
+                        className={`font-semibold [overflow-wrap:anywhere] ${
                           row.net >= 0 ? "text-green-600" : "text-red-600"
                         }`}
                       >
@@ -2038,15 +2076,15 @@ export function FinanceTransactionTable({
                           row.currency
                         )}
                       </span>
-                      <div className="flex gap-2 text-muted-foreground">
-                        <span className="whitespace-nowrap">
+                      <div className="flex flex-wrap gap-x-2 text-muted-foreground">
+                        <span className="[overflow-wrap:anywhere]">
                           {formatSummaryAmount(
                             "+",
                             row.totalIn,
                             row.currency
                           )}
                         </span>
-                        <span className="whitespace-nowrap">
+                        <span className="[overflow-wrap:anywhere]">
                           {formatSummaryAmount(
                             "-",
                             row.totalOut,

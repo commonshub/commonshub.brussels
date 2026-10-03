@@ -64,6 +64,17 @@ export interface BalanceData {
   closing: number | null;
 }
 
+/** One collective's money for the period: totals, categories and accounts, as the report counts them. */
+export interface CollectiveFlows {
+  key: string;
+  label: string;
+  income: number;
+  expenses: number;
+  net: number;
+  byCategory: BreakdownRow[];
+  byAccount: BreakdownRow[];
+}
+
 export interface FinancialData {
   income: number;
   expenses: number;
@@ -72,6 +83,8 @@ export interface FinancialData {
   balance: BalanceData;
   byCategory: BreakdownRow[];
   byCollective: BreakdownRow[];
+  /** Per collective, largest income first. */
+  collectives: CollectiveFlows[];
   byAccount: Array<{
     slug: string;
     name: string;
@@ -111,6 +124,7 @@ export interface YearlyReportData {
     balance: BalanceData;
     byCategory: BreakdownRow[];
     byCollective: BreakdownRow[];
+    collectives: CollectiveFlows[];
     byAccount: BreakdownRow[];
     monthlyBreakdown: Array<{
       month: string;
@@ -718,6 +732,42 @@ function mainCategoryFor(tx: ConsolidatedTx, direction: Direction): { key: strin
   return { key, label: MAIN_CATEGORY_LABELS[key] || key };
 }
 
+type CollectiveAcc = { label: string; income: number; expenses: number; byCategory: Map<string, BreakdownRow>; byAccount: Map<string, BreakdownRow> };
+
+function collectiveAcc(map: Map<string, CollectiveAcc>, key: string, label: string): CollectiveAcc {
+  let acc = map.get(key);
+  if (!acc) {
+    acc = { label, income: 0, expenses: 0, byCategory: new Map(), byAccount: new Map() };
+    map.set(key, acc);
+  }
+  return acc;
+}
+
+function collectiveFlows(map: Map<string, CollectiveAcc>): CollectiveFlows[] {
+  return Array.from(map.entries())
+    .map(([key, a]) => ({
+      key,
+      label: a.label,
+      income: a.income,
+      expenses: a.expenses,
+      net: a.income - a.expenses,
+      byCategory: sortedBreakdown(a.byCategory),
+      byAccount: sortedBreakdown(a.byAccount),
+    }))
+    .sort((a, b) => b.income - a.income || b.expenses - a.expenses);
+}
+
+/**
+ * The report's category group for a transaction (the rows of "By Main
+ * Category"), or null when the report leaves it out (internal transfers,
+ * Stripe payouts, token transfers). The transactions page uses it to list
+ * exactly the transactions behind a row.
+ */
+export function reportCategoryFor(tx: ConsolidatedTx): { key: string; label: string } | null {
+  if (!txFinanceAccount(tx) || isInternalTransfer(tx) || isStripePayout(tx) || tx.type === "TRANSFER") return null;
+  return mainCategoryFor(tx, txDirection(tx));
+}
+
 function addBreakdown(
   map: Map<string, BreakdownRow>,
   key: string,
@@ -979,6 +1029,7 @@ export function calculateMonthlyFinancials(
   const byAccount: Map<string, BreakdownRow & { provider: string }> = new Map();
   const byCategory: Map<string, BreakdownRow> = new Map();
   const byCollective: Map<string, BreakdownRow> = new Map();
+  const collectives: Map<string, CollectiveAcc> = new Map();
 
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -1047,13 +1098,13 @@ export function calculateMonthlyFinancials(
     const metadata = txMetadata(tx);
     const collective = String(metadata.collective || "unassigned");
     addBreakdown(byCategory, mainCategory.key, mainCategory.label, direction, amount);
-    addBreakdown(
-      byCollective,
-      collective,
-      collective === "unassigned" ? "Unassigned" : collectiveLabel(collective),
-      direction,
-      amount
-    );
+    const collectiveName = collective === "unassigned" ? "Unassigned" : collectiveLabel(collective);
+    addBreakdown(byCollective, collective, collectiveName, direction, amount);
+    const acc = collectiveAcc(collectives, collective, collectiveName);
+    if (direction === "CREDIT") acc.income += amount;
+    else acc.expenses += amount;
+    addBreakdown(acc.byCategory, mainCategory.key, mainCategory.label, direction, amount);
+    addBreakdown(acc.byAccount, account.slug, account.name, direction, amount);
 
     byAccount.set(account.slug, existing);
   }
@@ -1066,6 +1117,7 @@ export function calculateMonthlyFinancials(
     balance: calculatePeriodBalance(year, month),
     byCategory: sortedBreakdown(byCategory),
     byCollective: sortedBreakdown(byCollective),
+    collectives: collectiveFlows(collectives),
     byAccount: sortedBreakdown(byAccount).map((acc) => ({
       slug: acc.key,
       name: acc.label,
@@ -1221,6 +1273,7 @@ export function getYearlyReportData(year: string): YearlyReportData {
   const byCategory = new Map<string, BreakdownRow>();
   const byCollective = new Map<string, BreakdownRow>();
   const byAccount = new Map<string, BreakdownRow>();
+  const collectives = new Map<string, CollectiveAcc>();
   const yearlyActiveMembers = new Set<string>();
 
   // Read unique contributors from monthly contributors.json files
@@ -1276,6 +1329,19 @@ export function getYearlyReportData(year: string): YearlyReportData {
       addBreakdown(byCollective, row.key, row.label, "CREDIT", row.income);
       addBreakdown(byCollective, row.key, row.label, "DEBIT", row.expenses);
     }
+    for (const c of financials.collectives) {
+      const acc = collectiveAcc(collectives, c.key, c.label);
+      acc.income += c.income;
+      acc.expenses += c.expenses;
+      for (const row of c.byCategory) {
+        addBreakdown(acc.byCategory, row.key, row.label, "CREDIT", row.income);
+        addBreakdown(acc.byCategory, row.key, row.label, "DEBIT", row.expenses);
+      }
+      for (const row of c.byAccount) {
+        addBreakdown(acc.byAccount, row.key, row.label, "CREDIT", row.income);
+        addBreakdown(acc.byAccount, row.key, row.label, "DEBIT", row.expenses);
+      }
+    }
     for (const row of financials.byAccount) {
       addBreakdown(byAccount, row.slug, row.name, "CREDIT", row.income);
       addBreakdown(byAccount, row.slug, row.name, "DEBIT", row.expenses);
@@ -1317,6 +1383,7 @@ export function getYearlyReportData(year: string): YearlyReportData {
       balance: calculatePeriodBalance(year),
       byCategory: sortedBreakdown(byCategory),
       byCollective: sortedBreakdown(byCollective),
+      collectives: collectiveFlows(collectives),
       byAccount: sortedBreakdown(byAccount),
       monthlyBreakdown,
     },

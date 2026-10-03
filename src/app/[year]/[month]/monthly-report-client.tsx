@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DiscordImageGallery } from "@/components/discord-image-gallery";
 import { MemberCard } from "@/components/member-card";
-import { MoneyFlowSankey } from "@/components/money-flow-sankey";
+import { FinancialFlows, type CollectiveFlow } from "@/components/financial-flows";
 import { Users, Loader2 } from "lucide-react";
 
 interface BreakdownRow {
@@ -66,6 +66,7 @@ interface MonthlyReportData {
     };
     balance?: { opening: number | null; closing: number | null };
     byCategory?: BreakdownRow[];
+    collectives?: CollectiveFlow[];
     byCollective?: BreakdownRow[];
     byAccount: Array<{
       slug: string;
@@ -92,41 +93,6 @@ function formatCurrency(value: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
-}
-
-function BreakdownTable({ title, rows }: { title: string; rows: BreakdownRow[] }) {
-  if (!rows.length) return null;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Income</TableHead>
-              <TableHead className="text-right">Expenses</TableHead>
-              <TableHead className="text-right">Net</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.key}>
-                <TableCell className="font-medium">{row.label}</TableCell>
-                <TableCell className="text-right text-green-600">{formatCurrency(row.income)}</TableCell>
-                <TableCell className="text-right text-red-600">{formatCurrency(row.expenses)}</TableCell>
-                <TableCell className={`text-right ${row.net >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {row.net >= 0 ? "+" : ""}{formatCurrency(row.net)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function MonthlyReportClient() {
@@ -291,20 +257,18 @@ export function MonthlyReportClient() {
             All transactions →
           </Link>
         </div>
-        <MoneyFlowSankey
+        <FinancialFlows
+          year={year}
+          month={month}
           income={data.financials.income}
           expenses={data.financials.expenses}
           net={data.financials.net}
           openingBalance={data.financials.balance?.opening}
           closingBalance={data.financials.balance?.closing}
-          incomeBreakdown={data.financials.byCategory}
-          expenseBreakdown={data.financials.byCategory}
+          byCategory={data.financials.byCategory || []}
+          byAccount={data.financials.byAccount.map((row) => ({ key: row.slug, label: row.name, income: row.income, expenses: row.expenses, net: row.net }))}
+          collectives={data.financials.collectives || []}
         />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <BreakdownTable title="By Main Category" rows={data.financials.byCategory || []} />
-          <BreakdownTable title="By Collective" rows={data.financials.byCollective || []} />
-          <BreakdownTable title="By Account" rows={data.financials.byAccount.map((row) => ({ key: row.slug, label: row.name, income: row.income, expenses: row.expenses, net: row.net }))} />
-        </div>
       </section>
 
       {/* Popular Photos */}
