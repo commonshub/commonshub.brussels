@@ -16,6 +16,8 @@ interface MoneyFlowSankeyProps {
   expenseBreakdown?: MoneyFlowBreakdownRow[];
   openingBalance?: number | null;
   closingBalance?: number | null;
+  /** False for a slice of the books (one collective): no bank balance to start from or end with. */
+  showBalances?: boolean;
   title?: string;
   /** Rendered top-right of the card header, e.g. a link to all transactions. */
   action?: React.ReactNode;
@@ -120,7 +122,7 @@ function stackHeight(nodes: LayoutNode[]): number {
  * its value on the shared scale, and the picture is as tall as it needs.
  */
 export function layoutMoneyFlow(props: Omit<MoneyFlowSankeyProps, "title" | "action">, targetHeight = 420): MoneyFlowLayout {
-  const { income, expenses, net, incomeBreakdown, expenseBreakdown, openingBalance, closingBalance } = props;
+  const { income, expenses, net, incomeBreakdown, expenseBreakdown, openingBalance, closingBalance, showBalances = true } = props;
   const opening = openingBalance ?? Math.max(0, (closingBalance ?? 0) - net);
   const closing = closingBalance ?? Math.max(0, opening + net);
   // The picture shows the month's money, not the whole bank balance: what
@@ -131,12 +133,12 @@ export function layoutMoneyFlow(props: Omit<MoneyFlowSankeyProps, "title" | "act
   const total = Math.max(income + openingUsed, expenses + closingFlow, 1);
 
   const inflows = [
-    ...(openingUsed > 0.5 ? [{ id: "opening-balance", label: "From reserves", value: openingUsed, kind: "opening" as const }] : []),
+    ...(openingUsed > 0.5 ? [{ id: "opening-balance", label: showBalances ? "From reserves" : "Deficit", value: openingUsed, kind: "opening" as const }] : []),
     ...rowsFor(incomeBreakdown, "income", income, "Income").map((row) => ({ ...row, kind: "source" as const })),
   ];
   const outflows = [
     ...rowsFor(expenseBreakdown, "expenses", expenses, "Expenses").map((row) => ({ ...row, kind: "use" as const })),
-    ...(closingFlow > 0.5 ? [{ id: "closing-balance", label: "Added to reserves", value: closingFlow, kind: "closing" as const }] : []),
+    ...(closingFlow > 0.5 ? [{ id: "closing-balance", label: showBalances ? "Added to reserves" : "Surplus", value: closingFlow, kind: "closing" as const }] : []),
   ];
 
   // One scale for everything: the taller stack must fit the target height
@@ -238,12 +240,12 @@ export function MoneyFlowSankey(props: MoneyFlowSankeyProps) {
         {action}
       </CardHeader>
       <CardContent className="space-y-4 p-4 sm:p-6">
-        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
-          <Stat label="Started with" value={formatCurrency(layout.opening)} tone="amber" />
+        <div className={`grid grid-cols-2 gap-3 text-sm ${props.showBalances === false ? "md:grid-cols-3" : "md:grid-cols-5"}`}>
+          {props.showBalances !== false && <Stat label="Started with" value={formatCurrency(layout.opening)} tone="amber" />}
           <Stat label="Income" value={formatCurrency(income)} tone="green" />
           <Stat label="Net change" value={`${net >= 0 ? "+" : ""}${formatCurrency(net)}`} tone={net >= 0 ? "green" : "red"} plain />
           <Stat label="Expenses" value={formatCurrency(expenses)} tone="red" />
-          <Stat label="Ended with" value={formatCurrency(layout.closing)} tone="blue" />
+          {props.showBalances !== false && <Stat label="Ended with" value={formatCurrency(layout.closing)} tone="blue" />}
         </div>
 
         <div

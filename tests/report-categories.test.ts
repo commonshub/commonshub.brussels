@@ -25,6 +25,7 @@ fs.writeFileSync(file, JSON.stringify({ transactions: [
   tx("5", "DEBIT", -3288.22, "vat"),
   tx("6", "DEBIT", -100, "stripe_fee"),
   tx("7", "CREDIT", 500),
+  { ...tx("8", "CREDIT", 44442, "subsidy"), metadata: { collective: "brusselspay", category: "subsidy" } },
 ]}))
 
 let reports: typeof import("@/lib/reports")
@@ -40,7 +41,7 @@ describe("report categories", () => {
   const row = (key: string) => f().byCategory.find((r) => r.key === key)
 
   test("chb categories are used, not keyword guesses", () => {
-    expect(row("subsidy")).toMatchObject({ label: "Grants & subsidies", income: 44442 })
+    expect(row("subsidy")).toMatchObject({ label: "Grants & subsidies", income: 88884 })
     expect(row("sponsoring")).toMatchObject({ label: "Sponsorship", income: 17000 })
     expect(row("salaries")).toMatchObject({ label: "Salaries", expenses: 2416.1 })
     expect(row("fee")).toMatchObject({ expenses: 100 })
@@ -52,10 +53,27 @@ describe("report categories", () => {
     expect(tax.income).toBe(0)
     expect(tax.expenses).toBeCloseTo(3288.22 - 11712.49, 2)
     const fin = f()
-    expect(fin.income).toBeCloseTo(44442 + 17000 + 500, 2)
-    expect(fin.net).toBeCloseTo(44442 + 17000 + 11712.49 + 500 - 2416.1 - 3288.22 - 100, 2)
+    expect(fin.income).toBeCloseTo(88884 + 17000 + 500, 2)
+    expect(fin.net).toBeCloseTo(88884 + 17000 + 11712.49 + 500 - 2416.1 - 3288.22 - 100, 2)
     const sum = (k: "income" | "expenses") => fin.byCategory.reduce((s, r) => s + r[k], 0)
     expect(sum("income")).toBeCloseTo(fin.income, 2)
     expect(sum("expenses")).toBeCloseTo(fin.expenses, 2)
+  })
+
+  test("per collective: a hosted project's subsidy is not the Hub's income; collectives add up to the totals", () => {
+    const fin = f()
+    const hub = fin.collectives.find((c) => c.key === "commonshub")!
+    const bp = fin.collectives.find((c) => c.key === "brusselspay")!
+    expect(bp.income).toBe(44442)
+    expect(bp.byCategory.map((r) => r.key)).toEqual(["subsidy"])
+    expect(hub.byCategory.find((r) => r.key === "subsidy")?.income).toBe(44442)
+    expect(fin.collectives[0].income).toBeGreaterThanOrEqual(fin.collectives[1].income)
+    expect(fin.collectives.reduce((s, c) => s + c.income, 0)).toBeCloseTo(fin.income, 2)
+    expect(fin.collectives.reduce((s, c) => s + c.expenses, 0)).toBeCloseTo(fin.expenses, 2)
+  })
+
+  test("reportCategoryFor gives a transaction its report row", () => {
+    expect(reports.reportCategoryFor(tx("x", "CREDIT", 10, "sponsoring") as never)).toEqual({ key: "sponsoring", label: "Sponsorship" })
+    expect(reports.reportCategoryFor({ ...tx("y", "DEBIT", -10), type: "TRANSFER" } as never)).toBeNull()
   })
 })

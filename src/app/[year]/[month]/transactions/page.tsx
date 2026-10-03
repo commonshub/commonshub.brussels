@@ -3,6 +3,7 @@ import { isAdmin, isMember } from "@/lib/admin-check";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FinanceTransactionTable } from "@/components/finance-transaction-table";
 import { tierFor } from "@/lib/data-paths";
+import { reportCategoryFor } from "@/lib/reports";
 import {
   readMonthlyTransactions,
   readMonthlyCounterpartyMetadata,
@@ -31,7 +32,10 @@ export default async function MonthlyTransactionsPage({ params }: PageProps) {
   const counterpartyMetadataMap = readMonthlyCounterpartyMetadata(year, month, tier);
 
   const augmentedTransactions = transactions
-    .map((tx) => augmentTransaction(tx, counterpartyMetadataMap))
+    .map((tx) => {
+      const group = reportCategoryFor(tx);
+      return { ...augmentTransaction(tx, counterpartyMetadataMap), reportCategory: group?.key, reportCategoryLabel: group?.label };
+    })
     .sort((a, b) => b.timestamp - a.timestamp);
 
   const monthName = new Date(`${year}-${month}-01`).toLocaleString("en-US", {

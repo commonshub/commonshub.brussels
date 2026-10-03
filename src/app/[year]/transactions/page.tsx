@@ -9,6 +9,7 @@ import {
   readMonthlyCounterpartyMetadata,
   augmentTransaction,
 } from "@/lib/transactions";
+import { reportCategoryFor } from "@/lib/reports";
 import type { CounterpartyMetadata } from "@/types/counterparties";
 import type { Transaction } from "@/types/transactions";
 
@@ -40,7 +41,11 @@ export default async function YearlyTransactionsPage({ params }: PageProps) {
   if (transactions.length === 0) notFound();
 
   const augmentedTransactions = transactions
-    .map((tx) => augmentTransaction(tx, counterpartyMetadataMap))
+    .map((tx) => {
+      // The year/month report's category group, so a click on a report row lists exactly its rows.
+      const group = reportCategoryFor(tx);
+      return { ...augmentTransaction(tx, counterpartyMetadataMap), reportCategory: group?.key, reportCategoryLabel: group?.label };
+    })
     .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
