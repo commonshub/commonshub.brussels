@@ -71,6 +71,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
     },
     {
+      url: `${BASE_URL}/opendata.md`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.5,
+    },
+    {
       url: `${BASE_URL}/about.md`,
       lastModified: now,
       changeFrequency: "weekly",

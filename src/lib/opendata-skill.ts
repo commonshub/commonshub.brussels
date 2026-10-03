@@ -3,8 +3,8 @@ import { OPENDATA_ANNOTATION_KINDS, OPENDATA_UPSTREAM_ISSUES, loadOpendataAnnota
 import { buildOpendataMonthly, opendataCoverage } from "./opendata-monthly";
 
 /**
- * The open-data skill, served as markdown at /opendata (and
- * /opendata/SKILL.md). Written for an agent or a developer who has never
+ * The open-data skill, served as markdown at /opendata.md (and
+ * /opendata/SKILL.md), and rendered as HTML at /opendata. Written for an agent or a developer who has never
  * seen the dataset: what is there, how to fetch it, and what it will never
  * contain. Linked from /llms.txt. The data-quality section is generated from
  * the data and the annotations, so it does not need editing as data arrives.
@@ -43,7 +43,7 @@ everyone.
 
 | URL | returns |
 |---|---|
-| \`${api}\` | this skill (markdown) |
+| \`${baseUrl}/opendata.md\` (or \`${api}/SKILL.md\`) | this skill, as markdown; \`${api}\` is the same page in HTML |
 | \`${api}/index.json\` | every year and month that has data, with links |
 | \`${api}/monthly.json\` | one row per month since the start: money in/out, expenses, invoiced income, bookings, events, door, members, tokens |
 | \`${api}/{YYYY}/monthly.json\` | the same, for one year |
