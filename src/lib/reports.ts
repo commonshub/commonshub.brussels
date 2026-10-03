@@ -683,6 +683,12 @@ const CHB_CATEGORIES: Record<string, string | { income: string; expense: string 
   refund: "refund",
 };
 
+/** A transaction chb marks as not real activity (a test mint, a duplicate): left out of every total. */
+function isExcluded(tx: ConsolidatedTx): boolean {
+  const metadata = txMetadata(tx) as Record<string, unknown>;
+  return Boolean(metadata.excluded) || Boolean((tx as unknown as { excluded?: unknown }).excluded);
+}
+
 /** Categories that are not income or spending at all (chb ≥ 3.24). */
 const NOT_A_FLOW = new Set(["internal_transfer", "opening_balance"]);
 
@@ -791,7 +797,7 @@ function collectiveFlows(map: Map<string, CollectiveAcc>): CollectiveFlows[] {
  */
 export function reportCategoryFor(tx: ConsolidatedTx): { key: string; label: string } | null {
   if (!txFinanceAccount(tx) || isInternalTransfer(tx) || isStripePayout(tx) || tx.type === "TRANSFER") return null;
-  if (NOT_A_FLOW.has(String(txMetadata(tx).category || ""))) return null;
+  if (NOT_A_FLOW.has(String(txMetadata(tx).category || "")) || isExcluded(tx)) return null;
   return mainCategoryFor(tx, txDirection(tx));
 }
 
@@ -1066,6 +1072,7 @@ export function calculateMonthlyFinancials(
   const chtSymbol = settings.contributionToken?.symbol ?? "CHT";
   const chtTransactions = transactions.filter(
     (tx) =>
+      !isExcluded(tx) &&
       tx.provider === "etherscan" &&
       tx.chain === chtChain &&
       tx.currency === chtSymbol
@@ -1088,6 +1095,7 @@ export function calculateMonthlyFinancials(
     if (isStripePayout(tx)) continue;
     if (tx.type === "TRANSFER") continue;
     if (NOT_A_FLOW.has(String(txMetadata(tx).category || ""))) continue;
+    if (isExcluded(tx)) continue;
 
     const existing = byAccount.get(account.slug) ?? {
       key: account.slug,

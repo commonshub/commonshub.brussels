@@ -29,6 +29,7 @@ fs.writeFileSync(file, JSON.stringify({ transactions: [
   tx("9", "DEBIT", -7260, "accrual"),
   tx("10", "CREDIT", 10051.46, "opening_balance"),
   tx("11", "DEBIT", -10000, "internal_transfer"),
+  { ...tx("12", "CREDIT", 999999, "donation"), metadata: { collective: "commonshub", category: "donation", excluded: "duplicate" } },
 ]}))
 const taxonomy = path.join(root, "latest", "public", "categories.json")
 fs.mkdirSync(path.dirname(taxonomy), { recursive: true })
@@ -81,6 +82,7 @@ describe("report categories", () => {
   test("chb-only slugs take chb's label; transfers and opening balances are not flows", () => {
     expect(row("accrual")).toMatchObject({ label: "Previous-year invoices", expenses: 7260 })
     expect(row("opening_balance")).toBeUndefined()
+    expect(row("donation")).toBeUndefined() // the only donation is excluded
     expect(row("internal_transfer")).toBeUndefined()
     expect(reports.reportCategoryFor(tx("z", "CREDIT", 1, "opening_balance") as never)).toBeNull()
   })

@@ -40,6 +40,9 @@ const DEFAULT_COLLECTIVE = "commonshub";
 const eur = (n: number) =>
   new Intl.NumberFormat("en-BE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
+/** "+€1,234" / "−€1,234": the sign before the currency. */
+const signed = (n: number) => `${n >= 0 ? "+" : "−"}${eur(Math.abs(n))}`;
+
 /** The month filter of the transactions table ("Sep 2025"). */
 const monthLabel = (year: string, month: string) =>
   new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short" }).format(new Date(Number(year), Number(month) - 1, 15));
@@ -94,8 +97,9 @@ export function FinancialFlows(props: FinancialFlowsProps) {
               }`}
             >
               <span className="block max-w-[14rem] truncate text-sm font-medium text-foreground">{c.label}</span>
-              <span className="block text-xs tabular-nums text-muted-foreground">
-                in {eur(c.income)} · <span className={c.net >= 0 ? "text-green-600" : "text-red-600"}>{c.net >= 0 ? "+" : ""}{eur(c.net)}</span>
+              <span className="block text-xs tabular-nums">
+                <span className="text-green-600">+{eur(c.income)}</span>{" "}
+                <span className={c.net >= 0 ? "text-green-600" : "text-red-600"}>{signed(c.net)}</span>
               </span>
             </button>
           );
