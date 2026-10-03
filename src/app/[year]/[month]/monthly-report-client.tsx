@@ -147,24 +147,13 @@ export function MonthlyReportClient() {
       return;
     }
 
-    // Fetch images and report data in parallel
-    Promise.all([
-      fetch(`/api/images?year=${year}&month=${month}`),
-      fetch(`/api/reports/${year}/${month}`)
-    ])
-      .then(async ([imagesRes, reportRes]) => {
-        if (!imagesRes.ok || !reportRes.ok) {
+    // The report carries the month's most reacted-to photos, from their public copies.
+    fetch(`/api/reports/${year}/${month}`)
+      .then(async (reportRes) => {
+        if (!reportRes.ok) {
           throw new Error("Failed to fetch data");
         }
-        const imagesData = await imagesRes.json();
-        const reportData = await reportRes.json();
-
-        // Merge the data - use images from static file
-        const mergedData = {
-          ...reportData,
-          photos: imagesData.images
-        };
-        setData(mergedData);
+        setData(await reportRes.json());
         setLoading(false);
       })
       .catch((err) => {
