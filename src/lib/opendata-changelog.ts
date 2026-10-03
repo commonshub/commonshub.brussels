@@ -24,6 +24,17 @@ export interface ChangelogEntry {
 
 export const OPENDATA_CHANGELOG: ChangelogEntry[] = [
   {
+    id: "role-accounts-private",
+    date: "2026-10-03",
+    title: "Role accounts are private in the ledger",
+    kind: "changed",
+    body: `Accounts named after a role that one person holds (e.g. "Current account director", "C/C gérant") are now
+treated like accounts named after a person: in \`accounts-chart.json\` they are labelled "Account of an
+individual" (\`individual: true\`) and in \`ledger-balances.json\` they are merged into their group's
+"individuals" row. Totals are unchanged.`,
+    source: { chb: "3.23.0" },
+  },
+  {
     id: "chart-of-accounts",
     date: "2026-10-03",
     title: "Chart of accounts and ledger balances",
