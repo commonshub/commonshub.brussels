@@ -88,6 +88,12 @@ export const OPENDATA_UPSTREAM_ISSUES: OpendataUpstreamIssue[] = [
     detail: "EURe movements on Gnosis (Monerium mints and burns, which carry rent, catering and many incoming payments) show in: 0, out: 0.",
     workaround: "Use monthly.json money, which counts them.",
   },
+  {
+    title: "Nostr tags and comments do not reach the published files yet",
+    detail:
+      "chb's hourly run does not read wss://relay.commonshub.brussels yet, and reads bill annotations under internal Odoo ids rather than chb:bill:<id>. Tags, descriptions and comments published as described in 'Contribute back' show on the website, but transactions.json and expenses.json do not reflect them.",
+    workaround: "Read the tags from the relay ({\"kinds\":[1111],\"#i\":[id]}) and apply them yourself; the newest snapshot per identifier wins.",
+  },
 ];
 
 /** The annotations of the given months, for one section prefix (e.g. "tokens" matches "tokens.CHT"). */

@@ -20,7 +20,7 @@ export function opendataSkill(baseUrl: string): string {
 
   return `---
 name: commonshub-opendata
-description: Fetch and analyse the open data of Commons Hub Brussels (finances, expenses line by line, vendors, customers, room bookings, events, VAT returns, integrity hashes) through the public read-only JSON API at ${api}. Use when asked about the Hub's money, suppliers, room use or events, or when building something on that data. No key needed. Licensed under ODbL (attribution, share-alike). GDPR-safe by construction - private individuals are never named.
+description: Fetch and analyse the open data of Commons Hub Brussels (finances, expenses line by line, vendors, customers, room bookings, events, VAT returns, integrity hashes) through the public read-only JSON API at ${api}. Use when asked about the Hub's money, suppliers, room use or events, when building something on that data, or to tag, describe or comment on a transaction or a bill (signed Nostr events on the community relay). Reading needs no key. Licensed under ODbL (attribution, share-alike). GDPR-safe by construction - private individuals are never named.
 ---
 
 # Commons Hub Brussels — open data
@@ -54,10 +54,10 @@ everyone.
 | \`${api}/{period}/{file}\` | one file, e.g. \`${api}/2026/09/expenses.json\` |
 | \`${api}/{YYYY}/{MM}/events/images/{file}\` | an event cover image |
 
-A listing answers \`{ "period": "2026/09", "files": [{ "file", "href", "bytes", "description" }] }\`
-and only shows files that exist for that period. A **404 means "nothing for that
-period"** (a month without vendor bills has no \`expenses.json\`), or a path that is
-not part of the open dataset.
+A listing answers \`{ "period": "2026/09", "files": [{ "file", "href", "bytes", "description" }] }\`.
+Every month and every year that has data has **every** file of its scope, older months included:
+a month with nothing to report has the file with empty lists (\`"expenses": []\`). A **404** means the
+period is not generated yet, or the path is not part of the open dataset.
 
 ## Files
 
@@ -202,6 +202,126 @@ carries one top-level \`hash\` for the whole dataset. Use it to prove two copies
 official form, control totals (\`outputVat\`, \`inputVat\`, \`net\`), and corrections (\`filings[]\`).
 \`gridLabels\` names the grids.
 
+## Contribute back: tag, describe and comment (Nostr)
+
+The data is read-only, but anyone the community trusts can add to it: categorise a transaction,
+say what a bill was for, split a cost over several months, or start a discussion. These are
+signed [Nostr](https://nostr.com) events on the community relay. Nothing is written to the
+website or the dataset directly.
+
+### What you can point at
+
+Every item has a stable identifier, in the style of
+[NIP-73](https://github.com/nostr-protocol/nips/blob/master/73.md) (external content ids):
+
+| item | identifier | where to find it | \`k\` |
+|---|---|---|---|
+| a transaction | its \`id\`: \`stripe:txn_…\`, \`ethereum:<chain id>:tx:<hash>\`, \`iban:<iban>:tx:<hash>\` | \`transactions.json\` | \`stripe:txn\`, \`ethereum:tx\`, \`iban:tx\` |
+| a vendor bill or credit note | \`chb:bill:<id>\`, e.g. \`chb:bill:b-a0299722c7\` | \`id\` in \`expenses.json\` / \`pending-bills.json\` | \`chb:bill\` |
+| a recurring cost (rent, furniture, …) | \`chb:expense:<slug>\`, e.g. \`chb:expense:rent\` | the page \`${baseUrl}/expenses/<slug>\` | \`chb:expense\` |
+
+Customer invoices cannot be pointed at yet: the open data gives income per customer and month,
+not per invoice.
+
+### Tag or describe an item: a kind 1111 snapshot
+
+\`\`\`json
+{
+  "kind": 1111,
+  "content": "Crates for the fridge, September delivery",
+  "tags": [
+    ["i", "chb:bill:b-a0299722c7"],
+    ["k", "chb:bill"],
+    ["category", "cold-drinks"],
+    ["collective", "commonshub"],
+    ["event", "open-commons-day-2026"],
+    ["spread", "2026-09", "275.07"],
+    ["spread", "2026-10", "275.06"],
+    ["t", "app:<your app>"]
+  ]
+}
+\`\`\`
+
+- \`content\` is the description. Recognised tags: \`category\`, \`collective\`, \`event\`, and \`spread\`
+  (\`[month, amount]\`, repeated, to spread a cost or an income over several months). Use the values
+  already found in \`transactions.json\` (\`metadata.category\`, \`metadata.collective\`).
+- **Each event is a full snapshot**: the newest one per identifier wins, whoever wrote it. To change
+  one tag, read the current snapshot first and republish it with every tag you want to keep.
+- No uppercase \`I\` tag: that is what marks a comment (below), and readers skip such events here.
+
+Read an item's current tags: \`{"kinds":[1111],"#i":["<identifier>"]}\`, drop events that have an
+uppercase \`I\`, keep the newest.
+
+### Comment on an item: NIP-22
+
+A top-level [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) comment, kind 1111,
+with the identifier both as root (uppercase) and as parent (lowercase):
+
+\`\`\`json
+{
+  "kind": 1111,
+  "content": "This bill also covers the milk for the coffee corner.",
+  "tags": [
+    ["I", "chb:bill:b-a0299722c7"], ["K", "chb:bill"],
+    ["i", "chb:bill:b-a0299722c7"], ["k", "chb:bill"],
+    ["t", "app:<your app>"]
+  ]
+}
+\`\`\`
+
+Read a thread: \`{"kinds":[1111],"#I":["<identifier>"]}\`. Replies follow NIP-22 (lowercase \`e\`/\`k\`
+pointing at the parent comment).
+
+### Where to publish, and who may
+
+- Relay: **\`wss://relay.commonshub.brussels\`**. Reading is open.
+- Writing is limited to community members: the relay accepts an event when its author's key is on
+  the allow-list, or is attested by an allow-listed key (kind 31926, \`p\` tag). Members' browser
+  keys are attested when they sign in on ${baseUrl}.
+- **An agent needs its own key.** Generate one, keep the secret safe, and send the npub with a line
+  about what the agent will do to hello@commonshub.brussels (or a steward on Discord) to be
+  allow-listed. A rejected event comes back from the relay with \`OK false\` and a reason.
+- Sign as yourself, write for people, and do not mass-edit: every event is public, permanent and
+  attributable to your key.
+
+\`\`\`js
+import { finalizeEvent } from "nostr-tools/pure"; // nostr-tools v2
+import { SimplePool } from "nostr-tools/pool";
+import { Relay } from "nostr-tools/relay";
+import { hexToBytes } from "@noble/hashes/utils";
+
+const RELAY = "wss://relay.commonshub.brussels";
+const pool = new SimplePool();
+const id = "chb:bill:b-a0299722c7";
+// Start from the current snapshot so the tags you do not touch are kept.
+const [current] = (await pool.querySync([RELAY], { kinds: [1111], "#i": [id] }))
+  .filter((e) => !e.tags.some((t) => t[0] === "I"))
+  .sort((a, b) => b.created_at - a.created_at);
+const keep = (current?.tags ?? []).filter((t) => !["i", "k", "category"].includes(t[0]));
+const event = finalizeEvent({
+  kind: 1111,
+  created_at: Math.floor(Date.now() / 1000),
+  content: current?.content ?? "",
+  tags: [["i", id], ["k", "chb:bill"], ["category", "cold-drinks"], ...keep],
+}, hexToBytes(process.env.NOSTR_SECRET_HEX));
+pool.close([RELAY]);
+// Publish on a single connection: Relay.publish throws with the relay's
+// reason ("blocked: not on allowlist") when the event is refused.
+const relay = await Relay.connect(RELAY);
+try {
+  console.log("saved:", await relay.publish(event));
+} finally {
+  relay.close();
+}
+\`\`\`
+
+### What happens next
+
+- The website shows a tag or a comment on the item's page as soon as the relay has it:
+  \`${baseUrl}/expenses/<slug>\` for bills and recurring costs, the transaction lists for members.
+- \`chb\` is meant to apply \`category\`, \`collective\`, \`event\` and \`spread\` to the transactions it
+  publishes, at the next hourly run. Check *Known bugs at the source* below for what it does today.
+
 ## Privacy: what you will and will not find
 
 This dataset is designed to be as transparent as possible **and** to respect the GDPR. The
@@ -258,7 +378,6 @@ ${dataQuality(baseUrl)}
 
 - Odoo is pulled hourly, but a bill stays \`pending\` until it is reconciled with its payment, so
   utilities paid by direct debit can look unpaid for a while.
-- Treat a missing file as "nothing that period", not as an error.
 - A vendor that shows as anonymous but is a company is fixed in Odoo (mark it as a company, add
   its VAT number); it reappears by name at the next hourly run.
 - The schemas and the reasoning behind each field are documented in the chb repository:
