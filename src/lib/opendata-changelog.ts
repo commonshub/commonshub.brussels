@@ -24,6 +24,20 @@ export interface ChangelogEntry {
 
 export const OPENDATA_CHANGELOG: ChangelogEntry[] = [
   {
+    id: "chart-of-accounts",
+    date: "2026-10-03",
+    title: "Chart of accounts and ledger balances",
+    kind: "added",
+    body: `- \`{api}/latest/accounts-chart.json\`: the full chart of accounts used in Odoo (Belgian PCMN), with labels in
+  English, French and Dutch, class and group; \`used\` marks the accounts with entries.
+- \`{api}/{YYYY}/ledger-balances.json\`: for every account, the opening balance, debit, credit and closing
+  balance of posted entries that year, refreshed hourly from Odoo.
+- Accounts named after a person (current accounts, a person's fees) are merged per group with a neutral
+  label, and payroll is a single line, so no individual amount can be read. Totals are exact and identical
+  for every audience.`,
+    source: { chb: "3.22.0" },
+  },
+  {
     id: "annual-accounts",
     date: "2026-10-03",
     title: "Annual accounts filed with the National Bank",

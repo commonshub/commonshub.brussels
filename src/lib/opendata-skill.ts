@@ -208,6 +208,23 @@ sha256), and \`checks[]\`: consistency problems found in the statements (unbalan
 checks before using the figures**: the 2024 and 2025 accounts have known issues under review.
 Schema: https://github.com/CommonsHub/chb/blob/main/docs/annual-accounts.md
 
+### \`accounts-chart.json\` (L) and \`ledger-balances.json\` (Y) — the books by account number
+
+\`${api}/latest/accounts-chart.json\` is the chart of accounts the Hub uses in Odoo: the Belgian PCMN
+(minimum standardised chart), about 1,100 accounts, each with \`code\` (e.g. \`610150\`), \`label\` and
+\`labels\` (\`en_GB\`, \`fr_BE\`, \`nl_BE\`), \`class\` (1–7), \`group\`, Odoo \`type\` and \`reconcile\`.
+\`used: true\` marks the ~150 accounts that have entries; filter on it. An account named after a person is
+labelled "Account of an individual" (\`individual: true\`).
+
+\`${api}/{YYYY}/ledger-balances.json\` is that year's trial balance by account: \`opening\`, \`debit\`,
+\`credit\`, \`closing\` (debit positive, closing = opening + debit − credit) and \`totals\`. Classes 1–5 open
+with everything before 1 January; classes 6–7 open at the start of the fiscal year (\`fiscalStart\`; 2024
+opens on 2023-07-01). \`totals.opening\` is the result of earlier years not yet booked to equity (14).
+Accounts of individuals are merged per group (\`merged: N\`, e.g. "Current accounts of individuals") and
+payroll is one line \`62\`, so no individual amount can be read; the totals are exact. Join the two files
+on \`code\` to get labels in your language. Refreshed hourly from Odoo: the figures move while the
+accounts are being corrected (see \`annual-accounts.json\` checks).
+
 ### \`hashes.json\` (M, L) and \`vat.json\` (Y, L)
 
 \`hashes.json\` is the integrity manifest of a month: per data source, counts and a sha256 over the raw
@@ -434,6 +451,8 @@ const SCOPES: Record<string, string> = {
   "hashes.json": "M, L",
   "vat.json": "Y, L",
   "annual-accounts.json": "Y, L",
+  "accounts-chart.json": "L",
+  "ledger-balances.json": "Y",
 };
 
 /**

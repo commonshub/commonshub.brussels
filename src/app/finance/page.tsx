@@ -102,7 +102,11 @@ export default async function FinanceOverviewPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Annual accounts</CardTitle>
-                <CardDescription>As filed with the National Bank of Belgium, with their known issues.</CardDescription>
+                <CardDescription>
+                  As filed with the National Bank of Belgium, with their known issues. The books by account number:{" "}
+                  <a href="/opendata/latest/accounts-chart.json" className="underline underline-offset-2">chart of accounts</a> and yearly{" "}
+                  <a href="/opendata" className="underline underline-offset-2">ledger balances</a> (open data).
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="divide-y divide-border">
