@@ -24,6 +24,19 @@ export interface ChangelogEntry {
 
 export const OPENDATA_CHANGELOG: ChangelogEntry[] = [
   {
+    id: "excluded-transactions",
+    date: "2026-10-03",
+    title: "Excluded transactions (test mints)",
+    kind: "added",
+    body: `- A transaction can be excluded from every total while staying listed for transparency: \`metadata.excluded\`
+  holds the reason.
+- Exclusions come from trusted Nostr annotations (\`["exclude","<reason>"]\`) or chb's settings.
+- The 2025 CHT test mints (1 million in January, 2 trillion in September) and their burns are excluded: token
+  totals in \`summary.json\` and \`contributors.json\` drop from about 2 trillion to the real figures (2025: 4,032.5
+  minted, 1,102.2 burnt).`,
+    source: { chb: "3.26.0", site: 109 },
+  },
+  {
     id: "members-annotations",
     date: "2026-10-03",
     title: "Members' annotations count",

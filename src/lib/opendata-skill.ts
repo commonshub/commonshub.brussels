@@ -162,6 +162,8 @@ join the two into one series.
 \`metadata.category\`, \`metadata.collective\`, \`metadata.description\` (only labels we wrote, never the
 bank's narration). \`counterpartyId\` is present only when it names nobody (a blockchain address, one of
 the Hub's own accounts).
+A row with \`metadata.excluded\` (a reason) is listed for transparency but is not real activity: leave it out of
+sums, as \`summary.json\` and \`contributors.json\` do.
 
 ### \`monthly.json\` — the time series
 
@@ -288,6 +290,9 @@ Nostr, on the website and in chb.
 - \`content\` is the description. Recognised tags: \`category\`, \`collective\`, \`event\`, and \`spread\`
   (\`[month, amount]\`, repeated, to spread a cost or an income over several months). Use the values
   already found in \`transactions.json\` (\`metadata.category\`, \`metadata.collective\`).
+- \`["exclude", "<reason>"]\` marks a transaction as not real activity (a test mint, a duplicate): chb keeps it in
+  \`transactions.json\` with \`metadata.excluded\` set to the reason and leaves it out of every total. A newer
+  snapshot without the tag includes it again.
 - **Each event is a full snapshot**: the newest one per identifier wins, whoever wrote it. To change
   one tag, read the current snapshot first and republish it with every tag you want to keep.
 - No uppercase \`I\` tag: that is what marks a comment (below), and readers skip such events here.
