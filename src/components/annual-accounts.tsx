@@ -83,6 +83,9 @@ export function AnnualAccounts({ fy }: { fy: FiscalYear }) {
         <a href={`/opendata/${fy.year}/annual-accounts.json`} className="inline-flex items-center rounded-md border border-border px-3 py-1.5 font-mono text-xs text-foreground hover:border-primary">
           annual-accounts.json
         </a>
+        <a href={`/opendata/${fy.year}/ledger-balances.json`} className="inline-flex items-center rounded-md border border-border px-3 py-1.5 font-mono text-xs text-foreground hover:border-primary">
+          ledger-balances.json
+        </a>
       </div>
 
       {infos.length > 0 && (
