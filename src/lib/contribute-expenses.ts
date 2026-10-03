@@ -58,7 +58,8 @@ export interface ContributableExpense {
   /**
    * The expense's identifier on Nostr (NIP-73 style, the `i` tag of its
    * annotations and the `I` tag of comments on it): `chb:expense:<slug>` for
-   * a recurring cost, `chb:bill:<chb public id>` for a bill.
+   * a recurring cost, the bill's Odoo URI (`odoo:<host>:<db>:account.move:<id>`,
+   * chb ≥ 3.18) for a bill.
    */
   uri: string
   /** chb's stable public id of the bill (`b-…`), for a bill. */
@@ -90,6 +91,8 @@ export interface PendingSummary {
 /** A bill as chb writes it in latest/<tier>/pending-bills.json (docs/bills.md). */
 export interface ChbBill {
   id: string
+  /** odoo:<host>:<db>:<model>:<id> (chb ≥ 3.18). */
+  uri: string
   number: string
   type: "bill" | "credit_note"
   status: "pending" | "partially_paid" | "paid" | "reversed"
@@ -111,6 +114,8 @@ type ChbExpense = Omit<ChbBill, "type"> & { kind: "bill" | "credit_note" | "expe
 
 export interface Bill {
   id: number | string
+  /** The document's Odoo URI, its identifier everywhere (chb ≥ 3.18). */
+  uri: string
   title: string
   date: string
   state: string
@@ -205,7 +210,6 @@ export function billSlug(reference: string): string {
 }
 
 export const expenseUri = (slug: string) => `chb:expense:${slug}`
-export const billUri = (publicId: string) => `chb:bill:${publicId}`
 
 
 /** A chb ≥ 3.14 bill in the shape the matching rules read. */
@@ -214,6 +218,7 @@ function fromChbBill(record: ChbBill): Bill {
   const name = record.vendor?.name ?? ""
   const lines = (record.lines ?? []).map((line) => cleanLine(line.description ?? "")).filter(Boolean)
   return {
+    uri: record.uri,
     id: record.id,
     title: record.description ? cleanLine(record.description) : "",
     date: record.date,
@@ -264,7 +269,7 @@ export function readPendingBills(dataDir: string, now: Date = new Date()): { exp
       const label = bill.title || bill.lines[0] || `${bill.vendor || "Bill"} ${bill.reference}`
       return {
         slug: billSlug(record.number || record.id),
-        uri: billUri(record.id),
+        uri: record.uri,
         publicId: record.id,
         category: record.category ?? null,
         kind: "one-time",
@@ -410,7 +415,7 @@ export function classifyBills(bills: Bill[], config: ContributeSettings = CONFIG
       const label = oneTimeLabel(bill)
       return {
         slug: billSlug(bill.reference),
-        uri: billUri(String(bill.id)),
+        uri: bill.uri,
         kind: "one-time" as const,
         label,
         vendor: bill.vendor,

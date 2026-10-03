@@ -16,6 +16,7 @@ const write = (rel: string, data: unknown) => {
 // chb 3.14's projection (docs/bills.md), public tier.
 const bill = (over: Partial<ChbBill>): ChbBill => ({
   id: "b-1",
+  uri: `odoo:commonshub.odoo.com:commonshub:account.move:${over.id ?? "b-1"}`,
   number: "CHB-S/2026/09/0011",
   type: "bill",
   status: "pending",
@@ -59,7 +60,7 @@ describe("bills still to pay", () => {
       ["chb-s-2026-09-0020", 12.5, false],
     ])
     // On Nostr a bill is known by chb's public id, which never changes.
-    expect(expenses[0]).toMatchObject({ uri: "chb:bill:b-2", publicId: "b-2", category: "catering" })
+    expect(expenses[0]).toMatchObject({ uri: "odoo:commonshub.odoo.com:commonshub:account.move:b-2", publicId: "b-2", category: "catering" })
     expect(summary).toMatchObject({ count: 3, amountDue: 196.69, otherCurrencies: [{ currency: "USD", count: 1, amountDue: 20 }] })
   })
 

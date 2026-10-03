@@ -152,7 +152,8 @@ function getAvatarUrl(avatar: string | null, userId: string): string {
   return `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=128`;
 }
 
-export function YearlyReportClient() {
+/** `children`: server-rendered sections shown at the end of the report, in the same container (e.g. the annual accounts). */
+export function YearlyReportClient({ children }: { children?: React.ReactNode }) {
   const params = useParams();
   const year = params?.year as string;
 
@@ -218,11 +219,14 @@ export function YearlyReportClient() {
 
   if (error || !data) {
     return (
-      <ReportNotAvailable
-        message={`We don't have a report for ${year} yet. Browse the available reports below.`}
-        backHref="/reports"
-        backLabel="See all reports"
-      />
+      <>
+        <ReportNotAvailable
+          message={`We don't have a report for ${year} yet. Browse the available reports below.`}
+          backHref="/reports"
+          backLabel="See all reports"
+        />
+        {children && <div className="container mx-auto px-4 pb-12">{children}</div>}
+      </>
     );
   }
 
@@ -422,7 +426,7 @@ export function YearlyReportClient() {
               <AccordionItem
                 key={month}
                 value={month}
-                className="border rounded-lg px-4 bg-card"
+                className="border last:border-b rounded-lg px-4 bg-card"
               >
                 <AccordionTrigger
                   className="hover:no-underline"
@@ -520,6 +524,7 @@ export function YearlyReportClient() {
           })}
         </Accordion>
       </section>
+      {children}
     </div>
   );
 }

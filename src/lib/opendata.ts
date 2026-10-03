@@ -78,7 +78,8 @@ export type OpendataTarget =
   | { kind: "monthly"; year?: string }
   | { kind: "annotations" }
   | { kind: "listing"; period: OpendataPeriod; label: string }
-  | { kind: "file"; fsPath: string; file: string };
+  | { kind: "file"; fsPath: string; file: string }
+  | { kind: "changelog"; format: "md" | "json" | "xml" };
 
 function periodLabel(p: OpendataPeriod): string {
   if (p.latest) return "latest";
@@ -124,6 +125,9 @@ export function resolveOpendata(segments: string[]): OpendataTarget | null {
   if (segments.length === 0) return { kind: "skill" };
   if (segments.length === 1 && segments[0] === "SKILL.md") return { kind: "skill" };
   if (segments.length === 1 && segments[0] === "index.json") return { kind: "index" };
+  if (segments.length === 1 && /^changelog\.(md|json|xml)$/.test(segments[0])) {
+    return { kind: "changelog", format: segments[0].split(".")[1] as "md" | "json" | "xml" };
+  }
   if (segments.length === 1 && segments[0] === MONTHLY_FILE) return { kind: "monthly" };
   if (segments.length === 1 && segments[0] === "annotations.json") return { kind: "annotations" };
   if (segments.length === 2 && YEAR_RE.test(segments[0]) && segments[1] === MONTHLY_FILE) {

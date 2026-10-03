@@ -131,13 +131,13 @@ on Nostr (NIP-73 style):
 | Expense | Page | Identifier |
 |---|---|---|
 | A recurring cost (rent, furniture, electricity, …) | `/expenses/rent` | `chb:expense:rent` |
-| A bill from our books | `/expenses/chb-s-2026-09-0011` (its accounting reference) | `chb:bill:<chb public id>`, e.g. `chb:bill:b-b7e6ee1b53` |
+| A bill from our books | `/expenses/chb-s-2026-09-0011` (its accounting reference) | its Odoo URI, e.g. `odoo:commonshub.odoo.com:commonshub:account.move:45973` (`uri` in the open data) |
 
-The bill identifier is chb's stable public id, the same on every copy of
-the same Odoo database; it does not reveal the Odoo record.
+The bill identifier is the document's Odoo URI, the one identifier chb, the
+open data and the website share for an accounting document.
 
 - **Tags** — a kind 1111 annotation snapshot, exactly as for transactions:
-  `["i","<identifier>"]`, `["k","chb:expense"|"chb:bill"]`, then
+  `["i","<identifier>"]`, `["k","chb:expense"|"odoo:account.move"]`, then
   `["category", …]`, `["collective", …]`; the content is a description.
   The newest snapshot per identifier wins.
 - **Comments** — NIP-22, kind 1111, top-level comment on external content:

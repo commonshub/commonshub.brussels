@@ -98,12 +98,12 @@ export function AnnualAccounts({ fy }: { fy: FiscalYear }) {
   );
 }
 
-/** The filed accounts whose period ends in a year, for the year report. */
+/** The filed accounts whose period ends in a year: the last section of the year report (inside its container). */
 export function AnnualAccountsSection({ fiscalYears }: { fiscalYears: FiscalYear[] }) {
   if (fiscalYears.length === 0) return null;
   return (
-    <section id="annual-accounts" className="mx-auto max-w-6xl scroll-mt-24 px-4 pb-16 sm:px-6 lg:px-8">
-      <h2 className="mb-4 text-2xl font-bold text-foreground">Annual accounts</h2>
+    <section id="annual-accounts" className="scroll-mt-24 space-y-4">
+      <h2 className="text-2xl font-bold">Annual accounts</h2>
       <div className="space-y-6">
         {fiscalYears.map((fy) => (
           <AnnualAccounts key={fy.label} fy={fy} />
