@@ -196,7 +196,7 @@ export function buildProfile(user: DiscordIdentity, now = new Date()): Template 
 }
 
 /** Community roles the site attests, as it sees them on Discord. */
-export type MemberRole = "steward"
+export type MemberRole = "member" | "steward"
 
 /**
  * The site's attestation that these keys belong to this Discord member.

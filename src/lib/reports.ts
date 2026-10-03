@@ -653,8 +653,10 @@ const CHB_CATEGORIES: Record<string, string | { income: string; expense: string 
   webservice: "software",
   software: "software",
   expense: "expense_claims",
-  debt: "loan",
   loan: "loan",
+  internet: "utilities",
+  "other-income": "other_income",
+  "other-expense": "other_expense",
   vat: "tax",
   taxes: "tax",
   tax: "tax",
@@ -681,16 +683,40 @@ const CHB_CATEGORIES: Record<string, string | { income: string; expense: string 
   refund: "refund",
 };
 
+/** Categories that are not income or spending at all (chb ≥ 3.24). */
+const NOT_A_FLOW = new Set(["internal_transfer", "opening_balance"]);
+
+let taxonomyCache: { mtimeMs: number; labels: Map<string, string> } | null = null;
+
+/** chb's published taxonomy (latest/public/categories.json, ≥ 3.24): slug → label. */
+function chbCategoryLabels(): Map<string, string> {
+  const file = path.join(tierDir("public"), "categories.json");
+  try {
+    const { mtimeMs } = fs.statSync(file);
+    if (taxonomyCache?.mtimeMs === mtimeMs) return taxonomyCache.labels;
+    const data = JSON.parse(fs.readFileSync(file, "utf-8")) as { categories?: Array<{ slug: string; label: string }> };
+    const labels = new Map((data.categories ?? []).map((c) => [c.slug, c.label] as [string, string]));
+    taxonomyCache = { mtimeMs, labels };
+    return labels;
+  } catch {
+    return new Map();
+  }
+}
+
 function mainCategoryFor(tx: ConsolidatedTx, direction: Direction): { key: string; label: string } {
   const knownBankPayment = knownBankPaymentCategory(tx, direction);
   if (knownBankPayment) return knownBankPayment;
 
   const metadata = txMetadata(tx);
-  const chb = CHB_CATEGORIES[String(metadata.category || "").toLowerCase()];
+  const slug = String(metadata.category || "");
+  const chb = CHB_CATEGORIES[slug.toLowerCase()];
   if (chb) {
     const key = typeof chb === "string" ? chb : direction === "CREDIT" ? chb.income : chb.expense;
     return { key, label: MAIN_CATEGORY_LABELS[key] || key };
   }
+  // Any other slug chb knows: its own label (accrual, travel, bank_fees, debt…).
+  const chbLabel = slug ? chbCategoryLabels().get(slug) : undefined;
+  if (chbLabel) return { key: slug, label: chbLabel };
 
   const rawCategory = String(metadata.category || "other").toLowerCase();
   const description = String(metadata.description || tx.counterpartyId || "").toLowerCase();
@@ -765,6 +791,7 @@ function collectiveFlows(map: Map<string, CollectiveAcc>): CollectiveFlows[] {
  */
 export function reportCategoryFor(tx: ConsolidatedTx): { key: string; label: string } | null {
   if (!txFinanceAccount(tx) || isInternalTransfer(tx) || isStripePayout(tx) || tx.type === "TRANSFER") return null;
+  if (NOT_A_FLOW.has(String(txMetadata(tx).category || ""))) return null;
   return mainCategoryFor(tx, txDirection(tx));
 }
 
@@ -1060,6 +1087,7 @@ export function calculateMonthlyFinancials(
     if (isInternalTransfer(tx)) continue;
     if (isStripePayout(tx)) continue;
     if (tx.type === "TRANSFER") continue;
+    if (NOT_A_FLOW.has(String(txMetadata(tx).category || ""))) continue;
 
     const existing = byAccount.get(account.slug) ?? {
       key: account.slug,

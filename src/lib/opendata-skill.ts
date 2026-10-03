@@ -208,6 +208,16 @@ sha256), and \`checks[]\`: consistency problems found in the statements (unbalan
 checks before using the figures**: the 2024 and 2025 accounts have known issues under review.
 Schema: https://github.com/CommonsHub/chb/blob/main/docs/annual-accounts.md
 
+### \`categories.json\` (L) — what each category means
+
+\`${api}/latest/categories.json\` lists every category slug used in \`metadata.category\`, \`expenses.json\` and the
+reports: \`slug\`, \`label\`, \`direction\` (\`income\` | \`expense\` | \`both\`), \`group\`, and \`accounts\`: the PCMN
+account prefixes that map to it (the longest prefix wins). \`internal_transfer\` and \`opening_balance\` are not
+income or spending: leave them out of totals. A transaction's category comes from chb's rules, then a trusted
+Nostr annotation, then how the bank line is booked in Odoo (\`metadata.categorySource: "odoo"\`, with the
+matched documents' URIs in \`metadata.documents\`). Each month's \`summary.json\` has \`coverage\`: euro amounts in
+and out, and \`uncategorisedShare\` (0–1).
+
 ### \`accounts-chart.json\` (L) and \`ledger-balances.json\` (Y) — the books by account number
 
 \`${api}/latest/accounts-chart.json\` is the chart of accounts the Hub uses in Odoo: the Belgian PCMN
@@ -316,8 +326,10 @@ pointing at the parent comment).
   allow-listed. A rejected event comes back from the relay with \`OK false\` and a reason.
 - **Which annotations count.** Anyone the relay accepts can publish, but chb applies an annotation to
   the published data only when its author is trusted: the seeds in chb's settings (the website's key and
-  chb's own) and anyone a seed follows (their kind 3 contact list), one level deep. An untrusted
-  annotation stays visible on the relay but changes nothing. To have yours applied, ask to be followed.
+  chb's own), anyone a seed follows (their kind 3 contact list), and any key the website attests (kind 31926)
+  with the \`member\` or \`steward\` role for the Commons Hub Discord server; one level deep. Members get this
+  by signing in on ${baseUrl}. An untrusted annotation stays visible on the relay but changes nothing. To have
+  an agent's annotations applied, ask to be followed.
 - Sign as yourself, write for people, and do not mass-edit: every event is public, permanent and
   attributable to your key.
 
@@ -451,6 +463,7 @@ const SCOPES: Record<string, string> = {
   "hashes.json": "M, L",
   "vat.json": "Y, L",
   "annual-accounts.json": "Y, L",
+  "categories.json": "L",
   "accounts-chart.json": "L",
   "ledger-balances.json": "Y",
 };
