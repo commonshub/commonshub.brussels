@@ -578,7 +578,7 @@ const MAIN_CATEGORY_LABELS: Record<string, string> = {
   catering: "Catering",
   rent: "Rent",
   consulting: "Consulting",
-  tax: "Taxes",
+  tax: "Taxes (net of refunds)",
   fee: "Fees",
   food_drinks: "Food & drinks",
   utilities: "Utilities",
@@ -587,6 +587,13 @@ const MAIN_CATEGORY_LABELS: Record<string, string> = {
   furniture: "Furniture",
   consumable: "Consumables",
   refund: "Refunds",
+  subsidy: "Grants & subsidies",
+  sponsoring: "Sponsorship",
+  salaries: "Salaries",
+  accounting: "Accounting",
+  software: "Software & web services",
+  expense_claims: "Expense claims",
+  loan: "Loans",
   uncategorized_bank_payment: "Uncategorized bank payments",
   other_income: "Other income",
   other_expense: "Other expenses",
@@ -615,11 +622,62 @@ function knownBankPaymentCategory(tx: ConsolidatedTx, direction: Direction): { k
   return { key: "uncategorized_bank_payment", label: MAIN_CATEGORY_LABELS.uncategorized_bank_payment };
 }
 
+/**
+ * chb's category slugs (settings categories.json, rules.json, Odoo analytic
+ * accounts and trusted Nostr annotations) mapped to the report's groups.
+ * These win over the keyword guesses below, which only see the public text.
+ */
+const CHB_CATEGORIES: Record<string, string | { income: string; expense: string }> = {
+  subsidy: "subsidy",
+  grant: "subsidy",
+  sponsoring: "sponsoring",
+  sponsorship: "sponsoring",
+  hr: "salaries",
+  salaries: "salaries",
+  payroll: "salaries",
+  accounting: "accounting",
+  webservice: "software",
+  software: "software",
+  expense: "expense_claims",
+  debt: "loan",
+  loan: "loan",
+  vat: "tax",
+  taxes: "tax",
+  tax: "tax",
+  stripe_fee: "fee",
+  fee: "fee",
+  rentals: "rental",
+  rental: "rental",
+  rent: "rent",
+  fridge: { income: "food_drinks", expense: "catering" },
+  catering: "catering",
+  supplies: "consumable",
+  consumable: "consumable",
+  services: "service",
+  consulting: "consulting",
+  utilities: "utilities",
+  insurance: "insurance",
+  equipment: "equipment",
+  furniture: "furniture",
+  membership: "membership",
+  donation: "donation",
+  coworking: "coworking",
+  ticket: "ticket",
+  events: "ticket",
+  refund: "refund",
+};
+
 function mainCategoryFor(tx: ConsolidatedTx, direction: Direction): { key: string; label: string } {
   const knownBankPayment = knownBankPaymentCategory(tx, direction);
   if (knownBankPayment) return knownBankPayment;
 
   const metadata = txMetadata(tx);
+  const chb = CHB_CATEGORIES[String(metadata.category || "").toLowerCase()];
+  if (chb) {
+    const key = typeof chb === "string" ? chb : direction === "CREDIT" ? chb.income : chb.expense;
+    return { key, label: MAIN_CATEGORY_LABELS[key] || key };
+  }
+
   const rawCategory = String(metadata.category || "other").toLowerCase();
   const description = String(metadata.description || tx.counterpartyId || "").toLowerCase();
   const text = `${rawCategory} ${description}`;
@@ -969,26 +1027,32 @@ export function calculateMonthlyFinancials(
         ? Math.abs(tx.normalizedAmount)
         : Math.abs(tx.amount);
 
-    const direction = txDirection(tx);
+    const txDir = txDirection(tx);
+    const mainCategory = mainCategoryFor(tx, txDir);
+    // A tax refund (VAT paid back by the State) is not income: it reduces
+    // what was spent on taxes. Book it as a negative expense, so income only
+    // counts real income and the net result is unchanged.
+    const refundOfTaxes = mainCategory.key === "tax" && txDir === "CREDIT";
+    const direction: Direction = refundOfTaxes ? "DEBIT" : txDir;
+    const amount = refundOfTaxes ? -value : value;
     if (direction === "CREDIT") {
-      existing.income += value;
-      totalIncome += value;
+      existing.income += amount;
+      totalIncome += amount;
     } else {
-      existing.expenses += value;
-      totalExpenses += value;
+      existing.expenses += amount;
+      totalExpenses += amount;
     }
     existing.net = existing.income - existing.expenses;
 
     const metadata = txMetadata(tx);
     const collective = String(metadata.collective || "unassigned");
-    const mainCategory = mainCategoryFor(tx, direction);
-    addBreakdown(byCategory, mainCategory.key, mainCategory.label, direction, value);
+    addBreakdown(byCategory, mainCategory.key, mainCategory.label, direction, amount);
     addBreakdown(
       byCollective,
       collective,
       collective === "unassigned" ? "Unassigned" : collectiveLabel(collective),
       direction,
-      value
+      amount
     );
 
     byAccount.set(account.slug, existing);
