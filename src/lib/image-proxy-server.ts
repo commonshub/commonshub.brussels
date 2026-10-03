@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { attachmentKey, freshAttachmentUrl, isDiscordAttachmentUrl } from "./discord-attachments";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -92,6 +93,17 @@ export function getImageCacheDir(): string | null {
  * @param size - Target size (xs, sm, md, lg)
  * @returns Buffer of resized image
  */
+/** A resized copy already in the cache, or null. */
+export function readCachedResize(imageId: string, size: ImageSize): Buffer | null {
+  const cacheDir = getImageCacheDir();
+  const cachedPath = cacheDir ? path.join(cacheDir, `${imageId}-${size}.jpg`) : null;
+  try {
+    return cachedPath && fs.existsSync(cachedPath) ? fs.readFileSync(cachedPath) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function resizeAndCacheImage(
   sourceBuffer: Buffer,
   imageId: string,
@@ -207,11 +219,28 @@ export async function fetchAndProcessExternalImage(
       );
     }
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; CommonsHubBot/1.0)",
-      },
-    });
+    // Discord links change at every renewal; the attachment path does not.
+    const discord = isDiscordAttachmentUrl(url);
+    const imageId = crypto.createHash("md5").update(discord ? attachmentKey(url) : url).digest("hex");
+    const cached = sizeParam && SIZE_CONFIG[sizeParam] ? readCachedResize(imageId, sizeParam) : null;
+    if (cached) {
+      return new NextResponse(new Uint8Array(cached), {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": `public, max-age=${CACHE_DURATION}, s-maxage=${CACHE_DURATION}`,
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
+    const get = (target: string) =>
+      fetch(target, { headers: { "User-Agent": "Mozilla/5.0 (compatible; CommonsHubBot/1.0)" } });
+    let response = await get(discord ? await freshAttachmentUrl(url) : url);
+    // A link that still looked valid may have been revoked: renew once.
+    if (discord && (response.status === 403 || response.status === 404)) {
+      const fresh = await freshAttachmentUrl(url, { force: true });
+      if (fresh !== url) response = await get(fresh);
+    }
 
     if (!response.ok) {
       console.log("[image-proxy] Failed to fetch image, status:", response.status);
@@ -226,8 +255,6 @@ export async function fetchAndProcessExternalImage(
 
     // Apply resizing if size parameter is provided
     if (sizeParam && SIZE_CONFIG[sizeParam]) {
-      // Create a hash of the URL to use as imageId
-      const imageId = crypto.createHash("md5").update(url).digest("hex");
       buffer = await resizeAndCacheImage(buffer, imageId, sizeParam);
       contentType = "image/jpeg"; // Resized images are always JPEG
     }
