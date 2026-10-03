@@ -17,6 +17,7 @@ const CONTENT_TYPES: Record<string, string> = {
   ".md": "text/markdown; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
   ".ics": "text/calendar; charset=utf-8",
+  ".pdf": "application/pdf",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",

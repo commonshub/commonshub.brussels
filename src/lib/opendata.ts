@@ -51,6 +51,7 @@ export const OPENDATA_TIER_FILES: Record<string, string> = {
   "customers.json": "One row per customer with totals; only organisations named.",
   "bookings.json": "Room occupancy (room, start, end), room-rental revenue per room.",
   "pending-bills.json": "Bills the Hub still has to pay (the \"help us pay\" list).",
+  "annual-accounts.json": "The annual accounts filed with the National Bank: key figures by NBB code, the filed statements (PDF) and consistency checks.",
 };
 
 /** Files chb writes once per period, outside the tiers, meant to be published. */
@@ -97,8 +98,12 @@ function periodTier(p: OpendataPeriod): string {
 /** Is `file` (relative to a period) something the open-data API serves? */
 export function isOpendataFile(file: string): boolean {
   if (OPENDATA_TIER_FILES[file] || OPENDATA_ROOT_FILES[file]) return true;
-  // Event cover images, published by the event organisers.
   const parts = file.split("/");
+  // The filed abbreviated statements (chb ≥ 3.20).
+  if (parts.length === 2 && parts[0] === "annual-accounts" && SAFE_SEGMENT_RE.test(parts[1]) && parts[1].toLowerCase().endsWith(".pdf")) {
+    return true;
+  }
+  // Event cover images, published by the event organisers.
   return (
     parts.length === 3 &&
     parts[0] === "events" &&
@@ -172,6 +177,13 @@ export function listOpendataPeriod(period: OpendataPeriod, baseUrl: string): Ope
   };
   add(periodTier(period), OPENDATA_TIER_FILES);
   add(periodRoot(period), OPENDATA_ROOT_FILES);
+  try {
+    const dir = path.join(periodTier(period), "annual-accounts");
+    const pdfs = fs.readdirSync(dir).filter((f) => isOpendataFile(`annual-accounts/${f}`));
+    add(periodTier(period), Object.fromEntries(pdfs.map((f) => [`annual-accounts/${f}`, "A filed annual-accounts statement (PDF)."])));
+  } catch {
+    // no filed statements for this period
+  }
   if (period.year && !period.month && out.length > 0) {
     out.push({ file: MONTHLY_FILE, href: `${baseUrl}/opendata/${label}/${MONTHLY_FILE}`, bytes: 0, description: MONTHLY_DESCRIPTION });
   }

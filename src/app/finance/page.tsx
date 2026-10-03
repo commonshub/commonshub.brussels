@@ -10,6 +10,7 @@ import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { getFinancialsOverview } from "@/lib/financials";
 import { MonthlyBreakdownTable } from "./monthly-breakdown-table";
 import { AccountCards } from "./account-cards";
+import { readAllAnnualAccounts } from "@/lib/annual-accounts";
 
 // Data is read from local files at request time; never statically cached.
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export default async function FinanceOverviewPage() {
     totalOutflow,
     lastModified,
   } = getFinancialsOverview();
+
+  const annualAccounts = readAllAnnualAccounts();
 
   // Total balance across all accounts (rounded)
   const totalBalance = Math.round(
@@ -93,6 +96,31 @@ export default async function FinanceOverviewPage() {
 
           {/* Account Cards Grid (active by default; archived behind a toggle) */}
           <AccountCards active={accounts} archived={archivedAccounts} />
+
+          {/* Annual accounts, as filed with the National Bank */}
+          {annualAccounts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Annual accounts</CardTitle>
+                <CardDescription>As filed with the National Bank of Belgium, with their known issues.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="divide-y divide-border">
+                  {annualAccounts.map((fy) => (
+                    <li key={fy.label} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                      <a href={`/${fy.year}#annual-accounts`} className="font-medium text-primary underline-offset-2 hover:underline">
+                        Fiscal year {fy.label}
+                      </a>
+                      <span className="text-muted-foreground">
+                        {fy.period.start} → {fy.period.end}
+                        {fy.checks.some((c) => c.level !== "info") ? " · known issues noted" : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Info Section */}
           <Card>

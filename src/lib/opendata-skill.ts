@@ -193,6 +193,18 @@ Every vendor bill still open: \`totals\` (count, totalAmount, amountDue), \`bill
 \`amountDue\`. To help pay one, people donate to the Hub with the bill \`number\` as reference
 (${baseUrl}/donate) — never to the vendor directly.
 
+### \`annual-accounts.json\` (Y, L) — the accounts filed with the National Bank
+
+One entry per fiscal year in \`fiscalYears[]\`, filed under the year its period **ends** (the first fiscal
+year ran 1 July 2023 – 31 December 2024 and is labelled "2023" under \`/2024/\`): \`period\`, \`status\`,
+\`filedAt\`, \`nbb\`, \`keyFigures\` (total assets 20/58, cash 54/58, equity 10/15, turnover 70, gifts and
+subsidies 73, remuneration 62, result of the period 9904, …), \`figures\` (every NBB code), \`documents[]\`
+(the abbreviated balance sheet and profit and loss as PDF, at \`${api}/{YYYY}/annual-accounts/{file}\`, with
+sha256), and \`checks[]\`: consistency problems found in the statements (unbalanced totals, a balancing
+"other appropriations" entry, an opening balance that does not follow the previous closing). **Read the
+checks before using the figures**: the 2024 and 2025 accounts have known issues under review.
+Schema: https://github.com/CommonsHub/chb/blob/main/docs/annual-accounts.md
+
 ### \`hashes.json\` (M, L) and \`vat.json\` (Y, L)
 
 \`hashes.json\` is the integrity manifest of a month: per data source, counts and a sha256 over the raw
@@ -411,6 +423,7 @@ const SCOPES: Record<string, string> = {
   "pending-bills.json": "L",
   "hashes.json": "M, L",
   "vat.json": "Y, L",
+  "annual-accounts.json": "Y, L",
 };
 
 /**
