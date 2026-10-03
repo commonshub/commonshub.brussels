@@ -191,3 +191,21 @@ describe("/opendata", () => {
     expect((await get("2025", "01")).status).toBe(404);
   });
 });
+
+describe("the skill explains how to contribute back on Nostr", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { opendataSkill } = require("@/lib/opendata-skill") as typeof import("@/lib/opendata-skill")
+  const md = opendataSkill("https://commonshub.brussels")
+
+  test("identifiers, event shapes, relay and access", () => {
+    expect(md).toContain("## Contribute back: tag, describe and comment (Nostr)")
+    for (const needle of ["chb:bill:<id>", "chb:expense:<slug>", "stripe:txn", "iban:tx", '["I", "chb:bill:', "wss://relay.commonshub.brussels", "allow-list"]) {
+      expect(md).toContain(needle)
+    }
+  })
+
+  test("no stale promise that months can be missing", () => {
+    expect(md).not.toContain("a month without vendor bills has no")
+    expect(md).toContain('"expenses": []')
+  })
+})

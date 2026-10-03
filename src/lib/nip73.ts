@@ -52,8 +52,15 @@ export function nip73Kind(uri: string): string {
     return `ethereum:${parts[2] ?? ""}`;
   }
   if (parts[0] === "stripe") {
-    // stripe:customer:cus_x | stripe:txn:txn_x
-    return `stripe:${parts[1] ?? ""}`;
+    // stripe:txn_x → stripe:txn, stripe:cus_x → stripe:cus (the id carries
+    // its type, as chb writes the `k` tag); stripe:customer:cus_x → stripe:customer.
+    if (parts.length > 2) return `stripe:${parts[1]}`;
+    const prefix = (parts[1] ?? "").split("_")[0];
+    return prefix ? `stripe:${prefix}` : "stripe";
+  }
+  if (parts[0] === "iban") {
+    // iban:<iban>:tx:<hash>
+    return `iban:${parts[2] ?? ""}`;
   }
   if (parts[0] === "chb") {
     // chb:expense:<slug> | chb:bill:<public id>

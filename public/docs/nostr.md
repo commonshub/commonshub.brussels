@@ -147,6 +147,11 @@ the same Odoo database; it does not reveal the Odoo record.
   annotation snapshot; readers of annotations must skip events that have one.
   Read an expense's thread with `{"kinds":[1111],"#I":["<identifier>"]}`.
 
+Transactions are tagged the same way, with their `id` from the open data as identifier
+(`stripe:txn_…` → `k` `stripe:txn`, `ethereum:<chain>:tx:<hash>` → `ethereum:tx`,
+`iban:<iban>:tx:<hash>` → `iban:tx`). Agents and other apps: the step-by-step version, with
+a working example, is in the open-data skill, [/opendata](/opendata), section *Contribute back*.
+
 Everything goes to relay.commonshub.brussels (and the backup relay). A
 member's browser key is linked to their Discord account (a kind 31926
 attestation) as soon as they sign in, which is what lets the relay accept
