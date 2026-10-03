@@ -30,7 +30,7 @@ const image = (id: string, reactions: number, message = "") => ({
   timestamp: `2025-03-0${id}T10:00:00+00:00`,
   channelId: "c1",
   messageId: `m${id}`,
-  filePath: `2025/03/providers/discord/images/${id}.jpg`,
+  filePath: `2025/03/public/images/${id}.jpg`,
 });
 
 let reports: typeof import("@/lib/reports");
@@ -48,10 +48,10 @@ beforeAll(() => {
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 describe("tiered photo readers", () => {
-  it("maps filePath to an image-proxy path and defaults the message", () => {
+  it("loads a photo from its public copy and defaults the message", () => {
     const photos = reports.readGeneratedImages("2025", "03");
     expect(photos).toHaveLength(3);
-    expect(photos[0].proxyUrl).toBe("/data/2025/03/providers/discord/images/1.jpg");
+    expect(photos[0].proxyUrl).toBe("/data/2025/03/public/images/1.jpg");
     expect(photos[0].message).toBe("");
     expect(photos[0].reactions[0]).toEqual({ emoji: "❤️", count: 2, me: false });
   });

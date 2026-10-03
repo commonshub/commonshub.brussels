@@ -1,5 +1,6 @@
 "use client"
 
+import { photoSource } from "@/lib/photos"
 import { useState, useEffect, useMemo } from "react"
 import { DiscordImageGallery } from "@/components/discord-image-gallery"
 import { CommunityActivityGrid } from "@/components/community-activity-grid"
@@ -73,7 +74,7 @@ export default function ContributionsPage() {
           ...contributorsData,
           contributors: contributorsData.contributors ?? [],
           images: (imagesData.images ?? []).map((image: any) => ({
-            imageUrl: image.url,
+            imageUrl: photoSource(image),
             author: image.author,
             message: image.message,
             timestamp: image.timestamp,

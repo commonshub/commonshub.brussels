@@ -11,6 +11,8 @@ interface PhotoGalleryData {
   year: string;
   photos: Array<{
     url: string;
+    // The public copy (/data/YYYY/MM/public/images/…), else the Discord link.
+    proxyUrl: string;
     author: {
       id: string;
       username: string;
@@ -198,7 +200,7 @@ export default function YearlyPhotosPage() {
                 </div>
                 <DiscordImageGallery
                   images={monthPhotos.map((photo) => ({
-                    imageUrl: photo.url,
+                    imageUrl: photo.proxyUrl,
                     author: {
                       id: photo.author.id,
                       displayName: photo.author.displayName || photo.author.username,

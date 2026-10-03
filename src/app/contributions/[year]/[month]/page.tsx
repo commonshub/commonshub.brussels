@@ -1,4 +1,5 @@
 import { tierDir } from "@/lib/data-paths"
+import { photoSource } from "@/lib/photos"
 import { notFound } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
@@ -186,7 +187,7 @@ export default async function MonthlyContributionsPage({ params }: PageProps) {
                   </h2>
                   <DiscordImageGallery
                     images={imagesData.images.map((image) => ({
-                      imageUrl: image.url,
+                      imageUrl: photoSource(image),
                       author: {
                         id: image.author.id,
                         displayName: image.author.displayName || image.author.username,

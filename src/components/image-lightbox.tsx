@@ -26,6 +26,7 @@ import {
 } from "@/components/favorite-button";
 import { RemoveButton } from "@/components/remove-button";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
+import { getImageSizeForWidth } from "@/lib/image-size";
 import { useSession } from "next-auth/react";
 import settings from "@/settings/settings.json";
 
@@ -206,7 +207,9 @@ export const ImageLightbox = forwardRef<
     useEffect(() => {
       if (selectedIndex !== null && selectedIndex < images.length - 1) {
         const nextImage = images[selectedIndex + 1];
-        const nextImageUrl = getProxiedImageUrl(nextImage.url, undefined, { relative: true });
+        // The size the lightbox will ask for on this screen (it shows images at 100vw).
+        const size = getImageSizeForWidth(window.innerWidth * (window.devicePixelRatio || 1));
+        const nextImageUrl = getProxiedImageUrl(nextImage.url, size, { relative: true });
         const img = new window.Image();
         img.src = nextImageUrl;
       }
