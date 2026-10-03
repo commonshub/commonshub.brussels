@@ -150,6 +150,11 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/opendata" className={linkClass}>
+                  Open data
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

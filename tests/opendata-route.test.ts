@@ -16,7 +16,7 @@ function write(dataDir: string, rel: string, content: string) {
 describe("/opendata", () => {
   let dataDir: string;
   const previous = process.env.DATA_DIR;
-  let GET: typeof import("@/app/opendata/[[...path]]/route").GET;
+  let GET: typeof import("@/app/opendata/[...path]/route").GET;
 
   beforeAll(async () => {
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opendata-"));
@@ -51,7 +51,7 @@ describe("/opendata", () => {
     );
     jest.resetModules();
     process.env.DATA_DIR = dataDir;
-    ({ GET } = await import("@/app/opendata/[[...path]]/route"));
+    ({ GET } = await import("@/app/opendata/[...path]/route"));
   });
 
   afterAll(() => {
@@ -64,8 +64,10 @@ describe("/opendata", () => {
       params: Promise.resolve({ path: segments.length ? segments : undefined }),
     });
 
-  it("serves the skill at the root", async () => {
-    for (const res of [await get(), await get("SKILL.md")]) {
+  it("serves the skill as markdown at /opendata.md and /opendata/SKILL.md", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { GET: getMd } = require("@/app/opendata.md/route") as typeof import("@/app/opendata.md/route")
+    for (const res of [await getMd(), await get("SKILL.md")]) {
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("text/markdown");
       const text = await res.text();

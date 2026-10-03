@@ -24,7 +24,7 @@ Commons Hub Brussels is a community hub located at Rue de la Madeleine 51, 1000 
 
 For any question about the Hub's money, expenses, suppliers, room use, events or community token, use the open-data API, not the HTML pages:
 
-- [Open data skill](${BASE_URL}/opendata): read this first — every file, its fields, the privacy rules, known data caveats and the licence (ODbL)
+- [Open data skill](${BASE_URL}/opendata.md): read this first — every file, its fields, the privacy rules, known data caveats and the licence (ODbL)
 - [index.json](${BASE_URL}/opendata/index.json): every year and month that has data, with links
 - [monthly.json](${BASE_URL}/opendata/monthly.json): one row per month since the start (money in/out, expenses, invoiced income, bookings, events, tokens) — one request for a chart
 
@@ -44,7 +44,7 @@ Read-only JSON, no key, CORS open. \`/data/\` and \`/api/\` are internal to the 
 
 ## Skills
 
-- [Open data](${BASE_URL}/opendata): How to use the public open-data API — finances, expenses line by line, vendors, customers, room bookings, events, VAT returns. Read-only JSON, no key, licensed under ODbL, GDPR-safe (private individuals are never named).
+- [Open data](${BASE_URL}/opendata.md): How to use the public open-data API — finances, expenses line by line, vendors, customers, room bookings, events, VAT returns. Read-only JSON, no key, licensed under ODbL, GDPR-safe (private individuals are never named).
 
 ## Rooms
 
