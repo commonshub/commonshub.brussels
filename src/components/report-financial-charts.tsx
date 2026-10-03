@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+/** Axis ticks stay short whatever the scale: 2T, 1.5M, 12K. */
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
 interface MonthlyBreakdown {
   month: string;
   income: number;
@@ -115,7 +118,7 @@ export function ReportFinancialCharts({ monthlyBreakdown }: ReportFinancialChart
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `€${Math.round(value)}`}
+                tickFormatter={(value) => `€${compact.format(Number(value))}`}
                 className="text-xs"
               />
               <ChartTooltip
@@ -159,6 +162,7 @@ export function ReportFinancialCharts({ monthlyBreakdown }: ReportFinancialChart
               <YAxis
                 tickLine={false}
                 axisLine={false}
+                tickFormatter={(value) => compact.format(Number(value))}
                 className="text-xs"
               />
               <ChartTooltip
@@ -166,7 +170,7 @@ export function ReportFinancialCharts({ monthlyBreakdown }: ReportFinancialChart
                   <ChartTooltipContent
                     formatter={(value, name) => {
                       const label = name === 'tokensMinted' ? 'tokens minted' : 'tokens burnt';
-                      return `${value} ${label}`;
+                      return `${Number(value).toLocaleString("en-US")} ${label}`;
                     }}
                   />
                 }
