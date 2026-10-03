@@ -3,6 +3,7 @@
  * Aggregates the tiered dataset (photos, contributors, transactions)
  */
 
+import { photoSource } from "./photos";
 import * as fs from "fs";
 import * as path from "path";
 import settings from "@/settings/settings.json";
@@ -206,9 +207,7 @@ export function getAvailableMonths(year: string, excludeFuture: boolean = false)
 
 interface ImagesFileEntry {
   url: string;
-  /** Older files carried a ready-made proxy URL; newer ones carry `filePath`. */
-  proxyUrl?: string;
-  /** Where chb stored the copy, relative to DATA_DIR (the image proxy serves it). */
+  /** chb's public copy, relative to DATA_DIR (YYYY/MM/public/images/…). */
   filePath?: string;
   id: string;
   author: UserInfo;
@@ -226,7 +225,7 @@ function readImagesFile(imagesPath: string): PopularPhoto[] {
     const data = JSON.parse(fs.readFileSync(imagesPath, "utf-8")) as { images?: ImagesFileEntry[] };
     return (data.images ?? []).map((img) => ({
       url: img.url,
-      proxyUrl: img.proxyUrl ?? (img.filePath ? `/data/${img.filePath}` : img.url),
+      proxyUrl: photoSource(img),
       id: img.id,
       author: img.author,
       reactions: (img.reactions ?? []).map((r) => ({ emoji: r.emoji, count: r.count, me: r.me ?? false })),

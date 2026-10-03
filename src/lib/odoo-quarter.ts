@@ -97,7 +97,9 @@ interface ChbCustomer {
   customer?: Party & { member?: boolean };
   individuals?: number;
   incomeType?: string;
-  invoices?: number;
+  /** chb ≥ 3.18: how many invoices, and their Odoo URIs. */
+  invoiceCount?: number;
+  invoices?: string[];
   untaxedAmount?: number;
   totalAmount?: number;
   amountDue?: number;
@@ -178,7 +180,7 @@ function customerRow(row: ChbCustomer, index: number, month: string, year: strin
     type: "invoice",
     direction: total < 0 ? "refund" : "positive",
     date: `${year}-${month}-01`,
-    reference: row.invoices ? `${row.invoices} invoice${row.invoices === 1 ? "" : "s"}` : null,
+    reference: row.invoiceCount ? `${row.invoiceCount} invoice${row.invoiceCount === 1 ? "" : "s"}` : null,
     month,
     partnerKey: named(customer) ? `customer:${customer!.id ?? customer!.name}` : "bucket:individual-client",
     partnerLabel: label,

@@ -3,8 +3,11 @@ import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/data-paths";
 import { isServableDataPath } from "@/lib/served-paths";
+import crypto from "crypto";
+import { isPublicPhotoPath } from "@/lib/photos";
 import {
   fetchAndProcessExternalImage,
+  readCachedResize,
   resizeAndCacheImage,
   type ImageSize,
   SIZE_CONFIG,
@@ -12,13 +15,15 @@ import {
   resolveRequestedImageSize,
 } from "@/lib/image-proxy-server";
 
-function getCacheControl(request: NextRequest, localFile: boolean): string {
+function getCacheControl(request: NextRequest, localFile: boolean, immutable = false): string {
   const isLocalDev =
     process.env.NODE_ENV !== "production" ||
     request.nextUrl.hostname === "localhost" ||
     request.nextUrl.hostname === "127.0.0.1";
 
   if (isLocalDev) return "no-store, max-age=0";
+  // A photo's public copy is named after its Discord attachment id: it never changes.
+  if (immutable) return "public, max-age=31536000, s-maxage=31536000, immutable";
 
   const maxAge = localFile ? CACHE_DURATION * 7 : CACHE_DURATION;
   return `public, max-age=${maxAge}, s-maxage=${maxAge}`;
@@ -89,22 +94,20 @@ async function handleLocalPath(request: NextRequest, relativePath: string, sizeP
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    let buffer: Buffer = fs.readFileSync(resolvedPath);
+    const immutable = isPublicPhotoPath(relativePath);
+    const headers = (contentType: string) => ({ "Content-Type": contentType, "Cache-Control": getCacheControl(request, true, immutable) });
     const ext = path.extname(resolvedPath).toLowerCase();
-    let contentType = IMAGE_TYPES[ext] || "image/jpeg";
 
     if (sizeParam && SIZE_CONFIG[sizeParam]) {
-      const imageId = path.basename(resolvedPath, ext);
-      buffer = await resizeAndCacheImage(buffer, imageId, sizeParam);
-      contentType = "image/jpeg"; // Resized images are always JPEG
+      // Keyed on the path: a basename alone could collide across folders.
+      const imageId = crypto.createHash("md5").update(`${rootDir}:${relativePath}`).digest("hex");
+      const cached = readCachedResize(imageId, sizeParam);
+      if (cached) return new NextResponse(new Uint8Array(cached), { headers: headers("image/jpeg") });
+      const resized = await resizeAndCacheImage(fs.readFileSync(resolvedPath), imageId, sizeParam);
+      return new NextResponse(new Uint8Array(resized), { headers: headers("image/jpeg") }); // resized images are JPEG
     }
 
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": getCacheControl(request, true),
-      },
-    });
+    return new NextResponse(new Uint8Array(fs.readFileSync(resolvedPath)), { headers: headers(IMAGE_TYPES[ext] || "image/jpeg") });
   } catch (error) {
     console.error("[image-proxy] Error serving local file:", error);
     return NextResponse.json({ error: "Failed to serve image" }, { status: 500 });

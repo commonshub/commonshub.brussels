@@ -37,8 +37,8 @@ write("2026/09/public/expenses.json", {
 })
 write("2026/09/public/customers.json", {
   customers: [
-    { customer: { id: "p-9", type: "organisation", name: "ITS mobility GmbH" }, incomeType: "sales_services", invoices: 1, untaxedAmount: 1355, totalAmount: 1586.9, amountDue: 0 },
-    { customer: { type: "individual", member: true }, individuals: 6, incomeType: "membership", invoices: 6, untaxedAmount: 1822.31, totalAmount: 2205, amountDue: 100 },
+    { customer: { id: "p-9", type: "organisation", name: "ITS mobility GmbH" }, incomeType: "sales_services", invoiceCount: 1, invoices: ["odoo:commonshub.odoo.com:commonshub:account.move:45820"], untaxedAmount: 1355, totalAmount: 1586.9, amountDue: 0 },
+    { customer: { type: "individual", member: true }, individuals: 6, incomeType: "membership", invoiceCount: 6, invoices: [], untaxedAmount: 1822.31, totalAmount: 2205, amountDue: 100 },
   ],
 })
 
@@ -64,6 +64,7 @@ describe("quarterly report", () => {
   test("income per customer and month; individuals merged and unnamed", () => {
     const invoices = data.rows.filter((r) => r.type === "invoice")
     expect(invoices.map((r) => r.partnerLabel)).toEqual(["ITS mobility GmbH", "Individual clients (6)"])
+    expect(invoices.map((r) => r.reference)).toEqual(["1 invoice", "6 invoices"])
     expect(invoices[1]).toMatchObject({ category: "Membership", status: "partially_paid", vatAmount: 382.69 })
     expect(data.totals).toMatchObject({ invoicedTotal: 3791.9, vatCollected: 614.59, vatNet: 568.66 })
   })

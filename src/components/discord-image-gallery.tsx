@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef } from "react"
 import Image from "@/components/optimized-image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DiscordMessage } from "./discord-message"
@@ -32,6 +32,11 @@ interface DiscordImageGalleryProps {
 }
 
 
+// Largest proxy size a thumbnail may ask for: the loader picks a size from
+// the `sizes` hint and the screen, never above this (a cell is at most ~640px
+// on a 2x screen in the largest grid).
+const thumbnailMaxSize = { sm: "xs", md: "sm", lg: "sm" } as const
+
 const thumbnailSizeClasses = {
   sm: "grid-cols-4 md:grid-cols-6 lg:grid-cols-8",
   md: "grid-cols-3 md:grid-cols-6",
@@ -59,33 +64,6 @@ export function DiscordImageGallery({
     })
   }, [])
 
-  // Prefetch images on large screens with fast connections
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    // Check if screen is large (desktop)
-    const isLargeScreen = window.innerWidth >= 1024
-
-    // Check connection speed
-    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
-    const isFastConnection = !connection ||
-      connection.effectiveType === '4g' ||
-      connection.downlink > 5 ||
-      connection.type === 'wifi' ||
-      connection.type === 'ethernet'
-
-    if (isLargeScreen && isFastConnection) {
-      console.log('[Gallery] Prefetching images for fast connection on large screen')
-
-      // Prefetch all images
-      images.forEach((post) => {
-        const img = new window.Image()
-        img.src = getProxiedImageUrl(post.imageUrl, undefined, { relative: true })
-        // Don't append to DOM, just load in memory
-      })
-    }
-  }, [images])
-
   // Filter out failed images by URL
   const validImages = images.filter((post) => !failedImageUrls.has(post.imageUrl))
 
@@ -112,7 +90,7 @@ export function DiscordImageGallery({
             onClick={() => lightboxRef.current?.openLightbox(index)}
           >
             <Image
-              src={getProxiedImageUrl(post.imageUrl, undefined, { relative: true }) || "/placeholder.svg"}
+              src={getProxiedImageUrl(post.imageUrl, thumbnailMaxSize[thumbnailSize], { relative: true }) || "/placeholder.svg"}
               alt={`Contribution by ${post.author.displayName}`}
               fill
               className="object-cover group-hover:scale-110 transition-transform duration-300"

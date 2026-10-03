@@ -4,11 +4,10 @@ const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".av
 
 /**
  * Which dataset files may be served. Only images, and only from places
- * meant for everyone: the `public/` audience tier (event covers live in
- * `YYYY/MM/public/events/images/`), and — until chb copies them into a
- * tier — the Discord attachments it downloaded under
- * `YYYY/MM/providers/discord/images/`. Nothing else under /data is a served
- * surface: not `members/`, not `stewards/`, not the raw provider archives.
+ * meant for everyone: the `public/` audience tier (event covers in
+ * `YYYY/MM/public/events/images/`, community photos in
+ * `YYYY/MM/public/images/`). Nothing else under /data is a served surface:
+ * not `members/`, not `stewards/`, not the provider archives.
  */
 export function isServableDataPath(relativePath: string): boolean {
   const parts = relativePath.split("/");
@@ -18,7 +17,6 @@ export function isServableDataPath(relativePath: string): boolean {
   if (year === "latest") return second === "public";
   if (!/^\d{4}$/.test(year)) return false;
   if (second === "public") return true;
-  if (/^\d{2}$/.test(second) && third === "public") return true;
-  return /^\d{2}$/.test(second) && third === "providers" && parts[3] === "discord" && parts[4] === "images" && parts.length === 6;
+  return /^\d{2}$/.test(second) && third === "public";
 }
 

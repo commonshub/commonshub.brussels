@@ -6,7 +6,8 @@ describe("what the image proxy may serve from the dataset", () => {
     expect(isServableDataPath("2026/09/public/events/images/evt-EP97.png")).toBe(true)
     expect(isServableDataPath("latest/public/events/images/evt.jpg")).toBe(true)
     expect(isServableDataPath("2026/public/events/images/evt.webp")).toBe(true)
-    expect(isServableDataPath("2026/08/providers/discord/images/1533075350333034648.jpg")).toBe(true)
+    expect(isServableDataPath("2026/08/public/images/1533075350333034648.jpg")).toBe(true)
+    expect(isServableDataPath("2026/08/providers/discord/images/1533075350333034648.jpg")).toBe(false)
   })
 
   test("never the members or stewards tiers, raw archives, or non-images", () => {
