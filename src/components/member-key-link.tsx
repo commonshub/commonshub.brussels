@@ -8,14 +8,18 @@ import type { Template } from "@/lib/nostr-conventions"
 import settings from "@/settings/settings.json"
 
 const MEMBER_ROLE = settings.discord.roles.member
-const flagKey = (pubkey: string, discordId: string) => `nostr_linked_${discordId}_${pubkey.slice(0, 16)}`
+// v2: attestations carry ["role","member"] (chb ≥ 3.25 trusts members' annotations through it).
+const flagKey = (pubkey: string, discordId: string) => `nostr_linked_v2_${discordId}_${pubkey.slice(0, 16)}`
+/** Re-link weekly so the attestation follows role changes (member, steward). */
+const RELINK_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
  * Makes sure every signed-in member's browser key can write to
  * relay.commonshub.brussels. The relay accepts a key when the site has
  * attested it (kind 31926) for a member, so the first time a member's key
- * is seen the site links it — once per key and account on this device —
- * and the browser publishes the member's profile if it has none. Without
+ * is seen the site links it — then weekly per key and account on this
+ * device, so the attestation's roles stay current — and the browser
+ * publishes the member's profile if it has none. Without
  * this, a member's tags and comments stayed in their outbox, refused.
  */
 export function MemberKeyLink() {
@@ -28,7 +32,8 @@ export function MemberKeyLink() {
     if (!isMember || !nostr.ready || !nostr.pubkey || !user?.discordId) return
     const key = flagKey(nostr.pubkey, user.discordId)
     try {
-      if (window.localStorage.getItem(key)) return
+      const linkedAt = window.localStorage.getItem(key)
+      if (linkedAt && Date.now() - new Date(linkedAt).getTime() < RELINK_MS) return
     } catch {
       /* no storage: link every visit, it is idempotent */
     }

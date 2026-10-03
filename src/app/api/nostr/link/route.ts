@@ -40,9 +40,10 @@ export async function POST(request: Request) {
 
   try {
     await ensureCommunityDefinition()
-    // The attestation also carries the member's community roles: a steward's
-    // sign-ups on behalf of others are trusted through it.
-    const { keys, changed } = await attestMember(identity, pubkey, (await isSteward()) ? ["steward"] : [])
+    // The attestation also carries the member's community roles: chb applies
+    // a member's annotations through ["role","member"] (≥ 3.25), and a
+    // steward's sign-ups on behalf of others are trusted through "steward".
+    const { keys, changed } = await attestMember(identity, pubkey, (await isSteward()) ? ["member", "steward"] : ["member"])
     const existing = await memberProfile(pubkey)
     const profile = existing ? parseProfiles([existing])[0] : null
     const needsProfile = !profile || !profile.name || profile.discordId !== user.discordId

@@ -24,6 +24,34 @@ export interface ChangelogEntry {
 
 export const OPENDATA_CHANGELOG: ChangelogEntry[] = [
   {
+    id: "members-annotations",
+    date: "2026-10-03",
+    title: "Members' annotations count",
+    kind: "added",
+    body: `Annotations signed by a member's browser key now count when the website attests that key (kind 31926) with
+the \`member\` or \`steward\` role for the Commons Hub Discord server. Removing the role or the key from the
+attestation revokes it at the next hourly pull. Members reclassify transactions from the year and month
+reports: every category opens its transactions.`,
+    source: { chb: "3.25.0", site: 108 },
+  },
+  {
+    id: "categories-from-the-books",
+    date: "2026-10-03",
+    title: "Categories from the books, a published taxonomy, and coverage",
+    kind: "added",
+    body: `- Transactions left uncategorised by rules take their category from how the bank line is booked in Odoo
+  (the invoice, bill, journal entry or account it is reconciled with): \`metadata.categorySource: "odoo"\`, and
+  the matched documents' URIs in \`metadata.documents\`. Bills settling an invoice accrued the year before get
+  \`accrual\` ("Previous-year invoices").
+- VAT payments, local taxes, salaries and outgoing refunds are categorised by their reference while Odoo has
+  not reconciled them.
+- The taxonomy (slug, label, direction, group, PCMN accounts) is at \`{api}/latest/categories.json\`.
+- Each month's \`summary.json\` reports \`coverage\` (\`uncategorisedShare\`, 0–1). For 2025, uncategorised money fell
+  from about €116k in / €185k out to €6k / €1k.
+- A bank journal's opening-balance row is no longer counted as income (\`opening_balance\`, type \`INTERNAL\`).`,
+    source: { chb: "3.24.0, 3.24.1, 3.24.2" },
+  },
+  {
     id: "role-accounts-private",
     date: "2026-10-03",
     title: "Role accounts are private in the ledger",

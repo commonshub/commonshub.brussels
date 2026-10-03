@@ -52,6 +52,7 @@ export const OPENDATA_TIER_FILES: Record<string, string> = {
   "bookings.json": "Room occupancy (room, start, end), room-rental revenue per room.",
   "pending-bills.json": "Bills the Hub still has to pay (the \"help us pay\" list).",
   "annual-accounts.json": "The annual accounts filed with the National Bank: key figures by NBB code, the filed statements (PDF) and consistency checks.",
+  "categories.json": "The category taxonomy: slug, label, direction (income/expense/both), group and the PCMN accounts that map to it.",
   "accounts-chart.json": "The chart of accounts used in Odoo (Belgian PCMN): every account number with its label in English, French and Dutch, class and group; `used` marks the accounts with entries.",
   "ledger-balances.json": "Per account and year: opening balance, debit, credit and closing balance of posted entries (a trial balance). Accounts of individuals merged, payroll as one line.",
 };

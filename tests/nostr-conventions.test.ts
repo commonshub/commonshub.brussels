@@ -163,3 +163,14 @@ describe("comments", () => {
     ])
   })
 })
+
+
+describe("attestation roles", () => {
+  test("members are attested with the member role (chb trusts their annotations through it)", async () => {
+    const { buildAttestation } = await import("@/lib/nostr-conventions")
+    const community = { guildId: "1280532848604086365", name: "Commons Hub Brussels" } as never
+    const t = buildAttestation({ id: "42", name: "Ada" } as never, ["a".repeat(64)], community, "b".repeat(64), new Date("2026-10-03T00:00:00Z"), ["member", "steward"])
+    expect(t.tags).toEqual(expect.arrayContaining([["role", "member"], ["role", "steward"], ["d", "discord:42"]]))
+    expect(JSON.parse(t.content).roles).toEqual(["member", "steward"])
+  })
+})
