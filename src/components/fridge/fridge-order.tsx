@@ -52,7 +52,6 @@ function Costs({ lines, total, tokensPerMonth }: { lines: Array<{ label: string;
         <span>Total</span>
         <span className="text-right tabular-nums">{eur(total)} + our time</span>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Prices include VAT. Bottle deposits are refunded when the empties go back, so they are not counted.</p>
     </section>
   )
 }
@@ -175,7 +174,6 @@ function Contribute(props: {
           {listed && <p className="text-xs text-muted-foreground">Only donations by card are listed here automatically for now.</p>}
         </>
       )}
-      <p className="text-xs text-muted-foreground">Members can soon contribute tokens too, for the time the fridge takes.</p>
     </section>
   )
 }
