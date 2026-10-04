@@ -25,7 +25,12 @@ const SLOT_OF: Record<string, number> = {
 }
 const SLOTS = 8
 
-function slotsFor(costs: ContributableExpense[]): Map<string, number> {
+/** The palette, slot 1 first, for light and dark backgrounds. */
+export const COST_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
+export const COST_COLORS_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"]
+const cssVars = (colors: string[]) => colors.map((c, i) => `--cost-${i + 1}: ${c};`).join(" ")
+
+export function slotsFor(costs: Array<Pick<ContributableExpense, "slug">>): Map<string, number> {
   const out = new Map<string, number>()
   const used = new Set<number>()
   for (const c of costs) {
@@ -56,16 +61,7 @@ export function FixedCostsChart({ costs }: { costs: ContributableExpense[] }) {
 
   return (
     <div className="fixed-costs rounded-lg border border-border bg-card p-5 sm:p-6">
-      <style>{`
-        .fixed-costs {
-          --cost-1: #2a78d6; --cost-2: #eb6834; --cost-3: #1baf7a; --cost-4: #eda100;
-          --cost-5: #e87ba4; --cost-6: #008300; --cost-7: #4a3aa7; --cost-8: #e34948;
-        }
-        .dark .fixed-costs {
-          --cost-1: #3987e5; --cost-2: #d95926; --cost-3: #199e70; --cost-4: #c98500;
-          --cost-5: #d55181; --cost-6: #008300; --cost-7: #9085e9; --cost-8: #e66767;
-        }
-      `}</style>
+      <style>{`.fixed-costs { ${cssVars(COST_COLORS)} } .dark .fixed-costs { ${cssVars(COST_COLORS_DARK)} }`}</style>
 
       <div>
         <div className="text-3xl font-bold tabular-nums text-foreground">{formatEur(Math.round(total * 100) / 100)}</div>
