@@ -2100,7 +2100,10 @@ export function FinanceTransactionTable({
           })}
         </div>
       )}
-      <div className="overflow-x-auto">
+      {/* relative: the filters' hidden native <select>s are absolutely
+          positioned; without a containing block here they escape the
+          scroller and widen the page on a phone. */}
+      <div className="relative overflow-x-auto">
       <table className="w-full">
         <thead className="border-b bg-muted/30">
           <tr className="text-xs text-muted-foreground">
