@@ -69,6 +69,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url })
   } catch (error) {
     console.error("[fridge] could not create a checkout session:", error)
+    // A key Stripe refuses (e.g. missing permissions) will keep failing: say so, and point to the transfer.
+    if (error instanceof Stripe.errors.StripePermissionError || error instanceof Stripe.errors.StripeAuthenticationError) {
+      return NextResponse.json({ error: "Card payments are unavailable right now. Please use the bank transfer details instead." }, { status: 503 })
+    }
     return NextResponse.json({ error: "Could not start the payment" }, { status: 502 })
   }
 }
