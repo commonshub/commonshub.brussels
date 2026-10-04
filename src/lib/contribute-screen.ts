@@ -65,7 +65,7 @@ export function contributorsByTokens(files: ContributorsFile[], excluded?: Set<s
     .map((c) => c.name)
 }
 
-export async function loadContributeScreen(limit = 12): Promise<ContributeScreenData> {
+export async function loadContributeScreen(limit = 36): Promise<ContributeScreenData> {
   const files = listYears()
     .map((year) => readTierJson<ContributorsFile & { generatedAt?: string }>(TIER, "contributors.json", year))
     .filter((file): file is ContributorsFile & { generatedAt?: string } => !!file)
@@ -75,9 +75,52 @@ export async function loadContributeScreen(limit = 12): Promise<ContributeScreen
   const dates = [ledger?.fetchedAt, ...files.map((f) => f.generatedAt)].filter((d): d is string => !!d).sort()
 
   return {
-    lenders: ledger ? lendersByLoan(ledger.holders).slice(0, limit) : [],
+    lenders: ledger ? lendersByLoan(ledger.holders) : [],
     contributors: contributorsByTokens(files).slice(0, limit),
     donations: loadDonors(TIER).donations,
     updatedAt: dates[dates.length - 1] ?? null,
   }
+}
+
+export interface CloudName {
+  name: string
+  /** Font size in screen units: varied by chance, never by amount. */
+  size: number
+  accent: boolean
+}
+
+/** A small seeded random generator (mulberry32), so a day's cloud is stable but changes from day to day. */
+function seeded(seed: string): () => number {
+  let h = 1779033703 ^ seed.length
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353)
+  let a = h >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * Everyone who lent money or gave time, as one cloud: each name once, in a
+ * shuffled order, with sizes that vary by chance. It is not a ranking: the
+ * order the lists come in (largest first) is deliberately thrown away.
+ */
+export function cloudNames(data: Pick<ContributeScreenData, "lenders" | "contributors">, seed: string): CloudName[] {
+  const seen = new Set<string>()
+  const names: string[] = []
+  for (const name of [...data.lenders, ...data.contributors]) {
+    const key = name.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    names.push(name.trim())
+  }
+  const random = seeded(seed)
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[names[i], names[j]] = [names[j], names[i]]
+  }
+  const sizes = [1.7, 2, 2.3, 2.7]
+  return names.map((name) => ({ name, size: sizes[Math.floor(random() * sizes.length)], accent: random() < 0.22 }))
 }

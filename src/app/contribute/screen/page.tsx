@@ -28,7 +28,7 @@ export default async function ContributeScreenPage() {
 
   return (
     <ScreenShell title="Thank you to everyone who contributes" refreshMinutes={10}>
-      <ContributeBoard data={data} qrSvg={qrSvg} url={CONTRIBUTE_URL} />
+      <ContributeBoard data={data} qrSvg={qrSvg} url={CONTRIBUTE_URL} seed={new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })} />
     </ScreenShell>
   )
 }

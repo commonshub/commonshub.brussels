@@ -1,80 +1,37 @@
-import { Clock, HandCoins } from "lucide-react"
-import type React from "react"
-
 import type { ContributeScreenData } from "@/lib/contribute-screen"
+import { cloudNames } from "@/lib/contribute-screen"
 import { brusselsDay } from "@/lib/screen"
 import { ACCENT, MUTED, s } from "./screen"
-
-function RankedNames({ icon, title, subtitle, names, empty }: { icon: React.ReactNode; title: string; subtitle: string; names: string[]; empty: string }) {
-  return (
-    <section className="flex min-h-0 min-w-0 flex-col">
-      <h2 className="flex items-center" style={{ gap: s(0.9), fontSize: s(3), fontWeight: 800, lineHeight: 1.1 }}>
-        {icon}
-        {title}
-      </h2>
-      <p style={{ fontSize: s(1.35), color: MUTED, marginTop: s(0.3), marginBottom: s(1.2) }}>{subtitle}</p>
-      {names.length === 0 ? (
-        <p style={{ fontSize: s(1.6), color: MUTED }}>{empty}</p>
-      ) : (
-        <ol className="flex min-h-0 flex-col" style={{ gap: s(0.45) }}>
-          {names.map((name, i) => (
-            <li key={`${i}-${name}`} className="flex min-w-0 items-baseline" style={{ gap: s(1), fontSize: s(2), lineHeight: 1.2 }}>
-              <span className="shrink-0 text-right tabular-nums" style={{ width: s(2.4), color: ACCENT, fontWeight: 800 }}>
-                {i + 1}
-              </span>
-              <span className="truncate" style={{ fontWeight: i < 3 ? 700 : 500 }}>
-                {name}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-  )
-}
+import { ScreenQr } from "./screen-qr"
 
 /**
- * /contribute/screen: why the hub exists, a QR code to /contribute, and who
- * contributes most in money and in time. Names only, in order; no amounts.
+ * /contribute/screen: why the hub exists, the people who give it time and
+ * money as one shuffled cloud of names (not a ranking: no order, no numbers,
+ * no amounts), and the QR code to /contribute bottom right.
  */
-export function ContributeBoard({ data, qrSvg, url }: { data: ContributeScreenData; qrSvg: string; url: string }) {
+export function ContributeBoard({ data, qrSvg, url, seed }: { data: ContributeScreenData; qrSvg: string; url: string; seed: string }) {
+  const names = cloudNames(data, seed)
   return (
-    <div className="flex min-h-0 flex-1" style={{ gap: s(4) }}>
-      <div className="flex shrink-0 flex-col justify-between" style={{ width: s(38) }}>
-        <p style={{ fontSize: s(2.35), lineHeight: 1.25, fontWeight: 600, textWrap: "balance" }}>
-          The Commons Hub Brussels only exists because of the contributions of the community who invests time and money to give life to this
-          space.
-        </p>
-        <div className="flex flex-col" style={{ gap: s(1.2) }}>
-          <div>
-            <div style={{ fontSize: s(6), fontWeight: 800, color: ACCENT, lineHeight: 1, letterSpacing: "-0.03em" }}>Contribute!</div>
-            <div style={{ fontSize: s(1.8), fontWeight: 600, marginTop: s(0.5) }}>{url.replace(/^https:\/\//, "")}</div>
-          </div>
-          <div className="rounded-[0.5em] bg-white" style={{ width: s(16), height: s(16), padding: s(0.9) }} dangerouslySetInnerHTML={{ __html: qrSvg }} />
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col" style={{ gap: s(1.6) }}>
+      <p className="shrink-0" style={{ fontSize: s(2.35), lineHeight: 1.25, fontWeight: 600, maxWidth: s(80), textWrap: "balance" }}>
+        The Commons Hub Brussels only exists because of the contributions of the community who invests time and money to give life to this space.
+      </p>
+
+      <div className="flex min-h-0 flex-1 flex-wrap content-center items-baseline justify-center overflow-hidden" style={{ columnGap: s(2.2), rowGap: s(0.6) }}>
+        {names.map((n) => (
+          <span key={n.name} style={{ fontSize: s(n.size), fontWeight: n.size > 2.2 ? 700 : 500, color: n.accent ? ACCENT : "white", lineHeight: 1.15, whiteSpace: "nowrap" }}>
+            {n.name}
+          </span>
+        ))}
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: s(3) }}>
-          <RankedNames
-            icon={<HandCoins style={{ width: s(3), height: s(3), color: ACCENT }} />}
-            title="Money"
-            subtitle="Lenders, by the size of their loan"
-            names={data.lenders}
-            empty="See the lenders at commonshub.brussels/debt"
-          />
-          <RankedNames
-            icon={<Clock style={{ width: s(3), height: s(3), color: ACCENT }} />}
-            title="Time"
-            subtitle="Members, by the tokens they received"
-            names={data.contributors}
-            empty="No contributions recorded yet"
-          />
-        </div>
-        <p className="shrink-0" style={{ fontSize: s(1.25), color: MUTED, marginTop: s(1) }}>
-          {data.donations > 0 && <>And {data.donations.toLocaleString("en-GB")} donations from people and organisations. </>}
-          {data.updatedAt && <>Updated {brusselsDay(Date.parse(data.updatedAt))}.</>}
+      <div className="flex shrink-0 items-end justify-between" style={{ gap: s(2) }}>
+        <p style={{ fontSize: s(1.3), color: MUTED }}>
+          Thank you to everyone who lends money and gives time
+          {data.donations > 0 && <>, and for {data.donations.toLocaleString("en-GB")} donations from people and organisations</>}.
+          {data.updatedAt && <> Updated {brusselsDay(Date.parse(data.updatedAt))}.</>}
         </p>
+        <ScreenQr qrSvg={qrSvg} cta="Contribute!" url={url} />
       </div>
     </div>
   )

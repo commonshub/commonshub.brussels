@@ -1,9 +1,10 @@
 /**
  * @jest-environment jsdom
  *
- * /contribute/screen is public and shown on the hub's TV: two ranked lists
- * of names (money, time), in order of amount but without any amount, and no
- * name that the site does not already show to anonymous visitors.
+ * /contribute/screen is public and shown on the hub's TV: a cloud of the
+ * names of those who gave money or time, shuffled by day (not a scoreboard),
+ * without any amount, and no name the site does not already show to
+ * anonymous visitors.
  */
 import * as fs from "fs"
 import * as os from "os"
@@ -106,15 +107,25 @@ describe("what the page reads", () => {
     for (const leak of ["Members Only Person", "Secret Donor", "10000", "2416", "9999", "50000"]) expect(json).not.toContain(leak)
   })
 
-  test("the board shows the names in order and no amount", async () => {
+  test("the board shows every name once, as a cloud: no ranks, no numbers, no amount", async () => {
     const data = await load()
-    const { container } = render(<ContributeBoard data={data} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
+    const { container } = render(<ContributeBoard data={data} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" seed="2026-10-04" />)
     const text = container.textContent ?? ""
-    expect(text.indexOf("Big Lender")).toBeLessThan(text.indexOf("Middle Lender SA"))
-    expect(text.indexOf("Middle Lender SA")).toBeLessThan(text.indexOf("Small Lender"))
-    expect(text).toContain("Ann")
+    for (const name of ["Big Lender", "Middle Lender SA", "Small Lender", "Ann"]) expect(text).toContain(name)
+    expect(container.querySelector("ol")).toBeNull()
+    expect(text).toContain("Contribute!")
     expect(text).toContain("commonshub.brussels/contribute")
     expect(text).not.toMatch(/€|EUR|tokens? ?\d|\d[\d\s.,]*\s?(€|CHT)/)
     for (const leak of ["Members Only Person", "Secret Donor", "10,000", "10 000", "2,416", "500"]) expect(text).not.toContain(leak)
+  })
+
+  test("the cloud is shuffled by day, each name once, whatever the ranking", async () => {
+    const { cloudNames } = await import("@/lib/contribute-screen")
+    const lists = { lenders: ["A", "B", "C", "D", "E", "F"], contributors: ["f", "G", "H", "I"] }
+    const day1 = cloudNames(lists, "2026-10-04").map((n) => n.name)
+    expect(day1).toHaveLength(9) // "f" is "F" again
+    expect(new Set(day1).size).toBe(9)
+    expect(cloudNames(lists, "2026-10-04").map((n) => n.name)).toEqual(day1)
+    expect(cloudNames(lists, "2026-10-05").map((n) => n.name)).not.toEqual(day1)
   })
 })

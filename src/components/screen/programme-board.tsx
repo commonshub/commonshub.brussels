@@ -1,5 +1,6 @@
 "use client"
 
+import { ScreenQr } from "./screen-qr"
 import { Trophy } from "lucide-react"
 
 import {
@@ -132,13 +133,7 @@ export function ProgrammeBoard({
           )}
           {tournament && <TournamentLine tournament={tournament} now={now} />}
         </div>
-        <div className="flex shrink-0 items-center" style={{ gap: s(1.2) }}>
-          <div className="text-right" style={{ fontSize: s(1.4), lineHeight: 1.25 }}>
-            <div style={{ fontWeight: 700 }}>The full programme</div>
-            <div style={{ color: MUTED }}>{url.replace(/^https:\/\//, "")}</div>
-          </div>
-          <div className="rounded-[0.4em] bg-white" style={{ width: s(7.5), height: s(7.5), padding: s(0.6) }} dangerouslySetInnerHTML={{ __html: qrSvg }} />
-        </div>
+        <ScreenQr qrSvg={qrSvg} cta="The full programme" url={url} />
       </footer>
     </>
   )
