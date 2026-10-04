@@ -65,7 +65,7 @@ export function contributorsByTokens(files: ContributorsFile[], excluded?: Set<s
     .map((c) => c.name)
 }
 
-export async function loadContributeScreen(limit = 36): Promise<ContributeScreenData> {
+export async function loadContributeScreen(limit = Infinity): Promise<ContributeScreenData> {
   const files = listYears()
     .map((year) => readTierJson<ContributorsFile & { generatedAt?: string }>(TIER, "contributors.json", year))
     .filter((file): file is ContributorsFile & { generatedAt?: string } => !!file)
@@ -86,6 +86,8 @@ export interface CloudName {
   name: string
   /** Font size in screen units: varied by chance, never by amount. */
   size: number
+  /** The two larger sizes are set in bold. */
+  bold: boolean
   accent: boolean
 }
 
@@ -107,7 +109,11 @@ function seeded(seed: string): () => number {
  * shuffled order, with sizes that vary by chance. It is not a ranking: the
  * order the lists come in (largest first) is deliberately thrown away.
  */
-export function cloudNames(data: Pick<ContributeScreenData, "lenders" | "contributors">, seed: string): CloudName[] {
+/**
+ * `room` is about how many names fit at full size; with more, every name
+ * shrinks by the same factor so all of them still fit.
+ */
+export function cloudNames(data: Pick<ContributeScreenData, "lenders" | "contributors">, seed: string, room = 60): CloudName[] {
   const seen = new Set<string>()
   const names: string[] = []
   for (const name of [...data.lenders, ...data.contributors]) {
@@ -121,6 +127,26 @@ export function cloudNames(data: Pick<ContributeScreenData, "lenders" | "contrib
     const j = Math.floor(random() * (i + 1))
     ;[names[i], names[j]] = [names[j], names[i]]
   }
-  const sizes = [1.7, 2, 2.3, 2.7]
-  return names.map((name) => ({ name, size: sizes[Math.floor(random() * sizes.length)], accent: random() < 0.22 }))
+  const k = Math.min(1, Math.sqrt(room / Math.max(1, names.length)))
+  const sizes = [1.7, 2, 2.3, 2.7].map((size) => Math.round(size * k * 100) / 100)
+  return names.map((name) => {
+    const i = Math.floor(random() * sizes.length)
+    return { name, size: sizes[i], bold: i >= 2, accent: random() < 0.22 }
+  })
+}
+
+export interface ScreenCost {
+  slug: string
+  label: string
+  /** A month of it, rounded up to the euro. */
+  amount: number
+}
+
+/**
+ * The fixed costs as /contribute breaks them down, for the TV: whole euros,
+ * rounded up, no shares. The total shown is the sum of the rounded amounts,
+ * so the numbers on screen add up.
+ */
+export function screenCosts(recurring: Array<{ slug: string; label: string; amountEur: number }>): ScreenCost[] {
+  return recurring.filter((c) => c.amountEur > 0).map((c) => ({ slug: c.slug, label: c.label, amount: Math.ceil(c.amountEur - 1e-9) }))
 }

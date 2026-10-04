@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, jest, test } from "@jest/globals
 import { render } from "@testing-library/react"
 
 import { ContributeBoard } from "@/components/screen/contribute-board"
-import { contributorsByTokens, lendersByLoan, type ContributeScreenData } from "@/lib/contribute-screen"
+import { contributorsByTokens, lendersByLoan, screenCosts, type ContributeScreenData } from "@/lib/contribute-screen"
 import type { DebtLedger } from "@/lib/debt"
 
 const ledger = {
@@ -127,5 +127,22 @@ describe("what the page reads", () => {
     expect(new Set(day1).size).toBe(9)
     expect(cloudNames(lists, "2026-10-04").map((n) => n.name)).toEqual(day1)
     expect(cloudNames(lists, "2026-10-05").map((n) => n.name)).not.toEqual(day1)
+  })
+
+  test("the fixed costs, in whole euros rounded up, add up on screen, no percentages", async () => {
+    const costs = screenCosts([
+      { slug: "rent", label: "Rent", amountEur: 6546.12 },
+      { slug: "internet", label: "Internet", amountEur: 55 },
+      { slug: "none", label: "Nothing", amountEur: 0 },
+    ])
+    expect(costs).toEqual([
+      { slug: "rent", label: "Rent", amount: 6547 },
+      { slug: "internet", label: "Internet", amount: 55 },
+    ])
+    const data = await load()
+    const { container } = render(<ContributeBoard data={data} costs={costs} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" seed="2026-10-04" />)
+    const text = container.textContent ?? ""
+    for (const part of ["€6,602", "Rent", "€6,547", "Internet", "€55", "Big Lender", "Ann"]) expect(text).toContain(part)
+    expect(text).not.toContain("%")
   })
 })
