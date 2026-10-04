@@ -92,21 +92,60 @@ export function ellipsePoints(count: number, r: number, phase = 0, free: (p: { x
 }
 
 /**
- * Partners on one inner ring; members spread over three outer rings in
- * proportion to each ring's length, so neighbours keep the same distance.
+ * Partners on two levels: placed along one ring, then every other one is
+ * moved in or out, square to the ring, so each sits between two on the other
+ * level and the two levels run parallel. Members spread over three outer
+ * rings in proportion to each ring's length, so neighbours keep the same
+ * distance.
  */
-export function membersCloud(partners: number, members: number): Array<{ x: number; y: number }> {
-  const rings = [0.74, 0.87, 1]
-  const weights = rings.map((r) => r)
-  const sum = weights.reduce((a, b) => a + b, 0)
-  const counts = weights.map((w) => Math.floor((members * w) / sum))
+export function membersCloud(
+  partners: number,
+  members: number,
+  {
+    middle = 0.58,
+    offset = 0.03,
+    rings = [0.77, 0.885, 1],
+    partnerSize = 5.4,
+    memberSize = 3.15,
+  }: { middle?: number; offset?: number; rings?: number[]; partnerSize?: number; memberSize?: number } = {},
+): Array<{ x: number; y: number }> {
+  const sum = rings.reduce((a, b) => a + b, 0)
+  const counts = rings.map((r) => Math.floor((members * r) / sum))
   for (let i = 0; counts.reduce((a, b) => a + b, 0) < members; i = (i + 1) % rings.length) counts[rings.length - 1 - i]++
-  // The bottom corners carry the counts (left) and the QR code (right): keep avatars out.
-  const free = ({ x, y }: { x: number; y: number }) => !(x > 60 && y > 76) && !(x < 20 && y > 85)
-  return [
-    ...ellipsePoints(partners, 0.57, -Math.PI / 2),
-    ...rings.flatMap((r, i) => ellipsePoints(counts[i], r, -Math.PI / 2 + (i * Math.PI) / Math.max(1, counts[i]), free)),
-  ]
+  // Work in pixels of a 1920×1080 screen; sizes are in screen units (1% of the width), `offset` is a share of the width.
+  const U = 19.2
+  const toPx = ({ x, y }: { x: number; y: number }) => ({ x: (x / 100) * 1920, y: (y / 100) * 1080 })
+  const ax = middle * 0.48 * 1920
+  const ay = middle * 0.46 * 1080
+  const d = offset * 1920
+  const partnerSpots = ellipsePoints(partners, middle, -Math.PI / 2).map(({ x, y }, i) => {
+    const px = ((x - 50) / 100) * 1920
+    const py = ((y - 50) / 100) * 1080
+    const nx = px / (ax * ax)
+    const ny = py / (ay * ay)
+    const len = Math.hypot(nx, ny) || 1
+    const sign = i % 2 === 0 ? -1 : 1
+    return { x: 50 + ((px + (sign * d * nx) / len) / 1920) * 100, y: 50 + ((py + (sign * d * ny) / len) / 1080) * 100 }
+  })
+  // Everything placed so far, with its radius in px: each members ring leaves out the stretches that would touch it.
+  const placed = partnerSpots.map((p) => ({ ...toPx(p), r: (partnerSize * U) / 2 }))
+  const memberR = (memberSize * U) / 2
+  const gap = 0.5 * U
+  const memberSpots: Array<{ x: number; y: number }> = []
+  rings.forEach((r, i) => {
+    const before = placed.length
+    // The bottom corners carry the counts (left) and the QR code (right), the top-right one the clock.
+    const free = (p: { x: number; y: number }) => {
+      if ((p.x > 60 && p.y > 76) || (p.x < 20 && p.y > 85) || (p.x > 86 && p.y < 13)) return false
+      const q = toPx(p)
+      return placed.slice(0, before).every((o) => Math.hypot(o.x - q.x, o.y - q.y) >= o.r + memberR + gap)
+    }
+    for (const p of ellipsePoints(counts[i], r, -Math.PI / 2 + (i * Math.PI) / Math.max(1, counts[i]), free)) {
+      memberSpots.push(p)
+      placed.push({ ...toPx(p), r: memberR })
+    }
+  })
+  return [...partnerSpots, ...memberSpots]
 }
 
 export function loadMembersScreen(): { items: CloudItem[]; members: number; partners: number } {
