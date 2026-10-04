@@ -26,17 +26,18 @@ describe("members screen", () => {
     for (const p of partners) expect(p.image).toMatch(/^\//)
   })
 
-  test("the cloud stays on screen and around the logo", () => {
+  test("partners on two levels; nothing overlaps, everything on screen, clear of the logo and the corners", () => {
     const points = membersCloud(22, 77)
     expect(points).toHaveLength(99)
-    for (const { x, y } of points) {
-      expect(x).toBeGreaterThanOrEqual(1)
-      expect(x).toBeLessThanOrEqual(99)
-      expect(y).toBeGreaterThanOrEqual(3)
-      expect(y).toBeLessThanOrEqual(97)
-      // outside the logo's free circle (about 15% of the width / 30% of the height around the centre)
-      expect(Math.hypot((x - 50) / 48, (y - 50) / 46)).toBeGreaterThan(0.5)
+    const px = points.map((p, i) => ({ x: (p.x / 100) * 1920, y: (p.y / 100) * 1080, r: ((i < 22 ? 5.4 : 3.15) * 19.2) / 2 }))
+    for (let i = 0; i < px.length; i++)
+      for (let j = i + 1; j < px.length; j++) expect(Math.hypot(px[i].x - px[j].x, px[i].y - px[j].y)).toBeGreaterThan(px[i].r + px[j].r)
+    for (const p of px) {
+      expect(Math.min(p.x - p.r, 1920 - p.x - p.r, p.y - p.r, 1080 - p.y - p.r)).toBeGreaterThanOrEqual(0)
+      expect(Math.hypot(p.x - 960, p.y - 540) - p.r).toBeGreaterThan(8.5 * 19.2) // the logo
     }
-    expect(ellipsePoints(0, 0.5)).toEqual([])
+    // Two levels: alternate partners sit on an inner and an outer curve.
+    const dist = (p: { x: number; y: number }) => Math.hypot((p.x - 50) / 48, (p.y - 50) / 46)
+    for (let i = 0; i + 1 < 22; i += 2) expect(dist(points[i])).toBeLessThan(dist(points[i + 1]))
   })
 })

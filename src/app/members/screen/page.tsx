@@ -3,7 +3,7 @@ import QRCode from "qrcode"
 import type React from "react"
 
 import { PosterLogo } from "@/components/poster/poster"
-import { ScreenRefresh } from "@/components/screen/screen-live"
+import { ScreenClock, ScreenRefresh } from "@/components/screen/screen-live"
 import { ScreenQr } from "@/components/screen/screen-qr"
 import { CloudImage } from "@/components/screen/cloud-image"
 import { loadMembersScreen, membersCloud } from "@/lib/members-screen"
@@ -44,7 +44,7 @@ export default async function MembersScreenPage() {
         .cloud-item { position: absolute; transform: translate(-50%, -50%); animation: cloud-float 7s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .cloud-item { animation: none; } }
       `}</style>
-      <ScreenRefresh minutes={30} />
+      <ScreenRefresh minutes={10} />
 
       {items.map((item, i) => {
         const { x, y } = positions[i]
@@ -78,6 +78,9 @@ export default async function MembersScreenPage() {
         </div>
       </div>
 
+      <div className="absolute right-0 top-0" style={{ padding: `${s(2)} ${s(2.6)}`, fontSize: s(2.6), fontWeight: 600, color: "rgba(255,255,255,0.68)" }}>
+        <ScreenClock />
+      </div>
       <div className="absolute bottom-0 left-0" style={{ padding: `${s(1.4)} ${s(1.8)}`, fontSize: s(1.15), lineHeight: 1.35, color: "rgba(255,255,255,0.72)" }}>
         <div className="text-white" style={{ fontWeight: 600 }}>{members} members</div>
         <div>{partners} partner organisations</div>

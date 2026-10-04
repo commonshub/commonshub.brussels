@@ -27,7 +27,7 @@ export default async function ContributeScreenPage() {
   const qrSvg = await QRCode.toString(CONTRIBUTE_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0 })
 
   return (
-    <ScreenShell title="Thank you to everyone who contributes" refreshMinutes={10}>
+    <ScreenShell title="Thank you to everyone who contributes">
       <ContributeBoard data={data} qrSvg={qrSvg} url={CONTRIBUTE_URL} seed={new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })} />
     </ScreenShell>
   )

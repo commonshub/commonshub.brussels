@@ -21,7 +21,7 @@ export function ScreenShell({
   title,
   subtitle,
   clockOffsetMs,
-  refreshMinutes = 5,
+  refreshMinutes = 10,
   children,
 }: {
   title: string
