@@ -395,9 +395,10 @@
     "oneTimeMinAmount": 20
   },
   "contributors": {
-    "_comment": "Discord usernames never shown as individual contributors on /community: bots and organisation accounts (Open Collective is already listed as a partner).",
+    "_comment": "Discord usernames never shown as individual contributors on /community: bots and organisation accounts (Open Collective is already listed as a partner; CommonsHub is the hub's own account).",
     "exclude": [
-      "opencollective"
+      "opencollective",
+      "CommonsHub"
     ]
   },
   "events": {
