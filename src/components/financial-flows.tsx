@@ -114,9 +114,16 @@ export function FinancialFlows(props: FinancialFlowsProps) {
         incomeBreakdown={view.byCategory}
         expenseBreakdown={view.byCategory}
         action={
-          <Link href={href({})} className="shrink-0 text-sm font-medium text-primary hover:underline">
-            Transactions →
-          </Link>
+          <span className="flex shrink-0 flex-wrap justify-end gap-x-4 gap-y-1">
+            {current && current.key !== "unassigned" && (
+              <Link href={`/collectives/${encodeURIComponent(current.key)}`} className="text-sm font-medium text-primary hover:underline">
+                View collective →
+              </Link>
+            )}
+            <Link href={href({})} className="text-sm font-medium text-primary hover:underline">
+              Transactions →
+            </Link>
+          </span>
         }
       />
 

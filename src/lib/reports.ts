@@ -577,7 +577,7 @@ function txMetadata(tx: ConsolidatedTx): NonNullable<ConsolidatedTx["metadata"]>
   return (tx.metadata ?? {}) as NonNullable<ConsolidatedTx["metadata"]>;
 }
 
-function collectiveLabel(key: string): string {
+export function collectiveLabel(key: string): string {
   const collectives = settings.finance.collectives as Record<string, { name?: string }>;
   return collectives[key]?.name || key;
 }
@@ -613,7 +613,7 @@ const MAIN_CATEGORY_LABELS: Record<string, string> = {
   other_expense: "Other expenses",
 };
 
-function isStripePayout(tx: ConsolidatedTx): boolean {
+export function isStripePayout(tx: ConsolidatedTx): boolean {
   const metadata = txMetadata(tx);
   return tx.provider === "stripe" && String(metadata.category || "").toLowerCase() === "payout";
 }
@@ -684,13 +684,13 @@ const CHB_CATEGORIES: Record<string, string | { income: string; expense: string 
 };
 
 /** A transaction chb marks as not real activity (a test mint, a duplicate): left out of every total. */
-function isExcluded(tx: ConsolidatedTx): boolean {
+export function isExcluded(tx: ConsolidatedTx): boolean {
   const metadata = txMetadata(tx) as Record<string, unknown>;
   return Boolean(metadata.excluded) || Boolean((tx as unknown as { excluded?: unknown }).excluded);
 }
 
 /** Categories that are not income or spending at all (chb ≥ 3.24). */
-const NOT_A_FLOW = new Set(["internal_transfer", "opening_balance"]);
+export const NOT_A_FLOW = new Set(["internal_transfer", "opening_balance"]);
 
 let taxonomyCache: { mtimeMs: number; labels: Map<string, string> } | null = null;
 
@@ -796,9 +796,47 @@ function collectiveFlows(map: Map<string, CollectiveAcc>): CollectiveFlows[] {
  * exactly the transactions behind a row.
  */
 export function reportCategoryFor(tx: ConsolidatedTx): { key: string; label: string } | null {
-  if (!txFinanceAccount(tx) || isInternalTransfer(tx) || isStripePayout(tx) || tx.type === "TRANSFER") return null;
+  return reportFlowFor(tx)?.category ?? null;
+}
+
+/** How the report counts one transaction: which account, which way, how much, under which category. */
+export interface ReportFlow {
+  account: FinanceAccount;
+  direction: Direction;
+  /** Positive, except a tax refund: booked as a negative expense. */
+  amount: number;
+  category: { key: string; label: string };
+}
+
+/**
+ * One transaction as the report counts it, or null when it is not income or
+ * spending: not one of our finance accounts, an internal transfer, a Stripe
+ * payout, a peer-to-peer token transfer, an internal_transfer/opening_balance
+ * category, or a row chb excludes. The monthly report and the collective
+ * pages both add these up, so they always agree.
+ */
+export function reportFlowFor(tx: ConsolidatedTx): ReportFlow | null {
+  const account = txFinanceAccount(tx);
+  if (!account) return null;
+  if (isInternalTransfer(tx) || isStripePayout(tx) || tx.type === "TRANSFER") return null;
   if (NOT_A_FLOW.has(String(txMetadata(tx).category || "")) || isExcluded(tx)) return null;
-  return mainCategoryFor(tx, txDirection(tx));
+
+  // Stripe rows have currency already normalised to the account currency
+  // (EUR/USD/…); blockchain rows use tx.amount in the account's token unit.
+  // CREDIT/MINT → into the account; DEBIT/BURN → out of the account.
+  const value = tx.provider === "stripe" ? Math.abs(tx.normalizedAmount) : Math.abs(tx.amount);
+  const txDir = txDirection(tx);
+  const category = mainCategoryFor(tx, txDir);
+  // A tax refund (VAT paid back by the State) is not income: it reduces
+  // what was spent on taxes. Book it as a negative expense, so income only
+  // counts real income and the net result is unchanged.
+  const refundOfTaxes = category.key === "tax" && txDir === "CREDIT";
+  return {
+    account,
+    direction: refundOfTaxes ? "DEBIT" : txDir,
+    amount: refundOfTaxes ? -value : value,
+    category,
+  };
 }
 
 function addBreakdown(
@@ -1086,16 +1124,11 @@ export function calculateMonthlyFinancials(
   };
 
   for (const tx of transactions) {
-    const account = txFinanceAccount(tx);
-    if (!account) continue;
-
-    // Skip internal transfers and peer-to-peer token transfers — neither
-    // moves money into or out of the org.
-    if (isInternalTransfer(tx)) continue;
-    if (isStripePayout(tx)) continue;
-    if (tx.type === "TRANSFER") continue;
-    if (NOT_A_FLOW.has(String(txMetadata(tx).category || ""))) continue;
-    if (isExcluded(tx)) continue;
+    // Internal transfers, payouts and peer-to-peer token transfers move no
+    // money into or out of the org: reportFlowFor leaves them out.
+    const flow = reportFlowFor(tx);
+    if (!flow) continue;
+    const { account, direction, amount, category: mainCategory } = flow;
 
     const existing = byAccount.get(account.slug) ?? {
       key: account.slug,
@@ -1106,22 +1139,6 @@ export function calculateMonthlyFinancials(
       net: 0,
     };
 
-    // Stripe rows have currency already normalised to the account currency
-    // (EUR/USD/…); blockchain rows use tx.amount in the account's token unit.
-    // CREDIT/MINT → into the account; DEBIT/BURN → out of the account.
-    const value =
-      tx.provider === "stripe"
-        ? Math.abs(tx.normalizedAmount)
-        : Math.abs(tx.amount);
-
-    const txDir = txDirection(tx);
-    const mainCategory = mainCategoryFor(tx, txDir);
-    // A tax refund (VAT paid back by the State) is not income: it reduces
-    // what was spent on taxes. Book it as a negative expense, so income only
-    // counts real income and the net result is unchanged.
-    const refundOfTaxes = mainCategory.key === "tax" && txDir === "CREDIT";
-    const direction: Direction = refundOfTaxes ? "DEBIT" : txDir;
-    const amount = refundOfTaxes ? -value : value;
     if (direction === "CREDIT") {
       existing.income += amount;
       totalIncome += amount;
