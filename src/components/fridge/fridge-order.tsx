@@ -7,6 +7,10 @@ import type { Drink } from "@/lib/fridge"
 
 const eur = (n: number) => new Intl.NumberFormat("en-BE", { style: "currency", currency: "EUR", minimumFractionDigits: 2 }).format(n)
 const round2 = (n: number) => Math.round(n * 100) / 100
+/** Up to the next multiple of €5 (never below €5). */
+const ceil5 = (n: number) => Math.max(5, Math.ceil(n / 5 - 1e-9) * 5)
+/** Four buttons, €5 apart, starting at the first multiple of €5 that covers `from`. */
+const fiveSteps = (from: number) => [0, 5, 10, 15].map((d) => ceil5(from) + d)
 const shortName = (d: Drink) => d.name.replace(/\s+\d+(?:[.,]\d+)?\s*%$/, "")
 const sizeLabel = (d: Drink) => `${d.size}${d.abv !== undefined ? ` · ${d.abv < 1.2 ? "alcohol-free" : `${String(d.abv).replace(".", ",")}%`}` : ""}`
 
@@ -48,6 +52,7 @@ function Costs({ lines, total, tokensPerMonth }: { lines: Array<{ label: string;
         <span>Total</span>
         <span className="text-right tabular-nums">{eur(total)} + our time</span>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">Prices include VAT. Bottle deposits are refunded when the empties go back, so they are not counted.</p>
     </section>
   )
 }
@@ -57,11 +62,14 @@ function Contribute(props: {
   amount: number
   setAmount: (n: number) => void
   minimum: number
+  /** The amounts offered as buttons (multiples of €5); the last button is a custom amount. */
+  options: number[]
   payload: object
   message: string
   listed?: boolean
 }) {
-  const { amount, setAmount, minimum, payload, message, listed } = props
+  const { amount, setAmount, minimum, options, payload, message, listed } = props
+  const [custom, setCustom] = useState(() => !options.includes(amount))
   const [method, setMethod] = useState<Method>("card")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,22 +95,54 @@ function Contribute(props: {
         <h2 className="text-lg font-semibold text-foreground">How do you want to contribute?</h2>
         <p className="mt-1 text-sm text-muted-foreground">The drinks are not for sale: they are there for everyone. A donation keeps the fridge stocked.</p>
       </div>
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-foreground">Donate euros</span>
-        <span className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">€</span>
-          <input
-            type="number"
-            inputMode="decimal"
-            min={minimum}
-            step={0.5}
-            value={amount}
-            onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
-            className="h-11 w-28 rounded-lg border border-border bg-background pl-7 pr-3 text-right text-lg font-semibold tabular-nums"
-            aria-label="Donation in euros"
-          />
-        </span>
-      </label>
+      <div role="radiogroup" aria-label="Donation in euros" className="grid grid-cols-5 gap-2">
+        {options.map((v) => {
+          const active = !custom && amount === v
+          return (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => {
+                setCustom(false)
+                setAmount(v)
+              }}
+              className={`h-12 rounded-lg border text-base font-semibold tabular-nums ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"}`}
+            >
+              €{v}
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={custom}
+          onClick={() => setCustom(true)}
+          className={`h-12 rounded-lg border text-sm font-semibold ${custom ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"}`}
+        >
+          Other
+        </button>
+      </div>
+      {custom && (
+        <label className="flex items-center justify-between gap-3">
+          <span className="text-sm text-muted-foreground">Your amount</span>
+          <span className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">€</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={minimum}
+              step={1}
+              value={amount || ""}
+              autoFocus
+              onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
+              className="h-11 w-28 rounded-lg border border-border bg-background pl-7 pr-3 text-right text-lg font-semibold tabular-nums"
+              aria-label="Custom donation in euros"
+            />
+          </span>
+        </label>
+      )}
       <div role="radiogroup" aria-label="Payment method" className="flex rounded-lg border border-border bg-muted/50 p-1">
         {(["card", "transfer"] as const).map((m) => (
           <button
@@ -181,7 +221,6 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
   const count = items.reduce((s, i) => s + i.quantity, 0)
   const cost = round2(items.reduce((s, i) => s + i.quantity * i.drink.costPerBottle, 0))
   const crate = drinks.find((d) => d.id === crateId) ?? drinks[0]
-  const suggested = (c: number) => Math.max(settings.minimum, Math.ceil(c / settings.roundTo - 1e-9) * settings.roundTo)
 
   const go = (next: Step) => {
     setStep(next)
@@ -202,6 +241,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
           amount={amount}
           setAmount={setAmount}
           minimum={1}
+          options={[5, 10, 15, 20]}
           payload={{ items: items.map((i) => ({ id: i.drink.id, quantity: i.quantity })) }}
           message={settings.transferMessage}
         />
@@ -226,7 +266,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
                 aria-checked={d.id === crate.id}
                 onClick={() => {
                   setCrateId(d.id)
-                  setAmount(d.crateCost)
+                  setAmount(ceil5(d.crateCost))
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${d.id === crate.id ? "border-primary bg-primary/5" : "border-border"}`}
               >
@@ -260,8 +300,9 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
           amount={amount}
           setAmount={setAmount}
           minimum={crate.crateCost}
+          options={fiveSteps(crate.crateCost)}
           payload={{ crate: crate.id, name: listedName }}
-          message={listedName ? `${settings.crateTransferMessage} ${listedName}`.slice(0, 140) : settings.crateTransferMessage}
+          message={settings.crateTransferMessage}
           listed={!!listedName}
         />
       </div>
@@ -303,7 +344,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
         <button
           type="button"
           onClick={() => {
-            if (crate) setAmount(crate.crateCost)
+            if (crate) setAmount(ceil5(crate.crateCost))
             go("crate")
           }}
           className="mt-3 h-11 w-full rounded-lg border border-primary text-sm font-semibold text-primary"
@@ -325,7 +366,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
             <button
               type="button"
               onClick={() => {
-                setAmount(suggested(cost))
+                setAmount(ceil5(cost))
                 go("donate")
               }}
               className="h-12 rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground"
