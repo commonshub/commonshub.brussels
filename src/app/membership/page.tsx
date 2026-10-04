@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { MembershipJoinSection } from "@/components/membership-join-section"
 
 export const metadata = {
@@ -9,6 +11,11 @@ export default function MembershipPage() {
   return (
     <main className="min-h-screen bg-background">
       <MembershipJoinSection />
+      <p className="pb-10 text-center text-xs text-muted-foreground">
+        <Link href="/membership/poster" className="underline underline-offset-2">
+          Print the membership poster (A4)
+        </Link>
+      </p>
     </main>
   )
 }

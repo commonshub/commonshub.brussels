@@ -2,7 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import QRCode from "qrcode"
 
-import { PrintButton } from "@/components/fridge/print-button"
+import { PosterLogo as Logo, posterPrintCss, u } from "@/components/poster/poster"
+import { PrintButton } from "@/components/poster/print-button"
 
 export const metadata: Metadata = {
   title: "Fridge poster | Commons Hub Brussels",
@@ -11,21 +12,6 @@ export const metadata: Metadata = {
 
 /** Always the public address, whichever copy of the site prints the poster. */
 const FRIDGE_URL = "https://commonshub.brussels/fridge"
-
-/** The hub's asterisk, drawn as an outline so the poster takes little ink. */
-function Logo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="80 80 340 340" className={className} aria-hidden="true">
-      <path
-        d="M213.528 91L126.722 141.505L201.691 225.154L92 201.48V302.49L201.691 280.394L126.722 359.308L213.528 409.813L250.223 303.632L286.918 409.813L373.723 359.308L298.755 280.394L408.446 302.49V201.48L298.755 225.154L373.723 141.505L286.918 91L250.223 190.155L213.528 91Z"
-        fill="none"
-        stroke="#000"
-        strokeWidth="14"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 /**
  * A poster to print and stick on the fridge: black on white (no fills, no
@@ -36,24 +22,10 @@ export default async function FridgePosterPage({ searchParams }: { searchParams:
   const { format } = await searchParams
   const a5 = format?.toLowerCase() === "a5"
   const qr = await QRCode.toString(FRIDGE_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0, color: { dark: "#000000", light: "#0000" } })
-  const u = (n: number) => `calc(var(--u) * ${n})`
 
   return (
     <div className="poster-sheet mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-8">
-      <style>{`
-        .poster { --u: min(1mm, calc((100vw - 32px) / 210)); }
-        @page { size: ${a5 ? "A5" : "A4"} portrait; margin: 0; }
-        @media print {
-          .poster { --u: ${a5 ? "0.7071mm" : "1mm"}; }
-          html, body { background: #fff !important; height: auto !important; min-height: 0 !important; }
-          header, footer, .print\\:hidden { display: none !important; }
-          main { min-height: 0 !important; padding: 0 !important; }
-          body * { visibility: hidden !important; }
-          .poster, .poster * { visibility: visible !important; }
-          .poster-sheet { display: block !important; padding: 0 !important; margin: 0 !important; max-width: none !important; }
-          .poster { box-shadow: none !important; outline: 0 !important; --tw-ring-shadow: 0 0 #0000 !important; height: calc(var(--u) * 296) !important; overflow: hidden; break-after: avoid; page-break-after: avoid; }
-        }
-      `}</style>
+      <style>{posterPrintCss(a5 ? "A5" : "A4")}</style>
 
       <div className="print:hidden flex w-full flex-wrap items-center justify-between gap-3">
         <div>
