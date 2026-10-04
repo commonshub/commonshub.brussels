@@ -18,9 +18,10 @@ export const metadata: Metadata = {
 const CONTRIBUTE_URL = "https://commonshub.brussels/contribute"
 
 /**
- * For the hub's big screen: why the space exists, a QR code to /contribute,
- * and the people who keep it going. Public: reads the public tier only and
- * names nobody the site does not already name to anonymous visitors (see
+ * For the hub's big screen: why the space exists, the two currencies that
+ * keep it going (money: costs and latest donations; time: photos and recent
+ * contributors), and a QR code to /contribute. Public: reads the public tier,
+ * and names a donor only as they chose at checkout (see
  * lib/contribute-screen.ts).
  */
 export default async function ContributeScreenPage() {
@@ -31,7 +32,7 @@ export default async function ContributeScreenPage() {
 
   return (
     <ScreenShell title="Thank you to everyone who contributes">
-      <ContributeBoard data={data} costs={costs} qrSvg={qrSvg} url={CONTRIBUTE_URL} seed={new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })} />
+      <ContributeBoard data={data} costs={costs} qrSvg={qrSvg} url={CONTRIBUTE_URL} />
     </ScreenShell>
   )
 }

@@ -1,39 +1,61 @@
 /**
- * Who keeps the Commons Hub going, for the big screen (/contribute/screen):
- * two ranked lists of names, money and time, ordered by how much each person
- * gave but never saying how much.
+ * What /contribute/screen shows, the two currencies that keep the Commons
+ * Hub going:
+ * - yang, money: the fixed costs, and the latest donations with their date
+ *   and time. A donation is named only as its donor chose at checkout
+ *   (lib/donor-thanks.ts): card donations by their choice, read from Stripe;
+ *   bank transfers never.
+ * - yin, time: a few photos from the #contributions channel that people
+ *   liked, and who was thanked for a contribution lately: the community
+ *   people mentioned in #contributions (chb's contributions.json), or, until
+ *   chb publishes it, who posted photos there; Discord display names, which
+ *   chb publishes in the public tier.
  *
- * The page is public and shown on a TV, so it only ever names someone the
- * site already names to anonymous visitors:
- * - money: the lenders on /debt, a public ledger (largest loans first, as
- *   /contribute lists them). Donors are not named: their names exist only in
- *   the members tier (see lib/donors.ts), so only their count is shown.
- * - time: the people who received the most community tokens, from the
- *   public tier's yearly contributors.json, where chb keeps Discord display
- *   names on purpose (they are on /community already).
- * Nothing here reads the members tier, and only names leave this module.
+ * Only the public tier is read, and no amount leaves this module.
  */
 
+import settings from "@/settings/settings.json"
+
 import type { Tier } from "./data-paths"
-import { listYears, readTierJson } from "./dataset"
+import { readTierJson } from "./dataset"
 import { isExcludedContributor, normalizeContributor, type ContributorsFile } from "./contributors"
-import { loadDebtLedger, type DebtHolder } from "./debt"
-import { loadDonors } from "./donors"
+import type { DebtHolder } from "./debt"
+import { loadStripeThanks, type StripeThanks } from "./donor-thanks"
+import { getProxiedImageUrl } from "./image-proxy"
+import { photoSource } from "./photos"
+import { readGeneratedImages, type PopularPhoto } from "./reports"
 
 /** The only tier this page reads. */
 const TIER: Tier = "public"
 
-export interface ContributeScreenData {
-  /** Lenders, largest loan first. Names only. */
-  lenders: string[]
-  /** People, most tokens received first. Names only. */
-  contributors: string[]
-  /** How many donations the hub received; the donors themselves are not named. */
-  donations: number
-  /** ISO timestamp of the most recent data behind the lists. */
-  updatedAt: string | null
+export interface RecentDonation {
+  /** Milliseconds. */
+  at: number
+  via: "card" | "bank transfer"
+  /** As the donor chose to be shown; null for no name. */
+  name: string | null
 }
 
+export interface RecentContributor {
+  name: string
+  /** When they were last thanked with tokens, in milliseconds. */
+  at: number
+}
+
+export interface ContributionPhoto {
+  src: string
+  author: string
+  /** Milliseconds. */
+  at: number
+}
+
+export interface ContributeScreenData {
+  donations: RecentDonation[]
+  contributors: RecentContributor[]
+  /** Where the names come from: people mentioned in #contributions, or (until chb publishes that) who posted there. */
+  contributorsFrom: "mentions" | "posts"
+  photos: ContributionPhoto[]
+}
 /** Everyone who ever lent to the hub, largest total lent first (settled or not). */
 export function lendersByLoan(holders: Array<Pick<DebtHolder, "name" | "minted">>): string[] {
   return holders
@@ -65,74 +87,131 @@ export function contributorsByTokens(files: ContributorsFile[], excluded?: Set<s
     .map((c) => c.name)
 }
 
-export async function loadContributeScreen(limit = Infinity): Promise<ContributeScreenData> {
-  const files = listYears()
-    .map((year) => readTierJson<ContributorsFile & { generatedAt?: string }>(TIER, "contributors.json", year))
-    .filter((file): file is ContributorsFile & { generatedAt?: string } => !!file)
+// ── yang: donations ──────────────────────────────────────────────────────
 
-  const ledger = await loadDebtLedger().catch(() => null)
+interface DatasetTx {
+  provider?: string
+  currency?: string
+  type?: string
+  amount?: number
+  grossAmount?: number
+  timestamp?: number
+  metadata?: { category?: string; collective?: string; description?: string; excluded?: boolean } | null
+}
 
-  const dates = [ledger?.fetchedAt, ...files.map((f) => f.generatedAt)].filter((d): d is string => !!d).sort()
+/** A donation to the hub itself, by card (Stripe) or bank transfer (KBC, or the EURe account via Monerium). */
+function isHubDonation(tx: DatasetTx): boolean {
+  const m = tx.metadata ?? {}
+  if (m.excluded || !(Number(tx.amount) > 0) || !tx.timestamp) return false
+  if (tx.type === "INTERNAL" || tx.type === "DEBIT" || tx.type === "BURN") return false
+  if (m.collective && m.collective !== "commonshub") return false
+  if (!["EUR", "EURe"].includes(tx.currency ?? "")) return false
+  return m.category === "donation" || /\bdonation\b/i.test(m.description ?? "")
+}
+
+/**
+ * The latest donations, newest first. A card donation takes the name its
+ * donor chose, from the checkout it came from (same amount, paid within the
+ * hour after the checkout opened); without one, or for a transfer, no name.
+ */
+export function recentDonations(txs: DatasetTx[], thanks: StripeThanks[] | null, limit = 4): RecentDonation[] {
+  const used = new Set<StripeThanks>()
+  return txs
+    .filter(isHubDonation)
+    .sort((a, b) => b.timestamp! - a.timestamp!)
+    .slice(0, limit)
+    .map((tx) => {
+      const card = tx.provider === "stripe"
+      let name: string | null = null
+      if (card && thanks) {
+        const cents = Math.round(Number(tx.grossAmount ?? tx.amount) * 100)
+        const match = thanks
+          .filter((t) => !used.has(t) && t.amount === cents && t.created <= tx.timestamp! + 300 && tx.timestamp! - t.created < 3600)
+          .sort((a, b) => Math.abs(tx.timestamp! - a.created) - Math.abs(tx.timestamp! - b.created))[0]
+        if (match) {
+          used.add(match)
+          name = match.name
+        }
+      }
+      return { at: tx.timestamp! * 1000, via: card ? "card" : "bank transfer", name }
+    })
+}
+
+// ── yin: contributions ───────────────────────────────────────────────────
+
+/** chb's feed of #contributions messages (YYYY/MM/public/contributions.json): when, who posted, who was mentioned. */
+export interface ContributionsFeed {
+  messages?: Array<{
+    timestamp: string
+    author?: { id?: string; displayName?: string; username?: string }
+    mentions?: Array<{ id?: string; displayName?: string; username?: string }>
+  }>
+}
+
+/**
+ * Who contributed lately, newest first, each once: the people mentioned in
+ * #contributions (that is how the community thanks someone, and what mints
+ * them tokens), with when. Until chb publishes that feed, the people who
+ * posted photos in #contributions, with when.
+ */
+export function recentContributors(feeds: ContributionsFeed[], photos: PopularPhoto[], limit = 10): RecentContributor[] {
+  const latest = new Map<string, { name: string; at: number }>()
+  const add = (person: { id?: string; displayName?: string | null; username?: string } | undefined, at: number) => {
+    const name = person?.displayName || person?.username
+    if (!name || !Number.isFinite(at) || isExcludedContributor({ username: person!.username, displayName: name })) return
+    const key = person!.id || name.toLowerCase()
+    if ((latest.get(key)?.at ?? 0) < at) latest.set(key, { name, at })
+  }
+  const messages = feeds.flatMap((f) => f.messages ?? [])
+  if (messages.length > 0) {
+    for (const m of messages) for (const person of m.mentions ?? []) add(person, Date.parse(m.timestamp))
+  } else {
+    for (const p of photos) if (p.channelId === settings.discord.channels.contributions) add(p.author, Date.parse(p.timestamp))
+  }
+  return [...latest.values()].sort((a, b) => b.at - a.at).slice(0, limit)
+}
+
+/** A few photos from #contributions that at least `minReactions` people reacted to, picked at random. */
+export function contributionPhotos(photos: PopularPhoto[], { count = 4, minReactions = 2, random = Math.random } = {}): ContributionPhoto[] {
+  const pool = photos.filter((p) => p.channelId === settings.discord.channels.contributions && p.totalReactions >= minReactions)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool.slice(0, count).map((p) => ({
+    src: getProxiedImageUrl(p.proxyUrl ?? photoSource(p), "md", { relative: true }),
+    author: p.author?.displayName || p.author?.username || "",
+    at: Date.parse(p.timestamp),
+  }))
+}
+
+/** The last `count` months, newest first, as [year, month]. */
+export function lastMonths(now: Date, count: number): Array<[string, string]> {
+  const out: Array<[string, string]> = []
+  for (let i = 0; i < count; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+    out.push([String(d.getUTCFullYear()), String(d.getUTCMonth() + 1).padStart(2, "0")])
+  }
+  return out
+}
+
+export async function loadContributeScreen(now = new Date()): Promise<ContributeScreenData> {
+  const months = lastMonths(now, 3)
+  const txs = months.flatMap(([y, m]) => {
+    const file = readTierJson<{ transactions?: DatasetTx[] } | DatasetTx[]>(TIER, "transactions.json", y, m)
+    return Array.isArray(file) ? file : (file?.transactions ?? [])
+  })
+  const feeds = months.map(([y, m]) => readTierJson<ContributionsFeed>(TIER, "contributions.json", y, m)).filter((f): f is ContributionsFeed => !!f)
+  const photos = months.flatMap(([y, m]) => readGeneratedImages(y, m, TIER))
+  const oldest = Math.min(...txs.filter(isHubDonation).map((t) => t.timestamp!), Math.floor(now.getTime() / 1000))
+  const thanks = await loadStripeThanks(oldest - 3600)
 
   return {
-    lenders: ledger ? lendersByLoan(ledger.holders) : [],
-    contributors: contributorsByTokens(files).slice(0, limit),
-    donations: loadDonors(TIER).donations,
-    updatedAt: dates[dates.length - 1] ?? null,
+    donations: recentDonations(txs, thanks),
+    contributors: recentContributors(feeds, photos),
+    contributorsFrom: feeds.some((f) => (f.messages ?? []).length > 0) ? "mentions" : "posts",
+    photos: contributionPhotos(photos),
   }
-}
-
-export interface CloudName {
-  name: string
-  /** Font size in screen units: varied by chance, never by amount. */
-  size: number
-  /** The two larger sizes are set in bold. */
-  bold: boolean
-  accent: boolean
-}
-
-/** A small seeded random generator (mulberry32), so a day's cloud is stable but changes from day to day. */
-function seeded(seed: string): () => number {
-  let h = 1779033703 ^ seed.length
-  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353)
-  let a = h >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-/**
- * Everyone who lent money or gave time, as one cloud: each name once, in a
- * shuffled order, with sizes that vary by chance. It is not a ranking: the
- * order the lists come in (largest first) is deliberately thrown away.
- */
-/**
- * `room` is about how many names fit at full size; with more, every name
- * shrinks by the same factor so all of them still fit.
- */
-export function cloudNames(data: Pick<ContributeScreenData, "lenders" | "contributors">, seed: string, room = 60): CloudName[] {
-  const seen = new Set<string>()
-  const names: string[] = []
-  for (const name of [...data.lenders, ...data.contributors]) {
-    const key = name.trim().toLowerCase()
-    if (!key || seen.has(key)) continue
-    seen.add(key)
-    names.push(name.trim())
-  }
-  const random = seeded(seed)
-  for (let i = names.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    ;[names[i], names[j]] = [names[j], names[i]]
-  }
-  const k = Math.min(1, Math.sqrt(room / Math.max(1, names.length)))
-  const sizes = [1.7, 2, 2.3, 2.7].map((size) => Math.round(size * k * 100) / 100)
-  return names.map((name) => {
-    const i = Math.floor(random() * sizes.length)
-    return { name, size: sizes[i], bold: i >= 2, accent: random() < 0.22 }
-  })
 }
 
 export interface ScreenCost {

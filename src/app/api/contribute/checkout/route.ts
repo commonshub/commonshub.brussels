@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
+import { THANKS_FIELD } from "@/lib/donor-thanks"
+
 import { findExpense, loadContributeExpenses } from "@/lib/contribute-expenses"
 import { MAX_CONTRIBUTION_EUR, MIN_CONTRIBUTION_EUR } from "@/lib/contribute"
 
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
     if (monthly) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
+        custom_fields: [THANKS_FIELD],
         line_items: [
           {
             quantity: 1,
@@ -72,6 +75,7 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       submit_type: "donate",
+      custom_fields: [THANKS_FIELD],
       line_items: [
         {
           quantity: 1,

@@ -1,10 +1,10 @@
 /**
  * @jest-environment jsdom
  *
- * /contribute/screen is public and shown on the hub's TV: a cloud of the
- * names of those who gave money or time, shuffled by day (not a scoreboard),
- * without any amount, and no name the site does not already show to
- * anonymous visitors.
+ * /contribute/screen is public and shown on the hub's TV: money (costs, the
+ * latest donations) and time (photos from #contributions, who was thanked
+ * lately), each with its date and time. No amount for anyone, a donor named
+ * only as they chose at checkout, nothing from the members tier.
  */
 import * as fs from "fs"
 import * as os from "os"
@@ -14,7 +14,16 @@ import { afterAll, beforeAll, describe, expect, jest, test } from "@jest/globals
 import { render } from "@testing-library/react"
 
 import { ContributeBoard } from "@/components/screen/contribute-board"
-import { contributorsByTokens, lendersByLoan, screenCosts, type ContributeScreenData } from "@/lib/contribute-screen"
+import {
+  contributionPhotos,
+  contributorsByTokens,
+  lendersByLoan,
+  recentContributors,
+  recentDonations,
+  screenCosts,
+  type ContributeScreenData,
+} from "@/lib/contribute-screen"
+import { thanksName } from "@/lib/donor-thanks"
 import type { DebtLedger } from "@/lib/debt"
 
 const ledger = {
@@ -58,6 +67,77 @@ describe("ranking", () => {
   })
 })
 
+const T = 1790000000 // 2026-09-21, seconds
+const tx = (over: object) => ({ provider: "stripe", currency: "EUR", type: "CREDIT", amount: 25, grossAmount: 25, timestamp: T, metadata: { category: "donation", collective: "commonshub" }, ...over })
+
+describe("yang: donations", () => {
+  test("only the hub's own donations, card or transfer, newest first; a name only when the donor chose one", () => {
+    const txs = [
+      tx({ timestamp: T }),
+      tx({ timestamp: T + 100, amount: 10, grossAmount: 10 }),
+      tx({ timestamp: T + 200, provider: "etherscan", currency: "EURe", type: "MINT", metadata: { category: "donation", collective: "commonshub" } }),
+      tx({ timestamp: T + 300, metadata: { category: "donation", collective: "openletter" } }), // another collective
+      tx({ timestamp: T + 400, metadata: { category: "membership", collective: "commonshub" } }), // not a donation
+      tx({ timestamp: T + 500, provider: "kbcbrussels", metadata: { description: "Donation for the hub" } }),
+      tx({ timestamp: T + 600, type: "DEBIT" }),
+    ]
+    const thanks = [
+      { created: T - 120, amount: 2500, name: "Marie" }, // paid 2 min after opening the checkout
+      { created: T + 50, amount: 1000, name: null }, // chose not to be named
+    ]
+    expect(recentDonations(txs, thanks)).toEqual([
+      { at: (T + 500) * 1000, via: "bank transfer", name: null },
+      { at: (T + 200) * 1000, via: "bank transfer", name: null },
+      { at: (T + 100) * 1000, via: "card", name: null },
+      { at: T * 1000, via: "card", name: "Marie" },
+    ])
+    // Without Stripe (no key), nobody is named.
+    expect(recentDonations(txs, null).every((d) => d.name === null)).toBe(true)
+  })
+
+  test("the donor's choice: nothing, first name or full name", () => {
+    expect(thanksName("anonymous", "Marie Curie")).toBeNull()
+    expect(thanksName(undefined, "Marie Curie")).toBeNull()
+    expect(thanksName("first", "  Marie   Curie ")).toBe("Marie")
+    expect(thanksName("full", "Marie  Curie")).toBe("Marie Curie")
+    expect(thanksName("full", "")).toBeNull()
+  })
+})
+
+describe("yin: time", () => {
+  test("who contributed lately: mentioned in #contributions, newest first, each once, bots left out", () => {
+    const feed = {
+      messages: [
+        { timestamp: "2026-09-20T10:00:00Z", author: { id: "9", displayName: "Poster" }, mentions: [{ id: "1", displayName: "Ann" }, { id: "2", displayName: "Bob" }] },
+        { timestamp: "2026-09-22T18:30:00Z", author: { id: "9", displayName: "Poster" }, mentions: [{ id: "1", displayName: "Ann" }, { id: "3", username: "CommonsHub" }] },
+      ],
+    }
+    expect(recentContributors([feed], [])).toEqual([
+      { name: "Ann", at: Date.parse("2026-09-22T18:30:00Z") },
+      { name: "Bob", at: Date.parse("2026-09-20T10:00:00Z") },
+    ])
+  })
+
+  test("until chb publishes the feed: who posted photos in #contributions", () => {
+    const photo = (id: string, channelId: string, name: string, timestamp: string) => ({ id, channelId, timestamp, author: { id, username: name.toLowerCase(), displayName: name } }) as never
+    const photos = [photo("1", "1297965144579637248", "Ann", "2026-09-20T10:00:00Z"), photo("2", "general", "Bob", "2026-09-21T10:00:00Z")]
+    expect(recentContributors([], photos)).toEqual([{ name: "Ann", at: Date.parse("2026-09-20T10:00:00Z") }])
+  })
+
+  test("photos: only from #contributions, only the liked ones, a few at random", () => {
+    const photo = (id: string, channelId: string, totalReactions: number) =>
+      ({ id, url: `https://cdn/${id}.jpg`, proxyUrl: `/data/2026/09/public/images/${id}.jpg`, channelId, totalReactions, timestamp: "2026-09-20T10:00:00Z", author: { id: "1", username: "ann", displayName: "Ann" }, reactions: [], messageId: id }) as never
+    const contributions = "1297965144579637248"
+    const photos = [photo("1", contributions, 3), photo("2", contributions, 1), photo("3", "general", 9), photo("4", contributions, 2), photo("5", contributions, 5), photo("6", contributions, 4), photo("7", contributions, 2)]
+    const picked = contributionPhotos(photos, { count: 4, random: () => 0.5 })
+    expect(picked).toHaveLength(4)
+    for (const p of picked) {
+      expect(p.src).not.toMatch(/\/2\.jpg|\/3\.jpg/)
+      expect(p).toMatchObject({ author: "Ann", at: Date.parse("2026-09-20T10:00:00Z") })
+    }
+  })
+})
+
 describe("what the page reads", () => {
   let dataDir: string
   const write = (rel: string, data: unknown) => {
@@ -68,20 +148,24 @@ describe("what the page reads", () => {
 
   beforeAll(() => {
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "contribute-screen-"))
-    // The public tier: display names chb publishes, and donations without a name.
-    write("2026/public/contributors.json", {
-      generatedAt: "2026-10-03T23:00:48Z",
-      contributors: [{ id: "1", profile: { username: "ann", name: "Ann" }, tokens: { in: 10, out: 0 } }],
+    // The public tier: display names chb publishes, donations without a name.
+    write("2026/09/public/contributors.json", {
+      contributors: [{ id: "1", address: "0xaaa", profile: { username: "ann", name: "Ann" }, tokens: { in: 10, out: 0 } }],
     })
     write("2026/09/public/transactions.json", {
-      transactions: [{ amount: 50, timestamp: 1790000000, counterparty: null, metadata: { category: "donation", collective: "commonshub" } }],
+      transactions: [
+        tx({ amount: 5000, grossAmount: 5000 }),
+      ],
+    })
+    write("2026/09/public/contributions.json", {
+      messages: [{ timestamp: new Date((T + 60) * 1000).toISOString(), author: { id: "9", displayName: "Poster" }, mentions: [{ id: "1", displayName: "Ann" }] }],
     })
     // The members tier: names that must never reach a public page.
-    write("2026/members/contributors.json", {
-      contributors: [{ id: "5", profile: { username: "secret", name: "Members Only Person" }, tokens: { in: 9999, out: 0 } }],
+    write("2026/09/members/contributors.json", {
+      contributors: [{ id: "5", address: "0xaaa", profile: { username: "secret", name: "Members Only Person" } }],
     })
     write("2026/09/members/transactions.json", {
-      transactions: [{ amount: 50000, timestamp: 1790000000, counterparty: "Secret Donor", metadata: { category: "donation", collective: "commonshub" } }],
+      transactions: [{ ...tx({ amount: 50000 }), counterparty: "Secret Donor" }],
     })
   })
 
@@ -89,47 +173,26 @@ describe("what the page reads", () => {
 
   async function load(): Promise<ContributeScreenData> {
     process.env.DATA_DIR = dataDir
+    delete process.env.STRIPE_SECRET_KEY
     let data!: ContributeScreenData
     await jest.isolateModulesAsync(async () => {
       const { loadContributeScreen } = await import("@/lib/contribute-screen")
-      data = await loadContributeScreen()
+      data = await loadContributeScreen(new Date("2026-10-04T10:00:00Z"))
     })
     return data
   }
 
-  test("only public names, only names: no member-tier name, no amount", async () => {
+  test("public tier only, no amount: an unnamed donation and Ann, each with when", async () => {
     const data = await load()
-    expect(data.lenders).toEqual(["Big Lender", "Middle Lender SA", "Small Lender"])
-    expect(data.contributors).toEqual(["Ann"])
-    expect(data.donations).toBe(1)
-    expect(data.updatedAt).toBe("2026-10-04T08:00:00.000Z")
+    expect(data.donations).toEqual([{ at: T * 1000, via: "card", name: null }])
+    expect(data.contributors).toEqual([{ name: "Ann", at: (T + 60) * 1000 }])
+    expect(data.contributorsFrom).toBe("mentions")
     const json = JSON.stringify(data)
-    for (const leak of ["Members Only Person", "Secret Donor", "10000", "2416", "9999", "50000"]) expect(json).not.toContain(leak)
+    for (const leak of ["Members Only Person", "Secret Donor", "5000", "50000"]) expect(json).not.toContain(leak)
   })
 
-  test("the board shows every name once, as a cloud: no ranks, no numbers, no amount", async () => {
+  test("the board: costs in whole euros that add up, donations and contributors with date and time, no percentages", async () => {
     const data = await load()
-    const { container } = render(<ContributeBoard data={data} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" seed="2026-10-04" />)
-    const text = container.textContent ?? ""
-    for (const name of ["Big Lender", "Middle Lender SA", "Small Lender", "Ann"]) expect(text).toContain(name)
-    expect(container.querySelector("ol")).toBeNull()
-    expect(text).toContain("Contribute!")
-    expect(text).toContain("commonshub.brussels/contribute")
-    expect(text).not.toMatch(/€|EUR|tokens? ?\d|\d[\d\s.,]*\s?(€|CHT)/)
-    for (const leak of ["Members Only Person", "Secret Donor", "10,000", "10 000", "2,416", "500"]) expect(text).not.toContain(leak)
-  })
-
-  test("the cloud is shuffled by day, each name once, whatever the ranking", async () => {
-    const { cloudNames } = await import("@/lib/contribute-screen")
-    const lists = { lenders: ["A", "B", "C", "D", "E", "F"], contributors: ["f", "G", "H", "I"] }
-    const day1 = cloudNames(lists, "2026-10-04").map((n) => n.name)
-    expect(day1).toHaveLength(9) // "f" is "F" again
-    expect(new Set(day1).size).toBe(9)
-    expect(cloudNames(lists, "2026-10-04").map((n) => n.name)).toEqual(day1)
-    expect(cloudNames(lists, "2026-10-05").map((n) => n.name)).not.toEqual(day1)
-  })
-
-  test("the fixed costs, in whole euros rounded up, add up on screen, no percentages", async () => {
     const costs = screenCosts([
       { slug: "rent", label: "Rent", amountEur: 6546.12 },
       { slug: "internet", label: "Internet", amountEur: 55 },
@@ -139,10 +202,11 @@ describe("what the page reads", () => {
       { slug: "rent", label: "Rent", amount: 6547 },
       { slug: "internet", label: "Internet", amount: 55 },
     ])
-    const data = await load()
-    const { container } = render(<ContributeBoard data={data} costs={costs} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" seed="2026-10-04" />)
+    const { container } = render(<ContributeBoard data={data} costs={costs} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["€6,602", "Rent", "€6,547", "Internet", "€55", "Big Lender", "Ann"]) expect(text).toContain(part)
+    for (const part of ["Yang", "Yin", "€6,602", "€6,547", "€55", "A donation", "by card", "Ann", "Recently thanked for their time", "Mon 21 Sept, 16:", "Contribute!", "commonshub.brussels/contribute"])
+      expect(text).toContain(part)
     expect(text).not.toContain("%")
+    for (const leak of ["Members Only Person", "Secret Donor", "5,000", "5000"]) expect(text).not.toContain(leak)
   })
 })
