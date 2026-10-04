@@ -66,7 +66,7 @@ export function cloudLayout(count: number, band: [number, number] = [0.55, 0.96]
 }
 
 /** Points at equal distances along an ellipse of normalised radius r (screen percentages, 16:9). */
-export function ellipsePoints(count: number, r: number, phase = 0): Array<{ x: number; y: number }> {
+export function ellipsePoints(count: number, r: number, phase = 0, free: (p: { x: number; y: number }) => boolean = () => true): Array<{ x: number; y: number }> {
   if (count <= 0) return []
   // Sample the ellipse in pixels of a 1920×1080 screen, then walk equal arc lengths.
   const ax = r * 0.48 * 1920
@@ -76,8 +76,10 @@ export function ellipsePoints(count: number, r: number, phase = 0): Array<{ x: n
     const t = phase + (k / N) * 2 * Math.PI
     return { t, x: Math.cos(t) * ax, y: Math.sin(t) * ay }
   })
+  // Only the stretches of the ring that are free (not under a caption or the QR code) count.
+  const pct = (k: number) => ({ x: 50 + (pts[k].x / 1920) * 100, y: 50 + (pts[k].y / 1080) * 100 })
   const cum = [0]
-  for (let k = 1; k <= N; k++) cum.push(cum[k - 1] + Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y))
+  for (let k = 1; k <= N; k++) cum.push(cum[k - 1] + (free(pct(k)) ? Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y) : 0))
   const total = cum[N]
   const out: Array<{ x: number; y: number }> = []
   let k = 0
@@ -99,9 +101,11 @@ export function membersCloud(partners: number, members: number): Array<{ x: numb
   const sum = weights.reduce((a, b) => a + b, 0)
   const counts = weights.map((w) => Math.floor((members * w) / sum))
   for (let i = 0; counts.reduce((a, b) => a + b, 0) < members; i = (i + 1) % rings.length) counts[rings.length - 1 - i]++
+  // The bottom corners carry the counts (left) and the QR code (right): keep avatars out.
+  const free = ({ x, y }: { x: number; y: number }) => !(x > 60 && y > 76) && !(x < 20 && y > 85)
   return [
     ...ellipsePoints(partners, 0.57, -Math.PI / 2),
-    ...rings.flatMap((r, i) => ellipsePoints(counts[i], r, -Math.PI / 2 + (i * Math.PI) / Math.max(1, counts[i]))),
+    ...rings.flatMap((r, i) => ellipsePoints(counts[i], r, -Math.PI / 2 + (i * Math.PI) / Math.max(1, counts[i]), free)),
   ]
 }
 

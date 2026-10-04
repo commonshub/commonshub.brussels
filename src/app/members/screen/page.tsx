@@ -1,8 +1,10 @@
 import type { Metadata } from "next"
+import QRCode from "qrcode"
 import type React from "react"
 
 import { PosterLogo } from "@/components/poster/poster"
 import { ScreenRefresh } from "@/components/screen/screen-live"
+import { ScreenQr } from "@/components/screen/screen-qr"
 import { CloudImage } from "@/components/screen/cloud-image"
 import { loadMembersScreen, membersCloud } from "@/lib/members-screen"
 
@@ -23,7 +25,11 @@ const s = (n: number) => `calc(var(--s) * ${n})`
  * partner organisations' logos and the members' avatars around it, gently
  * floating. Public data only (see lib/members-screen.ts).
  */
-export default function MembersScreenPage() {
+/** Always the public address, whichever copy of the site is on the screen. */
+const JOIN_URL = "https://commonshub.brussels/membership"
+
+export default async function MembersScreenPage() {
+  const qrSvg = await QRCode.toString(JOIN_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0 })
   const { items, members, partners } = loadMembersScreen()
   const positions = membersCloud(partners, members)
 
@@ -76,9 +82,8 @@ export default function MembersScreenPage() {
         <div className="text-white" style={{ fontWeight: 600 }}>{members} members</div>
         <div>{partners} partner organisations</div>
       </div>
-      <div className="absolute bottom-0 right-0 text-right" style={{ padding: `${s(1.4)} ${s(1.8)}`, fontSize: s(1.15), lineHeight: 1.35, color: "rgba(255,255,255,0.72)" }}>
-        <div>Become a member</div>
-        <div className="text-white" style={{ fontWeight: 600 }}>commonshub.brussels/membership</div>
+      <div className="absolute bottom-0 right-0" style={{ padding: `${s(1.4)} ${s(1.8)}` }}>
+        <ScreenQr qrSvg={qrSvg} cta="Become a member" url={JOIN_URL} />
       </div>
     </div>
   )
