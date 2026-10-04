@@ -55,6 +55,9 @@ export default async function CollectivePage({ params }: PageProps) {
 
   const hasTokens = summary.tokens.minted > 0 || summary.tokens.burnt > 0;
 
+  // The host's tagged flows are not its balance (opening balances, money held for collectives).
+  const isHost = summary.key === "commonshub";
+
   return (
     <div className={canEdit ? "w-full px-4 py-8" : "container mx-auto max-w-6xl px-4 py-8"}>
       <div className="mb-6 space-y-2">
@@ -74,13 +77,23 @@ export default async function CollectivePage({ params }: PageProps) {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              Current balance
+              {isHost ? "Net of everything tagged Commons Hub" : "Current balance"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className={`text-4xl font-bold tabular-nums ${summary.balance < 0 ? "text-red-600" : ""}`}>
               {signedEur(summary.balance)}
             </div>
+            {isHost && (
+              <p className="text-sm text-muted-foreground">
+                Not a bank balance: the host's opening balances and the money it holds for others are not tagged.
+                The real balances of our accounts are on{" "}
+                <Link href="/finance" className="underline underline-offset-2">
+                  /finance
+                </Link>
+                .
+              </p>
+            )}
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <span className="flex items-center gap-1 text-green-600">
                 <ArrowDownLeft className="h-4 w-4" />
