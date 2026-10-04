@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 
 import { FridgeOrder } from "@/components/fridge/fridge-order"
 import { FRIDGE, loadLatestDelivery } from "@/lib/fridge"
@@ -46,11 +45,6 @@ export default async function FridgePage({ searchParams }: { searchParams: Promi
       ) : (
         <p className="mt-4 text-muted-foreground">The list of drinks is not available right now. Take what you like and make a donation at commonshub.brussels/donate.</p>
             )}
-      <p className="mt-10 text-center text-xs text-muted-foreground">
-        <Link href="/fridge/poster" className="underline underline-offset-2">
-          Print the poster for the fridge
-        </Link>
-      </p>
     </div>
   )
 }
