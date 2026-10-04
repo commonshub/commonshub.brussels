@@ -11,6 +11,7 @@ import { isMember } from "@/lib/admin-check"
 import { tierFor } from "@/lib/data-paths"
 import { loadDonors } from "@/lib/donors"
 import { loadDebtLedger } from "@/lib/debt"
+import { lendersByLoan } from "@/lib/contribute-screen"
 
 // Reads DATA_DIR, which is only mounted at runtime: never prerender.
 export const dynamic = "force-dynamic"
@@ -75,7 +76,7 @@ export default async function ContributePage() {
   const donors = loadDonors(tierFor(member))
   // Lenders are public on /debt already: largest loans first.
   const lenders = await loadDebtLedger()
-    .then((ledger) => ledger.holders.filter((h) => h.minted > 0).sort((a, b) => b.minted - a.minted).map((h) => h.name))
+    .then((ledger) => lendersByLoan(ledger.holders))
     .catch(() => [] as string[])
   const recurringTotal = expenses.recurring.reduce((sum, e) => sum + e.amountEur, 0)
 

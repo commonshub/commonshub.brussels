@@ -7,6 +7,7 @@ import { NostrProvider } from "@/components/nostr-provider";
 import { MemberKeyLink } from "@/components/member-key-link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { SiteChrome } from "@/components/site-chrome";
 import { auth } from "@/auth";
 import "./globals.css";
 
@@ -64,9 +65,9 @@ export default async function RootLayout({
         <SessionProvider session={session}>
           <NostrProvider>
             <MemberKeyLink />
-            <Header />
-            <main className="min-h-screen pt-16">{children}</main>
-            <Footer />
+            <SiteChrome header={<Header />} footer={<Footer />}>
+              {children}
+            </SiteChrome>
           </NostrProvider>
         </SessionProvider>
         <Analytics />
