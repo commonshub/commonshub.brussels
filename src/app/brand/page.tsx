@@ -22,6 +22,60 @@ export const metadata: Metadata = {
   },
 };
 
+/** The button hierarchy (first applied on /fridge): one solid orange action per screen. */
+const buttonLevels = [
+  {
+    name: "Primary action",
+    use: "Solid orange, one per screen: Donate, Continue, Book. The step that moves people forward.",
+    example: (
+      <span className="inline-flex h-12 items-center rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground">
+        Donate €10.00
+      </span>
+    ),
+  },
+  {
+    name: "Choice",
+    use: "White with a thin outline. The selected one gets a dark 2px border and a light orange tint. Amounts, options, cards to pick.",
+    example: (
+      <div className="flex flex-wrap gap-2">
+        {["€5", "€10", "€15", "Other"].map((label) => (
+          <span
+            key={label}
+            className={`inline-flex h-11 min-w-14 items-center justify-center rounded-lg px-3 text-sm font-semibold ${
+              label === "€10" ? "border-2 border-foreground bg-primary/5 text-foreground" : "border border-border bg-background text-foreground"
+            }`}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    ),
+  },
+  {
+    name: "Toggle",
+    use: "Two or three exclusive modes: a white pill on a grey track. Card or bank transfer, month or year.",
+    example: (
+      <div className="flex rounded-lg bg-muted p-1 text-sm font-medium">
+        <span className="flex-1 rounded-md bg-background px-3 py-2 text-center text-foreground shadow-sm">Card or Bancontact</span>
+        <span className="flex-1 px-3 py-2 text-center text-muted-foreground">Bank transfer</span>
+      </div>
+    ),
+  },
+  {
+    name: "Secondary and quiet",
+    use: "Outline for a secondary action (Choose a crate, Download), a text link for navigation (Back, View all). Steppers (+ / −) are outlined too.",
+    example: (
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex h-11 items-center rounded-lg border border-border bg-background px-4 text-sm font-semibold text-foreground">
+          Choose a crate
+        </span>
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-foreground/40 bg-background text-xl text-foreground">+</span>
+        <span className="text-sm text-muted-foreground underline underline-offset-2">← Back</span>
+      </div>
+    ),
+  },
+];
+
 const colors = [
   {
     name: "Commons Orange",
@@ -154,6 +208,7 @@ const avoid = [
   "Do not place the ink wordmark on dark, busy, or low-contrast backgrounds.",
   "Avoid glossy Web3 styling, neon gradients, luxury real-estate moodboards, and generic stock photography.",
   "Avoid making everything orange. The brand should feel warm and grounded, not loud.",
+  "Do not make every button solid orange: one orange action per screen, choices and toggles stay neutral.",
 ] as const;
 
 function AssetButton({ href, label }: { href: string; label: string }) {
@@ -412,6 +467,32 @@ export default function BrandPage() {
         </div>
       </section>
 
+      <section id="buttons" className="bg-muted/30 py-14 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-10 lg:grid-cols-[360px_1fr]">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground">Buttons</h2>
+              <p className="mt-3 text-muted-foreground">
+                Orange means &quot;do it&quot;. Keep one solid orange button per
+                screen, for the action that moves people forward. Choices are
+                calm outlines, so the action stands out.
+              </p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 [&>*]:min-w-0">
+              {buttonLevels.map((level) => (
+                <Card key={level.name}>
+                  <CardHeader>
+                    <CardTitle>{level.name}</CardTitle>
+                    <CardDescription>{level.use}</CardDescription>
+                  </CardHeader>
+                  <CardContent>{level.example}</CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="grid gap-8 lg:grid-cols-2">
@@ -478,6 +559,10 @@ export default function BrandPage() {
                 Prefer real photos, public data, simple layouts, compact cards,
                 useful labels, and clear calls to action. Avoid glossy startup,
                 luxury, generic stock, neon Web3, and all-orange compositions.
+                Buttons: one solid orange button per screen for the main action;
+                choices are white outlines (selected: dark 2px border, light
+                orange tint); toggles are a white pill on a grey track; secondary
+                actions are outlined, navigation is a text link.
               </p>
             </div>
           </div>
