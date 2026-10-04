@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
+import { THANKS_FIELD } from "@/lib/donor-thanks"
+
 import { FRIDGE, loadLatestDelivery, orderSummary, publicName } from "@/lib/fridge"
 
 // Reads the dataset volume: never prerender.
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
     const session = await new Stripe(secretKey).checkout.sessions.create({
       mode: "payment",
       submit_type: "donate",
+      custom_fields: [THANKS_FIELD],
       line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: Math.round(amount * 100), product_data: { name: "Donation to the Commons Hub fridge", description } } }],
       metadata,
       payment_intent_data: { description, metadata },
