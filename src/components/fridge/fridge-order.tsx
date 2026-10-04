@@ -107,7 +107,7 @@ function Contribute(props: {
                 setCustom(false)
                 setAmount(v)
               }}
-              className={`h-12 rounded-lg border text-base font-semibold tabular-nums ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"}`}
+              className={`h-12 rounded-lg text-base font-semibold tabular-nums ${active ? "border-2 border-foreground bg-primary/5 text-foreground" : "border border-border bg-background text-foreground"}`}
             >
               €{v}
             </button>
@@ -118,7 +118,7 @@ function Contribute(props: {
           role="radio"
           aria-checked={custom}
           onClick={() => setCustom(true)}
-          className={`h-12 rounded-lg border text-sm font-semibold ${custom ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground"}`}
+          className={`h-12 rounded-lg text-sm font-semibold ${custom ? "border-2 border-foreground bg-primary/5 text-foreground" : "border border-border bg-background text-foreground"}`}
         >
           Other
         </button>
@@ -142,7 +142,7 @@ function Contribute(props: {
           </span>
         </label>
       )}
-      <div role="radiogroup" aria-label="Payment method" className="flex rounded-lg border border-border bg-muted/50 p-1">
+      <div role="radiogroup" aria-label="Payment method" className="flex rounded-lg bg-muted p-1">
         {(["card", "transfer"] as const).map((m) => (
           <button
             key={m}
@@ -150,7 +150,7 @@ function Contribute(props: {
             role="radio"
             aria-checked={method === m}
             onClick={() => setMethod(m)}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${method === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${method === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
           >
             {m === "card" ? "Card or Bancontact" : "Bank transfer"}
           </button>
@@ -266,7 +266,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
                   setCrateId(d.id)
                   setAmount(ceil5(d.crateCost))
                 }}
-                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${d.id === crate.id ? "border-primary bg-primary/5" : "border-border"}`}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${d.id === crate.id ? "border-2 border-foreground bg-primary/5" : "border border-border"}`}
               >
                 <span className="min-w-0">
                   <span className="text-foreground">
@@ -327,7 +327,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
                 <span className="w-7 text-center text-lg font-semibold tabular-nums" aria-live="polite">
                   {n}
                 </span>
-                <button type="button" aria-label={`One more ${d.name}`} onClick={() => change(d.id, 1)} className="h-11 w-11 rounded-full bg-primary text-xl text-primary-foreground">
+                <button type="button" aria-label={`One more ${d.name}`} onClick={() => change(d.id, 1)} className="h-11 w-11 rounded-full border border-foreground/40 bg-background text-xl text-foreground">
                   +
                 </button>
               </div>
@@ -345,7 +345,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
             if (crate) setAmount(ceil5(crate.crateCost))
             go("crate")
           }}
-          className="mt-3 h-11 w-full rounded-lg border border-primary text-sm font-semibold text-primary"
+          className="mt-3 h-11 w-full rounded-lg border border-border bg-background text-sm font-semibold text-foreground"
         >
           Choose a crate
         </button>
