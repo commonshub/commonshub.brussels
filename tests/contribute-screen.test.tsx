@@ -20,10 +20,12 @@ import {
   lendersByLoan,
   recentContributors,
   recentDonations,
+  recentTokenAwards,
   screenCosts,
   type ContributeScreenData,
 } from "@/lib/contribute-screen"
 import { thanksName } from "@/lib/donor-thanks"
+import { relativeTime } from "@/components/screen/relative-time"
 import type { DebtLedger } from "@/lib/debt"
 
 const ledger = {
@@ -86,10 +88,10 @@ describe("yang: donations", () => {
       { created: T + 50, amount: 1000, name: null }, // chose not to be named
     ]
     expect(recentDonations(txs, thanks)).toEqual([
-      { at: (T + 500) * 1000, via: "bank transfer", name: null },
-      { at: (T + 200) * 1000, via: "bank transfer", name: null },
-      { at: (T + 100) * 1000, via: "card", name: null },
-      { at: T * 1000, via: "card", name: "Marie" },
+      { at: (T + 500) * 1000, amount: 25, via: "bank transfer", name: null },
+      { at: (T + 200) * 1000, amount: 25, via: "bank transfer", name: null },
+      { at: (T + 100) * 1000, amount: 10, via: "card", name: null },
+      { at: T * 1000, amount: 25, via: "card", name: "Marie" },
     ])
     // Without Stripe (no key), nobody is named.
     expect(recentDonations(txs, null).every((d) => d.name === null)).toBe(true)
@@ -116,6 +118,31 @@ describe("yin: time", () => {
       { name: "Ann", at: Date.parse("2026-09-22T18:30:00Z") },
       { name: "Bob", at: Date.parse("2026-09-20T10:00:00Z") },
     ])
+  })
+
+  test("tokens issued: to whom, how many, what for, newest first, each award on its own, no unknown recipient", () => {
+    const feed = {
+      issued: [
+        { timestamp: "2026-10-02T06:30:00Z", amount: 3, recipient: { id: "1", displayName: "Leen" }, reason: "3h shift on 2 Oct" },
+        { timestamp: "2026-10-03T10:00:00Z", amount: 1, recipient: { id: "2", displayName: "Ralph" }, reason: "Park cleaning" },
+        { timestamp: "2026-10-03T11:00:00Z", amount: 2, recipient: null, reason: "Unknown wallet" },
+        { timestamp: "2026-10-01T10:00:00Z", amount: 1, recipient: { id: "1", displayName: "Leen" } },
+      ],
+    }
+    expect(recentTokenAwards([feed])).toEqual([
+      { name: "Ralph", at: Date.parse("2026-10-03T10:00:00Z"), tokens: 1, reason: "Park cleaning" },
+      { name: "Leen", at: Date.parse("2026-10-02T06:30:00Z"), tokens: 3, reason: "3h shift on 2 Oct" },
+      { name: "Leen", at: Date.parse("2026-10-01T10:00:00Z"), tokens: 1 },
+    ])
+  })
+
+  test("relative time", () => {
+    const now = Date.parse("2026-10-05T12:00:00Z")
+    expect(relativeTime(now - 20_000, now)).toBe("just now")
+    expect(relativeTime(now - 5 * 60_000, now)).toBe("5 minutes ago")
+    expect(relativeTime(now - 3 * 3_600_000, now)).toBe("3 hours ago")
+    expect(relativeTime(now - 86_400_000, now)).toBe("yesterday")
+    expect(relativeTime(now - 4 * 86_400_000, now)).toBe("4 days ago")
   })
 
   test("until chb publishes the feed: who posted photos in #contributions", () => {
@@ -182,13 +209,13 @@ describe("what the page reads", () => {
     return data
   }
 
-  test("public tier only, no amount: an unnamed donation and Ann, each with when", async () => {
+  test("public tier only: an unnamed donation with its amount, and Ann, each with when", async () => {
     const data = await load()
-    expect(data.donations).toEqual([{ at: T * 1000, via: "card", name: null }])
+    expect(data.donations).toEqual([{ at: T * 1000, amount: 5000, via: "card", name: null }])
     expect(data.contributors).toEqual([{ name: "Ann", at: (T + 60) * 1000 }])
     expect(data.contributorsFrom).toBe("mentions")
     const json = JSON.stringify(data)
-    for (const leak of ["Members Only Person", "Secret Donor", "5000", "50000"]) expect(json).not.toContain(leak)
+    for (const leak of ["Members Only Person", "Secret Donor", "50000"]) expect(json).not.toContain(leak)
   })
 
   test("the board: costs in whole euros that add up, donations and contributors with date and time, no percentages", async () => {
@@ -204,9 +231,9 @@ describe("what the page reads", () => {
     ])
     const { container } = render(<ContributeBoard data={data} costs={costs} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["Yang", "Yin", "€6,602", "€6,547", "€55", "A donation", "by card", "Ann", "Recently thanked for their time", "Mon 21 Sept, 16:", "Contribute!", "commonshub.brussels/contribute"])
+    for (const part of ["Yang", "Yin", "€6,602", "€6,547", "€55", "A donation", "€5,000", "by card", "Ann", "Recently thanked for their time", "Mon 21 Sept, 16:", "ago", "Contribute!", "commonshub.brussels/contribute"])
       expect(text).toContain(part)
     expect(text).not.toContain("%")
-    for (const leak of ["Members Only Person", "Secret Donor", "5,000", "5000"]) expect(text).not.toContain(leak)
+    for (const leak of ["Members Only Person", "Secret Donor", "50,000"]) expect(text).not.toContain(leak)
   })
 })

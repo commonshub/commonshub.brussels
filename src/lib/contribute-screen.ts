@@ -1,17 +1,17 @@
 /**
  * What /contribute/screen shows, the two currencies that keep the Commons
  * Hub going:
- * - yang, money: the fixed costs, and the latest donations with their date
- *   and time. A donation is named only as its donor chose at checkout
+ * - yang, money: the fixed costs, and the latest donations with their
+ *   amount, date and time. A donation is named only as its donor chose at checkout
  *   (lib/donor-thanks.ts): card donations by their choice, read from Stripe;
  *   bank transfers never.
  * - yin, time: a few photos from the #contributions channel that people
  *   liked, and who was thanked for a contribution lately: the community
- *   people mentioned in #contributions (chb's contributions.json), or, until
- *   chb publishes it, who posted photos there; Discord display names, which
- *   chb publishes in the public tier.
+ *   latest tokens issued, to whom, for what and how many (chb's
+ *   tokens-issued.json), or else the people mentioned in #contributions
+ *   (contributions.json); Discord display names, public in chb's data.
  *
- * Only the public tier is read, and no amount leaves this module.
+ * Only the public tier is read.
  */
 
 import settings from "@/settings/settings.json"
@@ -31,6 +31,8 @@ const TIER: Tier = "public"
 export interface RecentDonation {
   /** Milliseconds. */
   at: number
+  /** What the donor gave, in euros (before fees). */
+  amount: number
   via: "card" | "bank transfer"
   /** As the donor chose to be shown; null for no name. */
   name: string | null
@@ -38,8 +40,12 @@ export interface RecentDonation {
 
 export interface RecentContributor {
   name: string
-  /** When they were last thanked with tokens, in milliseconds. */
+  /** Milliseconds. */
   at: number
+  /** Tokens issued to them, when known (chb's tokens-issued.json). */
+  tokens?: number
+  /** What for, when known. */
+  reason?: string
 }
 
 export interface ContributionPhoto {
@@ -52,8 +58,8 @@ export interface ContributionPhoto {
 export interface ContributeScreenData {
   donations: RecentDonation[]
   contributors: RecentContributor[]
-  /** Where the names come from: people mentioned in #contributions, or (until chb publishes that) who posted there. */
-  contributorsFrom: "mentions" | "posts"
+  /** Where the names come from: tokens issued, people mentioned in #contributions, or who posted there. */
+  contributorsFrom: "tokens" | "mentions" | "posts"
   photos: ContributionPhoto[]
 }
 /** Everyone who ever lent to the hub, largest total lent first (settled or not). */
@@ -133,7 +139,7 @@ export function recentDonations(txs: DatasetTx[], thanks: StripeThanks[] | null,
           name = match.name
         }
       }
-      return { at: tx.timestamp! * 1000, via: card ? "card" : "bank transfer", name }
+      return { at: tx.timestamp! * 1000, amount: Number(tx.grossAmount ?? tx.amount), via: card ? "card" : "bank transfer", name }
     })
 }
 
@@ -154,7 +160,7 @@ export interface ContributionsFeed {
  * them tokens), with when. Until chb publishes that feed, the people who
  * posted photos in #contributions, with when.
  */
-export function recentContributors(feeds: ContributionsFeed[], photos: PopularPhoto[], limit = 10): RecentContributor[] {
+export function recentContributors(feeds: ContributionsFeed[], photos: PopularPhoto[], limit = 5): RecentContributor[] {
   const latest = new Map<string, { name: string; at: number }>()
   const add = (person: { id?: string; displayName?: string | null; username?: string } | undefined, at: number) => {
     const name = person?.displayName || person?.username
@@ -169,6 +175,22 @@ export function recentContributors(feeds: ContributionsFeed[], photos: PopularPh
     for (const p of photos) if (p.channelId === settings.discord.channels.contributions) add(p.author, Date.parse(p.timestamp))
   }
   return [...latest.values()].sort((a, b) => b.at - a.at).slice(0, limit)
+}
+
+/** chb's feed of community tokens issued (YYYY/MM/public/tokens-issued.json): to whom, for what, how many. No wallets. */
+export interface TokensIssuedFeed {
+  issued?: Array<{ timestamp: string; amount: number; recipient?: { id?: string; displayName?: string } | null; reason?: string | null }>
+}
+
+/** The latest tokens issued, newest first: each award on its own (several for one person are several lines). */
+export function recentTokenAwards(feeds: TokensIssuedFeed[], limit = 5): RecentContributor[] {
+  return feeds
+    .flatMap((f) => f.issued ?? [])
+    .filter((t) => t.recipient?.displayName && !isExcludedContributor({ displayName: t.recipient.displayName }) && Number(t.amount) > 0)
+    .map((t) => ({ name: t.recipient!.displayName!, at: Date.parse(t.timestamp), tokens: Number(t.amount), ...(t.reason ? { reason: t.reason } : {}) }))
+    .filter((t) => Number.isFinite(t.at))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, limit)
 }
 
 /** A few photos from #contributions that at least `minReactions` people reacted to, picked at random. */
@@ -202,14 +224,16 @@ export async function loadContributeScreen(now = new Date()): Promise<Contribute
     return Array.isArray(file) ? file : (file?.transactions ?? [])
   })
   const feeds = months.map(([y, m]) => readTierJson<ContributionsFeed>(TIER, "contributions.json", y, m)).filter((f): f is ContributionsFeed => !!f)
+  const tokenFeeds = months.map(([y, m]) => readTierJson<TokensIssuedFeed>(TIER, "tokens-issued.json", y, m)).filter((f): f is TokensIssuedFeed => !!f)
+  const awards = recentTokenAwards(tokenFeeds)
   const photos = months.flatMap(([y, m]) => readGeneratedImages(y, m, TIER))
   const oldest = Math.min(...txs.filter(isHubDonation).map((t) => t.timestamp!), Math.floor(now.getTime() / 1000))
   const thanks = await loadStripeThanks(oldest - 3600)
 
   return {
     donations: recentDonations(txs, thanks),
-    contributors: recentContributors(feeds, photos),
-    contributorsFrom: feeds.some((f) => (f.messages ?? []).length > 0) ? "mentions" : "posts",
+    contributors: awards.length > 0 ? awards : recentContributors(feeds, photos),
+    contributorsFrom: awards.length > 0 ? "tokens" : feeds.some((f) => (f.messages ?? []).length > 0) ? "mentions" : "posts",
     photos: contributionPhotos(photos),
   }
 }
