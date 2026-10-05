@@ -2,6 +2,7 @@ import type React from "react"
 
 import { COST_COLORS_DARK, slotsFor } from "@/components/contribute/fixed-costs-chart"
 import type { ContributeScreenData, ScreenCost } from "@/lib/contribute-screen"
+import { RelativeTime } from "./relative-time"
 import { ACCENT, MUTED, s } from "./screen"
 import { ScreenQr } from "./screen-qr"
 
@@ -9,10 +10,10 @@ import { ScreenQr } from "./screen-qr"
  * /contribute/screen: the two currencies that keep the hub alive, side by
  * side. Yang, money: what a month costs and the latest donations. Yin, time:
  * photos from #contributions and who was thanked for a contribution lately.
- * Every item carries its date and time, so the screen shows it is live. No
- * amount is shown for anyone: it is not a competition.
+ * Donations carry their amount and date and time, token awards how many,
+ * what for and how long ago, so the screen shows it is live.
  */
-const eur = (n: number) => `€${n.toLocaleString("en-GB")}`
+const eur = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
 
 /** "Sat 3 Oct, 14:32", the hub's local time. */
 export function when(ms: number): string {
@@ -32,16 +33,23 @@ function Subheading({ children }: { children: React.ReactNode }) {
   return <div style={{ marginTop: s(1.6), fontSize: s(1.25), fontWeight: 600, color: MUTED, letterSpacing: "0.04em", textTransform: "uppercase" }}>{children}</div>
 }
 
-/** A name and when, on one line. */
-function Row({ name, muted, at }: { name: string; muted?: string; at: number }) {
+/** A name, what goes with it, and when, on one line. */
+function Row({ name, muted, figure, time }: { name: string; muted?: string; figure?: string; time: React.ReactNode }) {
   return (
     <li className="flex min-w-0 items-baseline" style={{ gap: s(0.8), marginTop: s(0.5) }}>
-      <span className="min-w-0 truncate" style={{ fontWeight: 600 }}>
+      <span className="shrink-0" style={{ fontWeight: 600 }}>
         {name}
-        {muted && <span style={{ color: MUTED, fontWeight: 400 }}> {muted}</span>}
       </span>
-      <span className="ml-auto shrink-0 tabular-nums" style={{ color: MUTED, fontSize: "0.85em" }}>
-        {when(at)}
+      {figure && (
+        <span className="shrink-0 tabular-nums" style={{ fontWeight: 700, color: ACCENT }}>
+          {figure}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 truncate" style={{ color: MUTED }}>
+        {muted}
+      </span>
+      <span className="shrink-0 tabular-nums" style={{ color: MUTED, fontSize: "0.85em" }}>
+        {time}
       </span>
     </li>
   )
@@ -84,7 +92,7 @@ function Yang({ costs, donations }: { costs: ScreenCost[]; donations: Contribute
       {donations.length > 0 ? (
         <ul style={{ fontSize: s(1.55), lineHeight: 1.25 }}>
           {donations.map((d) => (
-            <Row key={d.at} name={d.name ?? "A donation"} muted={`by ${d.via}`} at={d.at} />
+            <Row key={d.at} name={d.name ?? "A donation"} figure={eur(d.amount)} muted={`by ${d.via}`} time={when(d.at)} />
           ))}
         </ul>
       ) : (
@@ -92,6 +100,12 @@ function Yang({ costs, donations }: { costs: ScreenCost[]; donations: Contribute
       )}
     </section>
   )
+}
+
+const SOURCE_TITLE: Record<ContributeScreenData["contributorsFrom"], string> = {
+  tokens: "Latest tokens issued",
+  mentions: "Recently thanked for their time",
+  posts: "Recently shared a contribution",
 }
 
 function Yin({ photos, contributors, contributorsFrom }: Pick<ContributeScreenData, "photos" | "contributors" | "contributorsFrom">) {
@@ -109,17 +123,22 @@ function Yin({ photos, contributors, contributorsFrom }: Pick<ContributeScreenDa
                 style={{ padding: `${s(1.6)} ${s(0.6)} ${s(0.4)}`, fontSize: s(1), lineHeight: 1.25, background: "linear-gradient(transparent, rgba(0,0,0,0.8))" }}
               >
                 <div className="truncate" style={{ fontWeight: 600 }}>{p.author}</div>
-                <div className="truncate" style={{ opacity: 0.8 }}>{when(p.at)}</div>
               </figcaption>
             </figure>
           ))}
         </div>
       )}
-      <Subheading>{contributorsFrom === "mentions" ? "Recently thanked for their time" : "Recently shared a contribution"}</Subheading>
+      <Subheading>{SOURCE_TITLE[contributorsFrom]}</Subheading>
       {contributors.length > 0 ? (
-        <ul className="grid grid-cols-2" style={{ columnGap: s(2.4), fontSize: s(1.5), lineHeight: 1.25 }}>
+        <ul style={{ fontSize: s(1.5), lineHeight: 1.25 }}>
           {contributors.map((c) => (
-            <Row key={c.name} name={c.name} at={c.at} />
+            <Row
+              key={`${c.name}-${c.at}`}
+              name={c.name}
+              figure={c.tokens ? `+${c.tokens.toLocaleString("en-GB")} ${c.tokens === 1 ? "token" : "tokens"}` : undefined}
+              muted={c.reason}
+              time={<RelativeTime ms={c.at} />}
+            />
           ))}
         </ul>
       ) : (

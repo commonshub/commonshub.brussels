@@ -2,8 +2,8 @@ import { hostedEventPath, hostedEvents, type HostedEvent } from "./hosted-events
 
 /**
  * /screen: what the hub's big screen cycles through. Today's hosted events
- * first (their programme screens), then the community and contribution
- * screens.
+ * first (their programme screens), then the upcoming events, the community
+ * and contribution screens.
  */
 export interface ScreenSlide {
   path: string
@@ -24,10 +24,11 @@ export function todaysEvents(now: number, events: HostedEvent[] = hostedEvents):
   })
 }
 
-/** Today's event screens (shown longer), then members and contribute. */
+/** Today's event screens (shown longer), then upcoming events, members and contribute. */
 export function screenSlides(now: number, every = 30, events: HostedEvent[] = hostedEvents): ScreenSlide[] {
   return [
     ...todaysEvents(now, events).map((event) => ({ path: `${hostedEventPath(event)}/screen`, seconds: every * 2 })),
+    { path: "/events/screen", seconds: every },
     { path: "/members/screen", seconds: every },
     { path: "/contribute/screen", seconds: every },
   ]
