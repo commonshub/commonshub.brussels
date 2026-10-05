@@ -110,7 +110,7 @@ export function EmbeddedBookingForm({
           Fill out the form below and we&apos;ll get back to you to confirm your booking.
           {pricePerHour > 0 && (
             <span className="block mt-1">
-              <strong>€{pricePerHour}/hour</strong> or{" "}
+              <strong>€{pricePerHour}/hour</strong> + VAT or{" "}
               <strong>{tokensPerHour} token{tokensPerHour > 1 ? "s" : ""}/hour</strong> for members
             </span>
           )}

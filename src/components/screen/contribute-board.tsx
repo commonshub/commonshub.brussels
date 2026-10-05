@@ -10,9 +10,9 @@ import { ScreenQr } from "./screen-qr"
  * /contribute/screen: the two currencies that keep the hub alive, side by
  * side. Yang, money: what a month costs and the latest donations. Yin, time:
  * photos from #contributions and who was thanked for a contribution lately.
- * Every line starts with the amount (euros or tokens), says what it was,
- * and ends with how long ago (the date after a week), so the screen shows
- * it is live. Tokens given for the same thing within the hour share a line.
+ * Every line starts with the amount (euros or tokens), then who (as chips),
+ * what for, and how long ago (the date after a week), so the screen shows it
+ * is live. Tokens given for the same thing within the hour share a line.
  */
 const eur = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
 
@@ -29,23 +29,38 @@ function Subheading({ children }: { children: React.ReactNode }) {
   return <div style={{ marginTop: s(1.6), fontSize: s(1.25), fontWeight: 600, color: MUTED, letterSpacing: "0.04em", textTransform: "uppercase" }}>{children}</div>
 }
 
-/** "A", "A and B", "A, B and C", "A, B, C and 2 others". */
-export function names(list: string[]): string {
-  if (list.length <= 1) return list[0] ?? ""
-  if (list.length <= 3) return `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`
-  return `${list.slice(0, 3).join(", ")} and ${list.length - 3} others`
-}
-
 /** What reads well after "for": a lowercase start (unless an acronym or a name), "a 3h shift" rather than "3h shift". */
 const forWhat = (reason: string) => {
   const text = /^[A-Z][a-z]/.test(reason) ? reason[0].toLowerCase() + reason.slice(1) : reason
   return /^\d+(?:[.,]\d+)?h\b/.test(text) ? `a ${text}` : text
 }
 
-/** One line: the amount first, what it is, and when. */
-function Line({ figure, text, at }: { figure?: string; text: string; at: number }) {
+/** A name that stands out: a soft pill. */
+function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex min-w-0 items-baseline" style={{ gap: s(0.7), marginTop: s(0.5) }}>
+    <span className="inline-block whitespace-nowrap align-baseline" style={{ padding: `0 ${s(0.55)}`, borderRadius: s(0.6), background: "rgba(255,255,255,0.12)", fontWeight: 600, lineHeight: 1.3 }}>
+      {children}
+    </span>
+  )
+}
+
+/** Up to three people as chips, then "+N". */
+function NameChips({ list }: { list: string[] }) {
+  const shown = list.slice(0, 3)
+  return (
+    <span className="inline-flex flex-nowrap items-baseline" style={{ gap: s(0.35) }}>
+      {shown.map((n) => (
+        <Chip key={n}>{n}</Chip>
+      ))}
+      {list.length > shown.length && <Chip>+{list.length - shown.length}</Chip>}
+    </span>
+  )
+}
+
+/** One line: the amount first, what it is, and when. */
+function Line({ figure, text, at }: { figure?: string; text: React.ReactNode; at: number }) {
+  return (
+    <li className="flex min-w-0 items-baseline" style={{ gap: s(0.7), marginTop: s(0.4) }}>
       {figure && (
         <span className="shrink-0 tabular-nums" style={{ fontWeight: 700, color: ACCENT }}>
           {figure}
@@ -96,7 +111,16 @@ function Yang({ costs, donations }: { costs: ScreenCost[]; donations: Contribute
       {donations.length > 0 ? (
         <ul style={{ fontSize: s(1.55), lineHeight: 1.25 }}>
           {donations.map((d) => (
-            <Line key={d.at} figure={eur(d.amount)} text={`donation ${d.name ? `from ${d.name} ` : ""}by ${d.via}`} at={d.at} />
+            <Line
+              key={d.at}
+              figure={eur(d.amount)}
+              text={
+                <>
+                  donation {d.name && <>from <Chip>{d.name}</Chip> </>}by {d.via}
+                </>
+              }
+              at={d.at}
+            />
           ))}
         </ul>
       ) : (
@@ -139,7 +163,13 @@ function Yin({ photos, contributors, contributorsFrom }: Pick<ContributeScreenDa
             <Line
               key={`${c.names.join(",")}-${c.at}`}
               figure={c.tokens ? `${c.tokens.toLocaleString("en-GB")} ${c.tokens === 1 ? "token" : "tokens"}` : undefined}
-              text={c.tokens ? `${c.reason ? `for ${forWhat(c.reason)} ` : ""}to ${names(c.names)}` : names(c.names)}
+              text={
+                <>
+                  {c.tokens ? "to " : ""}
+                  <NameChips list={c.names} />
+                  {c.reason && <span style={{ color: MUTED }}> for {forWhat(c.reason)}</span>}
+                </>
+              }
               at={c.at}
             />
           ))}

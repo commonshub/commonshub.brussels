@@ -27,7 +27,6 @@ import {
 } from "@/lib/contribute-screen"
 import { thanksName } from "@/lib/donor-thanks"
 import { relativeTime } from "@/components/screen/relative-time"
-import { names } from "@/components/screen/contribute-board"
 import type { DebtLedger } from "@/lib/debt"
 
 const ledger = {
@@ -142,13 +141,6 @@ describe("yin: time", () => {
     ])
     // Undescribed awards only fill the list.
     expect(recentTokenAwards([feed], 5).map((g) => g.names.join())).toEqual(["Miriam", "Xavier,Marlene,AlainV", "Jana", "Leen", "Ralph"])
-  })
-
-  test("names read as a sentence", () => {
-    expect(names(["A"])).toBe("A")
-    expect(names(["A", "B"])).toBe("A and B")
-    expect(names(["A", "B", "C"])).toBe("A, B and C")
-    expect(names(["A", "B", "C", "D", "E"])).toBe("A, B, C and 2 others")
   })
 
   test("a reason fits one line: no thank-you opening, the first sentence, no @", () => {

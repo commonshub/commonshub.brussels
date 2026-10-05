@@ -31,10 +31,13 @@ interface BookingFormProps {
 
 // Filter to only bookable rooms (those with pricing)
 const bookableRooms = roomsData.rooms.filter(
-  (room) => room.pricePerHour > 0 || room.tokensPerHour > 0
+  (room) => room.pricePerHour > 0 || room.tokensPerHour > 0,
 );
 
-export function BookingForm({ preselectedRoomId, preselectedDate }: BookingFormProps) {
+export function BookingForm({
+  preselectedRoomId,
+  preselectedDate,
+}: BookingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState(preselectedRoomId || "");
@@ -174,7 +177,10 @@ export function BookingForm({ preselectedRoomId, preselectedDate }: BookingFormP
                     Up to {selectedRoom.capacity} people
                   </span>
                   <span className="font-semibold">
-                    €{selectedRoom.pricePerHour}/hour
+                    €{selectedRoom.pricePerHour}/hour{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      + VAT
+                    </span>
                   </span>
                   <span className="flex items-center gap-1 text-primary">
                     <Coins className="w-4 h-4" />
