@@ -33,12 +33,13 @@ import {
   buildCommunityDefinition,
   buildShiftOccurrence,
   communityD,
+  mergeContactList,
   latestAddressable,
   parseAttestations,
   shiftD,
 } from "./nostr-conventions"
 
-const NOSTR = (settings as { nostr?: { relays?: string[]; coordinatorNpub?: string } }).nostr ?? {}
+const NOSTR = (settings as { nostr?: { relays?: string[]; coordinatorNpub?: string; follows?: string[] } }).nostr ?? {}
 export const RELAYS: string[] = NOSTR.relays ?? ["wss://relay.commonshub.brussels", "wss://relay.commonshub.dev"]
 
 export const COMMUNITY: Community = { guildId: settings.discord.guildId, name: "Commons Hub Brussels" }
@@ -119,6 +120,26 @@ export async function ensureCommunityDefinition(): Promise<void> {
     await publishAsSite(buildCommunityDefinition(COMMUNITY, identity.pubkey, "The Commons Hub Brussels community: a common space to meet, dream and work, Rue de la Madeleine 51."))
   }
   ensured.add("community")
+}
+
+/** The keys the site follows (settings.nostr.follows), as hex. */
+export function followedPubkeys(): string[] {
+  return (NOSTR.follows ?? []).map((npub) => nip19.decode(npub).data as string)
+}
+
+/**
+ * Follow the keys in settings.nostr.follows (kind 3), once per process. The
+ * latest contact list on the relays is extended, never replaced, so a
+ * follow added elsewhere stays.
+ */
+export async function ensureFollows(): Promise<void> {
+  const identity = siteIdentity()
+  if (!identity || ensured.has("follows")) return
+  const lists = await queryRelays({ kinds: [3], authors: [identity.pubkey] }, 5000)
+  const latest = lists.sort((a, b) => b.created_at - a.created_at)[0] ?? null
+  const template = mergeContactList(latest, followedPubkeys())
+  if (template) await publishAsSite(template)
+  ensured.add("follows")
 }
 
 /** Publish the shift occurrence for a day and slot if the coordinator (the site) has not yet. */

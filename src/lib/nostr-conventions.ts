@@ -425,3 +425,15 @@ export function parseComments(events: SignedLike[], uri: string, links: MemberLi
       }
     })
 }
+
+// ── contact list (kind 3) ─────────────────────────────────────────────────
+
+/** A contact list that adds `want` to `existing`'s tags, or null when nothing is missing. Other tags and the content are kept. */
+export function mergeContactList(existing: { tags: string[][]; content: string } | null, want: string[], now = Math.floor(Date.now() / 1000)): Template | null {
+  const tags = existing?.tags ?? []
+  const have = new Set(tags.filter((t) => t[0] === "p").map((t) => t[1]))
+  const missing = want.filter((p) => !have.has(p))
+  if (missing.length === 0) return null
+  return { kind: 3, created_at: now, tags: [...tags, ...missing.map((p) => ["p", p])], content: existing?.content ?? "" }
+}
+
