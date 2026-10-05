@@ -182,15 +182,39 @@ export interface TokensIssuedFeed {
   issued?: Array<{ timestamp: string; amount: number; recipient?: { id?: string; displayName?: string } | null; reason?: string | null }>
 }
 
-/** The latest tokens issued, newest first: each award on its own (several for one person are several lines). */
+/**
+ * What a token was for, short enough for one line: the token bot's
+ * annotation, without a "Thank you to @<recipient> for" opening, cut at the
+ * first sentence, without the @ of mentions.
+ */
+export function tokenReason(reason: string | null | undefined, recipient: string): string | undefined {
+  let text = (reason ?? "").replace(/\s+/g, " ").trim()
+  if (!text) return undefined
+  const name = recipient.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  text = text.replace(new RegExp(`^(?:a big )?(?:thank(?:s| you)) (?:to )?@?${name},? (?:for )?`, "i"), "")
+  text = text.split(/(?<=[.!?])\s/)[0].replace(/[.!]+$/, "").replace(/@/g, "").trim()
+  return text ? text[0].toUpperCase() + text.slice(1) : undefined
+}
+
+/**
+ * The latest tokens issued, newest first, each award on its own line. Awards
+ * the token bot described come first, so the screen says what tokens are
+ * for; undescribed ones only fill the list when there are not enough.
+ */
 export function recentTokenAwards(feeds: TokensIssuedFeed[], limit = 5): RecentContributor[] {
-  return feeds
+  const awards = feeds
     .flatMap((f) => f.issued ?? [])
     .filter((t) => t.recipient?.displayName && !isExcludedContributor({ displayName: t.recipient.displayName }) && Number(t.amount) > 0)
-    .map((t) => ({ name: t.recipient!.displayName!, at: Date.parse(t.timestamp), tokens: Number(t.amount), ...(t.reason ? { reason: t.reason } : {}) }))
+    .map((t) => {
+      const name = t.recipient!.displayName!
+      const reason = tokenReason(t.reason, name)
+      return { name, at: Date.parse(t.timestamp), tokens: Number(t.amount), ...(reason ? { reason } : {}) }
+    })
     .filter((t) => Number.isFinite(t.at))
     .sort((a, b) => b.at - a.at)
-    .slice(0, limit)
+  const described = awards.filter((t) => t.reason).slice(0, limit)
+  const filler = awards.filter((t) => !t.reason).slice(0, limit - described.length)
+  return [...described, ...filler].sort((a, b) => b.at - a.at)
 }
 
 /** A few photos from #contributions that at least `minReactions` people reacted to, picked at random. */
