@@ -22,6 +22,7 @@ import {
   recentDonations,
   recentTokenAwards,
   screenCosts,
+  tokenReason,
   type ContributeScreenData,
 } from "@/lib/contribute-screen"
 import { thanksName } from "@/lib/donor-thanks"
@@ -120,20 +121,29 @@ describe("yin: time", () => {
     ])
   })
 
-  test("tokens issued: to whom, how many, what for, newest first, each award on its own, no unknown recipient", () => {
+  test("tokens issued: to whom, how many, what for; described awards first, undescribed only to fill", () => {
     const feed = {
       issued: [
-        { timestamp: "2026-10-02T06:30:00Z", amount: 3, recipient: { id: "1", displayName: "Leen" }, reason: "3h shift on 2 Oct" },
+        { timestamp: "2026-10-05T00:00:40Z", amount: 1, recipient: { id: "3", displayName: "Miriam" } },
         { timestamp: "2026-10-03T10:00:00Z", amount: 1, recipient: { id: "2", displayName: "Ralph" }, reason: "Park cleaning" },
         { timestamp: "2026-10-03T11:00:00Z", amount: 2, recipient: null, reason: "Unknown wallet" },
+        { timestamp: "2026-10-02T06:30:00Z", amount: 3, recipient: { id: "1", displayName: "Leen" }, reason: "3h shift on 02/10/2026 at 08:30" },
         { timestamp: "2026-10-01T10:00:00Z", amount: 1, recipient: { id: "1", displayName: "Leen" } },
       ],
     }
-    expect(recentTokenAwards([feed])).toEqual([
+    expect(recentTokenAwards([feed], 2)).toEqual([
       { name: "Ralph", at: Date.parse("2026-10-03T10:00:00Z"), tokens: 1, reason: "Park cleaning" },
-      { name: "Leen", at: Date.parse("2026-10-02T06:30:00Z"), tokens: 3, reason: "3h shift on 2 Oct" },
-      { name: "Leen", at: Date.parse("2026-10-01T10:00:00Z"), tokens: 1 },
+      { name: "Leen", at: Date.parse("2026-10-02T06:30:00Z"), tokens: 3, reason: "3h shift on 02/10/2026 at 08:30" },
     ])
+    expect(recentTokenAwards([feed], 3).map((t) => t.name)).toEqual(["Miriam", "Ralph", "Leen"])
+  })
+
+  test("a reason fits one line: no thank-you opening, the first sentence, no @", () => {
+    expect(tokenReason("Thank you to @Joy Tandt Pianiste for watering the plants. To @Dean and @Inge for the rest", "Joy Tandt Pianiste")).toBe("Watering the plants")
+    expect(tokenReason("Park cleaning", "Marlene")).toBe("Park cleaning")
+    expect(tokenReason("Helping @Ann move chairs", "Bob")).toBe("Helping Ann move chairs")
+    expect(tokenReason("", "Bob")).toBeUndefined()
+    expect(tokenReason(undefined, "Bob")).toBeUndefined()
   })
 
   test("relative time", () => {
