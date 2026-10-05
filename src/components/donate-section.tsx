@@ -1,12 +1,10 @@
 import Image from "next/image"
 import Link from "next/link"
-import { CreditCard, ExternalLink, Sparkles } from "lucide-react"
+import { CreditCard } from "lucide-react"
 
 import { BankTransferDetails } from "@/components/bank-transfer-details"
 import { Button } from "@/components/ui/button"
 
-const ARTIZEN_DONATION_URL =
-  "https://artizen.fund/index/p/commons-hub-brussels-1?season=7"
 const STRIPE_DONATION_URL = "https://buy.stripe.com/7sIdSnbxz7AE1bi28m"
 
 export function DonateSection() {
@@ -34,56 +32,7 @@ export function DonateSection() {
 
       <section className="py-16 bg-background">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-6">
-          <div className="relative bg-card p-8 rounded-lg border-2 border-primary flex flex-col items-center text-center">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold uppercase tracking-wide px-3 py-1 rounded-full">
-              Preferred
-            </span>
-            <h2 className="text-2xl font-bold text-foreground mb-3 flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-primary" />
-              Donate via Artizen Fund
-            </h2>
-            <p className="text-muted-foreground mb-2 max-w-xl">
-              Our preferred way to receive donations. Support Commons Hub
-              Brussels through our project page on Artizen Fund.
-            </p>
-            <p className="text-sm text-muted-foreground mb-6">
-              Minimum donation €10. An email address is required.
-            </p>
-
-            <div className="hidden md:flex flex-col items-center gap-4">
-              <Image
-                src="/images/artizen-qrcode.png"
-                alt="QR code linking to the Commons Hub Brussels page on Artizen Fund"
-                width={240}
-                height={240}
-                className="rounded-md"
-              />
-              <Button asChild size="lg" className="mt-auto">
-                <a
-                  href={ARTIZEN_DONATION_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-foreground"
-                >
-                   <ExternalLink className="w-5 h-5" />
-                  Donate online with matched funding
-                </a>
-              </Button>
-            </div>
-
-            <Button asChild size="lg" className="md:hidden mt-auto">
-              <a
-                href={ARTIZEN_DONATION_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="w-5 h-5" />
-                Donate on Artizen
-              </a>
-            </Button>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 md:items-start gap-6">
             <div className="bg-card p-8 rounded-lg border border-border flex flex-col items-center text-center">
               <h2 className="text-2xl font-bold text-foreground mb-3">
                 Card or Bancontact
@@ -91,8 +40,7 @@ export function DonateSection() {
               <p className="text-muted-foreground mb-6">
                 Donate online via Stripe with a credit card or Bancontact.
               </p>
-              <Button asChild size="lg" className="mt-auto"
-                      variant="outline">
+              <Button asChild size="lg">
                 <a
                   href={STRIPE_DONATION_URL}
                   target="_blank"
