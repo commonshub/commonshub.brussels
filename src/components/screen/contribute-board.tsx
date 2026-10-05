@@ -10,15 +10,11 @@ import { ScreenQr } from "./screen-qr"
  * /contribute/screen: the two currencies that keep the hub alive, side by
  * side. Yang, money: what a month costs and the latest donations. Yin, time:
  * photos from #contributions and who was thanked for a contribution lately.
- * Donations carry their amount and date and time, token awards how many,
- * what for and how long ago, so the screen shows it is live.
+ * Every line starts with the amount (euros or tokens), says what it was,
+ * and ends with how long ago (the date after a week), so the screen shows
+ * it is live. Tokens given for the same thing within the hour share a line.
  */
 const eur = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
-
-/** "Sat 3 Oct, 14:32", the hub's local time. */
-export function when(ms: number): string {
-  return new Date(ms).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" })
-}
 
 function Heading({ kicker, title }: { kicker: string; title: string }) {
   return (
@@ -33,23 +29,31 @@ function Subheading({ children }: { children: React.ReactNode }) {
   return <div style={{ marginTop: s(1.6), fontSize: s(1.25), fontWeight: 600, color: MUTED, letterSpacing: "0.04em", textTransform: "uppercase" }}>{children}</div>
 }
 
-/** A name, what goes with it, and when, on one line. */
-function Row({ name, muted, figure, time }: { name: string; muted?: string; figure?: string; time: React.ReactNode }) {
+/** "A", "A and B", "A, B and C", "A, B, C and 2 others". */
+export function names(list: string[]): string {
+  if (list.length <= 1) return list[0] ?? ""
+  if (list.length <= 3) return `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`
+  return `${list.slice(0, 3).join(", ")} and ${list.length - 3} others`
+}
+
+/** What reads well after "for": a lowercase start (unless an acronym or a name), "a 3h shift" rather than "3h shift". */
+const forWhat = (reason: string) => {
+  const text = /^[A-Z][a-z]/.test(reason) ? reason[0].toLowerCase() + reason.slice(1) : reason
+  return /^\d+(?:[.,]\d+)?h\b/.test(text) ? `a ${text}` : text
+}
+
+/** One line: the amount first, what it is, and when. */
+function Line({ figure, text, at }: { figure?: string; text: string; at: number }) {
   return (
-    <li className="flex min-w-0 items-baseline" style={{ gap: s(0.8), marginTop: s(0.5) }}>
-      <span className="shrink-0" style={{ fontWeight: 600 }}>
-        {name}
-      </span>
+    <li className="flex min-w-0 items-baseline" style={{ gap: s(0.7), marginTop: s(0.5) }}>
       {figure && (
         <span className="shrink-0 tabular-nums" style={{ fontWeight: 700, color: ACCENT }}>
           {figure}
         </span>
       )}
-      <span className="min-w-0 flex-1 truncate" style={{ color: MUTED }}>
-        {muted}
-      </span>
+      <span className="min-w-0 flex-1 truncate">{text}</span>
       <span className="shrink-0 tabular-nums" style={{ color: MUTED, fontSize: "0.85em" }}>
-        {time}
+        <RelativeTime ms={at} />
       </span>
     </li>
   )
@@ -92,7 +96,7 @@ function Yang({ costs, donations }: { costs: ScreenCost[]; donations: Contribute
       {donations.length > 0 ? (
         <ul style={{ fontSize: s(1.55), lineHeight: 1.25 }}>
           {donations.map((d) => (
-            <Row key={d.at} name={d.name ?? "A donation"} figure={eur(d.amount)} muted={`by ${d.via}`} time={when(d.at)} />
+            <Line key={d.at} figure={eur(d.amount)} text={`donation ${d.name ? `from ${d.name} ` : ""}by ${d.via}`} at={d.at} />
           ))}
         </ul>
       ) : (
@@ -132,12 +136,11 @@ function Yin({ photos, contributors, contributorsFrom }: Pick<ContributeScreenDa
       {contributors.length > 0 ? (
         <ul style={{ fontSize: s(1.5), lineHeight: 1.25 }}>
           {contributors.map((c) => (
-            <Row
-              key={`${c.name}-${c.at}`}
-              name={c.name}
-              figure={c.tokens ? `+${c.tokens.toLocaleString("en-GB")} ${c.tokens === 1 ? "token" : "tokens"}` : undefined}
-              muted={c.reason}
-              time={<RelativeTime ms={c.at} />}
+            <Line
+              key={`${c.names.join(",")}-${c.at}`}
+              figure={c.tokens ? `${c.tokens.toLocaleString("en-GB")} ${c.tokens === 1 ? "token" : "tokens"}` : undefined}
+              text={c.tokens ? `${c.reason ? `for ${forWhat(c.reason)} ` : ""}to ${names(c.names)}` : names(c.names)}
+              at={c.at}
             />
           ))}
         </ul>

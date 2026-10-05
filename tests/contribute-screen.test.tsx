@@ -27,6 +27,7 @@ import {
 } from "@/lib/contribute-screen"
 import { thanksName } from "@/lib/donor-thanks"
 import { relativeTime } from "@/components/screen/relative-time"
+import { names } from "@/components/screen/contribute-board"
 import type { DebtLedger } from "@/lib/debt"
 
 const ledger = {
@@ -116,31 +117,44 @@ describe("yin: time", () => {
       ],
     }
     expect(recentContributors([feed], [])).toEqual([
-      { name: "Ann", at: Date.parse("2026-09-22T18:30:00Z") },
-      { name: "Bob", at: Date.parse("2026-09-20T10:00:00Z") },
+      { names: ["Ann"], at: Date.parse("2026-09-22T18:30:00Z") },
+      { names: ["Bob"], at: Date.parse("2026-09-20T10:00:00Z") },
     ])
   })
 
-  test("tokens issued: to whom, how many, what for; described awards first, undescribed only to fill", () => {
+  test("tokens issued: grouped when the same reason and amount fall within the hour; described lines first", () => {
     const feed = {
       issued: [
         { timestamp: "2026-10-05T00:00:40Z", amount: 1, recipient: { id: "3", displayName: "Miriam" } },
-        { timestamp: "2026-10-03T10:00:00Z", amount: 1, recipient: { id: "2", displayName: "Ralph" }, reason: "Park cleaning" },
-        { timestamp: "2026-10-03T11:00:00Z", amount: 2, recipient: null, reason: "Unknown wallet" },
+        { timestamp: "2026-10-02T16:27:00Z", amount: 1, recipient: { id: "4", displayName: "Xavier" }, reason: "park cleaning" },
+        { timestamp: "2026-10-02T16:21:42Z", amount: 1, recipient: { id: "5", displayName: "Marlene" }, reason: "Park cleaning" },
+        { timestamp: "2026-10-02T16:21:40Z", amount: 1, recipient: { id: "6", displayName: "AlainV" }, reason: "Park cleaning" },
+        { timestamp: "2026-10-02T16:10:00Z", amount: 2, recipient: { id: "7", displayName: "Jana" }, reason: "Park cleaning" }, // another amount
         { timestamp: "2026-10-02T06:30:00Z", amount: 3, recipient: { id: "1", displayName: "Leen" }, reason: "3h shift on 02/10/2026 at 08:30" },
-        { timestamp: "2026-10-01T10:00:00Z", amount: 1, recipient: { id: "1", displayName: "Leen" } },
+        { timestamp: "2026-10-01T10:00:00Z", amount: 1, recipient: { id: "8", displayName: "Ralph" }, reason: "Park cleaning" }, // a day earlier
+        { timestamp: "2026-10-03T11:00:00Z", amount: 2, recipient: null, reason: "Unknown wallet" },
       ],
     }
-    expect(recentTokenAwards([feed], 2)).toEqual([
-      { name: "Ralph", at: Date.parse("2026-10-03T10:00:00Z"), tokens: 1, reason: "Park cleaning" },
-      { name: "Leen", at: Date.parse("2026-10-02T06:30:00Z"), tokens: 3, reason: "3h shift on 02/10/2026 at 08:30" },
+    expect(recentTokenAwards([feed], 3)).toEqual([
+      { names: ["Xavier", "Marlene", "AlainV"], at: Date.parse("2026-10-02T16:27:00Z"), tokens: 1, reason: "Park cleaning" },
+      { names: ["Jana"], at: Date.parse("2026-10-02T16:10:00Z"), tokens: 2, reason: "Park cleaning" },
+      { names: ["Leen"], at: Date.parse("2026-10-02T06:30:00Z"), tokens: 3, reason: "3h shift on 2 Oct at 08:30" },
     ])
-    expect(recentTokenAwards([feed], 3).map((t) => t.name)).toEqual(["Miriam", "Ralph", "Leen"])
+    // Undescribed awards only fill the list.
+    expect(recentTokenAwards([feed], 5).map((g) => g.names.join())).toEqual(["Miriam", "Xavier,Marlene,AlainV", "Jana", "Leen", "Ralph"])
+  })
+
+  test("names read as a sentence", () => {
+    expect(names(["A"])).toBe("A")
+    expect(names(["A", "B"])).toBe("A and B")
+    expect(names(["A", "B", "C"])).toBe("A, B and C")
+    expect(names(["A", "B", "C", "D", "E"])).toBe("A, B, C and 2 others")
   })
 
   test("a reason fits one line: no thank-you opening, the first sentence, no @", () => {
     expect(tokenReason("Thank you to @Joy Tandt Pianiste for watering the plants. To @Dean and @Inge for the rest", "Joy Tandt Pianiste")).toBe("Watering the plants")
     expect(tokenReason("Park cleaning", "Marlene")).toBe("Park cleaning")
+    expect(tokenReason("3h shift on 02/10/2026 at 08:30", "Leen")).toBe("3h shift on 2 Oct at 08:30")
     expect(tokenReason("Helping @Ann move chairs", "Bob")).toBe("Helping Ann move chairs")
     expect(tokenReason("", "Bob")).toBeUndefined()
     expect(tokenReason(undefined, "Bob")).toBeUndefined()
@@ -153,12 +167,14 @@ describe("yin: time", () => {
     expect(relativeTime(now - 3 * 3_600_000, now)).toBe("3 hours ago")
     expect(relativeTime(now - 86_400_000, now)).toBe("yesterday")
     expect(relativeTime(now - 4 * 86_400_000, now)).toBe("4 days ago")
+    // A week or more ago: the date.
+    expect(relativeTime(Date.parse("2026-09-25T10:38:00Z"), now)).toBe("Fri 25 Sept")
   })
 
   test("until chb publishes the feed: who posted photos in #contributions", () => {
     const photo = (id: string, channelId: string, name: string, timestamp: string) => ({ id, channelId, timestamp, author: { id, username: name.toLowerCase(), displayName: name } }) as never
     const photos = [photo("1", "1297965144579637248", "Ann", "2026-09-20T10:00:00Z"), photo("2", "general", "Bob", "2026-09-21T10:00:00Z")]
-    expect(recentContributors([], photos)).toEqual([{ name: "Ann", at: Date.parse("2026-09-20T10:00:00Z") }])
+    expect(recentContributors([], photos)).toEqual([{ names: ["Ann"], at: Date.parse("2026-09-20T10:00:00Z") }])
   })
 
   test("photos: only from #contributions, only the liked ones, a few at random", () => {
@@ -222,7 +238,7 @@ describe("what the page reads", () => {
   test("public tier only: an unnamed donation with its amount, and Ann, each with when", async () => {
     const data = await load()
     expect(data.donations).toEqual([{ at: T * 1000, amount: 5000, via: "card", name: null }])
-    expect(data.contributors).toEqual([{ name: "Ann", at: (T + 60) * 1000 }])
+    expect(data.contributors).toEqual([{ names: ["Ann"], at: (T + 60) * 1000 }])
     expect(data.contributorsFrom).toBe("mentions")
     const json = JSON.stringify(data)
     for (const leak of ["Members Only Person", "Secret Donor", "50000"]) expect(json).not.toContain(leak)
@@ -241,7 +257,7 @@ describe("what the page reads", () => {
     ])
     const { container } = render(<ContributeBoard data={data} costs={costs} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["Yang", "Yin", "€6,602", "€6,547", "€55", "A donation", "€5,000", "by card", "Ann", "Recently thanked for their time", "Mon 21 Sept, 16:", "ago", "Contribute!", "commonshub.brussels/contribute"])
+    for (const part of ["Yang", "Yin", "€6,602", "€6,547", "€55", "€5,000", "donation by card", "Ann", "Recently thanked for their time", "Mon 21 Sept", "Contribute!", "commonshub.brussels/contribute"])
       expect(text).toContain(part)
     expect(text).not.toContain("%")
     for (const leak of ["Members Only Person", "Secret Donor", "50,000"]) expect(text).not.toContain(leak)

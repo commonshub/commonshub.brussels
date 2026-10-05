@@ -39,15 +39,15 @@ export interface RecentDonation {
 }
 
 export interface RecentContributor {
-  name: string
-  /** Milliseconds. */
+  /** Who: one person, or several thanked together (same tokens, same reason, within the hour). */
+  names: string[]
+  /** Milliseconds; the latest of the group. */
   at: number
-  /** Tokens issued to them, when known (chb's tokens-issued.json). */
+  /** Tokens issued to each of them, when known (chb's tokens-issued.json). */
   tokens?: number
   /** What for, when known. */
   reason?: string
 }
-
 export interface ContributionPhoto {
   src: string
   author: string
@@ -174,13 +174,18 @@ export function recentContributors(feeds: ContributionsFeed[], photos: PopularPh
   } else {
     for (const p of photos) if (p.channelId === settings.discord.channels.contributions) add(p.author, Date.parse(p.timestamp))
   }
-  return [...latest.values()].sort((a, b) => b.at - a.at).slice(0, limit)
+  return [...latest.values()]
+    .sort((a, b) => b.at - a.at)
+    .slice(0, limit)
+    .map(({ name, at }) => ({ names: [name], at }))
 }
 
 /** chb's feed of community tokens issued (YYYY/MM/public/tokens-issued.json): to whom, for what, how many. No wallets. */
 export interface TokensIssuedFeed {
   issued?: Array<{ timestamp: string; amount: number; recipient?: { id?: string; displayName?: string } | null; reason?: string | null }>
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"]
 
 /**
  * What a token was for, short enough for one line: the token bot's
@@ -193,11 +198,17 @@ export function tokenReason(reason: string | null | undefined, recipient: string
   const name = recipient.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   text = text.replace(new RegExp(`^(?:a big )?(?:thank(?:s| you)) (?:to )?@?${name},? (?:for )?`, "i"), "")
   text = text.split(/(?<=[.!?])\s/)[0].replace(/[.!]+$/, "").replace(/@/g, "").trim()
+  // "02/10/2026" reads "2 Oct" on a screen.
+  text = text.replace(/\b(\d{1,2})\/(\d{1,2})\/\d{4}\b/g, (_, d: string, m: string) => `${Number(d)} ${MONTHS[Number(m) - 1] ?? m}`)
   return text ? text[0].toUpperCase() + text.slice(1) : undefined
 }
 
+/** Awards for the same thing, the same number of tokens, within an hour of each other, read as one line. */
+const GROUP_MS = 3_600_000
+
 /**
- * The latest tokens issued, newest first, each award on its own line. Awards
+ * The latest tokens issued, newest first, grouped: awards with the same
+ * reason and amount within the hour become one line naming everyone. Lines
  * the token bot described come first, so the screen says what tokens are
  * for; undescribed ones only fill the list when there are not enough.
  */
@@ -207,13 +218,22 @@ export function recentTokenAwards(feeds: TokensIssuedFeed[], limit = 5): RecentC
     .filter((t) => t.recipient?.displayName && !isExcludedContributor({ displayName: t.recipient.displayName }) && Number(t.amount) > 0)
     .map((t) => {
       const name = t.recipient!.displayName!
-      const reason = tokenReason(t.reason, name)
-      return { name, at: Date.parse(t.timestamp), tokens: Number(t.amount), ...(reason ? { reason } : {}) }
+      return { name, at: Date.parse(t.timestamp), tokens: Number(t.amount), reason: tokenReason(t.reason, name) }
     })
     .filter((t) => Number.isFinite(t.at))
     .sort((a, b) => b.at - a.at)
-  const described = awards.filter((t) => t.reason).slice(0, limit)
-  const filler = awards.filter((t) => !t.reason).slice(0, limit - described.length)
+  const groups: RecentContributor[] = []
+  for (const award of awards) {
+    const key = award.reason?.toLowerCase()
+    const group = groups.find((g) => g.tokens === award.tokens && g.reason?.toLowerCase() === key && g.at - award.at < GROUP_MS)
+    if (group) {
+      if (!group.names.includes(award.name)) group.names.push(award.name)
+    } else {
+      groups.push({ names: [award.name], at: award.at, tokens: award.tokens, ...(award.reason ? { reason: award.reason } : {}) })
+    }
+  }
+  const described = groups.filter((g) => g.reason).slice(0, limit)
+  const filler = groups.filter((g) => !g.reason).slice(0, limit - described.length)
   return [...described, ...filler].sort((a, b) => b.at - a.at)
 }
 
