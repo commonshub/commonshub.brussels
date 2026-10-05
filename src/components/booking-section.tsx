@@ -14,8 +14,9 @@ import {
 import { ArrowRight, Users, Coins } from "lucide-react";
 import { BookingDialog } from "@/components/booking-dialog";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
+import roomsData from "@/settings/rooms.json";
 
-const rooms = [
+const cards = [
   {
     id: "ostrom",
     slug: "ostrom",
@@ -69,6 +70,18 @@ const rooms = [
   },
 ];
 
+/** Prices and tokens always come from settings/rooms.json, the one place they are set. */
+const rooms = cards.map((card) => {
+  const room = roomsData.rooms.find((r) => r.slug === card.slug);
+  return room
+    ? {
+        ...card,
+        pricePerHour: room.pricePerHour,
+        tokensPerHour: room.tokensPerHour,
+      }
+    : card;
+});
+
 export { rooms };
 
 export function BookingSection() {
@@ -111,7 +124,7 @@ export function BookingSection() {
                         getProxiedImageUrl(
                           room.image || "/placeholder.svg",
                           "sm",
-                          { relative: true }
+                          { relative: true },
                         ) || "/placeholder.svg"
                       }
                       alt={room.name}
@@ -140,7 +153,10 @@ export function BookingSection() {
                 <div className="mt-auto space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-semibold text-foreground">
-                      €{room.pricePerHour}/hour
+                      €{room.pricePerHour}/hour{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        + VAT
+                      </span>
                     </span>
                     <span className="text-muted-foreground flex items-center gap-1">
                       <Coins className="w-4 h-4 text-primary" />

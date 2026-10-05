@@ -46,7 +46,7 @@ export default function RoomsPage() {
                         getProxiedImageUrl(
                           room.heroImage || "/placeholder.svg",
                           "sm",
-                          { relative: true }
+                          { relative: true },
                         ) || "/placeholder.svg"
                       }
                       alt={room.name}
@@ -69,7 +69,10 @@ export default function RoomsPage() {
                       {room.pricePerHour > 0 ? (
                         <>
                           <span className="font-semibold">
-                            €{room.pricePerHour}/hour
+                            €{room.pricePerHour}/hour{" "}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              + VAT
+                            </span>
                           </span>
                           <span className="text-muted-foreground flex items-center gap-1 text-sm">
                             <Coins className="w-4 h-4 text-primary" />
