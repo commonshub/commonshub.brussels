@@ -443,7 +443,9 @@
       "wss://relay.commonshub.brussels",
       "wss://relay.commonshub.dev"
     ],
-    "coordinatorNpub": "npub1828zsgu6xv0j0y0axr4agq5uf0yh8djxtd89guqgg8vuymqgc8es3ge93h"
+    "coordinatorNpub": "npub1828zsgu6xv0j0y0axr4agq5uf0yh8djxtd89guqgg8vuymqgc8es3ge93h",
+    "_followsComment": "Keys the site follows in its kind 3 contact list. chb trusts annotations from its seeds (the site key among them) and from anyone a seed follows, so following a key makes its annotations count in the published data. The token bot (same key as coordinatorNpub) annotates every token it mints with what it was for; following it puts those reasons on /contribute/screen. Followed since 2026-10-05, on Xavier's go-ahead. The site publishes this list (keeping any other follows already on the relays) once per process, from /api/nostr/identity.",
+    "follows": ["npub1828zsgu6xv0j0y0axr4agq5uf0yh8djxtd89guqgg8vuymqgc8es3ge93h"]
   },
   "taxes": {
     "_comment": "Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists taxes billed to us but not paid yet; an entry disappears on its own once a payment of the same kind and tax year shows up. `passThrough` is the owner's split of the building's property tax and office tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",

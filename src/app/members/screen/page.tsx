@@ -30,18 +30,22 @@ const s = (n: number) => `calc(var(--s) * ${n})`;
 const JOIN_URL = "https://commonshub.brussels/membership";
 
 /**
- * The heartbeat: the logo beats (lub-dub) every BEAT seconds and sends out a
- * ripple that grows from the logo's edge to past the corners of the screen,
- * at a steady speed; each partner and member pulses as the ripple reaches it.
+ * The heartbeat, one sequence every BEAT seconds: the logo beats first
+ * (lub-dub), then, at the end of the dub, the wave leaves the logo's edge
+ * and travels at a steady speed to past the corners; each partner and member
+ * pulses the moment the wave's edge touches it.
  */
-const BEAT = 2.4;
+const BEAT = 2.4; // seconds, one heartbeat
 const LOGO = 17; // diameter, in screen units
-const RIPPLE_SCALE = 7; // the ripple ends 7× the logo's size, past the corners
-/** When the ripple reaches a point (screen percentages), in seconds after the beat. */
-function rippleDelay(x: number, y: number): number {
-  const d = Math.hypot(x - 50, (y - 50) * 0.5625); // in screen units: the screen is 100 × 56.25
+const RIPPLE_SCALE = 7; // the wave ends 7× the logo's size, past the corners
+const WAVE_START = 0.45; // seconds into the beat: the dub's peak (18% of BEAT)
+const WAVE_TRAVEL = 1.8; // seconds from the logo's edge to RIPPLE_SCALE
+const pct = (seconds: number) => `${((seconds / BEAT) * 100).toFixed(2)}%`;
+/** When the wave touches an item (centre in screen percentages, diameter in screen units), in seconds into the beat. */
+function rippleDelay(x: number, y: number, size: number): number {
+  const d = Math.hypot(x - 50, (y - 50) * 0.5625) - size / 2; // to its near edge, in screen units (the screen is 100 × 56.25)
   const r0 = LOGO / 2;
-  return Math.max(0, ((d - r0) / (r0 * (RIPPLE_SCALE - 1))) * BEAT);
+  return WAVE_START + Math.max(0, (d - r0) / (r0 * (RIPPLE_SCALE - 1))) * WAVE_TRAVEL;
 }
 
 export default async function MembersScreenPage() {
@@ -66,11 +70,11 @@ export default async function MembersScreenPage() {
         html, body { overflow: hidden; background: #111; }
         @keyframes cloud-float { 0%, 100% { transform: translate(-50%, -50%) translateY(0); } 50% { transform: translate(-50%, -50%) translateY(calc(var(--s) * -0.45)); } }
         .cloud-item { position: absolute; transform: translate(-50%, -50%); animation: cloud-float 7s ease-in-out infinite; }
-        @keyframes heart-beat { 0% { transform: scale(1); } 7% { transform: scale(1.07); } 15% { transform: scale(0.99); } 23% { transform: scale(1.045); } 36%, 100% { transform: scale(1); } }
+        @keyframes heart-beat { 0% { transform: scale(1); } 6% { transform: scale(1.08); } 12% { transform: scale(0.99); } 18% { transform: scale(1.05); } 28%, 100% { transform: scale(1); } }
         .heart { animation: heart-beat ${BEAT}s ease-in-out infinite; }
-        @keyframes heart-ripple { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0.55; } 100% { transform: translate(-50%, -50%) scale(${RIPPLE_SCALE}); opacity: 0; } }
-        .ripple { position: absolute; left: 50%; top: 50%; width: calc(var(--s) * ${LOGO}); height: calc(var(--s) * ${LOGO}); border-radius: 9999px; border: calc(var(--s) * 0.25) solid rgba(255, 76, 2, 0.7); animation: heart-ripple ${BEAT}s linear infinite; pointer-events: none; }
-        @keyframes cloud-pulse { 0% { transform: scale(1); filter: brightness(1); } 8% { transform: scale(1.14); filter: brightness(1.25); } 22%, 100% { transform: scale(1); filter: brightness(1); } }
+        @keyframes heart-ripple { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0; } 3% { opacity: 0.7; } ${pct(WAVE_TRAVEL * 0.8)} { opacity: 0.3; } ${pct(WAVE_TRAVEL)} { transform: translate(-50%, -50%) scale(${RIPPLE_SCALE}); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(${RIPPLE_SCALE}); opacity: 0; } }
+        .ripple { position: absolute; left: 50%; top: 50%; width: calc(var(--s) * ${LOGO}); height: calc(var(--s) * ${LOGO}); border-radius: 9999px; border: calc(var(--s) * 0.25) solid rgba(255, 76, 2, 0.7); animation: heart-ripple ${BEAT}s linear ${WAVE_START}s infinite both; pointer-events: none; }
+        @keyframes cloud-pulse { 0% { transform: scale(1); filter: brightness(1); } 5% { transform: scale(1.15); filter: brightness(1.3); } 20%, 100% { transform: scale(1); filter: brightness(1); } }
         .cloud-pulse { width: 100%; height: 100%; animation: cloud-pulse ${BEAT}s ease-out infinite; }
         @media (prefers-reduced-motion: reduce) { .cloud-item, .heart, .ripple, .cloud-pulse { animation: none; } .ripple { display: none; } }
       `}</style>
@@ -97,7 +101,7 @@ export default async function MembersScreenPage() {
           >
             <div
               className="cloud-pulse"
-              style={{ animationDelay: `${rippleDelay(x, y).toFixed(2)}s` }}
+              style={{ animationDelay: `${rippleDelay(x, y, size).toFixed(2)}s` }}
             >
               {partner ? (
                 <div
