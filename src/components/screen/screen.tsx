@@ -1,7 +1,7 @@
 import type React from "react"
 
 import { PosterLogo } from "@/components/poster/poster"
-import { ScreenClock, ScreenRefresh } from "./screen-live"
+import { ScreenClock, ScreenRefresh, ScreenReport } from "./screen-live"
 
 /**
  * Shared frame for the pages on the hub's big screen (/…/screen): one 16:9
@@ -37,6 +37,7 @@ export function ScreenShell({
     >
       <style>{"html, body { overflow: hidden; background: #111; }"}</style>
       <ScreenRefresh minutes={refreshMinutes} />
+      <ScreenReport />
       <header className="flex shrink-0 items-center" style={{ gap: s(1.6) }}>
         <span className="shrink-0" style={{ width: s(4.6), height: s(4.6) }}>
           <PosterLogo className="block h-full w-full" />

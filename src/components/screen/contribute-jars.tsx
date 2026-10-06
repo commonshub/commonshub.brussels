@@ -11,7 +11,7 @@ import { ScreenQr } from "./screen-qr"
  * other with the hours given, by kind. In between, the latest donations and
  * tokens issued: the amount first, on one line, then what for, then when.
  * The newest of each hangs above its jar and drops in; the liquid rises when
- * the slide comes up.
+ * the slide comes up. Nothing loops: the TV's browser is an old Chromium.
  */
 
 const TIME = "#5fb3f0"
@@ -34,16 +34,20 @@ function shade(from: [number, number, number], to: [number, number, number], i: 
   return `rgb(${c.join(",")})`
 }
 
-/** A wave along the liquid's surface, twice as wide as the jar so it can slide. */
-const wave = (y: number) => `M-380 ${y} ${Array.from({ length: 8 }, () => "q47.5 -12 95 0 t95 0").join(" ")} V${y + 14} H-380 Z`
+/** A gentle wave along the liquid's surface, exactly the jar's width. */
+const wave = (y: number) => `M0 ${y} q47.5 -12 95 0 t95 0 t95 0 t95 0 V${y + 14} H0 Z`
 
+/**
+ * The jar's glass and what is inside it. No clip-path: the TV's browser
+ * (Samsung Tizen) ignores it, so the liquid would spill out. Instead the
+ * inside is drawn in a nested <svg> the jar's size (which every browser
+ * clips to its box), and the corners outside the jar's shape are painted
+ * over in the page's colour (an even-odd path: the box minus the jar).
+ */
 function Glass({ id, children }: { id: string; children: React.ReactNode }) {
   return (
     <>
       <defs>
-        <clipPath id={id}>
-          <path d={JAR} />
-        </clipPath>
         <linearGradient id={`${id}-glass`} x1="0" x2="1">
           <stop offset="0" stopColor="#fff" stopOpacity="0.1" />
           <stop offset="0.18" stopColor="#fff" stopOpacity="0.02" />
@@ -51,11 +55,12 @@ function Glass({ id, children }: { id: string; children: React.ReactNode }) {
           <stop offset="1" stopColor="#fff" stopOpacity="0.08" />
         </linearGradient>
       </defs>
-      <g clipPath={`url(#${id})`}>
+      <svg x="0" y="0" width="380" height="640" viewBox="0 0 380 640" overflow="hidden">
         <rect x="0" y="0" width="380" height="640" fill="#1a1a1e" />
         {children}
         <rect x="0" y="0" width="380" height="640" fill={`url(#${id}-glass)`} />
-      </g>
+      </svg>
+      <path d={`M-12 -12 H392 V652 H-12 Z ${JAR}`} fillRule="evenodd" fill="#111" />
       <path d={JAR} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="5" />
       <rect x="78" y="-22" width="224" height="24" rx="8" fill="#3a3a42" />
       <path d="M28 180 V560" stroke="#fff" strokeOpacity="0.22" strokeWidth="10" strokeLinecap="round" />
@@ -111,7 +116,7 @@ function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostL
             l.paid >= l.amount ? <line key={`sep-${l.slug}`} x1="0" x2="380" y1={yAt(l.to)} y2={yAt(l.to)} stroke="#111" strokeWidth="2" /> : null,
           )}
           {covered > 0 && (
-            <path d={wave(level)} fill={color(Math.max(0, topPaid))} style={{ animation: "jar-wave 3.2s linear infinite" }} />
+            <path d={wave(level)} fill={color(Math.max(0, topPaid))} />
           )}
         </g>
         {!full && level - TOP >= 90 && (
@@ -188,7 +193,7 @@ function TimeJar({ hours, total, lastMonth, drop, title, note }: { hours: HourLa
           {bands.slice(0, -1).map((b) => (
             <line key={`sep-${b.kind}`} x1="0" x2="380" y1={b.y1} y2={b.y1} stroke="#111" strokeWidth="2" />
           ))}
-          {total > 0 && <path d={wave(level)} fill={bands[bands.length - 1].color} style={{ animation: "jar-wave 3.6s linear infinite" }} />}
+          {total > 0 && <path d={wave(level)} fill={bands[bands.length - 1].color} />}
         </g>
         {lastMonth > 0 && (
           <g>
@@ -221,30 +226,19 @@ function TimeJar({ hours, total, lastMonth, drop, title, note }: { hours: HourLa
   )
 }
 
-/** The newest item, hanging above the jar's neck (in the jar's own units), dropping in. */
+/** The newest item, hanging above the jar's neck, dropping in once. Plain SVG (no foreignObject, for the TV). */
 function Drop({ text, color, tilt }: { text: string | null; color: string; tilt: number }) {
   if (!text) return null
+  const width = Math.round(text.length * 12.4 + 40)
   return (
-    <foreignObject x="-310" y="-104" width="1000" height="64">
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <div
-          style={{
-            ["--tilt" as string]: `${tilt}deg`,
-            whiteSpace: "nowrap",
-            padding: "7px 18px",
-            borderRadius: 999,
-            background: "#fff",
-            color,
-            fontSize: 23,
-            fontWeight: 700,
-            boxShadow: "0 10px 24px rgba(0,0,0,.45)",
-            animation: "jar-drop 1.2s cubic-bezier(.3,1.4,.5,1) 1.6s both, jar-bob 3s ease-in-out 2.8s infinite",
-          }}
-        >
+    <g transform={`translate(190 -66) rotate(${tilt})`}>
+      <g style={{ animation: "jar-drop 1.2s cubic-bezier(.3,1.4,.5,1) 1.6s both" }}>
+        <rect x={-width / 2} y="-22" width={width} height="44" rx="22" fill="#fff" />
+        <text x="0" y="8" textAnchor="middle" fontSize="23" fontWeight="700" fill={color}>
           {text}
-        </div>
-      </div>
-    </foreignObject>
+        </text>
+      </g>
+    </g>
   )
 }
 
@@ -322,10 +316,8 @@ export function ContributeJars({ data, lines, qrSvg, url }: { data: JarsData; li
     <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "37% 1fr 21%", gap: s(2) }}>
       <style>{`
         @keyframes jar-rise { from { transform: scaleY(0) } to { transform: scaleY(1) } }
-        @keyframes jar-wave { from { transform: translateX(0) } to { transform: translateX(190px) } }
         @keyframes jar-fade { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes jar-drop { from { opacity: 0; transform: translateY(-48px) rotate(var(--tilt)) } to { opacity: 1; transform: rotate(var(--tilt)) } }
-        @keyframes jar-bob { 0%, 100% { transform: rotate(var(--tilt)) translateY(0) } 50% { transform: rotate(var(--tilt)) translateY(6px) } }
+        @keyframes jar-drop { from { opacity: 0; transform: translateY(-48px) } to { opacity: 1; transform: none } }
       `}</style>
 
       <section className="min-h-0">
