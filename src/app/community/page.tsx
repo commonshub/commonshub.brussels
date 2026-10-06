@@ -74,7 +74,7 @@ export default function CommunityPage() {
                 </p>
               </div>
               {activeCommoners !== null && (
-                <Link href="/members/list" className="group">
+                <Link href="/members" className="group">
                   <div className="flex justify-center mb-3">
                     <Heart className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
                   </div>
