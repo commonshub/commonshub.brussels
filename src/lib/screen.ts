@@ -5,9 +5,9 @@
  * stay on all day.
  */
 
-/** /events/ocd-2026/screen, /contribute/screen: no site header or footer. */
+/** /events/ocd-2026/screen, /contribute/screen, and the community tablet (/tablet): no site header or footer. */
 export function isScreenRoute(pathname: string | null | undefined): boolean {
-  return !!pathname && /\/screen\/?$/.test(pathname)
+  return !!pathname && (/\/screen\/?$/.test(pathname) || /^\/tablet\/?$/.test(pathname))
 }
 
 /** "14:05", the hub's local time. */
