@@ -154,10 +154,11 @@ function Quote({ praise }: { praise: Praise }) {
       className="shrink-0"
       style={{ padding: `${s(1.3)} ${s(1.8)}`, borderRadius: s(1.1), background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", animation: "gc-in 700ms ease-out both" }}
     >
-      <div className="line-clamp-2" style={{ fontSize: s(2), lineHeight: 1.25, fontWeight: 600 }}>
+      {/* Always two lines tall, so the drawing above doesn't jump when a thank-you is shorter or longer. */}
+      <div className="line-clamp-2" style={{ fontSize: s(2), lineHeight: 1.25, fontWeight: 600, height: `calc(${s(2)} * 2.5)` }}>
         “{praise.text}”
       </div>
-      <div className="flex flex-wrap items-baseline" style={{ marginTop: s(0.7), fontSize: s(1.25), color: MUTED, gap: s(0.45) }}>
+      <div className="flex flex-nowrap items-baseline overflow-hidden whitespace-nowrap" style={{ marginTop: s(0.7), fontSize: s(1.25), color: MUTED, gap: s(0.45) }}>
         <Chip>{praise.from.name}</Chip> thanked
         {recipients(praise.to).map((name, i, all) => (
           <span key={name}>

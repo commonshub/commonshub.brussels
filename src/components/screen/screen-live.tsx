@@ -84,3 +84,46 @@ export function ScreenRefresh({ minutes = 5 }: { minutes?: number }) {
   }, [router, minutes])
   return null
 }
+
+/**
+ * Tells the server (/api/screen-log) what this screen's browser goes
+ * through: each page load (and whether it was a reload), errors, unloads.
+ * The TV can't be inspected; its log can. At most 30 reports per page.
+ */
+export function ScreenReport() {
+  useEffect(() => {
+    let sent = 0
+    const started = Date.now()
+    const send = (event: string, extra: Record<string, unknown> = {}) => {
+      if (++sent > 30) return
+      const nav = (performance.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined)?.type
+      const memory = (performance as unknown as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory
+      const body = JSON.stringify({
+        event,
+        path: location.pathname + location.search,
+        frame: window.parent !== window ? "slide" : "top",
+        nav,
+        up: Math.round((Date.now() - started) / 1000),
+        ...(memory ? { heapMb: Math.round(memory.usedJSHeapSize / 1e6), limitMb: Math.round(memory.jsHeapSizeLimit / 1e6) } : {}),
+        ...(event === "boot" && window.parent === window ? { ua: navigator.userAgent } : {}),
+        ...extra,
+      })
+      try {
+        if (!navigator.sendBeacon?.("/api/screen-log", body)) fetch("/api/screen-log", { method: "POST", body, keepalive: true }).catch(() => {})
+      } catch {}
+    }
+    send("boot")
+    const onError = (e: ErrorEvent) => send("error", { message: e.message, at: `${e.filename}:${e.lineno}:${e.colno}` })
+    const onRejection = (e: PromiseRejectionEvent) => send("rejection", { message: String((e.reason as Error)?.message ?? e.reason) })
+    const onHide = () => send("unload")
+    window.addEventListener("error", onError)
+    window.addEventListener("unhandledrejection", onRejection)
+    window.addEventListener("pagehide", onHide)
+    return () => {
+      window.removeEventListener("error", onError)
+      window.removeEventListener("unhandledrejection", onRejection)
+      window.removeEventListener("pagehide", onHide)
+    }
+  }, [])
+  return null
+}

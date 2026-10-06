@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react"
 import type { ScreenSlide } from "@/lib/screen-rotation"
 import { SLIDE_MESSAGE, SLIDE_READY, type SlideMessage } from "./screen-live"
 
-/** How long the slide going off screen stays loaded, for its cross-fade. */
+/** The cross-fade between two slides. */
 const FADE_MS = 1200
+/** How long before its turn the next slide starts loading (in the background). */
+const PRELOAD_MS = 10_000
 
 interface Mounted {
   /** A new key loads the slide afresh. */
@@ -18,11 +20,13 @@ interface Mounted {
 
 /**
  * Cycles through the big-screen pages, each in its own frame. Only two are
- * loaded at a time: the slide on show and the next one, which loads in the
- * background while the current one is on (so switching is still a
- * cross-fade, no flash), plus the one fading out, for a second. A TV browser
- * (Samsung Tizen) has little memory: with every slide kept loaded and
- * animating it ran out and reloaded the page every few seconds.
+ * loaded at a time: the slide on show, and either the one that just faded
+ * out or the next one. Ten seconds before a slide's turn ends, in one go,
+ * the previous slide is unloaded and the next one starts loading in the
+ * background, so the switch is still a cross-fade with no flash, and the
+ * page changes once per slide. A TV browser (Samsung Tizen) has little
+ * memory: with every slide kept loaded and animating it reloaded the page
+ * every few seconds.
  *
  * Each slide therefore loads afresh every time it comes up: new data, new
  * code after a deploy. A slide with several designs (`variants`) shows the
@@ -36,7 +40,6 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
   const [index, setIndex] = useState(0)
   const frames = useRef<Array<HTMLIFrameElement | null>>([])
   const endsAt = useRef(0)
-  const shown = useRef(0)
   const visits = useRef<number[]>([])
   const seq = useRef(0)
 
@@ -108,22 +111,25 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
   useEffect(() => {
     if (slides.length < 2) return
     endsAt.current = Date.now() + slides[index].seconds * 1000
-    const previous = shown.current
-    shown.current = index
     const next = (index + 1) % slides.length
-    // On show (loaded now if it wasn't: arrow keys), the next one loading, the previous one fading out.
+    // The slide on show must be loaded (it isn't when arrow keys jump ahead); the previous one keeps fading out.
     const current = mountedRef.current!
-    const out = new Map<number, Mounted>()
-    out.set(index, current.get(index) ?? mount(index))
-    if (previous !== index && current.has(previous)) out.set(previous, current.get(previous)!)
-    if (!out.has(next)) out.set(next, current.get(next) ?? mount(next))
-    setMounted(out)
-    const unload = setTimeout(() => {
-      if (previous === index || previous === next) return
-      const after = new Map(mountedRef.current!)
-      after.delete(previous)
-      setMounted(after)
-    }, FADE_MS)
+    if (!current.has(index)) {
+      const out = new Map(current)
+      out.set(index, mount(index))
+      setMounted(out)
+    }
+    // Then, once, well before the switch: unload the previous slide and start loading the next.
+    const unload = setTimeout(
+      () => {
+        const out = new Map<number, Mounted>()
+        const now = mountedRef.current!
+        out.set(index, now.get(index)!)
+        out.set(next, now.get(next) ?? mount(next))
+        setMounted(out)
+      },
+      Math.max(FADE_MS, slides[index].seconds * 1000 - PRELOAD_MS),
+    )
     const timer = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index].seconds * 1000)
     return () => {
       clearTimeout(timer)

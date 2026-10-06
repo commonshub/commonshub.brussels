@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 import { ScreenRotator } from "@/components/screen/screen-rotator"
-import { ScreenRefresh } from "@/components/screen/screen-live"
+import { ScreenRefresh, ScreenReport } from "@/components/screen/screen-live"
 import { screenSlides } from "@/lib/screen-rotation"
 
 // Today's events depend on the date: decide at request time.
@@ -26,6 +26,7 @@ export default async function ScreenPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <ScreenRefresh minutes={10} />
+      <ScreenReport />
       <ScreenRotator slides={screenSlides(Date.now(), seconds)} />
     </>
   )
