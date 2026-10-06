@@ -20,7 +20,7 @@ function botParse(description: string) {
       signups.push({ discordUserId: signup[2] || "", username: signup[1] })
       continue
     }
-    const cancel = line.match(/<@(\S+?)> cancelled/)
+    const cancel = line.match(/<@(\S+?)> cancelled/) || line.match(/@(\S+) cancelled/) // the bot's legacy pattern too
     if (cancel) cancelled.add(cancel[1])
   }
   return signups.filter((s) => !cancelled.has(s.username))
@@ -42,6 +42,14 @@ describe("the calendar's audit lines", () => {
     expect(line).toBe("06/10/2026 14:05: Ann (email:ann@example.org) signed up via the community tablet")
     expect(botParse(line)).toEqual([])
     expect(botParse(cancelLine({ displayName: "Ann", handle: "email:ann@example.org" }, now))).toEqual([])
+  })
+
+  test("an email cancellation can never cancel a Discord member: the bot's legacy pattern only ever captures a name ending in ')'", () => {
+    const line = cancelLine({ displayName: "Ann", handle: "email:example.org@xdamman" }, now)
+    expect(line).toContain("(email:example.org@xdamman) cancelled")
+    expect(line.match(/@(\S+) cancelled/)![1]).toBe("xdamman)")
+    const description = ["05/10/2026 10:00: Xavier <@xdamman> signed up (discord:689614876515237925)", line].join("\n")
+    expect(botParse(description).map((x) => x.username)).toEqual(["xdamman"])
   })
 
   test("sign-ups still standing: bot lines, tablet lines, cancellations", () => {
