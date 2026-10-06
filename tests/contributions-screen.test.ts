@@ -86,3 +86,12 @@ describe("recent contributions", () => {
     expect(items[1].reactions[0]).toEqual({ emoji: "👍", count: 4 })
   })
 })
+
+describe("chb 3.34 markup", () => {
+  test("Markdown and links are reduced to their words; custom emoji reactions keep their image", () => {
+    expect(praiseText("@Leen for **all** the [door work](https://x.org)\n- and more", ["Leen"])).toBe("for all the door work and more")
+    const [item] = recentContributions([{ messages: [{ id: "1", timestamp: "2026-10-02T12:17:17Z", author: { id: "9", displayName: "AlainV" }, content: "Cleaning park by @Marlene and me", reactions: [{ emoji: ":chb:", count: 2, imageUrl: "https://cdn.discordapp.com/emojis/1.png" }] }] }])
+    expect(item.text).toBe("Cleaning park by Marlene and me")
+    expect(item.reactions[0]).toEqual({ emoji: ":chb:", count: 2, image: "proxy:https://cdn.discordapp.com/emojis/1.png" })
+  })
+})
