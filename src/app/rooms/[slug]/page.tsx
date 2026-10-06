@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import roomsData from "@/settings/rooms.json";
 import { RoomBookingForm } from "@/components/room-booking-form";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
+import { bookableFromLabel } from "@/lib/room-hours";
 interface RoomPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -84,6 +85,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
                       {room.tokensPerHour} token
                       {room.tokensPerHour > 1 ? "s" : ""}/hour
                     </span>
+                    {room.bookableFrom && <span>{bookableFromLabel(room.bookableFrom)}</span>}
                   </div>
                 )}
                 {room.membershipRequired && (
@@ -159,6 +161,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
                     roomName={room.name}
                     pricePerHour={room.pricePerHour}
                     tokensPerHour={room.tokensPerHour}
+                    bookableFrom={room.bookableFrom}
                   />
                 </div>
               </div>

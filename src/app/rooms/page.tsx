@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Users, ArrowRight, Coins } from "lucide-react";
 import roomsData from "@/settings/rooms.json";
+import { bookableFromLabel } from "@/lib/room-hours";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
 
 export const metadata = {
@@ -78,6 +79,7 @@ export default function RoomsPage() {
                             <Coins className="w-4 h-4 text-primary" />
                             {room.tokensPerHour} token
                             {room.tokensPerHour > 1 ? "s" : ""}/hour
+                            {room.bookableFrom && <>, {bookableFromLabel(room.bookableFrom)}</>}
                           </span>
                         </>
                       ) : (

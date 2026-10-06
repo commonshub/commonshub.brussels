@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import roomsData from "@/settings/rooms.json";
+import { bookableFromLabel } from "@/lib/room-hours";
 
 interface EmbeddedBookingFormProps {
   roomId: string;
@@ -112,6 +113,7 @@ export function EmbeddedBookingForm({
             <span className="block mt-1">
               <strong>€{pricePerHour}/hour</strong> + VAT or{" "}
               <strong>{tokensPerHour} token{tokensPerHour > 1 ? "s" : ""}/hour</strong> for members
+              {room?.bookableFrom && <>, {bookableFromLabel(room.bookableFrom)}</>}
             </span>
           )}
         </CardDescription>

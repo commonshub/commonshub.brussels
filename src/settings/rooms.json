@@ -38,7 +38,7 @@
       "description": "A professional meeting room named after Bitcoin's mysterious creator. Ideal for focused meetings, strategy sessions, and collaborative work.",
       "shortDescription": "Perfect for larger meetings",
       "pricePerHour": 60,
-      "tokensPerHour": 1.5,
+      "tokensPerHour": 2,
       "heroImage": "/images/satoshi-room.jpg",
       "features": [
         "Long conference table",
@@ -68,7 +68,7 @@
       "description": "A private space for phone calls and meetings.",
       "shortDescription": "Perfect for phone calls and meetings",
       "pricePerHour": 10,
-      "tokensPerHour": 1,
+      "tokensPerHour": 0.5,
       "heroImage": "/images/phonebooth.jpg",
       "features": [],
       "idealFor": [
@@ -144,8 +144,9 @@
       "capacity": 30,
       "description": "Our open coworking area where community members come together to work, connect, and collaborate. Available for members and day-pass visitors.",
       "shortDescription": "Open workspace for the community",
-      "pricePerHour": 0,
-      "tokensPerHour": 0,
+      "pricePerHour": 50,
+      "tokensPerHour": 2,
+      "bookableFrom": "19:00",
       "heroImage": "/images/chb-facade.avif",
       "features": [
         "Hot desks",

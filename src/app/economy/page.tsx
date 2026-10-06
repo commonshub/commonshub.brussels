@@ -142,7 +142,7 @@ export default function EconomyPage() {
                           <span>Up to {room.capacity}</span>
                         </div>
                         <div className="text-primary font-semibold">
-                          {room.tokensPerHour} CHT/hour
+                          {room.tokensPerHour} {room.tokensPerHour > 1 ? "tokens" : "token"}/hour
                         </div>
                       </div>
                     </div>
