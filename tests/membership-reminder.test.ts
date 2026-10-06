@@ -42,13 +42,15 @@ describe("the renew link", () => {
 })
 
 describe("the reminder email", () => {
-  test("three ways to continue, the grace period, the right yearly amount", () => {
+  test("two ways to pay (card for individuals, transfer for everyone), the grace period, the right yearly amount", () => {
     const base = { name: "Ann", email: "ann@example.org", renewUrl: "https://commonshub.brussels/membership/renew?t=x", communication: "+++000/0004/52260+++" }
     const paused = buildReminderEmail({ ...base, reason: "paused", graceEndsAt: new Date("2026-10-21T10:00:00Z") })
     expect(paused.subject).toBe("Your Commons Hub membership is paused")
-    for (const part of ["You remain a member until Wednesday 21 October", "https://commonshub.brussels/membership/renew?t=x", "€10 a month", "Amount: €100", "Communication: +++000/0004/52260+++"]) {
+    for (const part of ["You remain a member until Wednesday 21 October", "MONTHLY, BY CARD", "https://commonshub.brussels/membership/renew?t=x", "OR YEARLY, BY BANK TRANSFER", "Amount: €100", "Communication: +++000/0004/52260+++"]) {
       expect(paused.text).toContain(part)
     }
-    expect(buildReminderEmail({ ...base, reason: "ended", organisation: true }).text).toContain("Amount: €200")
+    const org = buildReminderEmail({ ...base, reason: "ended", organisation: true }).text
+    expect(org).toContain("Amount: €200")
+    expect(org).not.toContain("BY CARD")
   })
 })
