@@ -3,7 +3,7 @@
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 
-import type { Contribution, GraphEdge, GraphNode, Praise } from "@/lib/contributions-screen"
+import type { GraphEdge, GraphNode, Praise } from "@/lib/contributions-screen"
 import { RelativeTime } from "./relative-time"
 import { ACCENT, MUTED, s } from "./screen"
 import { ScreenQr } from "./screen-qr"
@@ -13,7 +13,9 @@ import { ScreenQr } from "./screen-qr"
  * 💝praise lately is a dot, every thank-you a line from giver to receiver
  * (older lines fainter). The latest thank-yous take turns: their lines light
  * up, a heart travels from the giver to the receiver and the words show
- * underneath. On the right, the latest #contributions.
+ * underneath. On the right, the latest thank-yous, the one on show
+ * highlighted. Which one comes next is picked at random, so a screen that
+ * reloads doesn't always start with the same.
  */
 
 const TURN_MS = 6500
@@ -171,44 +173,35 @@ function Quote({ praise }: { praise: Praise }) {
   )
 }
 
-function Contributions({ items }: { items: Contribution[] }) {
+function PraiseList({ items, current }: { items: Praise[]; current?: Praise }) {
   return (
     <section className="flex min-h-0 flex-col">
-      <div style={{ fontSize: s(1.1), letterSpacing: "0.08em", textTransform: "uppercase", color: MUTED, fontWeight: 600 }}>Lately in #contributions</div>
+      <div style={{ fontSize: s(1.1), letterSpacing: "0.08em", textTransform: "uppercase", color: MUTED, fontWeight: 600 }}>Latest thank-yous</div>
       <ul className="min-h-0 overflow-hidden" style={{ marginTop: s(0.6) }}>
-        {items.slice(0, 5).map((c) => (
-          <li key={c.id} className="flex items-center" style={{ gap: s(1), padding: `${s(0.75)} 0`, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-            {c.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={c.image} alt="" className="shrink-0 object-cover" style={{ width: s(4.6), height: s(4.6), borderRadius: s(0.7) }} />
-            ) : (
-              <span className="grid shrink-0 place-items-center" style={{ width: s(4.6), height: s(4.6), borderRadius: s(0.7), border: "2px dashed rgba(255,255,255,0.18)", fontSize: s(2.1) }}>
-                {c.emoji}
-              </span>
-            )}
-            <div className="min-w-0">
-              {c.text && (
-                <div className="line-clamp-2" style={{ fontSize: s(1.3), lineHeight: 1.25 }}>
-                  {c.text}
-                </div>
-              )}
-              <div style={{ fontSize: s(1), color: MUTED, marginTop: s(0.25) }}>
-                {c.author.name} · <RelativeTime ms={c.at} />
-                {c.reactions.map((r) => (
-                  <span key={r.emoji} style={{ marginLeft: s(0.6) }}>
-                    {r.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={r.image} alt={r.emoji} className="inline-block align-text-bottom" style={{ width: "1.1em", height: "1.1em" }} />
-                    ) : (
-                      r.emoji
-                    )}{" "}
-                    {r.count}
-                  </span>
-                ))}
+        {items.map((p) => {
+          const on = p.id === current?.id
+          return (
+            <li
+              key={p.id}
+              style={{
+                padding: `${s(0.6)} ${s(0.8)}`,
+                marginTop: s(0.35),
+                borderRadius: s(0.7),
+                background: on ? "rgba(255,76,2,0.16)" : "transparent",
+                boxShadow: on ? `inset ${s(0.25)} 0 0 ${ACCENT}` : "none",
+                opacity: on ? 1 : 0.6,
+                transition: "background 600ms, opacity 600ms, box-shadow 600ms",
+              }}
+            >
+              <div style={{ fontSize: s(1.05), color: on ? "#fff" : MUTED, fontWeight: 600 }}>
+                {p.from.name} → {recipients(p.to).join(", ")} · <RelativeTime ms={p.at} />
               </div>
-            </div>
-          </li>
-        ))}
+              <div className="line-clamp-2" style={{ fontSize: s(1.3), lineHeight: 1.25, marginTop: s(0.15) }}>
+                {p.text}
+              </div>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
@@ -218,7 +211,6 @@ export function GratitudeConstellation({
   nodes,
   edges,
   praises,
-  contributions,
   qrSvg,
   url,
   cta,
@@ -227,18 +219,19 @@ export function GratitudeConstellation({
   nodes: GraphNode[]
   edges: GraphEdge[]
   praises: Praise[]
-  contributions: Contribution[]
   qrSvg: string
   url: string
   cta: string
   label?: string
 }) {
-  // The latest few thank-yous take turns in the spotlight.
-  const turns = praises.slice(0, 5)
+  // The latest thank-yous take turns in the spotlight, in a random order:
+  // a random first one (after hydration), then any other.
+  const turns = praises.slice(0, 6)
   const [turn, setTurn] = useState(0)
   useEffect(() => {
     if (turns.length < 2) return
-    const id = setInterval(() => setTurn((t) => (t + 1) % turns.length), TURN_MS)
+    setTurn(Math.floor(Math.random() * turns.length))
+    const id = setInterval(() => setTurn((t) => (t + 1 + Math.floor(Math.random() * (turns.length - 1))) % turns.length), TURN_MS)
     return () => clearInterval(id)
   }, [turns.length])
   const current = turns[turn]
@@ -260,7 +253,7 @@ export function GratitudeConstellation({
         {current && <Quote key={current.id} praise={current} />}
       </div>
       <div className="flex min-h-0 flex-col justify-between" style={{ gap: s(1.5) }}>
-        <Contributions items={contributions} />
+        <PraiseList items={turns} current={current} />
         <div className="flex justify-end">
           <ScreenQr qrSvg={qrSvg} cta={cta} url={url} label={label} />
         </div>
