@@ -45,7 +45,7 @@ function formatMonth(month: string): string {
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "active" || status === "trialing") return "default";
-  if (status === "past_due" || status === "unpaid" || status === "incomplete") return "destructive";
+  if (status === "grace" || status === "past_due" || status === "unpaid" || status === "incomplete") return "destructive";
   return "secondary";
 }
 

@@ -11,9 +11,19 @@
  * A paused membership keeps the member's access for 15 days at most (the
  * grace period); after that they are no longer counted as a member.
  *
- * The email links to /membership/renew?t=<token>: the token is signed by the
- * site (AUTH_SECRET) and carries who the member is, so the page can open
- * their Stripe portal and show their own bank communication.
+ * The email links to /membership/renew?t=<token>: the token carries who the
+ * member is, so the page can open their Stripe portal and show their own bank
+ * communication. chb sends the reminders (it holds the members' emails; the
+ * website never does), so it signs the tokens with RENEW_LINK_SECRET, shared
+ * by both servers:
+ *
+ *   token = base64url(JSON claim) + "." + base64url(HMAC-SHA256(RENEW_LINK_SECRET, base64url(JSON claim)))
+ *
+ * Tokens signed by the site itself (operator previews, without that secret)
+ * use "renew:" + AUTH_SECRET as the key.
+ *
+ * The email chb sends is rendered from docs/emails/membership-reminder.*,
+ * generated from buildReminderEmail (bun scripts/export-reminder-template.ts).
  */
 
 import { createHmac, timingSafeEqual } from "crypto"
@@ -49,23 +59,31 @@ export interface RenewClaim {
   x: number
 }
 
-function key(): string {
-  const k = process.env.AUTH_SECRET
-  if (!k) throw new Error("AUTH_SECRET is not set")
-  return k
+/** The HMAC keys a renew link may be signed with: chb's shared secret first, then the site's own. */
+function keys(): string[] {
+  const out: string[] = []
+  if (process.env.RENEW_LINK_SECRET) out.push(process.env.RENEW_LINK_SECRET)
+  if (process.env.AUTH_SECRET) out.push(`renew:${process.env.AUTH_SECRET}`)
+  if (out.length === 0) throw new Error("Neither RENEW_LINK_SECRET nor AUTH_SECRET is set")
+  return out
 }
 
-export function signRenew(claim: RenewClaim, k = key()): string {
+const hmac = (key: string, payload: string) => createHmac("sha256", key).update(payload).digest("base64url")
+
+export function signRenew(claim: RenewClaim, key = keys()[0]): string {
   const payload = Buffer.from(JSON.stringify(claim)).toString("base64url")
-  return `${payload}.${createHmac("sha256", `renew:${k}`).update(payload).digest("base64url")}`
+  return `${payload}.${hmac(key, payload)}`
 }
 
-export function verifyRenew(token: string, now = Date.now(), k = key()): RenewClaim | null {
+export function verifyRenew(token: string, now = Date.now(), candidates = keys()): RenewClaim | null {
   const [payload, sig] = (token ?? "").split(".")
   if (!payload || !sig) return null
-  const expected = Buffer.from(createHmac("sha256", `renew:${k}`).update(payload).digest("base64url"))
   const given = Buffer.from(sig)
-  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null
+  const ok = candidates.some((key) => {
+    const expected = Buffer.from(hmac(key, payload))
+    return expected.length === given.length && timingSafeEqual(expected, given)
+  })
+  if (!ok) return null
   try {
     const claim = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as RenewClaim
     return claim.n && claim.x * 1000 > now ? claim : null

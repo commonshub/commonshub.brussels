@@ -39,7 +39,18 @@ export interface Member {
   plan: "monthly" | "yearly";
   amount: Amount;
   interval: "month" | "year";
-  status: "active" | "past_due" | "canceled" | "incomplete" | "trialing" | "unpaid" | "paused";
+  /**
+   * Since chb 3.32, from Odoo subscriptions: "active", "grace" (unpaid or
+   * paused, still a member until graceEndsAt, 15 days at most) or "lapsed".
+   * Older files carry Stripe's raw statuses.
+   */
+  status: "active" | "grace" | "lapsed" | "past_due" | "canceled" | "incomplete" | "trialing" | "unpaid" | "paused";
+  /** YYYY-MM-DD: when a member in grace stops being one. */
+  graceEndsAt?: string | null;
+  /** YYYY-MM-DD: when the member entered their current status. */
+  statusSince?: string;
+  /** An organisation member's name (individuals only have a first name). */
+  organizationName?: string;
   currentPeriodStart: string;
   currentPeriodEnd: string;
   latestPayment: MemberPayment | null;
@@ -50,7 +61,10 @@ export interface Member {
 
 export interface MembersSummary {
   totalMembers: number;
+  /** Members in good standing: active + grace (since chb 3.32). */
   activeMembers: number;
+  graceMembers?: number;
+  lapsedMembers?: number;
   monthlyMembers: number;
   yearlyMembers: number;
   mrr: Amount; // Monthly Recurring Revenue
