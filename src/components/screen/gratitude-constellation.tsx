@@ -194,7 +194,17 @@ function Contributions({ items }: { items: Contribution[] }) {
               )}
               <div style={{ fontSize: s(1), color: MUTED, marginTop: s(0.25) }}>
                 {c.author.name} · <RelativeTime ms={c.at} />
-                {c.reactions.length > 0 && <> · {c.reactions.map((r) => `${r.emoji} ${r.count}`).join("  ")}</>}
+                {c.reactions.map((r) => (
+                  <span key={r.emoji} style={{ marginLeft: s(0.6) }}>
+                    {r.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={r.image} alt={r.emoji} className="inline-block align-text-bottom" style={{ width: "1.1em", height: "1.1em" }} />
+                    ) : (
+                      r.emoji
+                    )}{" "}
+                    {r.count}
+                  </span>
+                ))}
               </div>
             </div>
           </li>

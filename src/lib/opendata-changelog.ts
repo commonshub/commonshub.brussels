@@ -24,6 +24,18 @@ export interface ChangelogEntry {
 
 export const OPENDATA_CHANGELOG: ChangelogEntry[] = [
   {
+    id: "praise-feed",
+    date: "2026-10-06",
+    title: "Praise feed, and the text of contributions",
+    kind: "added",
+    body: `- Each month has \`praise.json\`: the thank-yous posted in 💝praise, newest first, in the same shape as
+  \`contributions.json\` (who, whom they mentioned, when, the text, reactions, photos). Bots and empty messages are left out.
+- \`contributions.json\` and \`praise.json\` now carry the message \`content\` (mentions as @Name, Discord codes resolved,
+  IBANs and personal emails masked), \`reactions\` with each emoji and count, and the \`avatarUrl\` of authors and mentions.
+- \`latest/public/praise.json\` covers the last 60 days. Both channels are public by the community's choice.`,
+    source: { chb: "3.34.1" },
+  },
+  {
     id: "members-from-odoo",
     date: "2026-10-06",
     title: "Members from Odoo subscriptions",

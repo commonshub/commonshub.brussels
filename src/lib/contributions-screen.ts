@@ -34,7 +34,8 @@ export interface ChannelFeed {
     author?: FeedPerson
     content?: string | null
     mentions?: FeedPerson[]
-    reactions?: Array<{ emoji: string; count: number }>
+    /** A custom server emoji comes as ":name:" with its imageUrl. */
+    reactions?: Array<{ emoji: string; count: number; imageUrl?: string }>
     totalReactions?: number
     images?: string[]
   }>
@@ -67,7 +68,7 @@ export interface Contribution {
   image?: string
   /** For a contribution without a photo: an emoji that fits what was done. */
   emoji: string
-  reactions: Array<{ emoji: string; count: number }>
+  reactions: Array<{ emoji: string; count: number; image?: string }>
 }
 
 const nameOf = (p?: FeedPerson | null) => (p?.displayName || p?.username || "").trim()
@@ -90,10 +91,13 @@ export function clip(text: string, max: number): string {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-/** One line of plain text: no links, no custom emoji codes, single spaces. */
+/** One line of plain text: no Markdown, no links, no custom emoji codes, single spaces. */
 export function plainText(content: string | null | undefined): string {
   return (content ?? "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
+    .replace(/(\*\*|__|~~|\|\||`)/g, "")
+    .replace(/^\s*(?:[-*>]|#{1,3})\s+/gm, "")
     .replace(/:[a-z0-9_]+:/gi, "")
     .replace(/\s+/g, " ")
     .trim()
@@ -193,7 +197,10 @@ export function recentContributions(feeds: ChannelFeed[], { limit = 8, avatars =
       text,
       ...(photo ? { image: getProxiedImageUrl(photoSource({ url: "", filePath: photo }), "md", { relative: true }) } : {}),
       emoji: contributionEmoji(text),
-      reactions: [...(m.reactions ?? [])].sort((a, b) => b.count - a.count).slice(0, 3),
+      reactions: [...(m.reactions ?? [])]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+        .map((r) => ({ emoji: r.emoji, count: r.count, ...(r.imageUrl ? { image: getProxiedImageUrl(r.imageUrl, "xs", { relative: true }) } : {}) })),
     })
     if (out.length >= limit) break
   }
