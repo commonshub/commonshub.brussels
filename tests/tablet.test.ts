@@ -48,20 +48,27 @@ describe("the community tablet", () => {
 
 describe("signing up from the tablet", () => {
   const event = { id: "evt-1", name: "Potluck", startMs: Date.now() + 2 * 86_400_000, endMs: Date.now() + 2 * 86_400_000 + H, cover: "" }
-  const signUp = jest.fn(async (input: { discordUserId: string; start: Date; end: Date; eventTitle?: string }) => ({
-    ok: true,
-    emailed: true,
-    shift: { id: "s", start: input.start.toISOString(), end: input.end.toISOString(), signups: [] },
+  const signUp = jest.fn(async (person: object, start: Date, end: Date, eventTitle?: string) => ({
+    dmSent: true,
+    emailed: false,
+    cancelUrl: "x",
+    shift: { id: "s", start: start.toISOString(), end: end.toISOString(), summary: eventTitle, signups: [] },
   }))
 
   async function post(body: object) {
     let res!: Response
     await jest.isolateModulesAsync(async () => {
       jest.doMock("@/lib/tablet-data", () => ({ loadTabletEvents: async () => [event] }))
-      jest.doMock("@/lib/token-bot", () => ({
-        ...(jest.requireActual("@/lib/token-bot") as object),
-        isTokenBotConfigured: () => true,
-        signUpForShift: signUp,
+      jest.doMock("@/lib/shifts-service", () => ({
+        ShiftError: class extends Error {},
+        isShiftsConfigured: () => true,
+        signUp,
+      }))
+      jest.doMock("@/lib/discord", () => ({
+        discordGet: async (path: string) =>
+          path.endsWith("/618897639836090398")
+            ? new Response(JSON.stringify({ nick: null, user: { id: "618897639836090398", username: "leen8610", global_name: "Leen" } }))
+            : new Response("{}", { status: 404 }),
       }))
       const { POST } = await import("@/app/api/tablet/signup/route")
       res = await POST(new Request("http://localhost/api/tablet/signup", { method: "POST", body: JSON.stringify(body) }))
@@ -72,18 +79,27 @@ describe("signing up from the tablet", () => {
   test("the shift's times come from the event and the chosen start and length, not from the browser", async () => {
     const res = await post({ eventId: "evt-1", discordUserId: "618897639836090398", startOffset: -30, hours: 2, start: "1999-01-01" })
     expect(res.status).toBe(200)
-    const call = signUp.mock.calls.at(-1)![0]
-    expect(call.start.getTime()).toBe(event.startMs - 30 * 60_000)
-    expect(call.end.getTime()).toBe(event.startMs - 30 * 60_000 + 2 * H)
-    expect(call.eventTitle).toBe("Potluck")
+    const [person, start, end, title] = signUp.mock.calls.at(-1)!
+    expect(person).toEqual({ kind: "discord", id: "618897639836090398", username: "leen8610", displayName: "Leen" })
+    expect(start.getTime()).toBe(event.startMs - 30 * 60_000)
+    expect(end.getTime()).toBe(event.startMs - 30 * 60_000 + 2 * H)
+    expect(title).toBe("Potluck")
   })
 
-  test("refuses an unknown event, a start or length the tablet does not offer, or a malformed Discord id", async () => {
+  test("someone without Discord signs up with an email address and a name", async () => {
+    const res = await post({ eventId: "evt-1", email: " Ann@Example.org ", name: "Ann", startOffset: 0, hours: 1 })
+    expect(res.status).toBe(200)
+    expect(signUp.mock.calls.at(-1)![0]).toEqual({ kind: "email", email: "ann@example.org", displayName: "Ann" })
+  })
+
+  test("refuses an unknown event, a start or length the tablet does not offer, an unknown or malformed Discord id, a bad email", async () => {
     for (const body of [
       { eventId: "nope", discordUserId: "618897639836090398", startOffset: -30, hours: 3 },
       { eventId: "evt-1", discordUserId: "618897639836090398", startOffset: -45, hours: 3 },
       { eventId: "evt-1", discordUserId: "618897639836090398", startOffset: -30, hours: 9 },
       { eventId: "evt-1", discordUserId: "<@everyone>", startOffset: -30, hours: 3 },
+      { eventId: "evt-1", discordUserId: "999999999999999999", startOffset: -30, hours: 3 }, // not on the server
+      { eventId: "evt-1", email: "not-an-email", startOffset: -30, hours: 3 },
     ]) {
       expect((await post(body)).status).toBe(400)
     }

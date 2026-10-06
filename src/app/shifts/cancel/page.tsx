@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
-import { cancelShift, isTokenBotConfigured, TokenBotError } from "@/lib/token-bot"
+import { cancel as cancelShift, isShiftsConfigured, ShiftError } from "@/lib/shifts-service"
 
 export const dynamic = "force-dynamic"
 
@@ -24,11 +24,11 @@ export default async function CancelShiftPage({ searchParams }: { searchParams: 
     const { redirect } = await import("next/navigation")
     try {
       const res = await cancelShift(token)
-      const params = new URLSearchParams({ ...(res.shift ? { start: res.shift.start, end: res.shift.end } : {}), ...(res.alreadyCancelled ? { already: "1" } : {}) })
+      const params = new URLSearchParams({ start: res.shift.start, end: res.shift.end, ...(res.alreadyCancelled ? { already: "1" } : {}) })
       redirect(`/shifts/cancel/done?${params}`)
     } catch (error) {
       if (error && typeof error === "object" && "digest" in error) throw error // the redirect itself
-      const message = error instanceof TokenBotError && error.status < 500 ? error.message : "Could not cancel the shift, please try again or use /shifts on Discord"
+      const message = error instanceof ShiftError && error.status < 500 ? error.message : "Could not cancel the shift, please try again or use /shifts on Discord"
       redirect(`/shifts/cancel/done?${new URLSearchParams({ error: message })}`)
     }
   }
@@ -36,7 +36,7 @@ export default async function CancelShiftPage({ searchParams }: { searchParams: 
   return (
     <div className="mx-auto max-w-xl px-4 py-24">
       <h1 className="text-3xl font-bold text-foreground">Cancel a shift</h1>
-      {!t || !isTokenBotConfigured() ? (
+      {!t || !isShiftsConfigured() ? (
         <p className="mt-4 text-muted-foreground">This link is not valid. You can manage your shifts with /shifts on our Discord.</p>
       ) : (
         <form action={cancel} className="mt-6 space-y-4">
