@@ -13,11 +13,11 @@ const qr = () => QRCode.toString(PRAISE_URL, { type: "svg", errorCorrectionLevel
 
 /** Design 1: who thanked whom, as a constellation. */
 export async function ConstellationScreen() {
-  const { praises, contributions } = loadContributionsScreen()
+  const { praises } = loadContributionsScreen()
   const { nodes, edges } = gratitudeGraph(praises)
   return (
     <ScreenShell title="Who thanked whom lately">
-      <GratitudeConstellation nodes={nodes} edges={edges} praises={praises} contributions={contributions} qrSvg={await qr()} url={PRAISE_URL} cta="Thank someone" label="💝praise on Discord" />
+      <GratitudeConstellation nodes={nodes} edges={edges} praises={praises} qrSvg={await qr()} url={PRAISE_URL} cta="Thank someone" label="💝praise on Discord" />
     </ScreenShell>
   )
 }

@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import QRCode from "qrcode"
 
-import { ContributeBoard } from "@/components/screen/contribute-board"
+import { ContributeJars } from "@/components/screen/contribute-jars"
 import { ScreenShell } from "@/components/screen/screen"
 import { loadContributeExpenses } from "@/lib/contribute-expenses"
+import { latestLines, loadJars } from "@/lib/contribute-jars"
 import { loadContributeScreen, screenCosts } from "@/lib/contribute-screen"
 
 // Reads DATA_DIR, which is only mounted at runtime: never prerender.
@@ -18,21 +19,22 @@ export const metadata: Metadata = {
 const CONTRIBUTE_URL = "https://commonshub.brussels/contribute"
 
 /**
- * For the hub's big screen: why the space exists, the two currencies that
- * keep it going (money: costs and latest donations; time: photos and recent
- * contributors), and a QR code to /contribute. Public: reads the public tier,
- * and names a donor only as they chose at checkout (see
- * lib/contribute-screen.ts).
+ * For the hub's big screen: two jars keep the hub open. Money fills the
+ * month's costs (as /contribute breaks them down) with what the community
+ * paid this month; time fills with the hours given (one per token issued).
+ * In between, the latest donations and tokens. Public: reads the public tier,
+ * and names a donor only as they chose at checkout (see lib/contribute-jars.ts
+ * and lib/contribute-screen.ts).
  */
 export default async function ContributeScreenPage() {
   const data = await loadContributeScreen()
-  // The fixed costs, as /contribute shows them (public: no vendor that is a person is named).
   const costs = screenCosts(loadContributeExpenses().recurring)
   const qrSvg = await QRCode.toString(CONTRIBUTE_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0 })
+  const lines = latestLines(data.donations, data.contributorsFrom === "tokens" ? data.contributors : [])
 
   return (
-    <ScreenShell title="Thank you to everyone who contributes">
-      <ContributeBoard data={data} costs={costs} qrSvg={qrSvg} url={CONTRIBUTE_URL} />
+    <ScreenShell title="Two jars keep this place open">
+      <ContributeJars data={loadJars(costs)} lines={lines} qrSvg={qrSvg} url={CONTRIBUTE_URL} />
     </ScreenShell>
   )
 }

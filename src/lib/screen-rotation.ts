@@ -3,13 +3,14 @@ import { hostedEventPath, hostedEvents, type HostedEvent } from "./hosted-events
 /**
  * /screen: what the hub's big screen cycles through. Today's hosted events
  * first (their programme screens), then the upcoming events, the community
- * and contribution screens, and the thank-yous (one of two designs, picked at
- * random each time that slide loads).
+ * and contribution screens, and the thank-yous (two designs, taking turns).
  */
 export interface ScreenSlide {
   path: string
   /** How long it stays on, in seconds. */
   seconds: number
+  /** Other designs of the same slide: shown in turn, a different one each time the slide comes back. */
+  variants?: string[]
 }
 
 const dayIn = (ms: number, timeZone: string) => new Date(ms).toLocaleDateString("en-CA", { timeZone })
@@ -32,6 +33,6 @@ export function screenSlides(now: number, every = 30, events: HostedEvent[] = ho
     { path: "/events/screen", seconds: every },
     { path: "/members/screen", seconds: every },
     { path: "/contribute/screen", seconds: every },
-    { path: "/contributions/screen", seconds: every },
+    { path: "/contributions/screen/1", variants: ["/contributions/screen/1", "/contributions/screen/2"], seconds: every },
   ]
 }

@@ -13,7 +13,8 @@ import React from "react"
 import { afterAll, beforeAll, describe, expect, jest, test } from "@jest/globals"
 import { render } from "@testing-library/react"
 
-import { ContributeBoard } from "@/components/screen/contribute-board"
+import { ContributeJars } from "@/components/screen/contribute-jars"
+import { costLayers, hoursByKind, latestLines, monthIncome } from "@/lib/contribute-jars"
 import {
   contributionPhotos,
   contributorsByTokens,
@@ -236,7 +237,7 @@ describe("what the page reads", () => {
     for (const leak of ["Members Only Person", "Secret Donor", "50000"]) expect(json).not.toContain(leak)
   })
 
-  test("the board: costs in whole euros that add up, donations and contributors with date and time, no percentages", async () => {
+  test("the jars: costs in whole euros as layers, what this month covers adding up, donations with when", async () => {
     const data = await load()
     const costs = screenCosts([
       { slug: "rent", label: "Rent", amountEur: 6546.12 },
@@ -247,11 +248,81 @@ describe("what the page reads", () => {
       { slug: "rent", label: "Rent", amount: 6547 },
       { slug: "internet", label: "Internet", amount: 55 },
     ])
-    const { container } = render(<ContributeBoard data={data} costs={costs} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
+    const income = monthIncome({ categories: [{ slug: "membership", currencies: [{ currency: "EUR", in: 120, out: 20, net: 100 }] }, { slug: "donation", currencies: [{ currency: "EUR", in: 30.9, out: 0, net: 30.9 }] }] })
+    const covered = income.reduce((sum, i) => sum + i.amount, 0)
+    const jars = { layers: costLayers(costs, covered), total: 6602, income, covered, hours: [], hoursTotal: 0, lastMonthHours: 0, monthName: "October" }
+    const { container } = render(<ContributeJars data={jars} lines={latestLines(data.donations, [])} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["Yang", "Yin", "€6,602", "€6,547", "€55", "€5,000", "donation by card", "Ann", "Recently thanked for their time", "Mon 21 Sept", "Contribute!", "commonshub.brussels/contribute"])
+    for (const part of ["€6,547", "€55", "€130 covered", "Memberships €100 · Donations €30", "€5,000", "donation by card", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
       expect(text).toContain(part)
-    expect(text).not.toContain("%")
     for (const leak of ["Members Only Person", "Secret Donor", "50,000"]) expect(text).not.toContain(leak)
+  })
+})
+
+describe("the jars", () => {
+  test("money toward the space: memberships, donations, room rentals and coworking, net, whole euros; nothing else", () => {
+    const income = monthIncome({
+      categories: [
+        { slug: "internal_transfer", currencies: [{ currency: "EUR", in: 35000, out: 0, net: 35000 }] },
+        { slug: "membership", currencies: [{ currency: "EUR", in: 105.5, out: 5.07, net: 100.43 }] },
+        { slug: "donation", currencies: [{ currency: "EUR", in: 674.13, out: 19.88, net: 654.25 }] },
+        { slug: "rental", currencies: [{ currency: "EUR", in: 300, out: 0, net: 300 }, { currency: "CHT", in: 5, out: 0, net: 5 }] },
+        { slug: "rentals", currencies: [{ currency: "EUR", in: 20, out: 0, net: 20 }] },
+        { slug: "coworking", currencies: [{ currency: "EUR", in: 0, out: 50, net: -50 }] },
+        { slug: "rent", currencies: [{ currency: "EUR", in: 6546.76, out: 13226.62, net: -6679.86 }] },
+      ],
+    })
+    expect(income).toEqual([
+      { label: "Donations", amount: 654 },
+      { label: "Room rentals", amount: 320 },
+      { label: "Memberships", amount: 100 },
+    ])
+  })
+
+  test("costs stack cheapest first; what is covered fills them from the bottom", () => {
+    const layers = costLayers(
+      [
+        { slug: "rent", label: "Rent", amount: 600 },
+        { slug: "internet", label: "Internet", amount: 100 },
+        { slug: "power", label: "Electricity", amount: 300 },
+      ],
+      550,
+    )
+    expect(layers.map((l) => [l.slug, l.from, l.to, l.paid])).toEqual([
+      ["internet", 0, 0.1, 100],
+      ["power", 0.1, 0.4, 300],
+      ["rent", 0.4, 1, 150],
+    ])
+  })
+
+  test("hours by kind, one per token, from each token's reason", () => {
+    const hours = hoursByKind({
+      issued: [
+        { timestamp: "2026-10-02T08:30:00Z", amount: 3, reason: "3h shift on 2 Oct" },
+        { timestamp: "2026-10-02T10:00:00Z", amount: 1, reason: "park cleaning" },
+        { timestamp: "2026-10-02T10:00:00Z", amount: 1, reason: "Park cleaning" },
+        { timestamp: "2026-10-03T10:00:00Z", amount: 2, reason: null },
+        { timestamp: "2026-10-03T10:00:00Z", amount: 0, reason: "nothing" },
+      ],
+    })
+    expect(hours.map((h) => [h.kind, h.hours])).toEqual([
+      ["shifts", 3],
+      ["cleaning", 2],
+      ["other", 2],
+    ])
+  })
+
+  test("the latest lines: donations and tokens together, newest first", () => {
+    const lines = latestLines(
+      [{ at: 3, amount: 5, via: "card", name: null }],
+      [
+        { names: ["Leen"], at: 4, tokens: 3, reason: "3h shift" },
+        { names: ["Ann"], at: 1 },
+      ],
+    )
+    expect(lines.map((l) => [l.kind, l.at])).toEqual([
+      ["time", 4],
+      ["money", 3],
+    ])
   })
 })

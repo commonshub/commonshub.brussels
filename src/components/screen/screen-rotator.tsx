@@ -14,7 +14,9 @@ const RELOAD_AFTER_MS = 10 * 60_000
  * reload, no flash. The slide on show is told how long it stays, for its
  * clock's countdown; a slide that has been loaded for more than ten minutes
  * reloads right after it fades out, so a new version of the site gets on
- * screen by itself without anyone seeing it load.
+ * screen by itself without anyone seeing it load. A slide with several
+ * designs (`variants`) switches to the next one each time it goes off
+ * screen, so they take turns.
  *
  * Left / right arrow keys go to the previous / next slide (a hack for whoever
  * has a keyboard at hand; nothing on screen says so).
@@ -25,6 +27,7 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
   const loadedAt = useRef<number[]>([])
   const endsAt = useRef(0)
   const shown = useRef(0)
+  const variant = useRef<number[]>([])
 
   const tell = (i: number) => {
     const message: SlideMessage =
@@ -70,7 +73,13 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
     const previous = shown.current
     shown.current = index
     const reload = setTimeout(() => {
-      if (previous !== index && Date.now() - (loadedAt.current[previous] ?? 0) > RELOAD_AFTER_MS) frames.current[previous]?.contentWindow?.location.reload()
+      if (previous === index) return
+      const variants = slides[previous].variants
+      const frame = frames.current[previous]
+      if (variants && variants.length > 1 && frame) {
+        variant.current[previous] = ((variant.current[previous] ?? 0) + 1) % variants.length
+        frame.src = variants[variant.current[previous]]
+      } else if (Date.now() - (loadedAt.current[previous] ?? 0) > RELOAD_AFTER_MS) frame?.contentWindow?.location.reload()
     }, 2000)
     const timer = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index].seconds * 1000)
     return () => {
