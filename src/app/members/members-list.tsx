@@ -35,6 +35,7 @@ function formatAmount(amount: Amount | number): string {
 }
 
 function formatDate(dateStr: string): string {
+  if (!dateStr || Number.isNaN(Date.parse(dateStr))) return "—";
   return new Date(dateStr).toLocaleDateString("en-EU", {
     day: "numeric",
     month: "short",
@@ -50,6 +51,8 @@ function cleanName(name: string): string {
 function getStatusColor(status: Member["status"]): string {
   switch (status) {
     case "active": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+    case "grace": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+    case "lapsed": return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     case "trialing": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
     case "past_due": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
     case "canceled": return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
@@ -259,7 +262,19 @@ export default function MemberListPage() {
               </Card>
             </div>
 
-            {/* Names are only served to signed-in members: everyone else gets the counts. */}
+            {/* Names are only served to signed-in members: everyone else gets the counts and the organisations. */}
+            {data.members.length > 0 && data.members.every((m) => m.isOrganization) && data.summary.totalMembers > data.members.length && (
+              <Card className="mb-6">
+                <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Below are our organisation members. Individual members are only visible to other members.
+                  </p>
+                  <button type="button" onClick={() => signIn("discord")} className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm font-medium">
+                    Sign in to see everyone
+                  </button>
+                </CardContent>
+              </Card>
+            )}
             {data.members.length === 0 && data.summary.totalMembers > 0 ? (
             <Card>
               <CardHeader>
@@ -322,13 +337,13 @@ export default function MemberListPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredMembers.map((member) => (
-                        <TableRow key={member.id}>
+                      {filteredMembers.map((member, i) => (
+                        <TableRow key={member.id || `${member.organizationName ?? member.firstName}-${i}`}>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium flex items-center gap-1.5">
                                 {member.isOrganization && <Building2 className="h-3.5 w-3.5 text-muted-foreground" />}
-                                {cleanName(member.firstName)}
+                                {cleanName(member.organizationName || member.firstName)}
                               </span>
                               {member.accounts.discord && (
                                 <span className="text-xs text-muted-foreground">@{member.accounts.discord}</span>
@@ -354,8 +369,11 @@ export default function MemberListPage() {
                           </TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(member.status)} variant="secondary">
-                              {member.status}
+                              {member.status === "grace" ? "grace period" : member.status}
                             </Badge>
+                            {member.status === "grace" && member.graceEndsAt && (
+                              <span className="block text-xs text-muted-foreground mt-1">until {formatDate(member.graceEndsAt)}</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             {member.latestPayment ? (

@@ -24,6 +24,68 @@ export interface ChangelogEntry {
 
 export const OPENDATA_CHANGELOG: ChangelogEntry[] = [
   {
+    id: "members-from-odoo",
+    date: "2026-10-06",
+    title: "Members from Odoo subscriptions",
+    kind: "changed",
+    breaking: true,
+    body: `- \`members.json\` now follows the Odoo subscriptions (Stripe only for members not yet on one).
+- Each member's \`status\` is \`active\`, \`grace\` (unpaid or paused, still a member until \`graceEndsAt\`, 15 days at
+  most) or \`lapsed\`; Stripe's raw statuses (\`past_due\`, \`canceled\`, …) are no longer used. \`statusSince\` says
+  since when.
+- \`summary.activeMembers\` counts members in good standing (active + grace); new \`graceMembers\` and \`lapsedMembers\`.
+- The public file names organisation members only (\`organizationName\`); individuals are counted, and named only
+  in the members tier.`,
+    source: { chb: "3.32.1", site: 141 },
+  },
+  {
+    id: "members-restored",
+    date: "2026-10-06",
+    title: "Members are back",
+    kind: "fixed",
+    body: `- Every month's \`members.json\` had been empty since 2 October (the membership data was not being fetched). It is
+  restored for the whole history, and active subscriptions count in every month they were active.
+- No \`members.json\` is written for months that have not started.`,
+    source: { chb: "3.31.3", site: 139 },
+  },
+  {
+    id: "activity-photos",
+    date: "2026-10-06",
+    title: "Photos from the potluck, heartbeat and park cleaning",
+    kind: "added",
+    body: `- Photos posted in #potluck, #heartbeat and #park-cleaning are now public, like #contributions and #general:
+  in \`images.json\` and \`YYYY/MM/public/images/\`.`,
+    source: { chb: "3.31.0" },
+  },
+  {
+    id: "room-prices-2026-10",
+    date: "2026-10-05",
+    title: "New room prices",
+    kind: "changed",
+    body: `- \`rooms.md\`: Ostrom €130, Satoshi €60, Mush Room €40, Angel €50 per hour, excluding VAT.`,
+    source: { chb: "3.28.1", site: 134 },
+  },
+  {
+    id: "tokens-issued",
+    date: "2026-10-05",
+    title: "Tokens issued",
+    kind: "added",
+    body: `- Each month has \`tokens-issued.json\`: every community token minted, with when, how many, to whom (Discord
+  name) and why (from the token bot's annotation). \`latest/public/tokens-issued.json\` covers the last 60 days.
+- No wallet addresses or transaction ids are published.`,
+    source: { chb: "3.28.0" },
+  },
+  {
+    id: "contributions-feed",
+    date: "2026-10-04",
+    title: "Contributions feed",
+    kind: "added",
+    body: `- Each month has \`contributions.json\`: the #contributions messages, newest first, with who posted, who was
+  mentioned (thanked), when, reactions and the public photos. No message text.
+- \`latest/public/contributions.json\` covers the last 60 days.`,
+    source: { chb: "3.27.0" },
+  },
+  {
     id: "excluded-transactions",
     date: "2026-10-03",
     title: "Excluded transactions (test mints)",

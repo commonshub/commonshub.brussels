@@ -15,15 +15,24 @@ describe("Belgian structured communication", () => {
 
 describe("the renew link", () => {
   const key = "secret"
+  const keys = [key]
   const claim = { n: "Ann", c: "cus_123", p: 4522, x: Math.floor(Date.parse("2026-11-01T00:00:00Z") / 1000) }
 
   test("signed, tamper-proof, expires", () => {
     const token = signRenew(claim, key)
-    expect(verifyRenew(token, Date.parse("2026-10-10T00:00:00Z"), key)).toEqual(claim)
+    expect(verifyRenew(token, Date.parse("2026-10-10T00:00:00Z"), keys)).toEqual(claim)
     const [, sig] = token.split(".")
     const forged = Buffer.from(JSON.stringify({ ...claim, c: "cus_other" })).toString("base64url")
-    expect(verifyRenew(`${forged}.${sig}`, Date.parse("2026-10-10T00:00:00Z"), key)).toBeNull()
-    expect(verifyRenew(token, Date.parse("2026-11-02T00:00:00Z"), key)).toBeNull()
+    expect(verifyRenew(`${forged}.${sig}`, Date.parse("2026-10-10T00:00:00Z"), keys)).toBeNull()
+    expect(verifyRenew(token, Date.parse("2026-11-02T00:00:00Z"), keys)).toBeNull()
+  })
+
+  test("a link chb signs with the shared secret (plain HMAC-SHA256) is accepted next to the site's own", () => {
+    const { createHmac } = require("crypto") as typeof import("crypto")
+    const payload = Buffer.from(JSON.stringify(claim)).toString("base64url")
+    const chbToken = `${payload}.${createHmac("sha256", "shared").update(payload).digest("base64url")}`
+    expect(verifyRenew(chbToken, Date.parse("2026-10-10T00:00:00Z"), ["shared", "renew:site"])).toEqual(claim)
+    expect(verifyRenew(chbToken, Date.parse("2026-10-10T00:00:00Z"), ["renew:site"])).toBeNull()
   })
 
   test("the bank communication: the member's structured one, or their name without an Odoo partner", () => {
