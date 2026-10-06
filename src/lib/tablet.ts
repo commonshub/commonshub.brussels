@@ -5,7 +5,7 @@
  * Pure functions, so the matching can be tested at any time of day.
  */
 
-import type { BotShift } from "./token-bot"
+import type { Shift } from "./shifts-service"
 
 export const SHIFT_LEAD_MINUTES = 30
 export const DEFAULT_SHIFT_HOURS = 3
@@ -43,7 +43,7 @@ export function defaultShift(eventStartMs: number): { startMs: number; endMs: nu
 }
 
 /** Shifts that overlap an event's window, flattened to one line per person (a person on two overlapping shifts shows once, earliest). */
-export function signupsFor(event: { startMs: number; endMs: number }, shifts: BotShift[]): TabletSignup[] {
+export function signupsFor(event: { startMs: number; endMs: number }, shifts: Shift[]): TabletSignup[] {
   const from = event.startMs - SHIFT_LEAD_MINUTES * 60_000
   const to = Math.max(event.endMs, event.startMs + 60_000)
   const byPerson = new Map<string, TabletSignup>()
@@ -52,14 +52,15 @@ export function signupsFor(event: { startMs: number; endMs: number }, shifts: Bo
     const endMs = Date.parse(shift.end)
     if (!(startMs < to && endMs > from)) continue
     for (const s of shift.signups) {
-      const prev = byPerson.get(s.discordUserId)
-      if (!prev || startMs < prev.startMs) byPerson.set(s.discordUserId, { discordUserId: s.discordUserId, displayName: s.displayName || s.username, avatar: s.avatar, startMs, endMs })
+      const prev = byPerson.get(s.discordUserId || s.username)
+      const key = s.discordUserId || s.username
+      if (!prev || startMs < prev.startMs) byPerson.set(key, { discordUserId: key, displayName: s.displayName || s.username, startMs, endMs })
     }
   }
   return [...byPerson.values()].sort((a, b) => a.startMs - b.startMs || a.displayName.localeCompare(b.displayName))
 }
 
-export function withShifts(events: TabletEvent[], shifts: BotShift[]): TabletEventWithShifts[] {
+export function withShifts(events: TabletEvent[], shifts: Shift[]): TabletEventWithShifts[] {
   return events.map((e) => ({ ...e, shift: defaultShift(e.startMs), signups: signupsFor(e, shifts) }))
 }
 

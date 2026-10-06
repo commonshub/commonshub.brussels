@@ -89,8 +89,10 @@ export function buildCommunityDefinition(community: Community, sitePubkey: strin
 export interface ShiftSlot {
   start: string
   end: string
+  /** Not one of the standard slots (e.g. a shift around an event): its code carries the end too, so two custom shifts starting together stay apart. */
+  custom?: boolean
 }
-export const slotCode = (slot: ShiftSlot) => slot.start.replace(":", "")
+export const slotCode = (slot: ShiftSlot) => (slot.custom ? `${slot.start.replace(":", "")}-${slot.end.replace(":", "")}` : slot.start.replace(":", ""))
 export const slotLabel = (slot: ShiftSlot) => `${slot.start}–${slot.end}`
 
 /** `shift-<guild>-<day>-<code>`, the same shape Elinor uses for Telegram groups. */

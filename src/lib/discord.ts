@@ -305,3 +305,36 @@ export async function createDiscordThread(
 export function isDiscordConfigured(): boolean {
   return !!process.env.DISCORD_BOT_TOKEN
 }
+
+export interface GuildMemberMatch {
+  id: string
+  username: string
+  displayName: string
+  avatar: string | null
+}
+
+/** Members whose username or nickname starts with `query` (Discord's member search), bots left out. */
+export async function searchGuildMembers(guildId: string, query: string, limit = 12): Promise<GuildMemberMatch[]> {
+  const res = await discordGet(`/guilds/${guildId}/members/search?${new URLSearchParams({ query, limit: String(Math.min(100, limit * 2)) })}`)
+  if (!res.ok) throw new Error(`Discord member search failed: ${res.status}`)
+  const members = (await res.json()) as Array<{ nick?: string | null; avatar?: string | null; user: { id: string; username: string; global_name?: string | null; avatar?: string | null; bot?: boolean } }>
+  return members
+    .filter((m) => !m.user.bot)
+    .slice(0, limit)
+    .map((m) => ({
+      id: m.user.id,
+      username: m.user.username,
+      displayName: (m.nick || m.user.global_name || m.user.username).slice(0, 60),
+      avatar: m.user.avatar ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png?size=128` : null,
+    }))
+}
+
+/** A direct message from the bot to one member. */
+export async function sendDirectMessage(userId: string, content: string): Promise<boolean> {
+  const channel = await discordPost("/users/@me/channels", { recipient_id: userId })
+  if (!channel.ok) return false
+  const { id } = (await channel.json()) as { id: string }
+  const res = await discordPost(`/channels/${id}/messages`, { content, allowed_mentions: { parse: [] } })
+  return res.ok
+}
+

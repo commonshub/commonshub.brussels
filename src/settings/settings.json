@@ -414,6 +414,10 @@
     "_comment": "Same slots, cap and wording as the Discord bot's /shifts command (opencollective/token-bot). Sign-ups are NIP-52 RSVPs signed by the member's own key; announced in discord.channels.activities.shifts.",
     "description": "Sign up for a caretaking shift to take care of our common space and help hosting events.",
     "maxSignupsPerSlot": 3,
+    "_calendarComment": "The shifts calendar the Discord bot's /shifts writes to (opencollective/token-bot data/<guild>/shifts-settings.json). The website writes tablet sign-ups there in the same format, so tokens are claimed the same way. One token per hour on shift.",
+    "calendarId": "c_a29d527434d56287ac6913ce483525d79f14ff053d483c2b21297f1a2df479aa@group.calendar.google.com",
+    "rewardAmountPerHour": 1,
+    "timezone": "Europe/Brussels",
     "slots": [
       {
         "start": "08:30",
