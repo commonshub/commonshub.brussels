@@ -37,8 +37,11 @@ describe("the calendar's audit lines", () => {
     expect(botParse(line)).toEqual([{ discordUserId: "618897639836090398", username: "leen8610" }])
   })
 
-  test("someone signed up by email has no Discord id: the bot skips them when tokens are claimed", () => {
-    expect(botParse(signupLine(ann, undefined, now))).toEqual([{ discordUserId: "", username: "email:ann@example.org" }])
+  test("someone signed up by email is invisible to the bot, so its reward flow never mints for an empty Discord id", () => {
+    const line = signupLine(ann, undefined, now)
+    expect(line).toBe("06/10/2026 14:05: Ann (email:ann@example.org) signed up via the community tablet")
+    expect(botParse(line)).toEqual([])
+    expect(botParse(cancelLine({ displayName: "Ann", handle: "email:ann@example.org" }, now))).toEqual([])
   })
 
   test("sign-ups still standing: bot lines, tablet lines, cancellations", () => {
@@ -52,7 +55,9 @@ describe("the calendar's audit lines", () => {
       { discordUserId: "618897639836090398", username: "leen8610", displayName: "Leen" },
       { discordUserId: "", username: "email:ann@example.org", displayName: "Ann" },
     ])
-    expect(botParse(description).map((s) => s.username)).toEqual(["leen8610", "email:ann@example.org"])
+    expect(botParse(description).map((s) => s.username)).toEqual(["leen8610"])
+    // And an email sign-up can be cancelled.
+    expect(parseSignups(`${description}\n${cancelLine({ displayName: "Ann", handle: "email:ann@example.org" }, now)}`).map((s) => s.username)).toEqual(["leen8610"])
   })
 
   test("Brussels time, as the bot writes it", () => {

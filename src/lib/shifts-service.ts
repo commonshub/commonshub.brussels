@@ -5,7 +5,9 @@
  *
  *   - the shifts Google Calendar: one event per time window, an audit line
  *     per sign-up/cancellation ("<time>: Name <@username> signed up
- *     (discord:<id>)") — the bot's claim flow reads exactly that;
+ *     (discord:<id>)") — the bot's claim flow reads exactly that (people
+ *     signed up by email are written "Name (email:address)", which the bot
+ *     does not read, so it never tries to reward them);
  *   - the community relays: an RSVP (kind 31925) on the member's behalf,
  *     signed by the site (only for Discord members: an email is never
  *     published);
@@ -69,15 +71,24 @@ export function auditTimestamp(now = new Date()): string {
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`
 }
 
-/** `<@username>` for a Discord member, `<@email:address>` for someone signed up by email (the bot's parser reads both; only the former can claim tokens). */
+/** The person's key in the audit lines: their Discord username, or `email:<address>`. */
 const handle = (p: Person) => (p.kind === "discord" ? p.username : `email:${p.email}`)
+
+/**
+ * How a person is written in an audit line. A Discord member is
+ * `Name <@username>`, exactly as /shifts writes it. Someone signed up by
+ * email is `Name (email:address)`, deliberately NOT in `<@…>` form: the
+ * bot's parser must not see them at all, or its reward flow would mint
+ * tokens for an empty Discord id.
+ */
+const who = (displayName: string, h: string) => `${displayName.replace(/[<>()\n]/g, "")} ${h.startsWith("email:") ? `(${h})` : `<@${h}>`}`
 
 export function signupLine(p: Person, eventTitle: string | undefined, now = new Date()): string {
   const id = p.kind === "discord" ? ` (discord:${p.id})` : ""
-  return `${auditTimestamp(now)}: ${p.displayName.replace(/[<>\n]/g, "")} <@${handle(p)}> signed up${id} via the community tablet${eventTitle ? ` to steward ${eventTitle.replace(/\n/g, " ")}` : ""}`
+  return `${auditTimestamp(now)}: ${who(p.displayName, handle(p))} signed up${id} via the community tablet${eventTitle ? ` to steward ${eventTitle.replace(/\n/g, " ")}` : ""}`
 }
 
-export const cancelLine = (p: { displayName: string; handle: string }, now = new Date()) => `${auditTimestamp(now)}: ${p.displayName.replace(/[<>\n]/g, "")} <@${p.handle}> cancelled`
+export const cancelLine = (p: { displayName: string; handle: string }, now = new Date()) => `${auditTimestamp(now)}: ${who(p.displayName, p.handle)} cancelled`
 
 /** The sign-ups still standing in an event's description: signed up, not cancelled since. Mirrors the bot's parseShiftSignups. */
 export function parseSignups(description: string | undefined): ShiftSignup[] {
@@ -85,10 +96,15 @@ export function parseSignups(description: string | undefined): ShiftSignup[] {
   for (const line of (description ?? "").split("\n")) {
     const signup = line.match(/^(?:[^:]*\d{2}:\d{2}: )?(.*?)\s*<@(\S+?)> signed up(?: \(discord:(\d+)\))?/)
     if (signup) {
-      active.set(signup[2], { discordUserId: signup[3] || "", username: signup[2], displayName: signup[1] || signup[2].replace(/^email:/, "") })
+      active.set(signup[2], { discordUserId: signup[3] || "", username: signup[2], displayName: signup[1] || signup[2] })
       continue
     }
-    const cancel = line.match(/<@(\S+?)> cancelled/)
+    const byEmail = line.match(/^(?:[^:]*\d{2}:\d{2}: )?(.*?)\s*\((email:[^)\s]+)\) signed up/)
+    if (byEmail) {
+      active.set(byEmail[2], { discordUserId: "", username: byEmail[2], displayName: byEmail[1] || byEmail[2].slice(6) })
+      continue
+    }
+    const cancel = line.match(/<@(\S+?)> cancelled/) || line.match(/\((email:[^)\s]+)\) cancelled/)
     if (cancel) active.delete(cancel[1])
   }
   return [...active.values()]
