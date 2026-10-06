@@ -15,12 +15,16 @@ const RELOAD_AFTER_MS = 10 * 60_000
  * clock's countdown; a slide that has been loaded for more than ten minutes
  * reloads right after it fades out, so a new version of the site gets on
  * screen by itself without anyone seeing it load.
+ *
+ * Left / right arrow keys go to the previous / next slide (a hack for whoever
+ * has a keyboard at hand; nothing on screen says so).
  */
 export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
   const [index, setIndex] = useState(0)
   const frames = useRef<Array<HTMLIFrameElement | null>>([])
   const loadedAt = useRef<number[]>([])
   const endsAt = useRef(0)
+  const shown = useRef(0)
 
   const tell = (i: number) => {
     const message: SlideMessage =
@@ -41,14 +45,32 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
     return () => window.removeEventListener("message", onMessage)
   })
 
+  // Arrow keys, on the rotator or inside a slide (the frames are same-origin).
+  useEffect(() => {
+    if (slides.length < 2) return
+    const onKey = (e: KeyboardEvent) => {
+      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
+      if (step) setIndex((i) => (i + step + slides.length) % slides.length)
+    }
+    const targets: Window[] = [window]
+    for (const f of frames.current) {
+      try {
+        if (f?.contentWindow) targets.push(f.contentWindow)
+      } catch {}
+    }
+    targets.forEach((t) => t.addEventListener("keydown", onKey))
+    return () => targets.forEach((t) => t.removeEventListener("keydown", onKey))
+  }, [index, slides.length])
+
   useEffect(() => {
     if (slides.length < 2) return
     endsAt.current = Date.now() + slides[index].seconds * 1000
     slides.forEach((_, i) => tell(i))
     // The slide that just went off screen: reload it once it has faded out, if it is getting old.
-    const previous = (index - 1 + slides.length) % slides.length
+    const previous = shown.current
+    shown.current = index
     const reload = setTimeout(() => {
-      if (Date.now() - (loadedAt.current[previous] ?? 0) > RELOAD_AFTER_MS) frames.current[previous]?.contentWindow?.location.reload()
+      if (previous !== index && Date.now() - (loadedAt.current[previous] ?? 0) > RELOAD_AFTER_MS) frames.current[previous]?.contentWindow?.location.reload()
     }, 2000)
     const timer = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index].seconds * 1000)
     return () => {
