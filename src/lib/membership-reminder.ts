@@ -1,12 +1,13 @@
 /**
  * When a membership stops being paid (a card payment failed, the
- * subscription was paused or it ended), the website emails the member once
- * with three ways to continue:
+ * subscription was paused or it ended), the member gets one email with two
+ * ways to continue, kept simple on purpose:
  *
- *   1. resume it or update the card (Stripe's customer portal),
- *   2. start a new monthly subscription,
- *   3. pay a year by bank transfer, with the structured communication that
- *      makes the transfer reconcile with their membership in Odoo.
+ *   - monthly by card: the link opens /membership/renew, which shows their
+ *     recent payments and starts a new Stripe subscription (the failing one
+ *     is cancelled once the new one is paid);
+ *   - yearly by bank transfer, with the structured communication that makes
+ *     the transfer reconcile with their membership in Odoo.
  *
  * A paused membership keeps the member's access for 15 days at most (the
  * grace period); after that they are no longer counted as a member.
@@ -32,7 +33,6 @@ import { BANK_DETAILS, formatIban } from "./bank-details"
 import { partnerCommunication } from "./structured-communication"
 
 export const GRACE_DAYS = 15
-export const MONTHLY_LINK = "https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
 export const YEARLY_AMOUNT = { individual: 100, organisation: 200 }
 
 const HUB = {
@@ -64,20 +64,20 @@ function keys(): string[] {
   const out: string[] = []
   if (process.env.RENEW_LINK_SECRET) out.push(process.env.RENEW_LINK_SECRET)
   if (process.env.AUTH_SECRET) out.push(`renew:${process.env.AUTH_SECRET}`)
-  if (out.length === 0) throw new Error("Neither RENEW_LINK_SECRET nor AUTH_SECRET is set")
   return out
 }
 
 const hmac = (key: string, payload: string) => createHmac("sha256", key).update(payload).digest("base64url")
 
 export function signRenew(claim: RenewClaim, key = keys()[0]): string {
+  if (!key) throw new Error("Neither RENEW_LINK_SECRET nor AUTH_SECRET is set")
   const payload = Buffer.from(JSON.stringify(claim)).toString("base64url")
   return `${payload}.${hmac(key, payload)}`
 }
 
 export function verifyRenew(token: string, now = Date.now(), candidates = keys()): RenewClaim | null {
   const [payload, sig] = (token ?? "").split(".")
-  if (!payload || !sig) return null
+  if (!payload || !sig || candidates.length === 0) return null
   const given = Buffer.from(sig)
   const ok = candidates.some((key) => {
     const expected = Buffer.from(hmac(key, payload))
@@ -131,8 +131,15 @@ export function buildReminderEmail(d: MembershipReminder): { subject: string; ht
     ["Communication", d.communication],
   ]
 
-  const button = (href: string, label: string, primary = false) =>
-    `<a href="${esc(href)}" style="display:inline-block;background:${primary ? "#FF4C02" : "#ffffff"};color:${primary ? "#ffffff" : "#001309"};border:2px solid ${primary ? "#FF4C02" : "#001309"};text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px">${esc(label)}</a>`
+  const button = (href: string, label: string) =>
+    `<a href="${esc(href)}" style="display:inline-block;background:#FF4C02;color:#ffffff;border:2px solid #FF4C02;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px">${esc(label)}</a>`
+
+  const cardBlock = d.organisation
+    ? ""
+    : `
+  <h2 style="font-size:17px;margin:24px 0 6px">Monthly, by card</h2>
+  <p style="margin:0 0 10px">From €10 a month. You'll see your recent payments and enter your card once more; your old subscription stops when the new one starts.</p>
+  <p style="margin:0">${button(d.renewUrl, "Pay monthly by card")}</p>`
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(subject)}</title></head>
@@ -143,17 +150,11 @@ export function buildReminderEmail(d: MembershipReminder): { subject: string; ht
 <tr><td style="padding:8px 28px 32px">
   <h1 style="font-size:22px;line-height:1.3;margin:12px 0 8px">Hi ${esc(d.name)},</h1>
   <p style="margin:0 0 12px">${esc(opening)}${grace ? ` ${esc(grace)}` : ""}</p>
-  <p style="margin:0 0 20px">${esc(why)}</p>
+  <p style="margin:0 0 8px">${esc(why)}</p>
+  <p style="margin:16px 0 0;font-weight:600">How would you like to pay?</p>
+${cardBlock}
 
-  <h2 style="font-size:17px;margin:24px 0 6px">1. Resume, or update your card</h2>
-  <p style="margin:0 0 10px">Restart your subscription, change your card or switch plans in a minute.</p>
-  <p style="margin:0">${button(d.renewUrl, "Renew my membership", true)}</p>
-
-  <h2 style="font-size:17px;margin:28px 0 6px">2. Start a new monthly membership</h2>
-  <p style="margin:0 0 10px">€10 a month, by card or Bancontact, cancel any time.</p>
-  <p style="margin:0">${button(MONTHLY_LINK, "Become a member again")}</p>
-
-  <h2 style="font-size:17px;margin:28px 0 6px">3. Pay a year by bank transfer</h2>
+  <h2 style="font-size:17px;margin:28px 0 6px">${d.organisation ? "By bank transfer" : "Or yearly, by bank transfer"}</h2>
   <p style="margin:0 0 10px">€${amount} for a year${d.organisation ? " (organisation)" : ""}. Please use exactly this communication, so we can match your transfer to your membership:</p>
   <table role="presentation" cellpadding="0" cellspacing="0" style="background:#FBF4F2;border-radius:10px;width:100%"><tr><td style="padding:14px 18px;font-size:15px">
     ${bank.map(([k, v]) => `<div><strong>${esc(k)}:</strong> <span style="font-family:ui-monospace,Menlo,monospace">${esc(v)}</span></div>`).join("\n    ")}
@@ -172,13 +173,12 @@ export function buildReminderEmail(d: MembershipReminder): { subject: string; ht
     "",
     why,
     "",
-    "1. RESUME, OR UPDATE YOUR CARD",
-    d.renewUrl,
+    "HOW WOULD YOU LIKE TO PAY?",
+    ...(d.organisation
+      ? []
+      : ["", "MONTHLY, BY CARD (from €10 a month)", "See your recent payments and enter your card once more; your old subscription stops when the new one starts:", d.renewUrl]),
     "",
-    "2. START A NEW MONTHLY MEMBERSHIP (€10 a month)",
-    MONTHLY_LINK,
-    "",
-    `3. PAY A YEAR BY BANK TRANSFER (€${amount})`,
+    `${d.organisation ? "BY BANK TRANSFER" : "OR YEARLY, BY BANK TRANSFER"} (€${amount})`,
     ...bank.map(([k, v]) => `${k}: ${v}`),
     "Please use exactly this communication, so we can match your transfer to your membership.",
     "",
