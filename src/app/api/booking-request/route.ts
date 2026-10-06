@@ -2,6 +2,8 @@ import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import { createDiscordThread } from "@/lib/discord";
 import settings from "@/settings/settings.json";
+import roomsData from "@/settings/rooms.json";
+import { bookableFromHour, bookableFromLabel } from "@/lib/room-hours";
 import { formatAddress, fromSite, fromSubmitter } from "@/lib/email-address";
 
 const roomNames: Record<string, string> = {
@@ -35,6 +37,13 @@ export async function POST(request: Request) {
       isPrivate,
       additionalNotes,
     } = data;
+
+    // dateTime is the hub's wall-clock time ("2026-10-08T19:00"), as typed in the form.
+    const bookableFrom = roomsData.rooms.find((r) => r.id === room)?.bookableFrom;
+    const startHour = parseInt(String(dateTime ?? "").split("T")[1] ?? "", 10);
+    if (bookableFrom && !(startHour >= bookableFromHour(bookableFrom))) {
+      return NextResponse.json({ error: `This room can only be booked ${bookableFromLabel(bookableFrom)}.` }, { status: 400 });
+    }
 
     const roomName = roomNames[room] || room;
     const formattedDate = new Date(dateTime).toLocaleString("en-BE", {

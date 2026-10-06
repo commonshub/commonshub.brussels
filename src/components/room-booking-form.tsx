@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, CheckCircle, Calendar } from "lucide-react"
+import { bookableFromHour } from "@/lib/room-hours"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RoomMiniCalendar, RoomEventData } from "@/components/room-mini-calendar"
 
@@ -90,9 +91,13 @@ interface RoomBookingFormProps {
   roomName: string
   pricePerHour: number
   tokensPerHour: number
+  /** Earliest start, e.g. "19:00" for the coworking space. */
+  bookableFrom?: string | null
 }
 
-export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour }: RoomBookingFormProps) {
+export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour, bookableFrom }: RoomBookingFormProps) {
+  const fromHour = bookableFromHour(bookableFrom)
+  const timeOptions = TIME_OPTIONS.filter((opt) => opt.hour >= fromHour)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -105,7 +110,7 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
     email: "",
     organisation: "",
     numberOfPeople: defaultPeople.toString(),
-    time: "09:00",
+    time: timeOptions[0]?.value ?? "09:00",
     duration: "2",
     projector: false,
     whiteboard: false,
@@ -118,11 +123,11 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
   
   // Calculate available time slots and durations
   const availableTimeOptions = selectedDate 
-    ? TIME_OPTIONS.map(opt => ({
+    ? timeOptions.map(opt => ({
         ...opt,
         disabled: isTimeBooked(opt.hour, dayEvents, selectedDate)
       }))
-    : TIME_OPTIONS.map(opt => ({ ...opt, disabled: false }))
+    : timeOptions.map(opt => ({ ...opt, disabled: false }))
   
   const selectedHour = parseInt(formData.time.split(':')[0])
   const maxDuration = selectedDate ? getMaxDuration(selectedHour, dayEvents, selectedDate) : 8
@@ -194,7 +199,7 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                   email: "",
                   organisation: "",
                   numberOfPeople: defaultPeople.toString(),
-                  time: "09:00",
+                  time: timeOptions[0]?.value ?? "09:00",
                   duration: "2",
                   projector: false,
                   whiteboard: false,
@@ -237,7 +242,7 @@ export function RoomBookingForm({ roomId, roomName, pricePerHour, tokensPerHour 
                 setDayEvents(events)
                 // Reset time to first available slot
                 if (date && events.length > 0) {
-                  const firstAvailable = TIME_OPTIONS.find(
+                  const firstAvailable = timeOptions.find(
                     opt => !isTimeBooked(opt.hour, events, date)
                   )
                   if (firstAvailable) {
