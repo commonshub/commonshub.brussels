@@ -1,0 +1,30 @@
+Welcome, {{firstName}}!
+
+Thank you for making {{firstName}} a member of the Commons Hub. Memberships are how we pay the rent and keep this common space open for everyone. We're glad you're with us.
+
+YOUR FIRST STEPS
+
+1. Join us on Discord. That's where the community talks, plans and asks for help.
+https://discord.commonshub.brussels
+
+2. Come to the Heartbeat. Every Monday, 13:00–14:00 at the hub: what's happening, what's needed, who does what.
+https://commonshub.brussels/events
+
+3. Read the handbook. How the hub works: the door, the kitchen, the rooms, the tokens.
+https://commonshub.brussels/handbook
+
+4. Take a first shift. Welcome people at an event and earn tokens. It's the quickest way to meet everyone. Type /shifts in #shifts on Discord to pick one.
+https://discord.com/channels/1280532848604086365/1484493597901455370
+
+WHAT YOUR MEMBERSHIP GIVES YOU
+- Your logo on the website as a partner organisation.
+- Membership for two people, who can both open the door.
+- 30% off all bookings and events.
+- Make the hub the place where your community meets, and earn tokens to rent the space for your meetups.
+- Make proposals and join the conversations that shape the hub.
+
+Questions? Ask Elinor, our community bot, on Discord, or just reply to this email.
+
+See you at the hub!
+
+Commons Hub Brussels · Rue de la Madeleine 51, 1000 Brussels · https://commonshub.brussels

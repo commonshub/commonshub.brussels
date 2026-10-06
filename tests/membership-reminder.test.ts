@@ -54,3 +54,26 @@ describe("the reminder email", () => {
     expect(org).not.toContain("BY CARD")
   })
 })
+
+describe("the welcome email", () => {
+  const { buildWelcomeEmail, WELCOME_PERKS } = require("@/lib/membership-welcome") as typeof import("@/lib/membership-welcome")
+
+  test("an individual: first steps (Discord, Heartbeat, handbook, a shift) and their perks", () => {
+    const e = buildWelcomeEmail({ name: "Ann", email: "ann@example.org" })
+    expect(e.subject).toBe("Welcome to the Commons Hub, Ann")
+    for (const s of ["https://discord.commonshub.brussels", "Heartbeat", "https://commonshub.brussels/handbook", "/shifts", "Elinor"]) {
+      expect(e.text).toContain(s)
+      expect(e.html).toContain(s)
+    }
+    expect(e.text).toContain(WELCOME_PERKS.individual[1])
+    expect(e.text).not.toContain(WELCOME_PERKS.organisation[0])
+  })
+
+  test("an organisation: named in the opening, organisation perks, escaped in HTML", () => {
+    const e = buildWelcomeEmail({ name: "Bees & Co", email: "hello@bees.example", organisation: true })
+    expect(e.subject).toBe("Welcome to the Commons Hub")
+    expect(e.text).toContain("making Bees & Co a member")
+    expect(e.html).toContain("Bees &amp; Co")
+    expect(e.text).toContain(WELCOME_PERKS.organisation[0])
+  })
+})
