@@ -15,11 +15,12 @@ describe("/screen rotation", () => {
       { path: "/events/screen", seconds: 30 },
       { path: "/members/screen", seconds: 30 },
       { path: "/contribute/screen", seconds: 30 },
+      { path: "/contributions/screen", seconds: 30 },
     ])
   })
 
   test("no event today: upcoming events, members and contribute only; multi-day events count on each day", () => {
-    expect(screenSlides(Date.parse("2026-10-05T08:00:00Z"), 30, [ocd, fest]).map((s) => s.path)).toEqual(["/events/screen", "/members/screen", "/contribute/screen"])
+    expect(screenSlides(Date.parse("2026-10-05T08:00:00Z"), 30, [ocd, fest]).map((s) => s.path)).toEqual(["/events/screen", "/members/screen", "/contribute/screen", "/contributions/screen"])
     expect(todaysEvents(Date.parse("2026-10-11T09:00:00Z"), [ocd, fest]).map((e: { slug: string }) => e.slug)).toEqual(["fest"])
   })
 

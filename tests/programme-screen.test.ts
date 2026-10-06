@@ -20,6 +20,7 @@ describe("screen routes", () => {
     expect(isScreenRoute("/events/ocd-2026/screen")).toBe(true)
     expect(isScreenRoute("/contribute/screen")).toBe(true)
     expect(isScreenRoute("/contribute/screen/")).toBe(true)
+    expect(isScreenRoute("/contributions/screen/2")).toBe(true)
     expect(isScreenRoute("/contribute")).toBe(false)
     expect(isScreenRoute("/events/screening-night")).toBe(false)
     expect(isScreenRoute(null)).toBe(false)
