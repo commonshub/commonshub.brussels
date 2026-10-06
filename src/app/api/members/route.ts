@@ -19,10 +19,16 @@ import { membershipEnabled } from "@/lib/membership";
 // Reads the dataset volume and the session, so never prerender it.
 export const dynamic = "force-dynamic";
 
-/** The newest month that has a members.json in this tier, else latest/. */
-function findLatestMembersPath(tier: Tier): string | null {
+/**
+ * The newest month up to now that has a members.json in this tier, else
+ * latest/. Months after the current one are skipped: chb also writes
+ * (empty) files for months that have not started yet.
+ */
+function findLatestMembersPath(tier: Tier, now = new Date()): string | null {
+  const current = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`
   for (const year of listYears().reverse()) {
     for (const month of listMonths(year, tier).reverse()) {
+      if (`${year}-${month}` > current) continue
       const candidate = tierFile(tier, "members.json", year, month);
       if (fs.existsSync(candidate)) return candidate;
     }
