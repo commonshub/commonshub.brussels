@@ -50,7 +50,6 @@
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
     "@react-email/render": "latest",
-    "@vercel/analytics": "latest",
     "@vitest/browser-playwright": "latest",
     "@vitest/browser-preview": "latest",
     "@vitest/browser-webdriverio": "latest",

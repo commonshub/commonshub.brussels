@@ -5,18 +5,29 @@ import { useEffect, useRef, useState } from "react"
 import type { ScreenSlide } from "@/lib/screen-rotation"
 import { SLIDE_MESSAGE, SLIDE_READY, type SlideMessage } from "./screen-live"
 
-/** A slide older than this reloads (new data, new code) the next time it goes off screen. */
-const RELOAD_AFTER_MS = 10 * 60_000
+/** How long the slide going off screen stays loaded, for its cross-fade. */
+const FADE_MS = 1200
+
+interface Mounted {
+  /** A new key loads the slide afresh. */
+  key: string
+  src: string
+  /** Load order: frames render in it, so a frame already in the page never moves (moving one reloads it). */
+  seq: number
+}
 
 /**
- * Cycles through the big-screen pages. Each one stays loaded in its own frame
- * (they refresh their own data), so switching is instant: a cross-fade, no
- * reload, no flash. The slide on show is told how long it stays, for its
- * clock's countdown; a slide that has been loaded for more than ten minutes
- * reloads right after it fades out, so a new version of the site gets on
- * screen by itself without anyone seeing it load. A slide with several
- * designs (`variants`) switches to the next one each time it goes off
- * screen, so they take turns.
+ * Cycles through the big-screen pages, each in its own frame. Only two are
+ * loaded at a time: the slide on show and the next one, which loads in the
+ * background while the current one is on (so switching is still a
+ * cross-fade, no flash), plus the one fading out, for a second. A TV browser
+ * (Samsung Tizen) has little memory: with every slide kept loaded and
+ * animating it ran out and reloaded the page every few seconds.
+ *
+ * Each slide therefore loads afresh every time it comes up: new data, new
+ * code after a deploy. A slide with several designs (`variants`) shows the
+ * next one each time, so they take turns. The slide on show is told how long
+ * it stays, for its clock's countdown.
  *
  * Left / right arrow keys go to the previous / next slide (a hack for whoever
  * has a keyboard at hand; nothing on screen says so).
@@ -24,15 +35,44 @@ const RELOAD_AFTER_MS = 10 * 60_000
 export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
   const [index, setIndex] = useState(0)
   const frames = useRef<Array<HTMLIFrameElement | null>>([])
-  const loadedAt = useRef<number[]>([])
   const endsAt = useRef(0)
   const shown = useRef(0)
-  const variant = useRef<number[]>([])
+  const visits = useRef<number[]>([])
+  const seq = useRef(0)
+
+  /** The slide's address for its n-th showing: the next design, when it has several. */
+  const mount = (i: number): Mounted => {
+    const n = visits.current[i] ?? 0
+    visits.current[i] = n + 1
+    const variants = slides[i].variants
+    return {
+      key: `${i}-${n}`,
+      src: variants && variants.length > 0 ? variants[n % variants.length] : slides[i].path,
+      seq: seq.current++,
+    }
+  }
+
+  const mountedRef = useRef<Map<number, Mounted> | null>(null)
+  if (!mountedRef.current) {
+    mountedRef.current = new Map()
+    if (slides.length > 0) mountedRef.current.set(0, mount(0))
+    if (slides.length > 1) mountedRef.current.set(1, mount(1))
+  }
+  const [mounted, setMountedState] = useState(mountedRef.current)
+  const setMounted = (next: Map<number, Mounted>) => {
+    mountedRef.current = next
+    setMountedState(next)
+  }
 
   const tell = (i: number) => {
     const message: SlideMessage =
       i === index && slides.length > 1
-        ? { type: SLIDE_MESSAGE, active: true, seconds: slides[i].seconds, endsAt: endsAt.current }
+        ? {
+            type: SLIDE_MESSAGE,
+            active: true,
+            seconds: slides[i].seconds,
+            endsAt: endsAt.current,
+          }
         : { type: SLIDE_MESSAGE, active: false }
     frames.current[i]?.contentWindow?.postMessage(message, window.location.origin)
   }
@@ -63,53 +103,64 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
     }
     targets.forEach((t) => t.addEventListener("keydown", onKey))
     return () => targets.forEach((t) => t.removeEventListener("keydown", onKey))
-  }, [index, slides.length])
+  }, [index, slides.length, mounted])
 
   useEffect(() => {
     if (slides.length < 2) return
     endsAt.current = Date.now() + slides[index].seconds * 1000
-    slides.forEach((_, i) => tell(i))
-    // The slide that just went off screen: reload it once it has faded out, if it is getting old.
     const previous = shown.current
     shown.current = index
-    const reload = setTimeout(() => {
-      if (previous === index) return
-      const variants = slides[previous].variants
-      const frame = frames.current[previous]
-      if (variants && variants.length > 1 && frame) {
-        variant.current[previous] = ((variant.current[previous] ?? 0) + 1) % variants.length
-        frame.src = variants[variant.current[previous]]
-      } else if (Date.now() - (loadedAt.current[previous] ?? 0) > RELOAD_AFTER_MS) frame?.contentWindow?.location.reload()
-    }, 2000)
+    const next = (index + 1) % slides.length
+    // On show (loaded now if it wasn't: arrow keys), the next one loading, the previous one fading out.
+    const current = mountedRef.current!
+    const out = new Map<number, Mounted>()
+    out.set(index, current.get(index) ?? mount(index))
+    if (previous !== index && current.has(previous)) out.set(previous, current.get(previous)!)
+    if (!out.has(next)) out.set(next, current.get(next) ?? mount(next))
+    setMounted(out)
+    const unload = setTimeout(() => {
+      if (previous === index || previous === next) return
+      const after = new Map(mountedRef.current!)
+      after.delete(previous)
+      setMounted(after)
+    }, FADE_MS)
     const timer = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index].seconds * 1000)
     return () => {
       clearTimeout(timer)
-      clearTimeout(reload)
+      clearTimeout(unload)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, slides])
 
+  // Tell every loaded slide whether it is on (and until when) whenever that changes.
+  useEffect(() => {
+    mounted.forEach((_, i) => tell(i))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, mounted])
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#111]">
       <style>{"html, body { overflow: hidden; background: #111; }"}</style>
-      {slides.map((slide, i) => (
-        <iframe
-          key={slide.path}
-          ref={(el) => {
-            frames.current[i] = el
-          }}
-          onLoad={() => {
-            loadedAt.current[i] = Date.now()
-            tell(i)
-          }}
-          src={slide.path}
-          title={slide.path}
-          aria-hidden={i !== index}
-          tabIndex={-1}
-          className="absolute inset-0 h-full w-full border-0 transition-opacity duration-1000"
-          style={{ opacity: i === index ? 1 : 0, pointerEvents: i === index ? "auto" : "none" }}
-        />
-      ))}
+      {[...mounted.entries()]
+        .sort(([, a], [, b]) => a.seq - b.seq)
+        .map(([i, m]) => (
+          <iframe
+            key={m.key}
+            ref={(el) => {
+              frames.current[i] = el
+            }}
+            onLoad={() => tell(i)}
+            src={m.src}
+            title={slides[i].path}
+            aria-hidden={i !== index}
+            tabIndex={-1}
+            className="absolute inset-0 h-full w-full border-0 transition-opacity duration-1000"
+            style={{
+              opacity: i === index ? 1 : 0,
+              pointerEvents: i === index ? "auto" : "none",
+            }}
+          />
+        ))}
     </div>
   )
 }

@@ -1,7 +1,6 @@
 import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import { SessionProvider } from "@/components/session-provider";
 import { NostrProvider } from "@/components/nostr-provider";
 import { MemberKeyLink } from "@/components/member-key-link";
@@ -70,7 +69,6 @@ export default async function RootLayout({
             </SiteChrome>
           </NostrProvider>
         </SessionProvider>
-        <Analytics />
       </body>
     </html>
   );
