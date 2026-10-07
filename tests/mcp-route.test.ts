@@ -241,6 +241,8 @@ describe("/mcp route", () => {
       const body = await (await POST(mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "elinor-secret") as any)).json();
       const names = body.result.tools.map((t: { name: string }) => t.name);
       expect(names).toEqual(expect.arrayContaining(["query_dataset", "luma_list_events", "luma_get_event", "luma_add_event", "luma_create_event", "propose_mint"]));
+      const hint = (n: string) => body.result.tools.find((t: { name: string }) => t.name === n).annotations.readOnlyHint;
+      expect([hint("luma_get_event"), hint("query_dataset"), hint("luma_add_event"), hint("luma_create_event"), hint("propose_mint")]).toEqual([true, true, false, false, false]);
     });
 
     it("passes the Discord bot's tools through with Elinor's token", async () => {
