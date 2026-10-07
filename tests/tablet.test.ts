@@ -1,7 +1,8 @@
 import { describe, expect, jest, test } from "@jest/globals"
 
 import { isScreenRoute } from "@/lib/screen"
-import { defaultShift, shiftWindow, signupsFor, withShifts } from "@/lib/tablet"
+import { brusselsMs } from "@/lib/events-board-format"
+import { buildDays, covered, shiftFor, slotWindow } from "@/lib/tablet"
 
 const H = 3_600_000
 const at = (iso: string) => Date.parse(iso)
@@ -12,6 +13,9 @@ const shift = (start: string, end: string, people: Array<[string, string]>) => (
   signups: people.map(([id, name]) => ({ discordUserId: id, username: name.toLowerCase(), displayName: name })),
 })
 
+// Wednesday 7 October 2026, 10:00 in Brussels.
+const NOW = at("2026-10-07T10:00:00+02:00")
+
 describe("the community tablet", () => {
   test("is a full-screen route, like the screens", () => {
     expect(isScreenRoute("/tablet")).toBe(true)
@@ -19,35 +23,49 @@ describe("the community tablet", () => {
     expect(isScreenRoute("/contribute/screen")).toBe(true)
   })
 
-  test("the default shift starts 30 minutes before the event and lasts 3 hours", () => {
-    const start = at("2026-10-07T17:00:00+02:00")
-    expect(defaultShift(start)).toEqual({ startMs: start - 30 * 60_000, endMs: start - 30 * 60_000 + 3 * H })
+  test("a calendar of the coming days: each with its bookings and shifts, earliest first; what is over is left out", () => {
+    const days = buildDays(
+      NOW,
+      [
+        { id: "b", title: "Climate contact", room: "Mush Room", startMs: at("2026-10-08T09:00:00+02:00"), endMs: at("2026-10-08T12:00:00+02:00") },
+        { id: "a", title: "Yi-Jing", startMs: at("2026-10-07T17:00:00+02:00"), endMs: at("2026-10-07T19:00:00+02:00") },
+        { id: "past", title: "Breakfast", startMs: at("2026-10-07T07:00:00+02:00"), endMs: at("2026-10-07T09:00:00+02:00") },
+      ],
+      [shift("2026-10-07T16:30:00+02:00", "2026-10-07T19:30:00+02:00", [["1", "Leen"]]), shift("2026-10-07T08:00:00+02:00", "2026-10-07T09:00:00+02:00", [["2", "Early"]])],
+      3,
+    )
+    expect(days.map((d) => d.day)).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"])
+    expect(days[0].bookings.map((b) => b.id)).toEqual(["a"])
+    expect(days[0].shifts.map((s) => s.people.map((p) => p.name))).toEqual([["Leen"]])
+    expect(covered(days[0].bookings[0], days[0].shifts)).toBe(true)
+    expect(covered(days[1].bookings[0], days[1].shifts)).toBe(false)
   })
 
-  test("only the offered starts and lengths are accepted", () => {
-    const start = at("2026-10-07T17:00:00+02:00")
-    expect(shiftWindow(start, -30, 1)).toEqual({ startMs: start - 30 * 60_000, endMs: start + 30 * 60_000 })
-    expect(shiftWindow(start, -45, 3)).toBeNull()
-    expect(shiftWindow(start, -30, 12)).toBeNull()
+  test("a shift the tablet accepts: the coming two weeks, on the half hour from 7:00 to 22:00, one to four hours", () => {
+    expect(slotWindow("2026-10-08", 9 * 60 + 30, 3, NOW)).toEqual({ startMs: at("2026-10-08T09:30:00+02:00"), endMs: at("2026-10-08T12:30:00+02:00") })
+    expect(slotWindow("2026-11-02", 13 * 60, 1, at("2026-10-27T10:00:00+01:00"))).toEqual({ startMs: at("2026-11-02T13:00:00+01:00"), endMs: at("2026-11-02T14:00:00+01:00") })
+    for (const [day, start, hours] of [
+      ["2026-10-08", 9 * 60 + 15, 3], // not on the half hour
+      ["2026-10-08", 6 * 60, 3], // too early
+      ["2026-10-08", 9 * 60, 9], // too long
+      ["2026-10-06", 9 * 60, 3], // yesterday
+      ["2026-10-30", 9 * 60, 3], // more than two weeks ahead
+      ["8 Oct", 9 * 60, 3],
+    ] as const) {
+      expect(slotWindow(day, start, hours, NOW)).toBeNull()
+    }
   })
 
-  test("who is on shift around an event: overlapping shifts, each person once, earliest first", () => {
-    const event = { startMs: at("2026-10-07T17:00:00+02:00"), endMs: at("2026-10-07T19:00:00+02:00") }
-    const shifts = [
-      shift("2026-10-07T16:30:00+02:00", "2026-10-07T19:30:00+02:00", [["1", "Leen"]]),
-      shift("2026-10-07T18:00:00+02:00", "2026-10-07T19:00:00+02:00", [["2", "Xavier"], ["1", "Leen"]]),
-      shift("2026-10-07T09:00:00+02:00", "2026-10-07T12:00:00+02:00", [["3", "Morning"]]), // another time of day
-      shift("2026-10-07T19:00:00+02:00", "2026-10-07T21:00:00+02:00", [["4", "After"]]), // starts when the event ends
-    ]
-    const people = signupsFor(event, shifts)
-    expect(people.map((p) => p.displayName)).toEqual(["Leen", "Xavier"])
-    expect(people[0].startMs).toBe(at("2026-10-07T16:30:00+02:00"))
-    expect(withShifts([{ id: "e", name: "Talk", cover: "", ...event }], shifts)[0].signups).toHaveLength(2)
+  test("the shift for a booking starts half an hour before it and covers it, four hours at most", () => {
+    expect(shiftFor({ startMs: at("2026-10-08T09:00:00+02:00"), endMs: at("2026-10-08T12:00:00+02:00") })).toEqual({ start: 8 * 60 + 30, hours: 4 })
+    expect(shiftFor({ startMs: at("2026-10-08T17:00:00+02:00"), endMs: at("2026-10-08T18:00:00+02:00") })).toEqual({ start: 16 * 60 + 30, hours: 2 })
+    expect(shiftFor({ startMs: at("2026-10-08T09:00:00+02:00"), endMs: at("2026-10-08T18:00:00+02:00") }).hours).toBe(4)
   })
 })
 
 describe("signing up from the tablet", () => {
-  const event = { id: "evt-1", name: "Potluck", startMs: Date.now() + 2 * 86_400_000, endMs: Date.now() + 2 * 86_400_000 + H, cover: "" }
+  const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })
+  const booking = { id: "b", title: "Potluck", startMs: Date.parse(`${tomorrow}T12:30:00+02:00`), endMs: Date.parse(`${tomorrow}T13:30:00+02:00`) }
   const signUp = jest.fn(async (person: object, start: Date, end: Date, eventTitle?: string) => ({
     dmSent: true,
     emailed: false,
@@ -58,7 +76,7 @@ describe("signing up from the tablet", () => {
   async function post(body: object) {
     let res!: Response
     await jest.isolateModulesAsync(async () => {
-      jest.doMock("@/lib/tablet-data", () => ({ loadTabletEvents: async () => [event] }))
+      jest.doMock("@/lib/tablet-data", () => ({ loadTabletBookings: () => [booking] }))
       jest.doMock("@/lib/shifts-service", () => ({
         ShiftError: class extends Error {},
         isShiftsConfigured: () => true,
@@ -76,30 +94,35 @@ describe("signing up from the tablet", () => {
     return res
   }
 
-  test("the shift's times come from the event and the chosen start and length, not from the browser", async () => {
-    const res = await post({ eventId: "evt-1", discordUserId: "618897639836090398", startOffset: -30, hours: 2, start: "1999-01-01" })
+  test("the shift's times come from the day, start and length, and it is named after what it stewards", async () => {
+    const res = await post({ day: tomorrow, start: 12 * 60, hours: 2, discordUserId: "618897639836090398", startMs: 0 })
     expect(res.status).toBe(200)
     const [person, start, end, title] = signUp.mock.calls.at(-1)!
     expect(person).toEqual({ kind: "discord", id: "618897639836090398", username: "leen8610", displayName: "Leen" })
-    expect(start.getTime()).toBe(event.startMs - 30 * 60_000)
-    expect(end.getTime()).toBe(event.startMs - 30 * 60_000 + 2 * H)
+    expect(start.getTime()).toBe(brusselsMs(tomorrow, "12:00"))
+    expect(end.getTime() - start.getTime()).toBe(2 * H)
     expect(title).toBe("Potluck")
   })
 
+  test("a shift that stewards no booking stewards the hub", async () => {
+    await post({ day: tomorrow, start: 8 * 60, hours: 2, discordUserId: "618897639836090398" })
+    expect(signUp.mock.calls.at(-1)![3]).toBe("Stewarding the hub")
+  })
+
   test("someone without Discord signs up with an email address and a name", async () => {
-    const res = await post({ eventId: "evt-1", email: " Ann@Example.org ", name: "Ann", startOffset: 0, hours: 1 })
+    const res = await post({ day: tomorrow, start: 9 * 60, hours: 1, email: " Ann@Example.org ", name: "Ann" })
     expect(res.status).toBe(200)
     expect(signUp.mock.calls.at(-1)![0]).toEqual({ kind: "email", email: "ann@example.org", displayName: "Ann" })
   })
 
-  test("refuses an unknown event, a start or length the tablet does not offer, an unknown or malformed Discord id, a bad email", async () => {
+  test("refuses a day or time the tablet does not offer, an unknown or malformed Discord id, a bad email", async () => {
     for (const body of [
-      { eventId: "nope", discordUserId: "618897639836090398", startOffset: -30, hours: 3 },
-      { eventId: "evt-1", discordUserId: "618897639836090398", startOffset: -45, hours: 3 },
-      { eventId: "evt-1", discordUserId: "618897639836090398", startOffset: -30, hours: 9 },
-      { eventId: "evt-1", discordUserId: "<@everyone>", startOffset: -30, hours: 3 },
-      { eventId: "evt-1", discordUserId: "999999999999999999", startOffset: -30, hours: 3 }, // not on the server
-      { eventId: "evt-1", email: "not-an-email", startOffset: -30, hours: 3 },
+      { day: "2020-01-01", start: 600, hours: 3, discordUserId: "618897639836090398" },
+      { day: tomorrow, start: 615, hours: 3, discordUserId: "618897639836090398" },
+      { day: tomorrow, start: 600, hours: 9, discordUserId: "618897639836090398" },
+      { day: tomorrow, start: 600, hours: 3, discordUserId: "<@everyone>" },
+      { day: tomorrow, start: 600, hours: 3, discordUserId: "999999999999999999" }, // not on the server
+      { day: tomorrow, start: 600, hours: 3, email: "not-an-email" },
     ]) {
       expect((await post(body)).status).toBe(400)
     }

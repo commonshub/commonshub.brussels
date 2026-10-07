@@ -6,18 +6,29 @@ import type React from "react";
 
 import { PosterLogo } from "@/components/poster/poster";
 import { useNow } from "@/components/screen/screen-live";
+import { brusselsMs } from "@/lib/events-board-format";
 import {
+  covered,
+  DAY_FROM,
+  DAY_TO,
   DEFAULT_SHIFT_HOURS,
+  EARLIEST_START,
+  LATEST_START,
+  minutesOf,
   SHIFT_HOURS,
-  SHIFT_LEAD_MINUTES,
-  SHIFT_STARTS,
-  type TabletEventWithShifts,
+  shiftFor,
+  START_STEP,
+  type TabletBooking,
+  type TabletDay,
 } from "@/lib/tablet";
 
 /**
- * The community tablet (/tablet), in portrait: the next events, each with
- * the shift that stewards it and who is already on it, and a sheet to sign
- * someone up. Anyone standing at the tablet can pick any name, so the bot
+ * The community tablet (/tablet), in portrait: a calendar of the coming two
+ * weeks. The hub needs a steward whenever it is open; each day shows what
+ * especially needs one (bookings paid in euros, events: orange while nobody
+ * is on shift then) and who already signed up (green). A tap on a booking
+ * offers the shift that covers it; a tap elsewhere, a shift from that time.
+ * A sheet signs someone up. Anyone standing at the tablet can pick any name, so the bot
  * DMs that person with a link to cancel. The sheet closes itself after a
  * minute without a touch, so the next person finds the tablet as it should
  * be, and the page refreshes every two minutes while nobody is using it.
@@ -51,12 +62,11 @@ const dateLabel = (ms: number) =>
     timeZone: TZ,
   });
 const tokens = (n: number) => `${n} ${n === 1 ? "token" : "tokens"}`;
-const startLabel = (minutes: number) =>
-  minutes === 0
-    ? "When it starts"
-    : minutes < 0
-      ? `${Math.abs(minutes) >= 60 ? `${Math.abs(minutes) / 60}h` : `${Math.abs(minutes)} min`} before`
-      : `${minutes >= 60 ? `${minutes / 60}h` : `${minutes} min`} after`;
+/** "09:30" for 570 minutes. */
+const hm = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+/** Noon of a calendar day, to name it. */
+const noon = (day: string) => Date.parse(`${day}T12:00:00Z`);
 
 interface Member {
   id: string;
@@ -124,13 +134,21 @@ function Choice({
   );
 }
 
+/** What the sheet is opened for: a day, a proposed start and length, and maybe what it stewards. */
+interface Slot {
+  day: string;
+  start: number;
+  hours: number;
+  context?: string;
+}
+
 function SignupSheet({
-  event,
+  slot,
   rewardPerHour,
   onClose,
   onDone,
 }: {
-  event: TabletEventWithShifts;
+  slot: Slot;
   rewardPerHour: number;
   onClose: () => void;
   onDone: () => void;
@@ -139,8 +157,8 @@ function SignupSheet({
   const [members, setMembers] = useState<Member[]>([]);
   const [searching, setSearching] = useState(false);
   const [person, setPerson] = useState<Picked | null>(null);
-  const [startOffset, setStartOffset] = useState(-SHIFT_LEAD_MINUTES);
-  const [hours, setHours] = useState(DEFAULT_SHIFT_HOURS);
+  const [start, setStart] = useState(slot.start);
+  const [hours, setHours] = useState(slot.hours);
   const [state, setState] = useState<{
     kind: "idle" | "sending" | "done" | "error";
     message?: string;
@@ -172,7 +190,7 @@ function SignupSheet({
     };
   }, [query, person]);
 
-  const startMs = event.startMs + startOffset * 60_000;
+  const startMs = brusselsMs(slot.day, hm(start));
   const endMs = startMs + hours * 3_600_000;
 
   async function confirm() {
@@ -183,12 +201,12 @@ function SignupSheet({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventId: event.id,
+          day: slot.day,
+          start,
+          hours,
           ...(person.kind === "discord"
             ? { discordUserId: person.member.id }
             : { email: person.email, name: person.name }),
-          startOffset,
-          hours,
         }),
       });
       const data = (await res.json()) as {
@@ -226,14 +244,13 @@ function SignupSheet({
               className="font-semibold text-primary"
               style={{ fontSize: u(2.6) }}
             >
-              {dayLabel(event.startMs, Date.now())} {dateLabel(event.startMs)} ·{" "}
-              {time(event.startMs)}
+              {dayLabel(noon(slot.day), Date.now())} {dateLabel(noon(slot.day))}
             </div>
             <h2
               className="font-bold leading-tight"
               style={{ fontSize: u(4.6) }}
             >
-              Steward “{event.name}”
+              {slot.context ? `Steward “${slot.context}”` : "Steward the hub"}
             </h2>
           </div>
           <button
@@ -429,16 +446,25 @@ function SignupSheet({
               >
                 2. When can you come?
               </div>
-              <div className="flex flex-wrap" style={{ gap: u(1.5) }}>
-                {SHIFT_STARTS.map((m) => (
-                  <Choice
-                    key={m}
-                    active={startOffset === m}
-                    onClick={() => setStartOffset(m)}
-                  >
-                    {startLabel(m)}
-                  </Choice>
-                ))}
+              <div className="flex items-center" style={{ gap: u(2) }}>
+                <Choice
+                  active={false}
+                  onClick={() => setStart((m) => Math.max(EARLIEST_START, m - START_STEP))}
+                >
+                  − 30 min
+                </Choice>
+                <span
+                  className="font-bold tabular-nums"
+                  style={{ fontSize: u(6), minWidth: u(18), textAlign: "center" }}
+                >
+                  {hm(start)}
+                </span>
+                <Choice
+                  active={false}
+                  onClick={() => setStart((m) => Math.min(LATEST_START, m + START_STEP))}
+                >
+                  + 30 min
+                </Choice>
               </div>
               <div
                 className="flex flex-wrap"
@@ -506,123 +532,154 @@ function SignupSheet({
   );
 }
 
-function EventCard({
-  event,
-  now,
-  rewardPerHour,
-  available,
-  onJoin,
-}: {
-  event: TabletEventWithShifts;
-  now: number;
-  rewardPerHour: number;
-  available: boolean;
-  onJoin: () => void;
-}) {
-  const live = event.startMs <= now;
+/** Where a time of day sits on a day's track, in %. */
+const at = (minutes: number) => ((Math.min(DAY_TO, Math.max(DAY_FROM, minutes)) - DAY_FROM) / (DAY_TO - DAY_FROM)) * 100;
+
+/** The hours along the top: 8, 10, … 22. */
+function Ruler() {
+  const hours = [];
+  for (let h = DAY_FROM / 60; h <= DAY_TO / 60; h += 2) hours.push(h);
   return (
-    <li
-      className="flex shrink-0 overflow-hidden rounded-[2.5vw] border border-border bg-card"
-      style={{ gap: u(3), padding: u(3) }}
-    >
-      <div
-        className="flex shrink-0 flex-col items-center justify-center rounded-[1.8vw] bg-primary/10 text-center"
-        style={{ width: u(15), padding: u(1.5) }}
-      >
-        <span
-          className="font-semibold uppercase text-primary"
-          style={{ fontSize: u(2.1), letterSpacing: "0.04em" }}
-        >
-          {live ? "Now" : dayLabel(event.startMs, now)}
-        </span>
-        <span className="font-bold leading-none" style={{ fontSize: u(6.5) }}>
-          {new Date(event.startMs).toLocaleDateString("en-GB", {
-            day: "numeric",
-            timeZone: TZ,
-          })}
-        </span>
-        <span className="text-muted-foreground" style={{ fontSize: u(2.3) }}>
-          {new Date(event.startMs).toLocaleDateString("en-GB", {
-            month: "short",
-            timeZone: TZ,
-          })}
-        </span>
+    <div className="flex shrink-0" style={{ gap: u(2) }}>
+      <div className="shrink-0" style={{ width: u(15) }} />
+      <div className="relative flex-1" style={{ height: u(3) }}>
+        {hours.map((h) => (
+          <span
+            key={h}
+            className="absolute -translate-x-1/2 text-muted-foreground tabular-nums"
+            style={{ left: `${at(h * 60)}%`, fontSize: u(2.1) }}
+          >
+            {h}
+          </span>
+        ))}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: u(1.2) }}>
-        <div className="text-muted-foreground" style={{ fontSize: u(2.6) }}>
-          {time(event.startMs)}–{time(event.endMs)}
-        </div>
-        <div
-          className="line-clamp-2 font-bold leading-tight"
-          style={{ fontSize: u(3.6) }}
-        >
-          {event.name}
-        </div>
-        <div
-          className="flex flex-wrap items-center"
-          style={{ gap: u(1.2), marginTop: u(0.6) }}
-        >
-          {event.signups.length > 0 ? (
-            event.signups.map((s) => (
-              <span
-                key={s.discordUserId}
-                className="flex items-center rounded-full bg-muted"
-                style={{
-                  padding: `${u(0.6)} ${u(1.8)} ${u(0.6)} ${u(0.6)}`,
-                  gap: u(1),
-                  fontSize: u(2.5),
-                }}
-              >
-                <Avatar src={s.avatar} name={s.displayName} size={4.6} />
-                <span className="font-semibold">{s.displayName}</span>
-                <span className="text-muted-foreground">
-                  {time(s.startMs)}–{time(s.endMs)}
-                </span>
-              </span>
-            ))
-          ) : (
-            <span
-              className="text-muted-foreground"
-              style={{ fontSize: u(2.6) }}
-            >
-              Nobody on shift yet. Be the first!
-            </span>
-          )}
-        </div>
-      </div>
-      <div
-        className="flex shrink-0 flex-col items-center justify-center"
-        style={{ gap: u(1) }}
-      >
-        <button
-          type="button"
-          disabled={!available}
-          onClick={onJoin}
-          className="rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
-          style={{ padding: `${u(2)} ${u(3.4)}`, fontSize: u(3.1) }}
-        >
-          {event.signups.length > 0 ? "Join" : "Sign up"}
-        </button>
+    </div>
+  );
+}
+
+/**
+ * One day: a track from 8:00 to 22:00 with its bookings (orange while nobody
+ * is on shift then) and its shifts (green, with names), and below it the
+ * bookings spelled out, since a one-hour block is too narrow to read.
+ */
+function DayRow({
+  day,
+  now,
+  available,
+  onPick,
+}: {
+  day: TabletDay;
+  now: number;
+  available: boolean;
+  onPick: (slot: Slot) => void;
+}) {
+  const ms = noon(day.day);
+  const isToday = dayKey(now) === day.day;
+  const nowMinutes = minutesOf(now);
+  const pickAt = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!available) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const minutes = DAY_FROM + ((e.clientX - box.left) / box.width) * (DAY_TO - DAY_FROM);
+    const start = Math.min(LATEST_START, Math.max(EARLIEST_START, Math.floor(minutes / START_STEP) * START_STEP));
+    onPick({ day: day.day, start, hours: DEFAULT_SHIFT_HOURS });
+  };
+  const pickBooking = (b: TabletBooking) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!available) return;
+    const { start, hours } = shiftFor(b);
+    onPick({ day: day.day, start, hours, context: b.title });
+  };
+  const span = (startMs: number, endMs: number) => {
+    const left = at(minutesOf(startMs));
+    const right = dayKey(endMs) === day.day ? at(minutesOf(endMs)) : 100;
+    return { left: `${left}%`, width: `${Math.max(1.5, right - left)}%` };
+  };
+  return (
+    <li className="flex shrink-0 items-start" style={{ gap: u(2) }}>
+      <div className="flex shrink-0 flex-col justify-center" style={{ width: u(15), minHeight: u(8) }}>
+        <span className={`font-bold leading-tight ${isToday ? "text-primary" : ""}`} style={{ fontSize: u(2.9) }}>
+          {isToday ? "Today" : new Date(ms).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}
+        </span>
         <span className="text-muted-foreground" style={{ fontSize: u(2.2) }}>
-          {tokens(DEFAULT_SHIFT_HOURS * rewardPerHour)} / {DEFAULT_SHIFT_HOURS}h
+          {new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}
         </span>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: u(1) }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={pickAt}
+          className="relative overflow-hidden rounded-[1.5vw] bg-muted/60"
+          style={{ height: u(8) }}
+        >
+          {[10, 12, 14, 16, 18, 20].map((h) => (
+            <span key={h} className="absolute inset-y-0 border-l border-border/70" style={{ left: `${at(h * 60)}%` }} />
+          ))}
+          {isToday && nowMinutes > DAY_FROM && (
+            <span className="absolute inset-y-0 left-0 bg-background/70" style={{ width: `${at(nowMinutes)}%` }} />
+          )}
+          {day.bookings.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              aria-label={b.title}
+              onClick={pickBooking(b)}
+              className={`absolute rounded-[0.8vw] ${covered(b, day.shifts) ? "bg-foreground/25" : "bg-primary"}`}
+              style={{ ...span(b.startMs, b.endMs), top: u(0.8), height: u(2.8) }}
+            />
+          ))}
+          {day.shifts.map((sh, i) => (
+            <span
+              key={i}
+              className="absolute overflow-hidden rounded-[0.8vw] bg-emerald-600 text-white"
+              style={{ ...span(sh.startMs, sh.endMs), bottom: u(0.8), height: u(3.4), padding: `0 ${u(0.8)}`, fontSize: u(2), lineHeight: u(3.4) }}
+            >
+              <span className="block truncate font-semibold">{sh.people.map((p) => p.name).join(", ")}</span>
+            </span>
+          ))}
+        </div>
+        {day.bookings.length > 0 && (
+          <div className="flex flex-wrap" style={{ gap: u(1) }}>
+            {day.bookings.map((b) => {
+              const needs = !covered(b, day.shifts);
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={pickBooking(b)}
+                  className={`flex min-w-0 max-w-full items-baseline rounded-full border text-left ${needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"}`}
+                  style={{ gap: u(1), padding: `${u(0.6)} ${u(1.8)}`, fontSize: u(2.2) }}
+                >
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {needs ? "⚠ " : "✓ "}
+                    {time(b.startMs)}–{time(b.endMs)}
+                  </span>
+                  <span className="truncate">
+                    {b.title}
+                    {b.room && !b.title.startsWith(b.room) ? ` · ${b.room}` : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </li>
   );
 }
 
 export function TabletBoard({
-  events,
+  days,
   shiftsAvailable,
   rewardAmountPerHour,
 }: {
-  events: TabletEventWithShifts[];
+  days: TabletDay[];
   shiftsAvailable: boolean;
   rewardAmountPerHour: number;
 }) {
   const router = useRouter();
   const now = useNow(0, 15_000);
-  const [open, setOpen] = useState<TabletEventWithShifts | null>(null);
+  const [open, setOpen] = useState<Slot | null>(null);
   const lastTouch = useRef(Date.now());
 
   const close = useCallback(() => setOpen(null), []);
@@ -650,7 +707,6 @@ export function TabletBoard({
     return () => clearInterval(id);
   }, [open, router]);
 
-  const shown = events.filter((e) => e.endMs > now);
 
   return (
     <div
@@ -715,9 +771,11 @@ export function TabletBoard({
           className="text-muted-foreground"
           style={{ fontSize: u(3), marginTop: u(2), maxWidth: u(80) }}
         >
-          Steward an event: welcome people, show them around, make them feel at
-          home. A shift starts {SHIFT_LEAD_MINUTES} minutes before the event and
-          lasts {DEFAULT_SHIFT_HOURS} hours, or less if that’s all you can do.
+          The hub needs someone whenever it’s open: welcome people, show them
+          around, make them feel at home. Tap a time to sign up. Rooms booked
+          for euros and events need a steward most: ⚠ means nobody is on shift
+          for them yet. {tokens(rewardAmountPerHour)} an
+          hour.
         </p>
         {!shiftsAvailable && (
           <p
@@ -730,31 +788,20 @@ export function TabletBoard({
         )}
       </div>
 
+      <Ruler />
       <ul
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-        style={{ gap: u(2.4), paddingBottom: u(5) }}
+        style={{ gap: u(1.6), paddingBottom: u(5) }}
       >
-        {shown.length > 0 ? (
-          shown.map((e) => (
-            <EventCard
-              key={e.id}
-              event={e}
-              now={now}
-              rewardPerHour={rewardAmountPerHour}
-              available={shiftsAvailable}
-              onJoin={() => setOpen(e)}
-            />
-          ))
-        ) : (
-          <li className="text-muted-foreground" style={{ fontSize: u(3.2) }}>
-            No events in the next two weeks yet.
-          </li>
-        )}
+        {days.map((d) => (
+          <DayRow key={d.day} day={d} now={now} available={shiftsAvailable} onPick={setOpen} />
+        ))}
       </ul>
 
       {open && (
         <SignupSheet
-          event={open}
+          key={`${open.day}-${open.start}`}
+          slot={open}
           rewardPerHour={rewardAmountPerHour}
           onClose={close}
           onDone={() => router.refresh()}
