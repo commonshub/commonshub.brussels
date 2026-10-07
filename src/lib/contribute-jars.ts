@@ -140,10 +140,15 @@ export interface TxLine {
   donation?: Pick<RecentDonation, "via" | "name">
   /** Several of the same thing that day (memberships), summed in `amount`: how many. */
   count?: number
+  /** Their amounts, when several ("3× €10" shows what a membership costs). */
+  parts?: number[]
+  /** Paid by card (Stripe). */
+  card?: boolean
 }
 
 interface PublicTx {
   id?: string
+  provider?: string
   currency?: string
   type?: string
   amount?: number | string
@@ -212,6 +217,7 @@ export function latestTransactions(txs: PublicTx[], labels: Map<string, string>,
         tag: slug ? (SHORT[slug] ?? labels.get(slug) ?? slug.replace(/[_-]/g, " ")) : "Uncategorised",
         ...(amount < 0 && readable(m.description) ? { note: m.description } : {}),
         ...(donation ? { donation: { via: donation.via, name: donation.name } } : {}),
+        ...(t.provider === "stripe" ? { card: true } : {}),
       }
     })
   // The same kind of thing on the same day is one line with their total: "+€20 Membership ×2".
@@ -219,9 +225,10 @@ export function latestTransactions(txs: PublicTx[], labels: Map<string, string>,
   const groups = new Map<string, TxLine>()
   const out: TxLine[] = []
   for (const l of lines) {
-    const key = l.note || l.donation?.name ? null : `${day(l.at)}|${l.slug}|${l.amount > 0 ? "in" : "out"}|${l.donation?.via ?? ""}`
+    const key = l.note || l.donation?.name ? null : `${day(l.at)}|${l.slug}|${l.amount > 0 ? "in" : "out"}|${l.card ? "card" : ""}`
     const group = key ? groups.get(key) : undefined
     if (group) {
+      group.parts = [...(group.parts ?? [group.amount]), l.amount]
       group.amount = Math.round((group.amount + l.amount) * 100) / 100
       group.count = (group.count ?? 1) + 1
       continue

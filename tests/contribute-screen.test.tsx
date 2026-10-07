@@ -254,7 +254,7 @@ describe("what the page reads", () => {
     const money = [{ id: "d", at: data.donations[0].at, amount: 5000, slug: "donation", tag: "Donation", donation: { via: "card" as const, name: null } }]
     const { container } = render(<ContributeJars data={jars} money={money} tokenMoves={[]} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["€55", "€130 covered", "Rent", "€6.5k", "Covered by memberships €100, donations €30", "+€5,000", "Donation", "by card", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
+    for (const part of ["€55", "€130 covered", "Rent", "€6.5k", "Covered by memberships €100, donations €30", "+€5,000", "Donation", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
       expect(text).toContain(part)
     for (const leak of ["Members Only Person", "Secret Donor", "50,000"]) expect(text).not.toContain(leak)
   })
@@ -366,6 +366,7 @@ describe("the jars", () => {
       [],
       10,
     )
+    expect(grouped[0].parts).toEqual([10, 10, 100])
     expect(grouped.map((l) => [l.id, l.amount, l.count ?? 1])).toEqual([
       ["m1", 120, 3],
       ["rent", -6546.76, 1],

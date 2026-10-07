@@ -255,7 +255,14 @@ function Tag({ tx }: { tx: TxLine }) {
   )
 }
 
-/** One transaction, on one line: the amount, its tag and what it was, and when. */
+/** What several payments were: "3× €10", or "€10 + €100" when they differ. */
+const plain = (n: number) => `€${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
+function breakdown(parts: number[]): string {
+  if (parts.every((p) => p === parts[0])) return `${parts.length}× ${plain(parts[0])}`
+  return parts.length <= 3 ? parts.map(plain).join(" + ") : `${parts.length}×`
+}
+
+/** One transaction, on one line: the amount, its tag and what it was (💳 when paid by card), and when. */
 function MoneyLine({ tx }: { tx: TxLine }) {
   return (
     <li className="flex items-baseline" style={{ gap: s(1.1), padding: `${s(0.5)} 0`, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
@@ -265,11 +272,12 @@ function MoneyLine({ tx }: { tx: TxLine }) {
       <div className="min-w-0 flex-1" style={{ fontSize: s(1.3), lineHeight: 1.25 }}>
         <div className="truncate">
           <Tag tx={tx} />
-          {tx.count && tx.count > 1 && <span style={{ color: MUTED, fontWeight: 700 }}> ×{tx.count}</span>}
-          {tx.donation && (
+          {tx.parts && tx.parts.length > 1 && <span style={{ color: MUTED, fontWeight: 600 }}> ({breakdown(tx.parts)})</span>}
+          {tx.card && <span title="by card"> 💳</span>}
+          {tx.donation?.name && (
             <>
               {" "}
-              {tx.donation.name && <>from <Chip>{tx.donation.name}</Chip> </>}by {tx.donation.via}
+              from <Chip>{tx.donation.name}</Chip>
             </>
           )}
           {tx.note && <span style={{ color: "rgba(255,255,255,0.8)" }}> {tx.note}</span>}
