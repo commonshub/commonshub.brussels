@@ -73,13 +73,11 @@ describe("/mcp route", () => {
     else process.env.MCP_API_KEY = previousApiKey;
   });
 
-  it("requires MCP_API_KEY to be configured", async () => {
+  it("opens nothing when no key is configured", async () => {
     const { POST } = await loadRoute(tmpDir);
     const response = await POST(mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "secret") as any);
 
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.error.message).toContain("MCP_API_KEY");
+    expect(response.status).toBe(401);
   });
 
   it("rejects requests without the bearer API key", async () => {
@@ -91,7 +89,7 @@ describe("/mcp route", () => {
     expect(body.error.message).toBe("Unauthorized");
   });
 
-  it("lists MCP tools for navigating the public dataset", async () => {
+  it("lists the read-only tools for the read-only key: the public dataset and the Luma calendar", async () => {
     const { POST } = await loadRoute(tmpDir, "secret");
     const response = await POST(mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "secret") as any);
 
@@ -103,6 +101,8 @@ describe("/mcp route", () => {
       "read_dataset_file",
       "query_dataset",
       "summarize_tokens",
+      "luma_list_events",
+      "luma_get_event",
     ]);
   });
 
@@ -181,5 +181,111 @@ describe("/mcp route", () => {
     const tokenBody = await tokenResponse.json();
     const tokenData = JSON.parse(tokenBody.result.content[0].text);
     expect(tokenData).toMatchObject({ minted: 100, burnt: 25, net: 75, transactionCount: 2 });
+  });
+
+  describe("Elinor's key", () => {
+    const previousElinor = process.env.ELINOR_MCP_TOKEN;
+    const previousLuma = process.env.LUMA_API_KEY;
+    const realFetch = global.fetch;
+    let calls: Array<{ url: string; body?: unknown }>;
+    let memberRoles: string[];
+
+    async function loadElinor() {
+      jest.resetModules();
+      process.env.DATA_DIR = tmpDir;
+      process.env.ELINOR_MCP_TOKEN = "elinor-secret";
+      process.env.LUMA_API_KEY = "luma-key";
+      jest.doMock("@/lib/discord", () => ({
+        discordFetch: async () => new Response(JSON.stringify({ roles: memberRoles }), { status: 200 }),
+      }));
+      return import("@/app/mcp/route");
+    }
+
+    beforeEach(() => {
+      calls = [];
+      memberRoles = ["1280559675292778617"];
+      global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input instanceof Request ? input.url : input);
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ url, body });
+        if (url.startsWith("https://bot.opencollective.xyz/mcp")) {
+          if (body.method === "tools/list") return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { tools: [{ name: "propose_mint", description: "Propose a mint", inputSchema: { type: "object" } }] } }));
+          return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text: "proposed" }] } }));
+        }
+        if (url.includes("/v1/calendars/events/lookup")) return new Response(JSON.stringify({}));
+        if (url.includes("/v1/calendars/events/add")) return new Response(JSON.stringify({}));
+        if (url.includes("/v1/events/get")) {
+          return new Response(JSON.stringify({
+            id: "evt-abcdefghij12", name: "Assembly", start_at: "2026-10-20T16:00:00Z", access: "manage",
+            hosts: [{ id: "usr-1", email: "host@example.org", name: "Ann Host" }],
+            guest_counts: { approved: { guests: 12, tickets: 12 }, waitlist: { guests: 3, tickets: 3 } },
+          }));
+        }
+        return new Response("not found", { status: 404 });
+      }) as typeof fetch;
+    });
+
+    afterEach(() => {
+      global.fetch = realFetch;
+      jest.dontMock("@/lib/discord");
+      if (previousElinor === undefined) delete process.env.ELINOR_MCP_TOKEN;
+      else process.env.ELINOR_MCP_TOKEN = previousElinor;
+      if (previousLuma === undefined) delete process.env.LUMA_API_KEY;
+      else process.env.LUMA_API_KEY = previousLuma;
+    });
+
+    const call = (name: string, args: Record<string, unknown>) => mcpRequest({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name, arguments: args } }, "elinor-secret") as any;
+
+    it("lists every tool in one place: ours and the Discord bot's", async () => {
+      const { POST } = await loadElinor();
+      const body = await (await POST(mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "elinor-secret") as any)).json();
+      const names = body.result.tools.map((t: { name: string }) => t.name);
+      expect(names).toEqual(expect.arrayContaining(["query_dataset", "luma_list_events", "luma_get_event", "luma_add_event", "luma_create_event", "propose_mint"]));
+    });
+
+    it("passes the Discord bot's tools through with Elinor's token", async () => {
+      const { POST } = await loadElinor();
+      const body = await (await POST(call("propose_mint", { amount: 1 }))).json();
+      expect(body.result.content[0].text).toBe("proposed");
+      const forwarded = calls.find((c) => (c.body as { method?: string })?.method === "tools/call");
+      expect(forwarded?.body).toMatchObject({ params: { name: "propose_mint", arguments: { amount: 1 } } });
+    });
+
+    it("an event: participants by status, organizers by name only", async () => {
+      const { POST } = await loadElinor();
+      const body = await (await POST(call("luma_get_event", { event: "evt-abcdefghij12" }))).json();
+      const data = JSON.parse(body.result.content[0].text);
+      expect(data.participants).toEqual({ approved: 12, waitlist: 3 });
+      expect(data.organizers).toEqual([{ name: "Ann Host" }]);
+      expect(body.result.content[0].text).not.toContain("host@example.org");
+    });
+
+    it("a member's event goes straight on the calendar; anyone else's waits for an admin", async () => {
+      const { POST } = await loadElinor();
+      let data = JSON.parse((await (await POST(call("luma_add_event", { requestedBy: "123456789", event: "evt-abcdefghij12" }))).json()).result.content[0].text);
+      expect(data).toMatchObject({ status: "added", member: true });
+      expect(calls.find((c) => c.url.includes("/v1/calendars/events/add"))?.body).toEqual({ platform: "luma", event_id: "evt-abcdefghij12", submission_mode: "auto" });
+
+      memberRoles = [];
+      calls = [];
+      data = JSON.parse((await (await POST(call("luma_add_event", { requestedBy: "987654321", event: "evt-abcdefghij12" }))).json()).result.content[0].text);
+      expect(data).toMatchObject({ status: "pending", member: false });
+      expect(calls.find((c) => c.url.includes("/v1/calendars/events/add"))?.body).toMatchObject({ submission_mode: "pending" });
+    });
+
+    it("only members create events; the answer says so", async () => {
+      memberRoles = [];
+      const { POST } = await loadElinor();
+      const body = await (await POST(call("luma_create_event", { requestedBy: "987654321", name: "Talk", start: "2026-10-20T18:00:00+02:00", end: "2026-10-20T20:00:00+02:00" }))).json();
+      expect(body.result.isError).toBe(true);
+      expect(body.result.content[0].text).toContain("Only members");
+    });
+
+    it("the read-only key can't act for anyone", async () => {
+      const { POST } = await loadElinor();
+      process.env.MCP_API_KEY = "secret";
+      const body = await (await POST(mcpRequest({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "luma_add_event", arguments: { requestedBy: "1", event: "evt-x" } } }, "secret") as any)).json();
+      expect(body.error.message).toContain("needs Elinor's key");
+    });
   });
 });
