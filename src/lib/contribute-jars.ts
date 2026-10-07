@@ -28,6 +28,9 @@ export const COVERING = [
   { slugs: ["donation"], label: "Donations" },
 ] as const
 
+/** The kinds of invoiced income that are bookings: rooms, coworking, the catering that comes with them. */
+const BOOKING_TYPES = new Set(["sales_services", "rental", "rentals", "coworking", "catering"])
+
 /** chb's month of invoices (YYYY/MM/public/customers.json, from Odoo): per customer, the kind of income and the amount without VAT. */
 export interface CustomersFile {
   customers?: Array<{ incomeType?: string; untaxedAmount?: number | null }>
@@ -55,7 +58,7 @@ export function monthIncome(summary: SummaryFile | null, customers: CustomersFil
     const eur = summary?.categories?.find((c) => c.slug === slug)?.currencies?.find((c) => c.currency === "EUR")
     return eur ? (eur.net ?? (eur.in ?? 0) - (eur.out ?? 0)) : 0
   }
-  const bookings = (customers?.customers ?? []).filter((c) => c.incomeType === "sales_services").reduce((sum, c) => sum + (Number(c.untaxedAmount) || 0), 0)
+  const bookings = (customers?.customers ?? []).filter((c) => BOOKING_TYPES.has(c.incomeType ?? "")).reduce((sum, c) => sum + (Number(c.untaxedAmount) || 0), 0)
   return [
     ...COVERING.map(({ slugs, label }) => ({ label, amount: Math.floor(Math.max(0, slugs.reduce((sum, s) => sum + net(s), 0))) })),
     { label: "Bookings", amount: Math.floor(Math.max(0, bookings)), invoiced: true },

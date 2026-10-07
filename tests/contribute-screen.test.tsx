@@ -279,11 +279,12 @@ describe("the jars", () => {
           { incomeType: "sales_services", untaxedAmount: 381.5 },
           { incomeType: "membership", untaxedAmount: 266 },
           { incomeType: "sales_services", untaxedAmount: null },
+          { incomeType: "rental", untaxedAmount: 0.4 },
         ],
       },
     )
     expect(income).toEqual([
-      { label: "Bookings", amount: 1317, invoiced: true },
+      { label: "Bookings", amount: 1317, invoiced: true }, // 935.5 + 381.5 + 0.4, in whole euros
       { label: "Donations", amount: 654 },
       { label: "Memberships", amount: 100 },
     ])
