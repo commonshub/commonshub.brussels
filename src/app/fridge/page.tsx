@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { FridgeOrder } from "@/components/fridge/fridge-order"
+import { loadContributeExpenses } from "@/lib/contribute-expenses"
 import { FRIDGE, loadLatestDelivery } from "@/lib/fridge"
 
 // Reads the dataset volume: never prerender.
@@ -17,6 +18,10 @@ const day = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en
 export default async function FridgePage({ searchParams }: { searchParams: Promise<{ thanks?: string }> }) {
   const { thanks } = await searchParams
   const delivery = loadLatestDelivery()
+  // The space the fridge is in: the fixed monthly costs, as /contribute breaks them down.
+  const fixedCosts = loadContributeExpenses()
+    .recurring.filter((c) => c.amountEur > 0)
+    .map((c) => ({ slug: c.slug, label: c.label, amount: Math.round(c.amountEur * 100) / 100 }))
 
   return (
     <div className="mx-auto max-w-lg px-4 pb-8 pt-6">
@@ -33,6 +38,7 @@ export default async function FridgePage({ searchParams }: { searchParams: Promi
           </p>
           <FridgeOrder
             drinks={delivery.drinks}
+            fixedCosts={fixedCosts}
             settings={{
               roundTo: FRIDGE.roundTo,
               minimum: FRIDGE.minimum,

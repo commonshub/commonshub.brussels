@@ -25,8 +25,58 @@ export interface FridgeSettings {
 type Step = "pick" | "donate" | "crate"
 type Method = "card" | "transfer"
 
-/** Money and time: the euros the drinks cost us, and the community's time in tokens. */
-function Costs({ lines, total, tokensPerMonth }: { lines: Array<{ label: string; amount: number }>; total: number; tokensPerMonth: number }) {
+export interface FixedCost {
+  slug: string
+  label: string
+  /** A month of it, in euros (cents). */
+  amount: number
+}
+
+/** The space the fridge is in: rent and utilities, a month; a tap shows what they are. */
+function FixedCosts({ costs }: { costs: FixedCost[] }) {
+  const [open, setOpen] = useState(false)
+  const total = round2(costs.reduce((s, c) => s + c.amount, 0))
+  if (total <= 0) return null
+  return (
+    <li className="text-foreground">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full justify-between gap-3 text-left">
+        <span className="min-w-0">
+          Rent + utilities
+          <span className="block text-xs text-muted-foreground">the space the fridge is in</span>
+        </span>
+        <span className="flex shrink-0 items-start gap-1.5">
+          <span className="text-right tabular-nums">
+            {eur(total)}
+            <span className="block text-xs text-muted-foreground">a month</span>
+          </span>
+          <span aria-hidden className={`text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}>
+            ›
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg bg-muted/50 px-3 py-2">
+          <ul className="flex flex-col gap-1 text-sm">
+            {costs.map((c) => (
+              <li key={c.slug} className="flex justify-between gap-3">
+                <a href={`/expenses/${c.slug}`} className="min-w-0 text-foreground underline-offset-2 hover:underline">
+                  {c.label}
+                </a>
+                <span className="shrink-0 tabular-nums text-muted-foreground">{eur(c.amount)}</span>
+              </li>
+            ))}
+          </ul>
+          <a href="/contribute" className="mt-2 block text-xs font-medium text-primary underline-offset-2 hover:underline">
+            Help cover them →
+          </a>
+        </div>
+      )}
+    </li>
+  )
+}
+
+/** Money and time: the euros the drinks cost us, the space they are in, and the community's time in tokens. */
+function Costs({ lines, total, tokensPerMonth, fixedCosts }: { lines: Array<{ label: string; amount: number }>; total: number; tokensPerMonth: number; fixedCosts: FixedCost[] }) {
   return (
     <section className="rounded-xl border border-border bg-card p-4">
       <h2 className="text-sm font-medium text-muted-foreground">What it costs us</h2>
@@ -47,10 +97,14 @@ function Costs({ lines, total, tokensPerMonth }: { lines: Array<{ label: string;
             <span className="block text-xs text-muted-foreground">a month</span>
           </span>
         </li>
+        <FixedCosts costs={fixedCosts} />
       </ul>
-      <div className="mt-3 flex justify-between gap-3 border-t border-border pt-3 font-semibold text-foreground">
-        <span>Total</span>
-        <span className="text-right tabular-nums">{eur(total)} + our time</span>
+      <div className="mt-3 flex justify-between gap-3 border-t border-border pt-3 text-foreground">
+        <span className="font-semibold">Total</span>
+        <span className="text-right tabular-nums">
+          <span className="font-semibold">{eur(total)}</span>
+          <span className="block text-xs text-muted-foreground">+ our time</span>
+        </span>
       </div>
     </section>
   )
@@ -208,7 +262,7 @@ function CrateContributors() {
  * and donate; or offer a whole crate to the community. Built for a phone
  * opened from a QR code on the fridge: big buttons, the total in view.
  */
-export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: FridgeSettings }) {
+export function FridgeOrder({ drinks, settings, fixedCosts = [] }: { drinks: Drink[]; settings: FridgeSettings; fixedCosts?: FixedCost[] }) {
   const [qty, setQty] = useState<Record<string, number>>({})
   const [step, setStep] = useState<Step>("pick")
   const [amount, setAmount] = useState(0)
@@ -234,6 +288,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
           lines={items.map(({ drink, quantity }) => ({ label: `${quantity} × ${shortName(drink)}`, amount: round2(quantity * drink.costPerBottle) }))}
           total={cost}
           tokensPerMonth={settings.timeTokensPerMonth}
+          fixedCosts={fixedCosts}
         />
         <Contribute
           amount={amount}
@@ -293,7 +348,7 @@ export function FridgeOrder({ drinks, settings }: { drinks: Drink[]; settings: F
             className="h-11 rounded-lg border border-border bg-background px-3 text-base"
           />
         </label>
-        <Costs lines={[{ label: `A crate of ${crate.perCrate} × ${shortName(crate)}`, amount: crate.crateCost }]} total={crate.crateCost} tokensPerMonth={settings.timeTokensPerMonth} />
+        <Costs lines={[{ label: `A crate of ${crate.perCrate} × ${shortName(crate)}`, amount: crate.crateCost }]} total={crate.crateCost} tokensPerMonth={settings.timeTokensPerMonth} fixedCosts={fixedCosts} />
         <Contribute
           amount={amount}
           setAmount={setAmount}

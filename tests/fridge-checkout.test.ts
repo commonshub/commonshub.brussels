@@ -34,6 +34,7 @@ describe("fridge checkout", () => {
     expect(params.mode).toBe("payment")
     expect(params.line_items[0].price_data.unit_amount).toBe(450)
     expect(params.submit_type).toBe("donate")
+    expect(params.customer_email).toBe("hello@commonshub.brussels") // nobody types an email for a drink
     expect(params.payment_intent_data.description).toBe("Contribution fridge")
     expect(params.metadata).toEqual({ kind: "fridge", order: "2× Zinnebir 5,8%, 1× Fritz Limo Citron", delivery: "CHB-S/2026/09/0013" })
   })
