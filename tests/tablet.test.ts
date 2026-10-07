@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "@jest/globals"
 
 import { isScreenRoute } from "@/lib/screen"
 import { brusselsMs } from "@/lib/events-board-format"
-import { buildDays, covered, shiftFor, slotWindow } from "@/lib/tablet"
+import { buildDays, covered, joinSlot, uncovered, weekRange, mergeRooms, shiftFor, slotWindow } from "@/lib/tablet"
 
 const H = 3_600_000
 const at = (iso: string) => Date.parse(iso)
@@ -27,9 +27,9 @@ describe("the community tablet", () => {
     const days = buildDays(
       NOW,
       [
-        { id: "b", title: "Climate contact", room: "Mush Room", startMs: at("2026-10-08T09:00:00+02:00"), endMs: at("2026-10-08T12:00:00+02:00") },
-        { id: "a", title: "Yi-Jing", startMs: at("2026-10-07T17:00:00+02:00"), endMs: at("2026-10-07T19:00:00+02:00") },
-        { id: "past", title: "Breakfast", startMs: at("2026-10-07T07:00:00+02:00"), endMs: at("2026-10-07T09:00:00+02:00") },
+        { id: "b", title: "Climate contact", rooms: ["Mush Room"], startMs: at("2026-10-08T09:00:00+02:00"), endMs: at("2026-10-08T12:00:00+02:00") },
+        { id: "a", title: "Yi-Jing", rooms: [], startMs: at("2026-10-07T17:00:00+02:00"), endMs: at("2026-10-07T19:00:00+02:00") },
+        { id: "past", title: "Breakfast", rooms: [], startMs: at("2026-10-07T07:00:00+02:00"), endMs: at("2026-10-07T09:00:00+02:00") },
       ],
       [shift("2026-10-07T16:30:00+02:00", "2026-10-07T19:30:00+02:00", [["1", "Leen"]]), shift("2026-10-07T08:00:00+02:00", "2026-10-07T09:00:00+02:00", [["2", "Early"]])],
       3,
@@ -41,15 +41,61 @@ describe("the community tablet", () => {
     expect(covered(days[1].bookings[0], days[1].shifts)).toBe(false)
   })
 
-  test("a shift the tablet accepts: the coming two weeks, on the half hour from 7:00 to 22:00, one to four hours", () => {
+  test("one event booked in several rooms is one booking with all its rooms; different events stay apart", () => {
+    const sunday = (id: string, title: string, room: string, from = "09:00", to = "21:30") => ({
+      id,
+      title,
+      rooms: [room],
+      startMs: at(`2026-10-18T${from}:00+02:00`),
+      endMs: at(`2026-10-18T${to}:00+02:00`),
+    })
+    const merged = mergeRooms([
+      sunday("1", "Sunday Gathering with Ani Rose", "Satoshi Room"),
+      sunday("2", "Sunday Gathering with Ani Rose", "Angel Room", "10:00", "22:00"),
+      sunday("3", "Sunday Gathering with Ani Rose", "Coworking Space"),
+      sunday("4", "Mush Room booking", "Mush Room", "14:00", "16:00"),
+    ])
+    expect(merged.map((b) => [b.title, b.rooms, b.endMs])).toEqual([
+      ["Sunday Gathering with Ani Rose", ["Angel Room", "Coworking Space", "Satoshi Room"], at("2026-10-18T22:00:00+02:00")],
+      ["Mush Room booking", ["Mush Room"], at("2026-10-18T16:00:00+02:00")],
+    ])
+  })
+
+  test("a booking is covered when someone is on shift all along; otherwise the first gap is what needs a steward", () => {
+    const t = (hh: string) => at(`2026-10-18T${hh}:00+02:00`)
+    const sunday = { startMs: t("09:00"), endMs: t("21:30") }
+    expect(uncovered(sunday, [{ startMs: t("09:00"), endMs: t("13:00") }])).toEqual({ startMs: t("13:00"), endMs: t("21:30") })
+    expect(uncovered(sunday, [{ startMs: t("12:00"), endMs: t("15:00") }])).toEqual({ startMs: t("09:00"), endMs: t("12:00") })
+    expect(uncovered(sunday, [{ startMs: t("08:30"), endMs: t("13:00") }, { startMs: t("12:30"), endMs: t("17:00") }, { startMs: t("17:00"), endMs: t("22:00") }])).toBeNull()
+    expect(covered(sunday, [{ startMs: t("08:30"), endMs: t("13:00") }])).toBe(false)
+  })
+
+  test("joining someone's shift takes the same time, on the half hour, one to four hours", () => {
+    expect(joinSlot({ startMs: at("2026-10-08T14:00:00+02:00"), endMs: at("2026-10-08T17:00:00+02:00") })).toEqual({ start: 14 * 60, hours: 3 })
+    expect(joinSlot({ startMs: at("2026-10-08T09:00:00+02:00"), endMs: at("2026-10-08T18:00:00+02:00") })).toEqual({ start: 9 * 60, hours: 4 })
+  })
+
+  test("a week at a time from today, four weeks back and seven ahead; past days keep what happened", () => {
+    expect(weekRange(NOW, 0)).toMatchObject({ week: 0, first: "2026-10-07", fromMs: at("2026-10-07T00:00:00+02:00"), toMs: at("2026-10-14T00:00:00+02:00") })
+    expect(weekRange(NOW, 1).first).toBe("2026-10-14")
+    expect(weekRange(NOW, 3).toMs).toBe(at("2026-11-04T00:00:00+01:00"))
+    expect(weekRange(NOW, -9)).toMatchObject({ week: -4, first: "2026-09-09" })
+    expect(weekRange(NOW, 99).week).toBe(7)
+    const last = buildDays(NOW, [{ id: "x", title: "Potluck", rooms: [], startMs: at("2026-10-02T12:30:00+02:00"), endMs: at("2026-10-02T13:30:00+02:00") }], [], 7, "2026-09-30")
+    expect(last.map((d) => d.day)).toEqual(["2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06"])
+    expect(last[2].bookings.map((b) => b.title)).toEqual(["Potluck"])
+  })
+
+  test("a shift the tablet accepts: from today to eight weeks ahead, on the half hour from 7:00 to 22:00, one to four hours", () => {
     expect(slotWindow("2026-10-08", 9 * 60 + 30, 3, NOW)).toEqual({ startMs: at("2026-10-08T09:30:00+02:00"), endMs: at("2026-10-08T12:30:00+02:00") })
+    expect(slotWindow("2026-11-30", 9 * 60, 1, NOW)).not.toBeNull()
     expect(slotWindow("2026-11-02", 13 * 60, 1, at("2026-10-27T10:00:00+01:00"))).toEqual({ startMs: at("2026-11-02T13:00:00+01:00"), endMs: at("2026-11-02T14:00:00+01:00") })
     for (const [day, start, hours] of [
       ["2026-10-08", 9 * 60 + 15, 3], // not on the half hour
       ["2026-10-08", 6 * 60, 3], // too early
       ["2026-10-08", 9 * 60, 9], // too long
       ["2026-10-06", 9 * 60, 3], // yesterday
-      ["2026-10-30", 9 * 60, 3], // more than two weeks ahead
+      ["2026-12-02", 9 * 60, 3], // more than eight weeks ahead
       ["8 Oct", 9 * 60, 3],
     ] as const) {
       expect(slotWindow(day, start, hours, NOW)).toBeNull()
@@ -65,7 +111,7 @@ describe("the community tablet", () => {
 
 describe("signing up from the tablet", () => {
   const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })
-  const booking = { id: "b", title: "Potluck", startMs: Date.parse(`${tomorrow}T12:30:00+02:00`), endMs: Date.parse(`${tomorrow}T13:30:00+02:00`) }
+  const booking = { id: "b", title: "Potluck", rooms: [], startMs: Date.parse(`${tomorrow}T12:30:00+02:00`), endMs: Date.parse(`${tomorrow}T13:30:00+02:00`) }
   const signUp = jest.fn(async (person: object, start: Date, end: Date, eventTitle?: string) => ({
     dmSent: true,
     emailed: false,

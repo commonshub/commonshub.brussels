@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   if (!window) return NextResponse.json({ error: "Pick a day and a time in the coming two weeks" }, { status: 400 })
   if (window.endMs < Date.now()) return NextResponse.json({ error: "That shift is already over" }, { status: 400 })
   // What the shift stewards: the bookings it overlaps, else the hub itself.
-  const during = loadTabletBookings().filter((b) => b.startMs < window.endMs && b.endMs > window.startMs)
+  const during = loadTabletBookings(window.startMs, window.endMs).filter((b) => b.startMs < window.endMs && b.endMs > window.startMs)
   const title = during.length ? during.map((b) => b.title).join(" · ").slice(0, 120) : "Stewarding the hub"
 
   let person: Person | null = null

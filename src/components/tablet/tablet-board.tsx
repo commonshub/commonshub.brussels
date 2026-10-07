@@ -16,10 +16,16 @@ import {
   LATEST_START,
   minutesOf,
   SHIFT_HOURS,
+  joinSlot,
   shiftFor,
   START_STEP,
+  uncovered,
+  WEEKS_AHEAD,
+  WEEKS_BACK,
   type TabletBooking,
   type TabletDay,
+  type TabletPerson,
+  type TabletShift,
 } from "@/lib/tablet";
 
 /**
@@ -37,7 +43,8 @@ import {
 /** Sizes in a unit that is 1% of a portrait tablet's width (and shrinks on a wider window). */
 const u = (n: number) => `calc(var(--u) * ${n})`;
 const TZ = "Europe/Brussels";
-const IDLE_MS = 60_000;
+/** Three minutes without a touch: back to /tablet (this week, no sheet open), freshly loaded. */
+const IDLE_MS = 180_000;
 
 const time = (ms: number) =>
   new Date(ms).toLocaleTimeString("en-GB", {
@@ -139,7 +146,12 @@ interface Slot {
   day: string;
   start: number;
   hours: number;
+  /** The booking it stewards. */
   context?: string;
+  /** The sheet's title, when it is not about a booking ("Join Leen"). */
+  title?: string;
+  /** Opened to change the time: the time picker comes first. */
+  editTime?: boolean;
 }
 
 function SignupSheet({
@@ -167,7 +179,10 @@ function SignupSheet({
   }>({ kind: "idle" });
   const input = useRef<HTMLInputElement>(null);
 
-  useEffect(() => input.current?.focus(), []);
+  // Opened to change the time: no keyboard over the time picker.
+  useEffect(() => {
+    if (!slot.editTime) input.current?.focus();
+  }, [slot.editTime]);
 
   // Autocomplete over the community's Discord members.
   useEffect(() => {
@@ -250,7 +265,7 @@ function SignupSheet({
               className="font-bold leading-tight"
               style={{ fontSize: u(4.6) }}
             >
-              {slot.context ? `Steward “${slot.context}”` : "Steward the hub"}
+              {slot.title ?? (slot.context ? `Steward “${slot.context}”` : "Steward the hub")}
             </h2>
           </div>
           <button
@@ -439,7 +454,10 @@ function SignupSheet({
               )}
             </section>
 
-            <section>
+            <section
+              className={slot.editTime ? "rounded-[2vw] ring-2 ring-primary" : ""}
+              style={slot.editTime ? { padding: u(2) } : undefined}
+            >
               <div
                 className="font-semibold"
                 style={{ fontSize: u(3.2), marginBottom: u(1.5) }}
@@ -557,21 +575,249 @@ function Ruler() {
   );
 }
 
+/** A sheet from the bottom of the screen; a tap outside closes it. */
+function Sheet({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40" onClick={onClose}>
+      <div
+        className="flex max-h-[92%] flex-col overflow-y-auto rounded-t-[3vw] bg-background"
+        style={{ padding: u(5), gap: u(3.5) }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SheetHeader({ kicker, title, onClose }: { kicker: string; title: string; onClose: () => void }) {
+  return (
+    <div className="flex items-start justify-between" style={{ gap: u(3) }}>
+      <div className="min-w-0">
+        <div className="font-semibold text-primary" style={{ fontSize: u(2.6) }}>
+          {kicker}
+        </div>
+        <h2 className="font-bold leading-tight" style={{ fontSize: u(4.6) }}>
+          {title}
+        </h2>
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="shrink-0 rounded-full border border-border"
+        style={{ padding: `${u(1.2)} ${u(2.6)}`, fontSize: u(2.8) }}
+      >
+        Close
+      </button>
+    </div>
+  );
+}
+
+/** "today", "tomorrow", "on Friday", "on Friday 23 Oct" (beyond a week). */
+function onDay(ms: number): string {
+  const label = dayLabel(ms, Date.now());
+  if (label === "Today" || label === "Tomorrow") return label.toLowerCase();
+  return Math.abs(ms - Date.now()) < 6 * 86_400_000 ? `on ${label}` : `on ${label} ${dateLabel(ms)}`;
+}
+const dayTitle = (day: string) => `${dayLabel(noon(day), Date.now())} ${dateLabel(noon(day))}`;
+const joined = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: TZ }) : null;
+
+/** Someone on shift, in big: who they are, and an invitation to join them. */
+function PersonSheet({
+  person,
+  shift,
+  day,
+  available,
+  onClose,
+  onPick,
+}: {
+  person: TabletPerson;
+  shift: TabletShift;
+  day: string;
+  available: boolean;
+  onClose: () => void;
+  onPick: (slot: Slot) => void;
+}) {
+  const { start, hours } = joinSlot(shift);
+  const others = shift.people.filter((p) => p.id !== person.id);
+  const since = joined(person.joinedAt);
+  return (
+    <Sheet onClose={onClose}>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-border"
+          style={{ padding: `${u(1.2)} ${u(2.6)}`, fontSize: u(2.8) }}
+        >
+          Close
+        </button>
+      </div>
+      <div className="flex flex-col items-center text-center" style={{ gap: u(2) }}>
+        <Avatar src={person.avatar} name={person.name} size={30} />
+        <div className="font-bold leading-tight" style={{ fontSize: u(6.5) }}>
+          {person.name}
+        </div>
+        {(since || person.contributions) && (
+          <div className="text-muted-foreground" style={{ fontSize: u(2.8) }}>
+            {since ? `In the community since ${since}` : ""}
+            {since && person.contributions ? " · " : ""}
+            {person.contributions ? `${person.contributions} contributions shared` : ""}
+          </div>
+        )}
+        <p style={{ fontSize: u(3.4), marginTop: u(1) }}>
+          {shift.endMs < Date.now() ? "Was on shift" : "On shift"} {onDay(shift.startMs)}{" "}
+          <span className="font-bold">
+            {time(shift.startMs)}–{time(shift.endMs)}
+          </span>
+          {others.length > 0 && <> with {others.map((p) => p.name).join(", ")}</>}
+        </p>
+      </div>
+      {available ? (
+        <div className="flex flex-col" style={{ gap: u(1.5) }}>
+          <button
+            type="button"
+            onClick={() => onPick({ day, start, hours, title: `Join ${person.name}` })}
+            className="rounded-full bg-primary font-bold text-primary-foreground"
+            style={{ padding: `${u(2.6)} ${u(4)}`, fontSize: u(3.8) }}
+          >
+            Join {person.name} · {hm(start)}–{hm(start + hours * 60)}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPick({ day, start, hours, title: `Join ${person.name}`, editTime: true })}
+            className="rounded-full border border-border font-semibold"
+            style={{ padding: `${u(2.2)} ${u(4)}`, fontSize: u(3.2) }}
+          >
+            Come at another time
+          </button>
+        </div>
+      ) : shift.endMs > Date.now() ? (
+        <p className="text-center text-muted-foreground" style={{ fontSize: u(2.8) }}>
+          Want to join? Use /shifts on our Discord.
+        </p>
+      ) : null}
+    </Sheet>
+  );
+}
+
+/** A booking or event: when, where, what it is, who is on shift then, and a shift to steward it. */
+function EventSheet({
+  booking,
+  day,
+  shifts,
+  available,
+  onClose,
+  onPick,
+  onPerson,
+}: {
+  booking: TabletBooking;
+  day: string;
+  shifts: TabletShift[];
+  available: boolean;
+  onClose: () => void;
+  onPick: (slot: Slot) => void;
+  onPerson: (person: TabletPerson, shift: TabletShift) => void;
+}) {
+  const during = shifts.filter((s) => s.startMs < booking.endMs && s.endMs > booking.startMs);
+  const gap = uncovered(booking, shifts);
+  const { start, hours } = shiftFor(gap ?? booking);
+  return (
+    <Sheet onClose={onClose}>
+      <SheetHeader kicker={dayTitle(day)} title={booking.title} onClose={onClose} />
+      <div style={{ fontSize: u(3.4) }}>
+        <span className="font-bold">
+          {time(booking.startMs)}–{time(booking.endMs)}
+        </span>
+        {booking.rooms.length > 0 && <span className="text-muted-foreground"> · {booking.rooms.join(", ")}</span>}
+      </div>
+      {booking.description && (
+        <p className="whitespace-pre-line text-muted-foreground" style={{ fontSize: u(2.9), lineHeight: 1.45 }}>
+          {booking.description}
+        </p>
+      )}
+      <div>
+        <div className="font-semibold" style={{ fontSize: u(3), marginBottom: u(1.5) }}>
+          {!during.length
+            ? "Nobody is on shift for it yet"
+            : gap
+              ? `On shift for part of it; nobody from ${time(gap.startMs)}`
+              : "On shift"}
+        </div>
+        {during.length > 0 && (
+          <div className="flex flex-wrap" style={{ gap: u(1.5) }}>
+            {during.flatMap((s, i) =>
+              s.people.map((p) => <PersonChip key={`${i}-${p.id}`} person={p} shift={s} onClick={() => onPerson(p, s)} large />),
+            )}
+          </div>
+        )}
+      </div>
+      {available ? (
+        <button
+          type="button"
+          onClick={() => onPick({ day, start, hours, context: booking.title })}
+          className={`rounded-full font-bold ${gap ? "bg-primary text-primary-foreground" : "border border-border"}`}
+          style={{ padding: `${u(2.6)} ${u(4)}`, fontSize: u(3.6) }}
+        >
+          Steward it · {hm(start)}–{hm(start + hours * 60)}
+        </button>
+      ) : booking.endMs > Date.now() ? (
+        <p className="text-muted-foreground" style={{ fontSize: u(2.8) }}>
+          Want to steward it? Use /shifts on our Discord.
+        </p>
+      ) : null}
+    </Sheet>
+  );
+}
+
+/** Someone on shift: avatar, name, and their hours. */
+function PersonChip({
+  person,
+  shift,
+  onClick,
+  large = false,
+}: {
+  person: TabletPerson;
+  shift: TabletShift;
+  onClick: () => void;
+  large?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => (e.stopPropagation(), onClick())}
+      className="flex items-center rounded-full border border-emerald-600/50 bg-emerald-600/10"
+      style={{ gap: u(1.2), padding: `${u(0.5)} ${u(1.8)} ${u(0.5)} ${u(0.5)}`, fontSize: u(large ? 2.8 : 2.2) }}
+    >
+      <Avatar src={person.avatar} name={person.name} size={large ? 5.5 : 4} />
+      <span className="font-semibold">{person.name}</span>
+      <span className="tabular-nums text-muted-foreground">
+        {time(shift.startMs)}–{time(shift.endMs)}
+      </span>
+    </button>
+  );
+}
+
 /**
  * One day: a track from 8:00 to 22:00 with its bookings (orange while nobody
- * is on shift then) and its shifts (green, with names), and below it the
- * bookings spelled out, since a one-hour block is too narrow to read.
+ * is on shift then) and its shifts (green), and below it who is on shift and
+ * the bookings spelled out, since a one-hour block is too narrow to read.
  */
 function DayRow({
   day,
   now,
   available,
   onPick,
+  onPerson,
+  onBooking,
 }: {
   day: TabletDay;
   now: number;
   available: boolean;
   onPick: (slot: Slot) => void;
+  onPerson: (person: TabletPerson, shift: TabletShift) => void;
+  onBooking: (booking: TabletBooking) => void;
 }) {
   const ms = noon(day.day);
   const isToday = dayKey(now) === day.day;
@@ -582,12 +828,6 @@ function DayRow({
     const minutes = DAY_FROM + ((e.clientX - box.left) / box.width) * (DAY_TO - DAY_FROM);
     const start = Math.min(LATEST_START, Math.max(EARLIEST_START, Math.floor(minutes / START_STEP) * START_STEP));
     onPick({ day: day.day, start, hours: DEFAULT_SHIFT_HOURS });
-  };
-  const pickBooking = (b: TabletBooking) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!available) return;
-    const { start, hours } = shiftFor(b);
-    onPick({ day: day.day, start, hours, context: b.title });
   };
   const span = (startMs: number, endMs: number) => {
     const left = at(minutesOf(startMs));
@@ -623,40 +863,49 @@ function DayRow({
               key={b.id}
               type="button"
               aria-label={b.title}
-              onClick={pickBooking(b)}
+              onClick={(e) => (e.stopPropagation(), onBooking(b))}
               className={`absolute rounded-[0.8vw] ${covered(b, day.shifts) ? "bg-foreground/25" : "bg-primary"}`}
               style={{ ...span(b.startMs, b.endMs), top: u(0.8), height: u(2.8) }}
             />
           ))}
           {day.shifts.map((sh, i) => (
-            <span
+            <button
               key={i}
-              className="absolute overflow-hidden rounded-[0.8vw] bg-emerald-600 text-white"
-              style={{ ...span(sh.startMs, sh.endMs), bottom: u(0.8), height: u(3.4), padding: `0 ${u(0.8)}`, fontSize: u(2), lineHeight: u(3.4) }}
+              type="button"
+              aria-label={sh.people.map((p) => p.name).join(", ")}
+              onClick={(e) => (e.stopPropagation(), onPerson(sh.people[0], sh))}
+              className="absolute flex items-center overflow-hidden rounded-[0.8vw] bg-emerald-600"
+              style={{ ...span(sh.startMs, sh.endMs), bottom: u(0.8), height: u(3.4), padding: `0 ${u(0.4)}`, gap: u(0.4) }}
             >
-              <span className="block truncate font-semibold">{sh.people.map((p) => p.name).join(", ")}</span>
-            </span>
+              {sh.people.map((p) => (
+                <Avatar key={p.id} src={p.avatar} name={p.name} size={2.6} />
+              ))}
+            </button>
           ))}
         </div>
-        {day.bookings.length > 0 && (
+        {(day.shifts.length > 0 || day.bookings.length > 0) && (
           <div className="flex flex-wrap" style={{ gap: u(1) }}>
+            {day.shifts.flatMap((sh, i) =>
+              sh.people.map((p) => <PersonChip key={`${i}-${p.id}`} person={p} shift={sh} onClick={() => onPerson(p, sh)} />),
+            )}
             {day.bookings.map((b) => {
               const needs = !covered(b, day.shifts);
               return (
                 <button
                   key={b.id}
                   type="button"
-                  onClick={pickBooking(b)}
-                  className={`flex min-w-0 max-w-full items-baseline rounded-full border text-left ${needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"}`}
+                  onClick={() => onBooking(b)}
+                  className={`flex min-w-0 max-w-full items-baseline rounded-[2vw] border text-left ${needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"}`}
                   style={{ gap: u(1), padding: `${u(0.6)} ${u(1.8)}`, fontSize: u(2.2) }}
                 >
                   <span className="shrink-0 font-semibold tabular-nums">
-                    {needs ? "⚠ " : "✓ "}
                     {time(b.startMs)}–{time(b.endMs)}
                   </span>
-                  <span className="truncate">
+                  <span className="min-w-0">
                     {b.title}
-                    {b.room && !b.title.startsWith(b.room) ? ` · ${b.room}` : ""}
+                    {b.rooms.length > 0 && !(b.rooms.length === 1 && b.title.startsWith(b.rooms[0])) && (
+                      <span className="text-muted-foreground"> · {b.rooms.join(", ")}</span>
+                    )}
                   </span>
                 </button>
               );
@@ -668,29 +917,74 @@ function DayRow({
   );
 }
 
+/** "This week", "Next week", "In 3 weeks", "Last week", "2 weeks ago". */
+const weekName = (week: number) =>
+  week === 0 ? "This week" : week === 1 ? "Next week" : week === -1 ? "Last week" : week > 0 ? `In ${week} weeks` : `${-week} weeks ago`;
+
+/** Back and forth a week at a time. */
+function WeekNav({ week, days }: { week: number; days: TabletDay[] }) {
+  const router = useRouter();
+  const first = noon(days[0].day);
+  const last = noon(days[days.length - 1].day);
+  const go = (w: number) => router.push(w ? `/tablet?week=${w}` : "/tablet");
+  const button = (w: number, label: string, enabled: boolean) => (
+    <button
+      type="button"
+      disabled={!enabled}
+      onClick={() => go(w)}
+      className="shrink-0 rounded-full border border-border bg-card font-semibold disabled:opacity-30"
+      style={{ padding: `${u(1.4)} ${u(3)}`, fontSize: u(2.8) }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex shrink-0 items-center justify-between" style={{ gap: u(2) }}>
+      {button(week - 1, "‹ Previous", week > -WEEKS_BACK)}
+      <div className="min-w-0 text-center">
+        <div className="font-bold" style={{ fontSize: u(3.4) }}>
+          {weekName(week)}
+        </div>
+        <div className="text-muted-foreground" style={{ fontSize: u(2.4) }}>
+          {dateLabel(first)} – {dateLabel(last)}
+        </div>
+      </div>
+      {button(week + 1, "Next ›", week < WEEKS_AHEAD)}
+    </div>
+  );
+}
+
 export function TabletBoard({
   days,
+  week,
   shiftsAvailable,
   rewardAmountPerHour,
 }: {
   days: TabletDay[];
+  week: number;
   shiftsAvailable: boolean;
   rewardAmountPerHour: number;
 }) {
   const router = useRouter();
   const now = useNow(0, 15_000);
   const [open, setOpen] = useState<Slot | null>(null);
+  const [detail, setDetail] = useState<
+    | { kind: "person"; person: TabletPerson; shift: TabletShift; day: TabletDay }
+    | { kind: "event"; booking: TabletBooking; day: TabletDay }
+    | null
+  >(null);
   const lastTouch = useRef(Date.now());
 
-  const close = useCallback(() => setOpen(null), []);
+  const close = useCallback(() => (setOpen(null), setDetail(null)), []);
+  const pick = useCallback((slot: Slot) => (setDetail(null), setOpen(slot)), []);
 
-  // A minute without a touch: close the sheet for the next person.
+  // Three minutes without a touch: reload /tablet, so the next person finds this week, no sheet open, and fresh sign-ups.
   useEffect(() => {
     const touch = () => (lastTouch.current = Date.now());
     window.addEventListener("pointerdown", touch);
     window.addEventListener("keydown", touch);
     const id = setInterval(() => {
-      if (Date.now() - lastTouch.current > IDLE_MS) setOpen(null);
+      if (Date.now() - lastTouch.current > IDLE_MS) window.location.assign("/tablet");
     }, 5_000);
     return () => {
       window.removeEventListener("pointerdown", touch);
@@ -699,15 +993,7 @@ export function TabletBoard({
     };
   }, []);
 
-  // Fresh events and sign-ups every two minutes, but never under someone's fingers.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!open && Date.now() - lastTouch.current > 30_000) router.refresh();
-    }, 120_000);
-    return () => clearInterval(id);
-  }, [open, router]);
-
-
+  const today = dayKey(now);
   return (
     <div
       className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground"
@@ -772,9 +1058,9 @@ export function TabletBoard({
           style={{ fontSize: u(3), marginTop: u(2), maxWidth: u(80) }}
         >
           The hub needs someone whenever it’s open: welcome people, show them
-          around, make them feel at home. Tap a time to sign up. Rooms booked
-          for euros and events need a steward most: ⚠ means nobody is on shift
-          for them yet. {tokens(rewardAmountPerHour)} an
+          around, make them feel at home. Tap a time to sign up, or tap
+          someone to join them. Rooms booked for euros and events need a steward
+          most: they show in orange while nobody is on shift for them. {tokens(rewardAmountPerHour)} an
           hour.
         </p>
         {!shiftsAvailable && (
@@ -788,16 +1074,46 @@ export function TabletBoard({
         )}
       </div>
 
+      <WeekNav week={week} days={days} />
       <Ruler />
       <ul
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         style={{ gap: u(1.6), paddingBottom: u(5) }}
       >
         {days.map((d) => (
-          <DayRow key={d.day} day={d} now={now} available={shiftsAvailable} onPick={setOpen} />
+          <DayRow
+            key={d.day}
+            day={d}
+            now={now}
+            available={shiftsAvailable && d.day >= today}
+            onPick={pick}
+            onPerson={(person, shift) => setDetail({ kind: "person", person, shift, day: d })}
+            onBooking={(booking) => setDetail({ kind: "event", booking, day: d })}
+          />
         ))}
       </ul>
 
+      {detail?.kind === "person" && (
+        <PersonSheet
+          person={detail.person}
+          shift={detail.shift}
+          day={detail.day.day}
+          available={shiftsAvailable && detail.shift.endMs > now}
+          onClose={close}
+          onPick={pick}
+        />
+      )}
+      {detail?.kind === "event" && (
+        <EventSheet
+          booking={detail.booking}
+          day={detail.day.day}
+          shifts={detail.day.shifts}
+          available={shiftsAvailable && detail.booking.endMs > now}
+          onClose={close}
+          onPick={pick}
+          onPerson={(person, shift) => setDetail({ kind: "person", person, shift, day: detail.day })}
+        />
+      )}
       {open && (
         <SignupSheet
           key={`${open.day}-${open.start}`}
