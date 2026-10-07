@@ -51,13 +51,14 @@ export async function loadStripeThanks(sinceSec: number): Promise<StripeThanks[]
   if (!secretKey) return null
   if (cache && cache.since <= sinceSec && Date.now() - cache.at < TTL_MS) return cache.list
   try {
-    const sessions = await new Stripe(secretKey).checkout.sessions.list({ created: { gte: sinceSec }, status: "complete", limit: 100 })
+    const sessions = await new Stripe(secretKey).checkout.sessions.list({ created: { gte: sinceSec }, status: "complete", limit: 100, expand: ["data.payment_intent"] })
     const list = sessions.data
       .filter((s) => s.payment_status === "paid")
       .map((s) => {
         const choice = s.custom_fields?.find((f) => f.key === "thanks")?.dropdown?.value
-        // The fridge crate asks for a name of its own: given, it is what they want shown.
-        const name = s.metadata?.name?.trim() || thanksName(choice, s.customer_details?.name)
+        // A fridge donor chooses after paying (fridge-thanks): kept on the payment, it is what they want shown.
+        const after = typeof s.payment_intent === "object" ? s.payment_intent?.metadata : undefined
+        const name = after?.thanks ? after.name?.trim() || null : s.metadata?.name?.trim() || thanksName(choice, s.customer_details?.name)
         return { created: s.created, amount: s.amount_total ?? 0, name }
       })
     cache = { at: Date.now(), since: sinceSec, list }

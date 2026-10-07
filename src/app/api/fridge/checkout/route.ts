@@ -2,9 +2,8 @@ import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
 import settings from "@/settings/settings.json"
-import { THANKS_FIELD } from "@/lib/donor-thanks"
 
-import { FRIDGE, loadLatestDelivery, orderSummary, publicName } from "@/lib/fridge"
+import { FRIDGE, loadLatestDelivery, orderSummary } from "@/lib/fridge"
 
 // Reads the dataset volume: never prerender.
 export const dynamic = "force-dynamic"
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) return NextResponse.json({ error: "Online payment is not configured" }, { status: 503 })
 
-  let body: { items?: Array<{ id?: unknown; quantity?: unknown }>; crate?: unknown; amount?: unknown; name?: unknown }
+  let body: { items?: Array<{ id?: unknown; quantity?: unknown }>; crate?: unknown; amount?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -43,9 +42,8 @@ export async function POST(request: Request) {
     const drink = byId.get(body.crate)
     if (!drink) return NextResponse.json({ error: "Unknown drink" }, { status: 400 })
     if (amount < drink.crateCost) return NextResponse.json({ error: `A crate of ${drink.name} costs €${drink.crateCost.toFixed(2)}` }, { status: 400 })
-    const name = publicName(body.name)
     description = FRIDGE.crateTransferMessage
-    metadata = { kind: "fridge", crate: "yes", drink: `${drink.perCrate} × ${drink.name}`, delivery: delivery.number, ...(name ? { name } : {}) }
+    metadata = { kind: "fridge", crate: "yes", drink: `${drink.perCrate} × ${drink.name}`, delivery: delivery.number }
   } else {
     const items = (body.items ?? [])
       .map((i) => ({ drink: byId.get(String(i.id)), quantity: Math.floor(Number(i.quantity)) }))
@@ -63,11 +61,11 @@ export async function POST(request: Request) {
       // No email to type for a drink: Checkout asks for one unless it is given, so it is the hub's own
       // (receipts, if any, come to us). Only a membership needs the member's email.
       customer_email: settings.email.to,
-      custom_fields: [THANKS_FIELD],
       line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: Math.round(amount * 100), product_data: { name: "Donation to the Commons Hub fridge", description } } }],
       metadata,
       payment_intent_data: { description, metadata },
-      success_url: `${origin}/fridge?thanks=${metadata.crate ? "crate" : "1"}`,
+      // How to be thanked (and the newsletter) is asked after paying, on the thank-you page.
+      success_url: `${origin}/fridge/thanks?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/fridge`,
     })
     return NextResponse.json({ url: session.url })
