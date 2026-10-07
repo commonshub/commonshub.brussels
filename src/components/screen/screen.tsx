@@ -14,6 +14,16 @@ import { ScreenClock, ScreenRefresh, ScreenReport } from "./screen-live"
 /** `s(2)` = 2 screen units. */
 export const s = (n: number) => `calc(var(--s) * ${n})`
 
+/**
+ * The first thing a screen page runs, before React: a one-line report that
+ * the page started loading (see ScreenReport). If the TV shows nothing, the
+ * log says whether the page even began.
+ */
+const BEACON = `try{navigator.sendBeacon("/api/screen-log",JSON.stringify({event:"html",path:location.pathname+location.search,frame:window.parent!==window?"slide":"top"}))}catch(e){}`
+export function ScreenBeacon() {
+  return <script dangerouslySetInnerHTML={{ __html: BEACON }} />
+}
+
 export const ACCENT = "#FF4C02"
 export const MUTED = "rgba(255, 255, 255, 0.68)"
 
@@ -36,6 +46,7 @@ export function ScreenShell({
       style={{ ["--s" as string]: "min(1vw, calc(100vh / 56.25))", padding: `${s(2)} ${s(2.6)}`, gap: s(1.6) } as React.CSSProperties}
     >
       <style>{"html, body { overflow: hidden; background: #111; }"}</style>
+      <ScreenBeacon />
       <ScreenRefresh minutes={refreshMinutes} />
       <ScreenReport />
       <header className="flex shrink-0 items-center" style={{ gap: s(1.6) }}>

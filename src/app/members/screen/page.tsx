@@ -3,7 +3,8 @@ import QRCode from "qrcode";
 import type React from "react";
 
 import { PosterLogo } from "@/components/poster/poster";
-import { ScreenClock, ScreenRefresh } from "@/components/screen/screen-live";
+import { ScreenBeacon } from "@/components/screen/screen";
+import { ScreenClock, ScreenRefresh, ScreenReport } from "@/components/screen/screen-live";
 import { ScreenQr } from "@/components/screen/screen-qr";
 import { CloudImage } from "@/components/screen/cloud-image";
 import { loadMembersScreen, membersCloud } from "@/lib/members-screen";
@@ -68,17 +69,20 @@ export default async function MembersScreenPage() {
     >
       <style>{`
         html, body { overflow: hidden; background: #111; }
-        @keyframes cloud-float { 0%, 100% { transform: translate(-50%, -50%) translateY(0); } 50% { transform: translate(-50%, -50%) translateY(calc(var(--s) * -0.45)); } }
-        .cloud-item { position: absolute; transform: translate(-50%, -50%); animation: cloud-float 7s ease-in-out infinite; }
+        /* Only transforms and opacity move, and nothing floats on its own: animated filters on ~70 items
+           (and a blurred glow) were too much for the Samsung TV's browser, which then crashed. */
+        .cloud-item { position: absolute; transform: translate(-50%, -50%); }
         @keyframes heart-beat { 0% { transform: scale(1); } 6% { transform: scale(1.08); } 12% { transform: scale(0.99); } 18% { transform: scale(1.05); } 28%, 100% { transform: scale(1); } }
         .heart { animation: heart-beat ${BEAT}s ease-in-out infinite; }
         @keyframes heart-ripple { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0; } 3% { opacity: 0.7; } ${pct(WAVE_TRAVEL * 0.8)} { opacity: 0.3; } ${pct(WAVE_TRAVEL)} { transform: translate(-50%, -50%) scale(${RIPPLE_SCALE}); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(${RIPPLE_SCALE}); opacity: 0; } }
         .ripple { position: absolute; left: 50%; top: 50%; width: calc(var(--s) * ${LOGO}); height: calc(var(--s) * ${LOGO}); border-radius: 9999px; border: calc(var(--s) * 0.25) solid rgba(255, 76, 2, 0.7); animation: heart-ripple ${BEAT}s linear ${WAVE_START}s infinite both; pointer-events: none; }
-        @keyframes cloud-pulse { 0% { transform: scale(1); filter: brightness(1); } 5% { transform: scale(1.15); filter: brightness(1.3); } 20%, 100% { transform: scale(1); filter: brightness(1); } }
+        @keyframes cloud-pulse { 0% { transform: scale(1); } 5% { transform: scale(1.15); } 20%, 100% { transform: scale(1); } }
         .cloud-pulse { width: 100%; height: 100%; animation: cloud-pulse ${BEAT}s ease-out infinite; }
         @media (prefers-reduced-motion: reduce) { .cloud-item, .heart, .ripple, .cloud-pulse { animation: none; } .ripple { display: none; } }
       `}</style>
+      <ScreenBeacon />
       <ScreenRefresh minutes={10} />
+      <ScreenReport />
 
       <div className="ripple" aria-hidden="true" />
 
@@ -95,7 +99,6 @@ export default async function MembersScreenPage() {
               top: `${y}%`,
               width: s(size),
               height: s(size),
-              animationDelay: `${-((i * 0.83) % 7)}s`,
             }}
             title={item.name}
           >
@@ -133,7 +136,7 @@ export default async function MembersScreenPage() {
           style={{
             width: s(LOGO),
             height: s(LOGO),
-            filter: "drop-shadow(0 0 3vw rgba(255,76,2,0.35))",
+            background: "radial-gradient(closest-side, rgba(255,76,2,0.3), transparent)",
           }}
         >
           <PosterLogo className="block h-full w-full" />

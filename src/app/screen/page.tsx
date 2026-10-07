@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { ScreenRotator } from "@/components/screen/screen-rotator"
+import { ScreenBeacon } from "@/components/screen/screen"
 import { ScreenRefresh, ScreenReport } from "@/components/screen/screen-live"
 import { screenSlides } from "@/lib/screen-rotation"
 
@@ -25,6 +26,7 @@ export default async function ScreenPage({ searchParams }: { searchParams: Promi
   const seconds = Math.min(600, Math.max(5, Number(every) || 30))
   return (
     <>
+      <ScreenBeacon />
       <ScreenRefresh minutes={10} />
       <ScreenReport />
       <ScreenRotator slides={screenSlides(Date.now(), seconds)} />
