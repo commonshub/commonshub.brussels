@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
+import settings from "@/settings/settings.json"
 import { THANKS_FIELD } from "@/lib/donor-thanks"
 
 import { FRIDGE, loadLatestDelivery, orderSummary, publicName } from "@/lib/fridge"
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
     const session = await new Stripe(secretKey).checkout.sessions.create({
       mode: "payment",
       submit_type: "donate",
+      // No email to type for a drink: Checkout asks for one unless it is given, so it is the hub's own
+      // (receipts, if any, come to us). Only a membership needs the member's email.
+      customer_email: settings.email.to,
       custom_fields: [THANKS_FIELD],
       line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: Math.round(amount * 100), product_data: { name: "Donation to the Commons Hub fridge", description } } }],
       metadata,
