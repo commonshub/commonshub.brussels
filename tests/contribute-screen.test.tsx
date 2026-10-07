@@ -343,9 +343,11 @@ describe("the jars", () => {
         tx("booking", 4, 596.88, "rental", "+++000/0045/48892+++"),
         tx("furniture", 3, -441.65, "furniture", "CHB-S/2026/10/0001 - VENE1/2026/00108"),
         tx("unknown", 2, 105.88, undefined),
+        tx("unc", 2, -20, "uncategorized", "Bike repair"),
         tx("contractor", 1, -500, "consulting", "Website work"),
+        tx("oth", 0, 30, "other"),
       ],
-      new Map([["rent", "Rent"], ["donation", "Donation"], ["furniture", "Furniture and rented equipment"]]),
+      new Map([["rent", "Rent"], ["donation", "Donation"], ["furniture", "Furniture and rented equipment"], ["other", "Other"]]),
       [{ at: 5000, amount: 2, via: "bank transfer", name: null }],
       10,
     )
@@ -355,7 +357,9 @@ describe("the jars", () => {
       ["booking", 596.88, "Booking", ""],
       ["furniture", -441.65, "Furniture", ""],
       ["unknown", 105.88, "Uncategorised", ""],
+      ["unc", -20, "Uncategorised", "Bike repair"],
       ["contractor", -500, "Contractor", "Website work"],
+      ["oth", 30, "Other", ""],
     ])
     expect(lines[1].donation).toEqual({ via: "bank transfer", name: null })
 
