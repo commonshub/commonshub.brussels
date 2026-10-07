@@ -1,19 +1,18 @@
 import type React from "react"
 
 import { COST_COLORS_DARK, slotsFor } from "@/components/contribute/fixed-costs-chart"
-import type { RecentContributor } from "@/lib/contribute-screen"
-import type { CostLayer, HourLayer, Income, JarsData, TxLine } from "@/lib/contribute-jars"
+import type { CostLayer, HourLayer, Income, JarsData, TokenMove, TxLine } from "@/lib/contribute-jars"
 import { RelativeTime } from "./relative-time"
 import { ACCENT, MUTED, s } from "./screen"
 import { ScreenQr } from "./screen-qr"
 
 /**
- * /contribute/screen: two jars keep the hub open. Money fills a jar made of
- * the month's costs (cheapest at the bottom, rent on top); time fills the
- * other with the hours given, by kind. In between, the hub's latest money in
- * and out (rent paid as much as a membership), each tagged with its category,
- * and the latest tokens issued: the amount first, on one line, then what
- * for, then when.
+ * /contribute/screen: two jars keep the hub open, side by side in the middle.
+ * Money fills a jar made of the month's costs (cheapest at the bottom, rent on
+ * top); time fills the other with the hours given, by kind; a key under each.
+ * On the left, the hub's latest money in and out (rent paid as much as a
+ * membership), each tagged with its category; on the right, tokens given and
+ * spent. Each line: the amount, what it was, when.
  * The newest of each hangs above its jar and drops in; the liquid rises when
  * the slide comes up. Nothing loops: the TV's browser is an old Chromium.
  */
@@ -75,37 +74,26 @@ function Glass({ id, children }: { id: string; children: React.ReactNode }) {
 /** The liquid rises from the bottom when the slide shows. */
 const rise: React.CSSProperties = { transformBox: "view-box", transformOrigin: `0px ${BOTTOM}px`, animation: "jar-rise 1.8s cubic-bezier(.3,.7,.2,1) both" }
 
-/**
- * Where each layer's label goes, from the bottom up: as close to its layer
- * as it can, never on top of the label below. A label is 22 units above its
- * baseline and `below` units under it (more when it has a second line).
- */
-function spread(labels: Array<{ center: number; below: number }>, bottom = 660, gap = 10): number[] {
-  const out: number[] = []
-  let top = bottom
-  for (const { center, below } of labels) {
-    const y = Math.min(center, top - gap - below)
-    out.push(y)
-    top = y - 22
-  }
-  return out
-}
-
 /** "Property tax (regional)" reads "Property tax" beside a jar. */
 const short = (label: string) => label.replace(/\s*\([^)]*\)\s*$/, "")
 
-function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostLayer[]; total: number; covered: number; drop: string | null; title: string; note: string }) {
-  // Each cost its own colour, the same as on /contribute's breakdown.
+/** Each cost its own colour, the same as on /contribute's breakdown. */
+function costColor(layers: CostLayer[]) {
   const slots = slotsFor(layers)
-  const color = (i: number) => COST_COLORS_DARK[(slots.get(layers[i].slug) ?? 1) - 1] ?? "#888"
+  return (i: number) => COST_COLORS_DARK[(slots.get(layers[i].slug) ?? 1) - 1] ?? "#888"
+}
+
+/** "€6.5k", "€640", "€55": a cost at a glance. */
+const roughly = (n: number) => (n >= 1000 ? `€${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : n >= 100 ? `€${Math.round(n / 10) * 10}` : `€${Math.round(n)}`)
+
+function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostLayer[]; total: number; covered: number; drop: string | null; title: string; note: string }) {
+  const color = costColor(layers)
   const level = yAt(total > 0 ? covered / total : 0)
   const full = covered >= total && total > 0
   const liquid = BOTTOM - level
-  const partly = (l: CostLayer) => l.paid > 0 && l.paid < l.amount
-  const labels = spread(layers.map((l) => ({ center: (yAt(l.from) + yAt(l.to)) / 2 + 8, below: partly(l) ? 40 : 6 })))
   const topPaid = layers.reduce((top, l, i) => (l.paid > 0 ? i : top), -1)
   return (
-    <svg viewBox="-10 -110 720 860" className="block h-full w-full overflow-visible" preserveAspectRatio="xMinYMid meet" aria-hidden>
+    <svg viewBox="-10 -110 400 860" className="block h-full w-full overflow-visible" preserveAspectRatio="xMidYMid meet" aria-hidden>
       <Drop text={drop} color="#a33200" tilt={-3} />
       <Glass id="money-jar">
         {/* what is still to pay: the ghost of each layer, up to a dashed line at the month's total */}
@@ -151,29 +139,7 @@ function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostL
           </text>
         )}
       </Glass>
-      <g fontSize="23" fill="#fff" style={{ animation: "jar-fade 800ms 1.2s both" }}>
-        {layers.map((l, i) => {
-          const center = (yAt(l.from) + yAt(l.to)) / 2
-          const y = labels[i]
-          const paid = l.paid >= l.amount
-          return (
-            <g key={`label-${l.slug}`}>
-              <path d={`M384 ${center} H402 L420 ${y - 8} H428`} stroke={color(i)} strokeOpacity="0.8" strokeWidth="2" fill="none" />
-              <rect x="432" y={y - 18} width="20" height="20" rx="4" fill={color(i)} />
-              <text x="462" y={y} fontWeight={paid ? 500 : 700}>
-                {paid ? "✓ " : ""}
-                {short(l.label)} <tspan fill="rgba(255,255,255,0.65)">{eur(l.amount)}</tspan>
-              </text>
-              {partly(l) && (
-                <text x="462" y={y + 30} fontSize="20" fill="rgba(255,255,255,0.65)">
-                  {eur(l.paid)} covered so far
-                </text>
-              )}
-            </g>
-          )
-        })}
-      </g>
-      <Caption title={title} note={note} align="start" />
+      <Caption title={title} note={note} />
     </svg>
   )
 }
@@ -316,27 +282,85 @@ function MoneyLine({ tx }: { tx: TxLine }) {
   )
 }
 
-/** Tokens given for time, on one line: how many, to whom, for what, and when. */
-function TimeLine({ award }: { award: RecentContributor }) {
+/** A token move, on one line: given (to whom, for what) or spent (on what), and when. */
+function TokenLine({ move }: { move: TokenMove }) {
   return (
     <li className="flex items-baseline" style={{ gap: s(1.1), padding: `${s(0.5)} 0`, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-      <span className="shrink-0 whitespace-nowrap tabular-nums" style={{ width: s(8), fontSize: s(1.45), fontWeight: 700, lineHeight: 1.2, color: TIME }}>
-        {tokens(award.tokens ?? 0)}
+      <span className="shrink-0 whitespace-nowrap tabular-nums" style={{ width: s(3.4), fontSize: s(1.45), fontWeight: 700, lineHeight: 1.2, color: move.kind === "given" ? TIME : OUT }}>
+        {move.amount > 0 ? "+" : "−"}
+        {Math.abs(move.amount).toLocaleString("en-GB")}
       </span>
       <div className="min-w-0 flex-1 truncate" style={{ fontSize: s(1.3), lineHeight: 1.25 }}>
-        to{" "}
-        {award.names.slice(0, 3).map((n) => (
-          <span key={n}>
-            <Chip>{n}</Chip>{" "}
-          </span>
-        ))}
-        {award.names.length > 3 && <Chip>+{award.names.length - 3}</Chip>}
-        {award.reason && <>for {lowerFirst(award.reason)}</>}
+        {move.kind === "given" ? (
+          <>
+            to{" "}
+            {move.names.slice(0, 3).map((n) => (
+              <span key={n}>
+                <Chip>{n}</Chip>{" "}
+              </span>
+            ))}
+            {move.names.length > 3 && <Chip>+{move.names.length - 3}</Chip>}
+            {move.reason && <>for {lowerFirst(move.reason)}</>}
+          </>
+        ) : (
+          <>
+            <span className="inline-block whitespace-nowrap" style={{ padding: `0 ${s(0.5)}`, borderRadius: s(0.45), border: `1px solid ${OUT}`, color: OUT, fontSize: "0.85em", fontWeight: 700, lineHeight: 1.35 }}>
+              {move.tag}
+            </span>
+            {move.note && <span style={{ color: "rgba(255,255,255,0.8)" }}> {move.note}</span>}
+          </>
+        )}
       </div>
       <span className="shrink-0 whitespace-nowrap" style={{ fontSize: s(1), color: MUTED }}>
-        <RelativeTime ms={award.at} />
+        <RelativeTime ms={move.at} />
       </span>
     </li>
+  )
+}
+
+/** The key under the money jar: each cost at a glance, then what covers them this month. */
+function MoneyKey({ layers, income }: { layers: CostLayer[]; income: Income[] }) {
+  const color = costColor(layers)
+  const rows = layers.map((l, i) => ({ l, color: color(i) })).reverse()
+  return (
+    <div style={{ fontSize: s(1.05), lineHeight: 1.5 }}>
+      {rows.map(({ l, color: c }) => (
+        <div key={l.slug} className="flex items-center" style={{ gap: s(0.5) }}>
+          <i className="inline-block shrink-0" style={{ width: s(0.7), height: s(0.7), borderRadius: s(0.15), background: c }} />
+          <span className="truncate">{short(l.label)}</span>
+          <span className="ml-auto shrink-0 tabular-nums" style={{ color: MUTED }}>
+            {roughly(l.amount)}
+          </span>
+        </div>
+      ))}
+      {income.length > 0 && (
+        <div style={{ marginTop: s(0.4), color: MUTED, fontSize: s(0.95) }}>
+          {/* Exact, so it adds up to what the jar says is covered. */}
+          Covered by {income.map((i) => `${i.label.toLowerCase()} ${eur(i.amount)}${i.invoiced ? " (invoiced)" : ""}`).join(", ")}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The key under the time jar: hours given this month, by kind. */
+function TimeKey({ hours }: { hours: HourLayer[] }) {
+  const n = hours.length
+  return (
+    <div style={{ fontSize: s(1.05), lineHeight: 1.5 }}>
+      {hours.map((h, i) => (
+        <div key={h.kind} className="flex items-center" style={{ gap: s(0.5) }}>
+          <i className="inline-block shrink-0" style={{ width: s(0.7), height: s(0.7), borderRadius: s(0.15), background: shade([61, 143, 209], [172, 218, 251], i, n) }} />
+          <span className="truncate">
+            {h.emoji} {h.label}
+          </span>
+          <span className="ml-auto shrink-0 tabular-nums" style={{ color: MUTED }}>
+            {hrs(h.hours)}
+          </span>
+        </div>
+      ))}
+      {n === 0 && <div style={{ color: MUTED }}>No hours yet this month</div>}
+    </div>
   )
 }
 
@@ -345,11 +369,11 @@ const first = (name: string) => name.split(/\s+/)[0]
 /** The label hanging above the money jar: the latest money that came in. */
 const moneyDrop = (tx: TxLine | undefined) => (tx ? `${signed(tx.amount)} · ${tx.tag.toLowerCase()}` : null)
 
-/** The label hanging above the time jar: the latest tokens. */
-const timeDrop = (a: RecentContributor | undefined) => {
-  if (!a) return null
-  const who = a.names.length > 2 ? `${first(a.names[0])} +${a.names.length - 1}` : a.names.map(first).join(" & ")
-  return `${a.reason ? `${a.reason.slice(0, 28)} · ` : `${tokens(a.tokens ?? 0)} · `}${who}`
+/** The label hanging above the time jar: the latest tokens given. */
+const timeDrop = (m: TokenMove | undefined) => {
+  if (!m || m.kind !== "given") return null
+  const who = m.names.length > 2 ? `${first(m.names[0])} +${m.names.length - 1}` : m.names.map(first).join(" & ")
+  return `${m.reason ? `${m.reason.slice(0, 22)} · ` : `${tokens(m.amount)} · `}${who}`
 }
 
 function Heading({ children, color }: { children: React.ReactNode; color: string }) {
@@ -361,54 +385,53 @@ function Heading({ children, color }: { children: React.ReactNode; color: string
   )
 }
 
-export function ContributeJars({ data, money, time, qrSvg, url }: { data: JarsData; money: TxLine[]; time: RecentContributor[]; qrSvg: string; url: string }) {
+export function ContributeJars({ data, money, tokenMoves, qrSvg, url }: { data: JarsData; money: TxLine[]; tokenMoves: TokenMove[]; qrSvg: string; url: string }) {
   const newestMoney = moneyDrop(money.find((t) => t.amount > 0 && t.slug))
-  const newestTime = timeDrop(time[0])
+  const newestTime = timeDrop(tokenMoves.find((m) => m.kind === "given"))
   return (
-    <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "37% 1fr 21%", gap: s(2) }}>
+    <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "1fr 33% 1fr", gap: s(2.2) }}>
       <style>{`
         @keyframes jar-rise { from { transform: scaleY(0) } to { transform: scaleY(1) } }
         @keyframes jar-fade { from { opacity: 0 } to { opacity: 1 } }
         @keyframes jar-drop { from { opacity: 0; transform: translateY(-48px) } to { opacity: 1; transform: none } }
       `}</style>
 
-      <section className="min-h-0 min-w-0">
-        <MoneyJar
-          layers={data.layers}
-          total={data.total}
-          covered={data.covered}
-          drop={newestMoney}
-          title={`💶 Money · ${data.monthName}`}
-          note={data.income.length > 0 ? data.income.map((i: Income) => `${i.label} ${eur(i.amount)}${i.invoiced ? " (invoiced)" : ""}`).join(" · ") : "nothing in yet this month"}
-        />
+      <section className="min-h-0 min-w-0 overflow-hidden">
+        <Heading color={MONEY_LIGHT}>Money in and out</Heading>
+        <ul style={{ marginTop: s(0.4) }}>
+          {money.map((tx) => (
+            <MoneyLine key={tx.id} tx={tx} />
+          ))}
+        </ul>
+      </section>
+
+      <section className="flex min-h-0 min-w-0 flex-col" style={{ gap: s(0.8) }}>
+        <div className="grid min-h-0 flex-1 grid-cols-2" style={{ gap: s(1.2) }}>
+          <div className="min-h-0 min-w-0">
+            <MoneyJar layers={data.layers} total={data.total} covered={data.covered} drop={newestMoney} title="💶 Money" note={`${eur(data.total)} a month · ${data.monthName}`} />
+          </div>
+          <div className="min-h-0 min-w-0">
+            <TimeJar hours={data.hours} total={data.hoursTotal} lastMonth={data.lastMonthHours} drop={newestTime} title="⏳ Time" note={`1 token = 1 hour · ${data.monthName}`} />
+          </div>
+        </div>
+        <div className="grid shrink-0 grid-cols-2" style={{ gap: s(1.2) }}>
+          <MoneyKey layers={data.layers} income={data.income} />
+          <TimeKey hours={data.hours} />
+        </div>
       </section>
 
       <section className="flex min-h-0 min-w-0 flex-col justify-between" style={{ gap: s(1.2) }}>
         <div className="min-h-0 overflow-hidden">
-          <Heading color={MONEY_LIGHT}>Money in and out</Heading>
+          <Heading color={TIME}>Tokens given and spent</Heading>
           <ul style={{ marginTop: s(0.4) }}>
-            {money.map((tx) => (
-              <MoneyLine key={tx.id} tx={tx} />
+            {tokenMoves.map((m) => (
+              <TokenLine key={m.id} move={m} />
             ))}
           </ul>
-          {time.length > 0 && (
-            <>
-              <div style={{ marginTop: s(1) }}>
-                <Heading color={TIME}>Time given</Heading>
-              </div>
-              <ul style={{ marginTop: s(0.4) }}>
-                {time.map((a) => (
-                  <TimeLine key={`${a.names.join(",")}-${a.at}`} award={a} />
-                ))}
-              </ul>
-            </>
-          )}
         </div>
-        <ScreenQr qrSvg={qrSvg} cta="Fill a jar" url={url} />
-      </section>
-
-      <section className="min-h-0 min-w-0">
-        <TimeJar hours={data.hours} total={data.hoursTotal} lastMonth={data.lastMonthHours} drop={newestTime} title={`⏳ Time · ${data.monthName}`} note={data.hours.length > 0 ? data.hours.map((h) => `${h.label} ${hrs(h.hours)}`).join(" · ") : "one token issued = one hour given"} />
+        <div className="flex shrink-0 justify-end">
+          <ScreenQr qrSvg={qrSvg} cta="Fill a jar" url={url} />
+        </div>
       </section>
     </div>
   )
