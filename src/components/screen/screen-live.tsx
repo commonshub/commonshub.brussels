@@ -26,6 +26,22 @@ export const SLIDE_READY = "chb-screen:ready"
 export type SlideMessage = { type: typeof SLIDE_MESSAGE; active: boolean; seconds?: number; endsAt?: number }
 
 /**
+ * Messages between /screen and its slides travel as JSON strings: the
+ * Samsung TV browser injects a script that calls .split() on every message's
+ * data and throws on objects.
+ */
+export const postSlide = (target: Window | null | undefined, data: object) => target?.postMessage(JSON.stringify(data), window.location.origin)
+type SlideData = { type?: string; active?: boolean; seconds?: number; endsAt?: number }
+export function readSlide(e: MessageEvent): SlideData {
+  if (e.origin !== window.location.origin || typeof e.data !== "string" || !e.data.startsWith("{")) return {}
+  try {
+    return JSON.parse(e.data) as SlideData
+  } catch {
+    return {}
+  }
+}
+
+/**
  * The hub's local time, small in a corner. Inside /screen it doubles as the
  * countdown to the next slide: the digits fill with orange from left to
  * right, and are all orange when the next slide comes.
@@ -36,8 +52,8 @@ export function ScreenClock({ offsetMs = 0 }: { offsetMs?: number }) {
   const [slide, setSlide] = useState<{ seconds: number; endsAt: number; elapsed: number } | null>(null)
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin || e.data?.type !== SLIDE_MESSAGE) return
-      const m = e.data as SlideMessage
+      const m = readSlide(e) as SlideMessage
+      if (m.type !== SLIDE_MESSAGE) return
       setSlide(
         m.active && m.seconds && m.endsAt
           ? { seconds: m.seconds, endsAt: m.endsAt, elapsed: Math.min(m.seconds, Math.max(0, m.seconds - (m.endsAt - Date.now()) / 1000)) }
@@ -45,7 +61,7 @@ export function ScreenClock({ offsetMs = 0 }: { offsetMs?: number }) {
       )
     }
     window.addEventListener("message", onMessage)
-    if (window.parent !== window) window.parent.postMessage({ type: SLIDE_READY }, window.location.origin)
+    if (window.parent !== window) postSlide(window.parent, { type: SLIDE_READY })
     return () => window.removeEventListener("message", onMessage)
   }, [])
   return (

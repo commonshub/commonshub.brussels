@@ -10,8 +10,9 @@ import { ScreenQr } from "./screen-qr"
  * /contributions/screen/2: a wall of thank-yous. Each one posted in 💝praise
  * is a sticky note ("To Leen, for figuring out the door! — Marijke"), each
  * contribution from #contributions a polaroid (its photo, or an emoji for
- * what was done). Notes drop onto the wall one after the other and sway a
- * little; the newest is circled.
+ * what was done). Notes drop onto the wall one after the other; the newest
+ * is circled. No blurred shadows and nothing looping: the Samsung TV's
+ * browser crashed on this page.
  */
 
 const hand = Caveat({ subsets: ["latin"], weight: ["500", "700"] })
@@ -33,13 +34,6 @@ const POLAROID_SLOTS = [
   { left: 67, top: 47, width: 14, tilt: -4 },
 ]
 
-/** A stable pseudo-random number in [0, 1) for a message id, so the wall doesn't jump on reload. */
-function seeded(id: string): number {
-  let h = 2166136261
-  for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
-  return ((h >>> 0) % 1000) / 1000
-}
-
 function addressee(to: Praise["to"]): string {
   if (to.length > 3) return `To ${to.length} people 💖`
   const names = to.map((t) => t.name)
@@ -59,7 +53,7 @@ function Note({ praise, slot, color, order, newest }: { praise: Praise; slot: (t
           width: `${slot.width}%`,
           ["--tilt" as string]: `${slot.tilt}deg`,
           transform: `rotate(${slot.tilt}deg)`,
-          animation: `wall-drop 700ms cubic-bezier(.2,.9,.3,1.3) ${order * 0.45}s both, wall-sway ${6 + seeded(praise.id) * 4}s ease-in-out ${order * 0.45 + 0.7}s infinite`,
+          animation: `wall-drop 700ms cubic-bezier(.2,.9,.3,1.3) ${order * 0.45}s both`,
         } as React.CSSProperties
       }
     >
@@ -69,7 +63,7 @@ function Note({ praise, slot, color, order, newest }: { praise: Praise; slot: (t
           background: color,
           color: "#2b2118",
           padding: `${s(1.3)} ${s(1.3)} ${s(1)}`,
-          boxShadow: "0 18px 30px rgba(0,0,0,.45), 0 2px 0 rgba(0,0,0,.2)",
+          boxShadow: "0 6px 0 rgba(0,0,0,.35)",
           outline: newest ? `${s(0.3)} solid ${ACCENT}` : undefined,
           outlineOffset: s(0.3),
         }}
@@ -107,7 +101,7 @@ function Polaroid({ item, slot, order }: { item: Contribution; slot: (typeof POL
         } as React.CSSProperties
       }
     >
-      <div className={hand.className} style={{ background: "#f6f1ea", color: "#2b2118", padding: `${s(0.8)} ${s(0.8)} ${s(0.9)}`, boxShadow: "0 18px 30px rgba(0,0,0,.5)" }}>
+      <div className={hand.className} style={{ background: "#f6f1ea", color: "#2b2118", padding: `${s(0.8)} ${s(0.8)} ${s(0.9)}`, boxShadow: "0 6px 0 rgba(0,0,0,.35)" }}>
         {item.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={item.image} alt="" className="block w-full object-cover" style={{ aspectRatio: "1" }} />
@@ -137,7 +131,6 @@ export function ThankYouWall({ praises, contributions, qrSvg, url, cta, label }:
     <div className="flex min-h-0 flex-1 flex-col" style={{ gap: s(1) }}>
       <style>{`
         @keyframes wall-drop { from { opacity: 0; transform: translateY(${s(-3)}) rotate(calc(var(--tilt) * -2)) scale(1.08) } to { opacity: 1; transform: rotate(var(--tilt)) } }
-        @keyframes wall-sway { 0%, 100% { transform: rotate(var(--tilt)) } 50% { transform: rotate(calc(var(--tilt) + 0.8deg)) } }
       `}</style>
       <div className="relative min-h-0 flex-1">
         {notes.length === 0 && polaroids.length === 0 && (

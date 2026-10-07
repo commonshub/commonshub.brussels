@@ -30,7 +30,7 @@ export function todaysEvents(now: number, events: HostedEvent[] = hostedEvents):
 export function screenSlides(now: number, every = 30, events: HostedEvent[] = hostedEvents): ScreenSlide[] {
   return [
     ...todaysEvents(now, events).map((event) => ({ path: `${hostedEventPath(event)}/screen`, seconds: every * 2 })),
-    { path: "/events/screen", seconds: every },
+    { path: "/events/screen/1", variants: ["/events/screen/1", "/events/screen/2", "/events/screen/3"], seconds: every },
     { path: "/members/screen", seconds: every },
     { path: "/contribute/screen", seconds: every },
     { path: "/contributions/screen/1", variants: ["/contributions/screen/1", "/contributions/screen/2"], seconds: every },

@@ -35,8 +35,10 @@ function Avatar({ node, size, lit, receiving }: { node: GraphNode; size: string;
         width: size,
         height: size,
         background: receiving ? ACCENT : "#2a2a30",
-        boxShadow: lit ? `0 0 0 ${s(0.25)} ${ACCENT}, 0 0 ${s(1.6)} ${ACCENT}` : `0 0 0 ${s(0.1)} rgba(255,255,255,0.25)`,
-        transition: "box-shadow 600ms, background 600ms",
+        // A plain ring, no glow: blurred shadows and SVG filters crashed the Samsung TV's browser.
+        border: lit ? `${s(0.25)} solid ${ACCENT}` : `${s(0.1)} solid rgba(255,255,255,0.25)`,
+        boxSizing: "border-box",
+        transition: "border-color 600ms, background 600ms",
         animation: receiving ? "gc-pulse 1.4s ease-out 1.2s" : undefined,
       }}
     >
@@ -95,7 +97,7 @@ function Graph({ nodes, edges, current }: { nodes: GraphNode[]; edges: GraphEdge
   return (
     <div className="relative min-h-0 flex-1">
       <div className="absolute inset-0" style={{ background: `radial-gradient(closest-side, rgba(255,76,2,0.22), transparent)` }} />
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden>
         {edges.map((e) => {
           const a = byId.get(e.from)
           const b = byId.get(e.to)
@@ -106,17 +108,12 @@ function Graph({ nodes, edges, current }: { nodes: GraphNode[]; edges: GraphEdge
           return (
             <path
               key={`${e.from}>${e.to}`}
-              d={`M${a.x * 100} ${a.y * 100} Q${c.x * 100} ${c.y * 100} ${b.x * 100} ${b.y * 100}`}
+              d={`M${a.x * 1600} ${a.y * 900} Q${c.x * 1600} ${c.y * 900} ${b.x * 1600} ${b.y * 900}`}
               fill="none"
               stroke={ACCENT}
               strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-              style={{
-                strokeWidth: lit ? 6 : 2.5,
-                strokeOpacity: lit ? 1 : 0.15 + 0.4 * age,
-                filter: lit ? `drop-shadow(0 0 6px ${ACCENT})` : undefined,
-                transition: "stroke-width 600ms, stroke-opacity 600ms",
-              }}
+              strokeWidth={lit ? 7 : 2.5}
+              strokeOpacity={lit ? 1 : 0.15 + 0.4 * age}
             />
           )
         })}

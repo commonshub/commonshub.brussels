@@ -1,11 +1,8 @@
 import type { Metadata } from "next"
-import QRCode from "qrcode"
 
-import { EventsBoard } from "@/components/screen/events-board"
-import { ScreenShell } from "@/components/screen/screen"
-import { loadScreenEvents } from "@/lib/events-screen"
+import { EVENT_DESIGNS, EventsScreen } from "./designs"
 
-// Reads DATA_DIR, which is only mounted at runtime: never prerender.
+// Reads DATA_DIR, which is only mounted at runtime, and picks a design per request.
 export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
@@ -13,15 +10,13 @@ export const metadata: Metadata = {
   robots: { index: false },
 }
 
-/** Always the public address, whichever copy of the site is on the screen. */
-const EVENTS_URL = "https://commonshub.brussels/events"
-
-/** For the hub's big screen: the next eight events, and a QR code to /events. */
-export default async function EventsScreenPage() {
-  const qrSvg = await QRCode.toString(EVENTS_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0 })
-  return (
-    <ScreenShell title="Upcoming events">
-      <EventsBoard events={loadScreenEvents()} qrSvg={qrSvg} url={EVENTS_URL} />
-    </ScreenShell>
-  )
+/**
+ * For the hub's big screen: what's on, in one of three designs picked at
+ * random each time the page loads (on /screen they take turns):
+ * /events/screen/1 an agenda with the next event (or the featured one) up
+ * front, /2 the next two weeks as a calendar, /3 the month ahead. Weekly events
+ * (Heartbeat, park cleaning, potluck) are shown once, as recurring.
+ */
+export default function EventsScreenPage() {
+  return <EventsScreen design={Math.floor(Math.random() * EVENT_DESIGNS.length)} />
 }

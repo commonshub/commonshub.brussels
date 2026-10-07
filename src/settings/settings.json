@@ -405,7 +405,13 @@
   "events": {
     "_comment": "Hand-managed events. `featured`: URLs shown as Featured on the homepage whatever their Luma tags. `pinned`: events not (yet) in the Commons Hub Luma calendar, listed until Luma has them or until they are past. Both match an event's URL or its aliases, so an event we host ourselves (src/settings/events/*.json, linked as /events/<slug>) is matched by its Luma URL and never listed twice — those events set `featured` in their own file.",
     "featured": [],
-    "pinned": []
+    "pinned": [],
+    "_recurringComment": "What happens every week, shown once as a recurring line on the screens (/events/screen) instead of one card per week. `weekday`: 0 = Sunday … 6 = Saturday. Events whose name matches `match` (case-insensitive) are these and are not listed again.",
+    "recurring": [
+      { "id": "heartbeat", "title": "Heartbeat", "weekday": 1, "start": "13:00", "end": "14:00", "note": "members only", "emoji": "💓", "match": "heartbeat" },
+      { "id": "park-cleaning", "title": "Park cleaning", "weekday": 5, "start": "12:00", "end": "12:30", "emoji": "🧹", "match": "park clean" },
+      { "id": "potluck", "title": "Community potluck", "weekday": 5, "start": "12:30", "end": "13:30", "emoji": "🍲", "match": "potluck" }
+    ]
   },
   "door": {
     "_comment": "The #door channel: members post \"Open\" and the door bot answers; the day page reads it for who is in the space.",

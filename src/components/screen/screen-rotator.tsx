@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import type { ScreenSlide } from "@/lib/screen-rotation"
-import { SLIDE_MESSAGE, SLIDE_READY, type SlideMessage } from "./screen-live"
+import { postSlide, readSlide, SLIDE_MESSAGE, SLIDE_READY, type SlideMessage } from "./screen-live"
 
 /** The cross-fade between two slides. */
 const FADE_MS = 1200
@@ -77,13 +77,13 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
             endsAt: endsAt.current,
           }
         : { type: SLIDE_MESSAGE, active: false }
-    frames.current[i]?.contentWindow?.postMessage(message, window.location.origin)
+    postSlide(frames.current[i]?.contentWindow, message)
   }
 
   // A slide's clock that has just started listening asks for its timing.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin || e.data?.type !== SLIDE_READY) return
+      if (readSlide(e).type !== SLIDE_READY) return
       const i = frames.current.findIndex((f) => f?.contentWindow === e.source)
       if (i >= 0) tell(i)
     }
@@ -111,6 +111,10 @@ export function ScreenRotator({ slides }: { slides: ScreenSlide[] }) {
   useEffect(() => {
     if (slides.length < 2) return
     endsAt.current = Date.now() + slides[index].seconds * 1000
+    // One line in the server log per switch (see ScreenReport): where a TV stops, if it does.
+    try {
+      navigator.sendBeacon?.("/api/screen-log", JSON.stringify({ event: "show", path: mountedRef.current?.get(index)?.src ?? slides[index].path, frame: "top", slide: index }))
+    } catch {}
     const next = (index + 1) % slides.length
     // The slide on show must be loaded (it isn't when arrow keys jump ahead); the previous one keeps fading out.
     const current = mountedRef.current!
