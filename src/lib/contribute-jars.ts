@@ -18,7 +18,7 @@
 
 import type { Tier } from "./data-paths"
 import { readTierJson } from "./dataset"
-import type { RecentContributor, RecentDonation, ScreenCost, TokensIssuedFeed } from "./contribute-screen"
+import { recentTokenAwards, type RecentContributor, type RecentDonation, type ScreenCost, type TokensIssuedFeed } from "./contribute-screen"
 
 const TIER: Tier = "public"
 
@@ -138,7 +138,7 @@ export interface TxLine {
   note?: string
   /** A donation: how it came, and the name the donor chose to show (if any). */
   donation?: Pick<RecentDonation, "via" | "name">
-  /** The same thing several times that day (memberships of €10): how many. */
+  /** Several of the same thing that day (memberships), summed in `amount`: how many. */
   count?: number
 }
 
@@ -214,22 +214,28 @@ export function latestTransactions(txs: PublicTx[], labels: Map<string, string>,
         ...(donation ? { donation: { via: donation.via, name: donation.name } } : {}),
       }
     })
-  // The same amount for the same thing on the same day, one after the other, is one line: "+€10 Membership ×3".
+  // The same kind of thing on the same day is one line with their total: "+€20 Membership ×2".
+  // Not what says what it was (a description, a donor's name), and money in apart from money out.
+  const groups = new Map<string, TxLine>()
   const out: TxLine[] = []
   for (const l of lines) {
-    const prev = out[out.length - 1]
-    if (prev && prev.slug === l.slug && prev.amount === l.amount && !prev.note && !l.note && !prev.donation?.name && !l.donation?.name && day(prev.at) === day(l.at)) {
-      prev.count = (prev.count ?? 1) + 1
+    const key = l.note || l.donation?.name ? null : `${day(l.at)}|${l.slug}|${l.amount > 0 ? "in" : "out"}|${l.donation?.via ?? ""}`
+    const group = key ? groups.get(key) : undefined
+    if (group) {
+      group.amount = Math.round((group.amount + l.amount) * 100) / 100
+      group.count = (group.count ?? 1) + 1
       continue
     }
-    if (out.length === limit) break
-    out.push(l)
+    if (out.length === limit) continue
+    const line = { ...l }
+    if (key) groups.set(key, line)
+    out.push(line)
   }
   return out
 }
 
 /** The month's transactions and the one before, newest first, from the public tier; and the categories' names. */
-export function loadLatestTransactions(donations: RecentDonation[], now = new Date(), limit = 9): TxLine[] {
+export function loadLatestTransactions(donations: RecentDonation[], now = new Date(), limit = 11): TxLine[] {
   const months = [monthKey(now), monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))]
   const txs = months.flatMap(([y, m]) => {
     const file = readTierJson<{ transactions?: PublicTx[] } | PublicTx[]>(TIER, "transactions.json", y, m)
@@ -238,6 +244,50 @@ export function loadLatestTransactions(donations: RecentDonation[], now = new Da
   const categories = readTierJson<{ categories?: Array<{ slug: string; label: string }> }>(TIER, "categories.json")
   const labels = new Map((categories?.categories ?? []).map((c) => [c.slug, c.label]))
   return latestTransactions(txs, labels, donations, limit)
+}
+
+/** A move of community tokens: given to people for their time, or spent (a room booked with tokens). */
+export type TokenMove =
+  | { kind: "given"; id: string; at: number; amount: number; names: string[]; reason?: string }
+  | { kind: "spent"; id: string; at: number; amount: number; tag: string; note?: string }
+
+/**
+ * Tokens given and spent lately, newest first. Given: chb's tokens-issued
+ * (grouped as on the contribute screen: the same reason within the hour is one
+ * line). Spent: the hub's token burns, with what they paid for when it was
+ * annotated (on Nostr, as chb publishes it: "Booking Mush Room room for 1h").
+ */
+export function tokenMoves(awards: RecentContributor[], txs: PublicTx[], labels: Map<string, string>, limit = 10): TokenMove[] {
+  const given: TokenMove[] = awards
+    .filter((a) => a.tokens)
+    .map((a) => ({ kind: "given", id: `given-${a.at}-${a.names.join(",")}`, at: a.at, amount: a.tokens!, names: a.names, ...(a.reason ? { reason: a.reason } : {}) }))
+  const spent: TokenMove[] = txs
+    .filter((t) => t.currency === "CHT" && t.type === "BURN" && (t.metadata?.collective ?? "commonshub") === "commonshub" && !t.metadata?.excluded && Number(t.amount) && Number.isFinite(Number(t.timestamp)))
+    .map((t) => {
+      const slug = t.metadata?.category ?? ""
+      const note = t.metadata?.description?.trim()
+      return {
+        kind: "spent" as const,
+        id: t.id ?? `spent-${t.timestamp}-${t.amount}`,
+        at: Number(t.timestamp) * 1000,
+        amount: -Math.abs(Number(t.amount)),
+        tag: slug ? (SHORT[slug] ?? labels.get(slug) ?? slug) : "Spent",
+        ...(note ? { note: note.replace(/^Booking\s+/i, "").replace(/\b(room) room\b/i, "$1") } : {}),
+      }
+    })
+  return [...given, ...spent].sort((a, b) => b.at - a.at).slice(0, limit)
+}
+
+/** Token moves from the public tier: this month's and last month's. */
+export function loadTokenMoves(now = new Date(), limit = 10): TokenMove[] {
+  const months = [monthKey(now), monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))]
+  const feeds = months.map(([y, m]) => readTierJson<TokensIssuedFeed>(TIER, "tokens-issued.json", y, m)).filter((f): f is TokensIssuedFeed => !!f)
+  const txs = months.flatMap(([y, m]) => {
+    const file = readTierJson<{ transactions?: PublicTx[] } | PublicTx[]>(TIER, "transactions.json", y, m)
+    return Array.isArray(file) ? file : (file?.transactions ?? [])
+  })
+  const categories = readTierJson<{ categories?: Array<{ slug: string; label: string }> }>(TIER, "categories.json")
+  return tokenMoves(recentTokenAwards(feeds, limit), txs, new Map((categories?.categories ?? []).map((c) => [c.slug, c.label])), limit)
 }
 
 export interface JarsData {

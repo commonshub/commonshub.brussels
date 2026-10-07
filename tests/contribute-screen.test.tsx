@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, jest, test } from "@jest/globals
 import { render } from "@testing-library/react"
 
 import { ContributeJars } from "@/components/screen/contribute-jars"
-import { costLayers, hoursByKind, latestTransactions, monthIncome } from "@/lib/contribute-jars"
+import { costLayers, hoursByKind, latestTransactions, monthIncome, tokenMoves } from "@/lib/contribute-jars"
 import {
   contributionPhotos,
   contributorsByTokens,
@@ -252,9 +252,9 @@ describe("what the page reads", () => {
     const covered = income.reduce((sum, i) => sum + i.amount, 0)
     const jars = { layers: costLayers(costs, covered), total: 6602, income, covered, hours: [], hoursTotal: 0, lastMonthHours: 0, monthName: "October" }
     const money = [{ id: "d", at: data.donations[0].at, amount: 5000, slug: "donation", tag: "Donation", donation: { via: "card" as const, name: null } }]
-    const { container } = render(<ContributeJars data={jars} money={money} time={[]} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
+    const { container } = render(<ContributeJars data={jars} money={money} tokenMoves={[]} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["€6,547", "€55", "€130 covered", "Memberships €100 · Donations €30", "+€5,000", "Donation", "by card", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
+    for (const part of ["€55", "€130 covered", "Rent", "€6.5k", "Covered by memberships €100, donations €30", "+€5,000", "Donation", "by card", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
       expect(text).toContain(part)
     for (const leak of ["Members Only Person", "Secret Donor", "50,000"]) expect(text).not.toContain(leak)
   })
@@ -359,12 +359,36 @@ describe("the jars", () => {
     ])
     expect(lines[1].donation).toEqual({ via: "bank transfer", name: null })
 
-    // Three €10 memberships the same day, one after the other: one line.
-    const grouped = latestTransactions([tx("m1", 1791300000, 10, "membership"), tx("m2", 1791290000, 10, "membership"), tx("m3", 1791280000, 10, "membership"), tx("d", 1791270000, 5, "donation")], new Map(), [], 10)
-    expect(grouped.map((l) => [l.id, l.count ?? 1])).toEqual([
-      ["m1", 3],
-      ["d", 1],
+    // Memberships the same day are one line with their total, wherever they fall between other lines.
+    const grouped = latestTransactions(
+      [tx("m1", 1791300000, 10, "membership"), tx("rent", 1791295000, -6546.76, "rent", "Rent CHB October 2026"), tx("m2", 1791290000, 10, "membership"), tx("m3", 1791280000, 100, "membership"), tx("d", 1791270000, 5, "donation")],
+      new Map(),
+      [],
+      10,
+    )
+    expect(grouped.map((l) => [l.id, l.amount, l.count ?? 1])).toEqual([
+      ["m1", 120, 3],
+      ["rent", -6546.76, 1],
+      ["d", 5, 1],
     ])
   })
 
+
+  test("tokens given and spent, newest first; what a spend paid for when it was annotated", () => {
+    const moves = tokenMoves(
+      [{ names: ["Leen"], at: 3_000, tokens: 3, reason: "3h shift" }],
+      [
+        { id: "b1", currency: "CHT", type: "BURN", amount: -1, timestamp: 4, metadata: { collective: "commonshub", category: "rental", description: "Booking Mush Room room for 1h" } },
+        { id: "b2", currency: "CHT", type: "BURN", amount: -4, timestamp: 2, metadata: { collective: "commonshub" } },
+        { id: "d", currency: "CHT", type: "DEBIT", amount: -6, timestamp: 5, metadata: { collective: "commonshub" } },
+        { id: "e", currency: "EURe", type: "BURN", amount: -10, timestamp: 6, metadata: { collective: "commonshub" } },
+      ],
+      new Map(),
+    )
+    expect(moves.map((m) => [m.kind, m.amount, m.kind === "spent" ? `${m.tag}${m.note ? ` ${m.note}` : ""}` : m.names.join(",")])).toEqual([
+      ["spent", -1, "Booking Mush Room for 1h"],
+      ["given", 3, "Leen"],
+      ["spent", -4, "Spent"],
+    ])
+  })
 })

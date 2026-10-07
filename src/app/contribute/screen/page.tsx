@@ -4,7 +4,7 @@ import QRCode from "qrcode"
 import { ContributeJars } from "@/components/screen/contribute-jars"
 import { ScreenShell } from "@/components/screen/screen"
 import { loadContributeExpenses } from "@/lib/contribute-expenses"
-import { loadJars, loadLatestTransactions } from "@/lib/contribute-jars"
+import { loadJars, loadLatestTransactions, loadTokenMoves } from "@/lib/contribute-jars"
 import { loadContributeScreen, screenCosts } from "@/lib/contribute-screen"
 
 // Reads DATA_DIR, which is only mounted at runtime: never prerender.
@@ -32,11 +32,11 @@ export default async function ContributeScreenPage() {
   const costs = screenCosts(loadContributeExpenses().recurring)
   const qrSvg = await QRCode.toString(CONTRIBUTE_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0 })
   const money = loadLatestTransactions(data.donations)
-  const time = data.contributorsFrom === "tokens" ? data.contributors.slice(0, 2) : []
+  const tokenMoves = loadTokenMoves()
 
   return (
     <ScreenShell title="Two jars keep this place open">
-      <ContributeJars data={loadJars(costs)} money={money} time={time} qrSvg={qrSvg} url={CONTRIBUTE_URL} />
+      <ContributeJars data={loadJars(costs)} money={money} tokenMoves={tokenMoves} qrSvg={qrSvg} url={CONTRIBUTE_URL} />
     </ScreenShell>
   )
 }
