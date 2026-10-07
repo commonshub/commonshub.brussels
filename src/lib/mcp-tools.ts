@@ -211,9 +211,14 @@ async function botRpc(method: string, params: Record<string, unknown> = {}): Pro
   return (await res.json()) as { result?: unknown; error?: { code: number; message: string } }
 }
 
-/** The bot's tools, cached five minutes; none (and no error) when the bot can't be reached. */
-async function discordBotTools(): Promise<McpTool[]> {
-  if (botTools && Date.now() - botTools.at < 5 * 60_000) return botTools.tools
+/**
+ * The bot's tools, as it describes them now: fetched afresh for every tools/list
+ * (a new version of the bot shows at once), from the last answer for a call
+ * (within five minutes). When the bot can't be reached: the last known ones,
+ * or none, and no error.
+ */
+async function discordBotTools({ fresh = false } = {}): Promise<McpTool[]> {
+  if (!fresh && botTools && Date.now() - botTools.at < 5 * 60_000) return botTools.tools
   try {
     const { result } = await botRpc("tools/list")
     const tools = ((result as { tools?: McpTool[] })?.tools ?? []).filter((t) => !LOCAL.some((l) => l.name === t.name))
@@ -242,7 +247,7 @@ function annotate(name: string, scope: Scope): McpTool["annotations"] {
 
 export async function listTools(scope: Scope): Promise<McpTool[]> {
   const local = LOCAL.filter((t) => scope === "elinor" || t.scope === "read").map(({ name, description, inputSchema, scope: s }) => ({ name, description, inputSchema, annotations: annotate(name, s) }))
-  return scope === "elinor" ? [...local, ...(await discordBotTools())] : local
+  return scope === "elinor" ? [...local, ...(await discordBotTools({ fresh: true }))] : local
 }
 
 /** Run a tool: ours, or the bot's (whose answer is passed on as it is, MCP result or error). */
@@ -259,6 +264,8 @@ export async function callTool(scope: Scope, name: string, args: Record<string, 
       throw error
     }
   }
-  if (scope === "elinor" && (await discordBotTools()).some((t) => t.name === name)) return botRpc("tools/call", { name, arguments: args })
+  // The bot's tool: its arguments go through exactly as given.
+  if (scope === "elinor" && ((await discordBotTools()).some((t) => t.name === name) || (await discordBotTools({ fresh: true })).some((t) => t.name === name)))
+    return botRpc("tools/call", { name, arguments: args })
   return { error: { code: -32602, message: `Unknown tool: ${name}` } }
 }
