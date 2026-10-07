@@ -245,12 +245,21 @@ describe("/mcp route", () => {
       expect([hint("luma_get_event"), hint("query_dataset"), hint("luma_add_event"), hint("luma_create_event"), hint("propose_mint")]).toEqual([true, true, false, false, false]);
     });
 
+    it("lists the bot's tools as it describes them now, every time", async () => {
+      const { POST } = await loadElinor();
+      const list = () => POST(mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "elinor-secret") as any).then((r) => r.json());
+      await list();
+      await list();
+      expect(calls.filter((c) => (c.body as { method?: string })?.method === "tools/list")).toHaveLength(2);
+    });
+
     it("passes the Discord bot's tools through with Elinor's token", async () => {
       const { POST } = await loadElinor();
-      const body = await (await POST(call("propose_mint", { amount: 1 }))).json();
+      const args = { amount: 1, replyToMessageId: "1557348732662583397", requesterUserId: "689614876515237925", somethingNew: { a: 1 } };
+      const body = await (await POST(call("propose_mint", args))).json();
       expect(body.result.content[0].text).toBe("proposed");
       const forwarded = calls.find((c) => (c.body as { method?: string })?.method === "tools/call");
-      expect(forwarded?.body).toMatchObject({ params: { name: "propose_mint", arguments: { amount: 1 } } });
+      expect((forwarded?.body as { params: unknown }).params).toEqual({ name: "propose_mint", arguments: args });
     });
 
     it("an event: participants by status, organizers by name only", async () => {
