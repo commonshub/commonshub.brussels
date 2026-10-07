@@ -182,6 +182,8 @@ const SHORT: Record<string, string> = {
 /** A description worth showing: words, not an invoice number or a payment reference. */
 const readable = (d: string | undefined) => !!d && d.length <= 50 && /[a-z]{3}/.test(d) && !/\+\+\+|[A-Z]{2,}[-/ ]?\d|\d{4}\/\d|^\d+$/.test(d)
 
+const UNCATEGORISED = new Set(["", "uncategorized", "none"])
+
 /**
  * The hub's latest money in and out, newest first: every category (rent paid
  * as much as a membership), each tagged; uncategorised ones say so. Only
@@ -205,7 +207,8 @@ export function latestTransactions(txs: PublicTx[], labels: Map<string, string>,
     .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
     .map((t): TxLine => {
       const m = t.metadata ?? {}
-      const slug = m.category ?? ""
+      // "uncategorized" (and the older "none") is what a transaction is before a steward picks a category.
+      const slug = UNCATEGORISED.has(m.category ?? "") ? "" : (m.category ?? "")
       const amount = Number(t.amount)
       const at = Number(t.timestamp) * 1000
       const donation = slug === "donation" ? donations.find((d) => d.at === at) : undefined
