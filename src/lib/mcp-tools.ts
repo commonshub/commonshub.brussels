@@ -28,6 +28,8 @@ export interface McpTool {
   name: string
   description: string
   inputSchema: Record<string, unknown>
+  /** MCP tool annotations: what a client may let run without asking. */
+  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean }
 }
 
 interface LocalTool extends McpTool {
@@ -215,7 +217,7 @@ async function discordBotTools(): Promise<McpTool[]> {
   try {
     const { result } = await botRpc("tools/list")
     const tools = ((result as { tools?: McpTool[] })?.tools ?? []).filter((t) => !LOCAL.some((l) => l.name === t.name))
-    botTools = { at: Date.now(), tools: tools.map((t) => ({ ...t, description: `${t.description} (Discord bot)` })) }
+    botTools = { at: Date.now(), tools: tools.map((t) => ({ ...t, description: `${t.description} (Discord bot)`, annotations: t.annotations ?? annotate(t.name, "elinor") })) }
   } catch (error) {
     console.error("[mcp] Discord bot tools unavailable:", error instanceof Error ? error.message : error)
     botTools = { at: Date.now() - 4 * 60_000, tools: botTools?.tools ?? [] }
@@ -224,8 +226,22 @@ async function discordBotTools(): Promise<McpTool[]> {
 }
 
 /** Every tool this key may use. */
+/**
+ * What each tool does, for the client deciding what may run without asking:
+ * reading is safe; adding or creating an event writes to Luma (nothing is
+ * deleted); the bot's proposals only ask the person concerned to confirm.
+ */
+const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+const WRITES = { readOnlyHint: false, destructiveHint: false, openWorldHint: true }
+function annotate(name: string, scope: Scope): McpTool["annotations"] {
+  if (name === "luma_add_event") return { ...WRITES, idempotentHint: true }
+  if (name === "luma_create_event") return { ...WRITES, idempotentHint: false }
+  if (name.startsWith("propose_")) return { ...WRITES, idempotentHint: false }
+  return scope === "read" || !name.startsWith("propose_") ? READ_ONLY : WRITES
+}
+
 export async function listTools(scope: Scope): Promise<McpTool[]> {
-  const local = LOCAL.filter((t) => scope === "elinor" || t.scope === "read").map(({ name, description, inputSchema }) => ({ name, description, inputSchema }))
+  const local = LOCAL.filter((t) => scope === "elinor" || t.scope === "read").map(({ name, description, inputSchema, scope: s }) => ({ name, description, inputSchema, annotations: annotate(name, s) }))
   return scope === "elinor" ? [...local, ...(await discordBotTools())] : local
 }
 
