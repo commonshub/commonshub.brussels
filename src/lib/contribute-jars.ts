@@ -117,16 +117,120 @@ export function hoursByKind(feed: TokensIssuedFeed | null): HourLayer[] {
     .sort((a, b) => b.hours - a.hours)
 }
 
-export type FeedLine = { kind: "money"; at: number; donation: RecentDonation } | { kind: "time"; at: number; award: RecentContributor }
+/** A transaction of the hub as the screen shows it: signed amount, its category as a short tag, maybe a few words. */
+export interface TxLine {
+  id: string
+  /** Milliseconds. */
+  at: number
+  /** Euros, signed: money in is positive, money out negative. */
+  amount: number
+  /** The category's slug ("" when uncategorised) and its short name. */
+  slug: string
+  tag: string
+  /** What it was, when that says something and names nobody: "Rent CHB October 2026". */
+  note?: string
+  /** A donation: how it came, and the name the donor chose to show (if any). */
+  donation?: Pick<RecentDonation, "via" | "name">
+  /** The same thing several times that day (memberships of €10): how many. */
+  count?: number
+}
 
-/** Donations and tokens issued together, newest first. */
-export function latestLines(donations: RecentDonation[], awards: RecentContributor[], limit = 6): FeedLine[] {
-  return [
-    ...donations.map((d) => ({ kind: "money" as const, at: d.at, donation: d })),
-    ...awards.filter((a) => a.tokens).map((a) => ({ kind: "time" as const, at: a.at, award: a })),
-  ]
-    .sort((a, b) => b.at - a.at)
-    .slice(0, limit)
+interface PublicTx {
+  id?: string
+  currency?: string
+  type?: string
+  amount?: number | string
+  timestamp?: number | string
+  metadata?: { category?: string; collective?: string; description?: string; excluded?: boolean } | null
+}
+
+/** Moving money between the hub's own accounts, or a few cents of Stripe fees: not worth a line on a screen. */
+const HIDDEN = new Set(["internal_transfer", "opening_balance", "stripe_fee"])
+
+/** Short names for chb's categories (categories.json), where its label is long. */
+const SHORT: Record<string, string> = {
+  rental: "Booking",
+  rentals: "Booking",
+  consulting: "Contractor",
+  accounting: "Accounting",
+  furniture: "Furniture",
+  internet: "Internet",
+  HR: "Salaries",
+  salaries: "Salaries",
+  webservice: "Web services",
+  bank_fees: "Bank fees",
+  "other-income": "Other income",
+  "other-expense": "Other expense",
+  donations_given: "Donation given",
+  expense: "Reimbursement",
+  exceptional: "Exceptional",
+  accrual: "Last year's invoice",
+}
+
+/** A description worth showing: words, not an invoice number or a payment reference. */
+const readable = (d: string | undefined) => !!d && d.length <= 50 && /[a-z]{3}/.test(d) && !/\+\+\+|[A-Z]{2,}[-/ ]?\d|\d{4}\/\d|^\d+$/.test(d)
+
+/**
+ * The hub's latest money in and out, newest first: every category (rent paid
+ * as much as a membership), each tagged; uncategorised ones say so. Only
+ * money spent says what it was (to whom the hub pays is public); money
+ * received never does (a description can name a person), except a donor
+ * who chose to be named at checkout.
+ */
+export function latestTransactions(txs: PublicTx[], labels: Map<string, string>, donations: RecentDonation[] = [], limit = 6): TxLine[] {
+  const seen = new Set<string>()
+  const day = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })
+  const lines = txs
+    .filter((t) => {
+      const m = t.metadata ?? {}
+      const at = Number(t.timestamp)
+      const id = t.id ?? `${t.timestamp}-${t.amount}`
+      if (m.excluded || m.collective !== "commonshub" || !["EUR", "EURe"].includes(t.currency ?? "") || t.type === "INTERNAL") return false
+      if (HIDDEN.has(m.category ?? "") || !Number.isFinite(at) || !Number(t.amount) || seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+    .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+    .map((t): TxLine => {
+      const m = t.metadata ?? {}
+      const slug = m.category ?? ""
+      const amount = Number(t.amount)
+      const at = Number(t.timestamp) * 1000
+      const donation = slug === "donation" ? donations.find((d) => d.at === at) : undefined
+      return {
+        id: t.id ?? `${t.timestamp}-${t.amount}`,
+        at,
+        amount,
+        slug,
+        tag: slug ? (SHORT[slug] ?? labels.get(slug) ?? slug.replace(/[_-]/g, " ")) : "Uncategorised",
+        ...(amount < 0 && readable(m.description) ? { note: m.description } : {}),
+        ...(donation ? { donation: { via: donation.via, name: donation.name } } : {}),
+      }
+    })
+  // The same amount for the same thing on the same day, one after the other, is one line: "+€10 Membership ×3".
+  const out: TxLine[] = []
+  for (const l of lines) {
+    const prev = out[out.length - 1]
+    if (prev && prev.slug === l.slug && prev.amount === l.amount && !prev.note && !l.note && !prev.donation?.name && !l.donation?.name && day(prev.at) === day(l.at)) {
+      prev.count = (prev.count ?? 1) + 1
+      continue
+    }
+    if (out.length === limit) break
+    out.push(l)
+  }
+  return out
+}
+
+/** The month's transactions and the one before, newest first, from the public tier; and the categories' names. */
+export function loadLatestTransactions(donations: RecentDonation[], now = new Date(), limit = 9): TxLine[] {
+  const months = [monthKey(now), monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))]
+  const txs = months.flatMap(([y, m]) => {
+    const file = readTierJson<{ transactions?: PublicTx[] } | PublicTx[]>(TIER, "transactions.json", y, m)
+    return Array.isArray(file) ? file : (file?.transactions ?? [])
+  })
+  const categories = readTierJson<{ categories?: Array<{ slug: string; label: string }> }>(TIER, "categories.json")
+  const labels = new Map((categories?.categories ?? []).map((c) => [c.slug, c.label]))
+  return latestTransactions(txs, labels, donations, limit)
 }
 
 export interface JarsData {

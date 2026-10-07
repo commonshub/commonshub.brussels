@@ -1,7 +1,8 @@
 import type React from "react"
 
 import { COST_COLORS_DARK, slotsFor } from "@/components/contribute/fixed-costs-chart"
-import type { CostLayer, FeedLine, HourLayer, Income, JarsData } from "@/lib/contribute-jars"
+import type { RecentContributor } from "@/lib/contribute-screen"
+import type { CostLayer, HourLayer, Income, JarsData, TxLine } from "@/lib/contribute-jars"
 import { RelativeTime } from "./relative-time"
 import { ACCENT, MUTED, s } from "./screen"
 import { ScreenQr } from "./screen-qr"
@@ -9,8 +10,10 @@ import { ScreenQr } from "./screen-qr"
 /**
  * /contribute/screen: two jars keep the hub open. Money fills a jar made of
  * the month's costs (cheapest at the bottom, rent on top); time fills the
- * other with the hours given, by kind. In between, the latest donations and
- * tokens issued: the amount first, on one line, then what for, then when.
+ * other with the hours given, by kind. In between, the hub's latest money in
+ * and out (rent paid as much as a membership), each tagged with its category,
+ * and the latest tokens issued: the amount first, on one line, then what
+ * for, then when.
  * The newest of each hangs above its jar and drops in; the liquid rises when
  * the slide comes up. Nothing loops: the TV's browser is an old Chromium.
  */
@@ -272,51 +275,95 @@ function Chip({ children }: { children: React.ReactNode }) {
 const tokens = (n: number) => `${n.toLocaleString("en-GB")} ${n === 1 ? "token" : "tokens"}`
 const lowerFirst = (t: string) => (/^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t)
 
-function Line({ line }: { line: FeedLine }) {
-  const figure = line.kind === "money" ? eur(line.donation.amount) : tokens(line.award.tokens!)
+const IN = "#5ed39a"
+const OUT = "#ff8a7a"
+const signed = (n: number) => `${n < 0 ? "−" : "+"}€${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
+
+/** The tag of a transaction's category: green for money in, red for money out, grey when it has none yet. */
+function Tag({ tx }: { tx: TxLine }) {
+  const color = !tx.slug ? MUTED : tx.amount > 0 ? IN : OUT
   return (
-    <li className="flex items-start" style={{ gap: s(1.1), padding: `${s(0.75)} 0`, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-      <span className="shrink-0 whitespace-nowrap tabular-nums" style={{ width: s(7), fontSize: s(1.55), fontWeight: 700, lineHeight: 1.15, color: line.kind === "money" ? MONEY_LIGHT : TIME }}>
-        {figure}
+    <span className="inline-block whitespace-nowrap" style={{ padding: `0 ${s(0.5)}`, borderRadius: s(0.45), border: `1px solid ${color}`, color, fontSize: "0.85em", fontWeight: 700, lineHeight: 1.35 }}>
+      {tx.tag}
+    </span>
+  )
+}
+
+/** One transaction, on one line: the amount, its tag and what it was, and when. */
+function MoneyLine({ tx }: { tx: TxLine }) {
+  return (
+    <li className="flex items-baseline" style={{ gap: s(1.1), padding: `${s(0.5)} 0`, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+      <span className="shrink-0 whitespace-nowrap tabular-nums" style={{ width: s(8), fontSize: s(1.45), fontWeight: 700, lineHeight: 1.2, color: tx.amount > 0 ? IN : OUT }}>
+        {signed(tx.amount)}
       </span>
-      <div className="min-w-0" style={{ fontSize: s(1.4), lineHeight: 1.25 }}>
-        <div className="line-clamp-2">
-          {line.kind === "money" ? (
+      <div className="min-w-0 flex-1" style={{ fontSize: s(1.3), lineHeight: 1.25 }}>
+        <div className="truncate">
+          <Tag tx={tx} />
+          {tx.count && tx.count > 1 && <span style={{ color: MUTED, fontWeight: 700 }}> ×{tx.count}</span>}
+          {tx.donation && (
             <>
-              donation {line.donation.name && <>from <Chip>{line.donation.name}</Chip> </>}by {line.donation.via}
-            </>
-          ) : (
-            <>
-              to{" "}
-              {line.award.names.slice(0, 3).map((n) => (
-                <span key={n}>
-                  <Chip>{n}</Chip>{" "}
-                </span>
-              ))}
-              {line.award.names.length > 3 && <Chip>+{line.award.names.length - 3}</Chip>}
-              {line.award.reason && <>for {lowerFirst(line.award.reason)}</>}
+              {" "}
+              {tx.donation.name && <>from <Chip>{tx.donation.name}</Chip> </>}by {tx.donation.via}
             </>
           )}
-        </div>
-        <div style={{ fontSize: s(1), color: MUTED, marginTop: s(0.2) }}>
-          <RelativeTime ms={line.at} />
+          {tx.note && <span style={{ color: "rgba(255,255,255,0.8)" }}> {tx.note}</span>}
         </div>
       </div>
+      <span className="shrink-0 whitespace-nowrap" style={{ fontSize: s(1), color: MUTED }}>
+        <RelativeTime ms={tx.at} />
+      </span>
     </li>
   )
 }
 
-const dropText = (line: FeedLine | undefined) => {
-  if (!line) return null
-  if (line.kind === "money") return `${eur(line.donation.amount)} · ${line.donation.via}`
-  const first = (name: string) => name.split(/\s+/)[0]
-  const who = line.award.names.length > 2 ? `${first(line.award.names[0])} +${line.award.names.length - 1}` : line.award.names.map(first).join(" & ")
-  return `${line.award.reason ? `${line.award.reason.slice(0, 28)} · ` : `${tokens(line.award.tokens!)} · `}${who}`
+/** Tokens given for time, on one line: how many, to whom, for what, and when. */
+function TimeLine({ award }: { award: RecentContributor }) {
+  return (
+    <li className="flex items-baseline" style={{ gap: s(1.1), padding: `${s(0.5)} 0`, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+      <span className="shrink-0 whitespace-nowrap tabular-nums" style={{ width: s(8), fontSize: s(1.45), fontWeight: 700, lineHeight: 1.2, color: TIME }}>
+        {tokens(award.tokens ?? 0)}
+      </span>
+      <div className="min-w-0 flex-1 truncate" style={{ fontSize: s(1.3), lineHeight: 1.25 }}>
+        to{" "}
+        {award.names.slice(0, 3).map((n) => (
+          <span key={n}>
+            <Chip>{n}</Chip>{" "}
+          </span>
+        ))}
+        {award.names.length > 3 && <Chip>+{award.names.length - 3}</Chip>}
+        {award.reason && <>for {lowerFirst(award.reason)}</>}
+      </div>
+      <span className="shrink-0 whitespace-nowrap" style={{ fontSize: s(1), color: MUTED }}>
+        <RelativeTime ms={award.at} />
+      </span>
+    </li>
+  )
 }
 
-export function ContributeJars({ data, lines, qrSvg, url }: { data: JarsData; lines: FeedLine[]; qrSvg: string; url: string }) {
-  const newestMoney = dropText(lines.find((l) => l.kind === "money"))
-  const newestTime = dropText(lines.find((l) => l.kind === "time"))
+const first = (name: string) => name.split(/\s+/)[0]
+
+/** The label hanging above the money jar: the latest money that came in. */
+const moneyDrop = (tx: TxLine | undefined) => (tx ? `${signed(tx.amount)} · ${tx.tag.toLowerCase()}` : null)
+
+/** The label hanging above the time jar: the latest tokens. */
+const timeDrop = (a: RecentContributor | undefined) => {
+  if (!a) return null
+  const who = a.names.length > 2 ? `${first(a.names[0])} +${a.names.length - 1}` : a.names.map(first).join(" & ")
+  return `${a.reason ? `${a.reason.slice(0, 28)} · ` : `${tokens(a.tokens ?? 0)} · `}${who}`
+}
+
+function Heading({ children, color }: { children: React.ReactNode; color: string }) {
+  return (
+    <div className="flex items-center" style={{ gap: s(0.5), fontSize: s(1.05), letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, fontWeight: 600 }}>
+      <i className="inline-block" style={{ width: s(0.6), height: s(0.6), borderRadius: s(0.15), background: color }} />
+      {children}
+    </div>
+  )
+}
+
+export function ContributeJars({ data, money, time, qrSvg, url }: { data: JarsData; money: TxLine[]; time: RecentContributor[]; qrSvg: string; url: string }) {
+  const newestMoney = moneyDrop(money.find((t) => t.amount > 0 && t.slug))
+  const newestTime = timeDrop(time[0])
   return (
     <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "37% 1fr 21%", gap: s(2) }}>
       <style>{`
@@ -325,7 +372,7 @@ export function ContributeJars({ data, lines, qrSvg, url }: { data: JarsData; li
         @keyframes jar-drop { from { opacity: 0; transform: translateY(-48px) } to { opacity: 1; transform: none } }
       `}</style>
 
-      <section className="min-h-0">
+      <section className="min-h-0 min-w-0">
         <MoneyJar
           layers={data.layers}
           total={data.total}
@@ -336,29 +383,31 @@ export function ContributeJars({ data, lines, qrSvg, url }: { data: JarsData; li
         />
       </section>
 
-      <section className="flex min-h-0 flex-col justify-between" style={{ gap: s(1.2) }}>
+      <section className="flex min-h-0 min-w-0 flex-col justify-between" style={{ gap: s(1.2) }}>
         <div className="min-h-0 overflow-hidden">
-          <div className="flex items-center" style={{ gap: s(1.1), fontSize: s(1.05), letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, fontWeight: 600 }}>
-            Latest
-            <span>
-              <i className="inline-block align-middle" style={{ width: s(0.6), height: s(0.6), borderRadius: s(0.15), background: MONEY_LIGHT, marginRight: s(0.3) }} />
-              money
-            </span>
-            <span>
-              <i className="inline-block align-middle" style={{ width: s(0.6), height: s(0.6), borderRadius: s(0.15), background: TIME, marginRight: s(0.3) }} />
-              time
-            </span>
-          </div>
-          <ul style={{ marginTop: s(0.6) }}>
-            {lines.map((l) => (
-              <Line key={`${l.kind}-${l.at}`} line={l} />
+          <Heading color={MONEY_LIGHT}>Money in and out</Heading>
+          <ul style={{ marginTop: s(0.4) }}>
+            {money.map((tx) => (
+              <MoneyLine key={tx.id} tx={tx} />
             ))}
           </ul>
+          {time.length > 0 && (
+            <>
+              <div style={{ marginTop: s(1) }}>
+                <Heading color={TIME}>Time given</Heading>
+              </div>
+              <ul style={{ marginTop: s(0.4) }}>
+                {time.map((a) => (
+                  <TimeLine key={`${a.names.join(",")}-${a.at}`} award={a} />
+                ))}
+              </ul>
+            </>
+          )}
         </div>
         <ScreenQr qrSvg={qrSvg} cta="Fill a jar" url={url} />
       </section>
 
-      <section className="min-h-0">
+      <section className="min-h-0 min-w-0">
         <TimeJar hours={data.hours} total={data.hoursTotal} lastMonth={data.lastMonthHours} drop={newestTime} title={`⏳ Time · ${data.monthName}`} note={data.hours.length > 0 ? data.hours.map((h) => `${h.label} ${hrs(h.hours)}`).join(" · ") : "one token issued = one hour given"} />
       </section>
     </div>

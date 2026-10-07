@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, jest, test } from "@jest/globals
 import { render } from "@testing-library/react"
 
 import { ContributeJars } from "@/components/screen/contribute-jars"
-import { costLayers, hoursByKind, latestLines, monthIncome } from "@/lib/contribute-jars"
+import { costLayers, hoursByKind, latestTransactions, monthIncome } from "@/lib/contribute-jars"
 import {
   contributionPhotos,
   contributorsByTokens,
@@ -251,9 +251,10 @@ describe("what the page reads", () => {
     const income = monthIncome({ categories: [{ slug: "membership", currencies: [{ currency: "EUR", in: 120, out: 20, net: 100 }] }, { slug: "donation", currencies: [{ currency: "EUR", in: 30.9, out: 0, net: 30.9 }] }] })
     const covered = income.reduce((sum, i) => sum + i.amount, 0)
     const jars = { layers: costLayers(costs, covered), total: 6602, income, covered, hours: [], hoursTotal: 0, lastMonthHours: 0, monthName: "October" }
-    const { container } = render(<ContributeJars data={jars} lines={latestLines(data.donations, [])} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
+    const money = [{ id: "d", at: data.donations[0].at, amount: 5000, slug: "donation", tag: "Donation", donation: { via: "card" as const, name: null } }]
+    const { container } = render(<ContributeJars data={jars} money={money} time={[]} qrSvg="<svg></svg>" url="https://commonshub.brussels/contribute" />)
     const text = container.textContent ?? ""
-    for (const part of ["€6,547", "€55", "€130 covered", "Memberships €100 · Donations €30", "€5,000", "donation by card", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
+    for (const part of ["€6,547", "€55", "€130 covered", "Memberships €100 · Donations €30", "+€5,000", "Donation", "by card", "Mon 21 Sept", "Fill a jar", "commonshub.brussels/contribute"])
       expect(text).toContain(part)
     for (const leak of ["Members Only Person", "Secret Donor", "50,000"]) expect(text).not.toContain(leak)
   })
@@ -321,17 +322,47 @@ describe("the jars", () => {
     ])
   })
 
-  test("the latest lines: donations and tokens together, newest first", () => {
-    const lines = latestLines(
-      [{ at: 3, amount: 5, via: "card", name: null }],
+  test("the latest transactions: the hub's money in and out, tagged; no internal moves, fees or other collectives; words only for money spent", () => {
+    const tx = (id: string, timestamp: number, amount: number, category: string | undefined, description = "", extra: Record<string, unknown> = {}) => ({
+      id,
+      timestamp,
+      amount,
+      currency: "EURe",
+      type: amount > 0 ? "MINT" : "BURN",
+      metadata: { collective: "commonshub", category, description, ...extra },
+    })
+    const lines = latestTransactions(
       [
-        { names: ["Leen"], at: 4, tokens: 3, reason: "3h shift" },
-        { names: ["Ann"], at: 1 },
+        tx("rent", 9, -6546.76, "rent", "Rent CHB October 2026"),
+        tx("fee", 8, -0.1, "stripe_fee", "Billing - Usage Fee"),
+        tx("move", 7, 10000, "internal_transfer"),
+        tx("letter", 6, 10, "donation", "", { collective: "openletter" }),
+        tx("don", 5, 2, "donation", "DAPHNE SARPYENER"),
+        tx("booking", 4, 596.88, "rental", "+++000/0045/48892+++"),
+        tx("furniture", 3, -441.65, "furniture", "CHB-S/2026/10/0001 - VENE1/2026/00108"),
+        tx("unknown", 2, 105.88, undefined),
+        tx("contractor", 1, -500, "consulting", "Website work"),
       ],
+      new Map([["rent", "Rent"], ["donation", "Donation"], ["furniture", "Furniture and rented equipment"]]),
+      [{ at: 5000, amount: 2, via: "bank transfer", name: null }],
+      10,
     )
-    expect(lines.map((l) => [l.kind, l.at])).toEqual([
-      ["time", 4],
-      ["money", 3],
+    expect(lines.map((l) => [l.id, l.amount, l.tag, l.note ?? ""])).toEqual([
+      ["rent", -6546.76, "Rent", "Rent CHB October 2026"],
+      ["don", 2, "Donation", ""],
+      ["booking", 596.88, "Booking", ""],
+      ["furniture", -441.65, "Furniture", ""],
+      ["unknown", 105.88, "Uncategorised", ""],
+      ["contractor", -500, "Contractor", "Website work"],
+    ])
+    expect(lines[1].donation).toEqual({ via: "bank transfer", name: null })
+
+    // Three €10 memberships the same day, one after the other: one line.
+    const grouped = latestTransactions([tx("m1", 1791300000, 10, "membership"), tx("m2", 1791290000, 10, "membership"), tx("m3", 1791280000, 10, "membership"), tx("d", 1791270000, 5, "donation")], new Map(), [], 10)
+    expect(grouped.map((l) => [l.id, l.count ?? 1])).toEqual([
+      ["m1", 3],
+      ["d", 1],
     ])
   })
+
 })
