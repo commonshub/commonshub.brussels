@@ -39,17 +39,13 @@ describe("fridge checkout", () => {
     expect(params.metadata).toEqual({ kind: "fridge", order: "2× Zinnebir 5,8%, 1× Fritz Limo Citron", delivery: "CHB-S/2026/09/0013" })
   })
 
-  test("a crate, with the name to be listed under", async () => {
+  test("a crate; how to be thanked is asked after paying, on the thank-you page", async () => {
     await post({ crate: "2133", amount: 35, name: " Alice " })
     const params = create.mock.calls[0][0] as any
     expect(params.payment_intent_data.description).toBe("Contribution fridge crate")
-    expect(params.payment_intent_data.metadata).toMatchObject({ kind: "fridge", crate: "yes", drink: "24 × Zinnebir 5,8%", name: "Alice" })
-    expect(params.success_url).toContain("thanks=crate")
-  })
-
-  test("a crate without a usable name is not listed", async () => {
-    await post({ crate: "2133", amount: 35, name: "see spam.com" })
-    expect((create.mock.calls[0][0] as any).metadata.name).toBeUndefined()
+    expect(params.payment_intent_data.metadata).toEqual({ kind: "fridge", crate: "yes", drink: "24 × Zinnebir 5,8%", delivery: "CHB-S/2026/09/0013" })
+    expect(params.custom_fields).toBeUndefined()
+    expect(params.success_url).toBe("https://commonshub.brussels/fridge/thanks?session_id={CHECKOUT_SESSION_ID}")
   })
 
   test("a crate costs at least what it cost us", async () => {

@@ -119,9 +119,8 @@ function Contribute(props: {
   options: number[]
   payload: object
   message: string
-  listed?: boolean
 }) {
-  const { amount, setAmount, minimum, options, payload, message, listed } = props
+  const { amount, setAmount, minimum, options, payload, message } = props
   const [custom, setCustom] = useState(() => !options.includes(amount))
   const [method, setMethod] = useState<Method>("card")
   const [busy, setBusy] = useState(false)
@@ -225,7 +224,6 @@ function Contribute(props: {
       ) : (
         <>
           <BankTransferDetails message={message} amountEur={amount || undefined} />
-          {listed && <p className="text-xs text-muted-foreground">Only donations by card are listed here automatically for now.</p>}
         </>
       )}
     </section>
@@ -267,7 +265,6 @@ export function FridgeOrder({ drinks, settings, fixedCosts = [] }: { drinks: Dri
   const [step, setStep] = useState<Step>("pick")
   const [amount, setAmount] = useState(0)
   const [crateId, setCrateId] = useState<string>(drinks[0]?.id ?? "")
-  const [name, setName] = useState("")
 
   const items = useMemo(() => drinks.filter((d) => (qty[d.id] ?? 0) > 0).map((d) => ({ drink: d, quantity: qty[d.id] })), [drinks, qty])
   const count = items.reduce((s, i) => s + i.quantity, 0)
@@ -303,7 +300,6 @@ export function FridgeOrder({ drinks, settings, fixedCosts = [] }: { drinks: Dri
   }
 
   if (step === "crate" && crate) {
-    const listedName = name.trim()
     return (
       <div className="flex flex-col gap-6">
         <Back onClick={() => go("pick")} />
@@ -334,29 +330,14 @@ export function FridgeOrder({ drinks, settings, fixedCosts = [] }: { drinks: Dri
             ))}
           </div>
         </section>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm text-foreground">
-            Your name <span className="text-muted-foreground">(optional)</span>
-          </span>
-          <input
-            type="text"
-            value={name}
-            maxLength={40}
-            autoComplete="name"
-            onChange={(e) => setName(e.target.value)}
-            placeholder="To be listed as a contributor"
-            className="h-11 rounded-lg border border-border bg-background px-3 text-base"
-          />
-        </label>
         <Costs lines={[{ label: `A crate of ${crate.perCrate} × ${shortName(crate)}`, amount: crate.crateCost }]} total={crate.crateCost} tokensPerMonth={settings.timeTokensPerMonth} fixedCosts={fixedCosts} />
         <Contribute
           amount={amount}
           setAmount={setAmount}
           minimum={crate.crateCost}
           options={fiveSteps(crate.crateCost)}
-          payload={{ crate: crate.id, name: listedName }}
+          payload={{ crate: crate.id }}
           message={settings.crateTransferMessage}
-          listed={!!listedName}
         />
       </div>
     )
