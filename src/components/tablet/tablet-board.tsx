@@ -1012,6 +1012,24 @@ export function TabletBoard({
     };
   }, []);
 
+  // Full screen on the first touch (a browser only allows it after one), and installable as an app.
+  const [fullscreen, setFullscreen] = useState(true);
+  useEffect(() => {
+    const installed = window.matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
+    const update = () => setFullscreen(installed || !!document.fullscreenElement || !document.fullscreenEnabled);
+    update();
+    const enter = () => {
+      if (!installed && !document.fullscreenElement && document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(() => {});
+    };
+    window.addEventListener("pointerdown", enter);
+    document.addEventListener("fullscreenchange", update);
+    navigator.serviceWorker?.register("/tablet-sw.js", { scope: "/tablet" }).catch(() => {});
+    return () => {
+      window.removeEventListener("pointerdown", enter);
+      document.removeEventListener("fullscreenchange", update);
+    };
+  }, []);
+
   const today = dayKey(now);
   return (
     <div
@@ -1029,7 +1047,7 @@ export function TabletBoard({
         className="flex shrink-0 items-center justify-between"
         style={{ gap: u(3) }}
       >
-        <span className="flex items-center" style={{ gap: u(2) }}>
+        <span className="mr-auto flex items-center" style={{ gap: u(2) }}>
           <span
             className="block shrink-0"
             style={{ width: u(7), height: u(7) }}
@@ -1040,6 +1058,19 @@ export function TabletBoard({
             Commons Hub Brussels
           </span>
         </span>
+        {!fullscreen && (
+          <button
+            type="button"
+            aria-label="Full screen"
+            onClick={() => document.documentElement.requestFullscreen().catch(() => {})}
+            className="shrink-0 rounded-full border border-border text-muted-foreground"
+            style={{ padding: u(1.4), lineHeight: 0 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: u(3.6), height: u(3.6) }}>
+              <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+            </svg>
+          </button>
+        )}
         <span className="text-right">
           <span
             className="block font-bold tabular-nums leading-none"
@@ -1074,7 +1105,7 @@ export function TabletBoard({
         </h1>
         <p
           className="text-muted-foreground"
-          style={{ fontSize: u(3), marginTop: u(2), maxWidth: u(80) }}
+          style={{ fontSize: u(3), marginTop: u(2) }}
         >
           The hub needs someone whenever it’s open: welcome people, show them
           around, make them feel at home. Tap a time to sign up, or tap
