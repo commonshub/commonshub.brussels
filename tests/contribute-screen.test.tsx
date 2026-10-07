@@ -260,21 +260,30 @@ describe("what the page reads", () => {
 })
 
 describe("the jars", () => {
-  test("money toward the space: memberships, donations, room rentals and coworking, net, whole euros; nothing else", () => {
-    const income = monthIncome({
-      categories: [
-        { slug: "internal_transfer", currencies: [{ currency: "EUR", in: 35000, out: 0, net: 35000 }] },
-        { slug: "membership", currencies: [{ currency: "EUR", in: 105.5, out: 5.07, net: 100.43 }] },
-        { slug: "donation", currencies: [{ currency: "EUR", in: 674.13, out: 19.88, net: 654.25 }] },
-        { slug: "rental", currencies: [{ currency: "EUR", in: 300, out: 0, net: 300 }, { currency: "CHT", in: 5, out: 0, net: 5 }] },
-        { slug: "rentals", currencies: [{ currency: "EUR", in: 20, out: 0, net: 20 }] },
-        { slug: "coworking", currencies: [{ currency: "EUR", in: 0, out: 50, net: -50 }] },
-        { slug: "rent", currencies: [{ currency: "EUR", in: 6546.76, out: 13226.62, net: -6679.86 }] },
-      ],
-    })
+  test("money toward the space: memberships and donations received (net), bookings invoiced (without VAT); nothing else", () => {
+    const income = monthIncome(
+      {
+        categories: [
+          { slug: "internal_transfer", currencies: [{ currency: "EUR", in: 35000, out: 0, net: 35000 }] },
+          { slug: "membership", currencies: [{ currency: "EUR", in: 105.5, out: 5.07, net: 100.43 }] },
+          { slug: "donation", currencies: [{ currency: "EUR", in: 674.13, out: 19.88, net: 654.25 }] },
+          // Paid bookings are counted when invoiced, not again when paid.
+          { slug: "rental", currencies: [{ currency: "EUR", in: 300, out: 0, net: 300 }] },
+          { slug: "rent", currencies: [{ currency: "EUR", in: 6546.76, out: 13226.62, net: -6679.86 }] },
+        ],
+      },
+      {
+        customers: [
+          { incomeType: "sales_services", untaxedAmount: 935.5 },
+          { incomeType: "sales_services", untaxedAmount: 381.5 },
+          { incomeType: "membership", untaxedAmount: 266 },
+          { incomeType: "sales_services", untaxedAmount: null },
+        ],
+      },
+    )
     expect(income).toEqual([
+      { label: "Bookings", amount: 1317, invoiced: true },
       { label: "Donations", amount: 654 },
-      { label: "Room rentals", amount: 320 },
       { label: "Memberships", amount: 100 },
     ])
   })

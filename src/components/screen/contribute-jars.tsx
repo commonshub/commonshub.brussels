@@ -1,6 +1,7 @@
 import type React from "react"
 
-import type { CostLayer, FeedLine, HourLayer, JarsData } from "@/lib/contribute-jars"
+import { COST_COLORS_DARK, slotsFor } from "@/components/contribute/fixed-costs-chart"
+import type { CostLayer, FeedLine, HourLayer, Income, JarsData } from "@/lib/contribute-jars"
 import { RelativeTime } from "./relative-time"
 import { ACCENT, MUTED, s } from "./screen"
 import { ScreenQr } from "./screen-qr"
@@ -91,8 +92,9 @@ function spread(labels: Array<{ center: number; below: number }>, bottom = 660, 
 const short = (label: string) => label.replace(/\s*\([^)]*\)\s*$/, "")
 
 function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostLayer[]; total: number; covered: number; drop: string | null; title: string; note: string }) {
-  const n = layers.length
-  const color = (i: number) => shade([255, 230, 209], [255, 76, 2], i, n)
+  // Each cost its own colour, the same as on /contribute's breakdown.
+  const slots = slotsFor(layers)
+  const color = (i: number) => COST_COLORS_DARK[(slots.get(layers[i].slug) ?? 1) - 1] ?? "#888"
   const level = yAt(total > 0 ? covered / total : 0)
   const full = covered >= total && total > 0
   const liquid = BOTTOM - level
@@ -105,20 +107,22 @@ function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostL
       <Glass id="money-jar">
         {/* what is still to pay: the ghost of each layer, up to a dashed line at the month's total */}
         {layers.map((l, i) => (
-          <rect key={`ghost-${l.slug}`} x="0" y={yAt(l.to)} width="380" height={yAt(l.from) - yAt(l.to)} fill={color(i)} fillOpacity="0.1" />
+          <rect key={`ghost-${l.slug}`} x="0" y={yAt(l.to)} width="380" height={yAt(l.from) - yAt(l.to)} fill={color(i)} fillOpacity="0.16" />
         ))}
         <line x1="0" x2="380" y1={TOP} y2={TOP} stroke={ACCENT} strokeOpacity="0.55" strokeDasharray="8 8" strokeWidth="2" />
         <g style={rise}>
           {layers.map((l, i) =>
             l.paid > 0 ? <rect key={l.slug} x="0" y={yAt(l.from + (l.paid / l.amount) * (l.to - l.from))} width="380" height={yAt(l.from) - yAt(l.from + (l.paid / l.amount) * (l.to - l.from))} fill={color(i)} /> : null,
           )}
-          {layers.slice(0, -1).map((l) =>
-            l.paid >= l.amount ? <line key={`sep-${l.slug}`} x1="0" x2="380" y1={yAt(l.to)} y2={yAt(l.to)} stroke="#111" strokeWidth="2" /> : null,
-          )}
+
           {covered > 0 && (
             <path d={wave(level)} fill={color(Math.max(0, topPaid))} />
           )}
         </g>
+        {/* A clear line between two costs, paid or not. */}
+        {layers.slice(0, -1).map((l) => (
+          <line key={`sep-${l.slug}`} x1="0" x2="380" y1={yAt(l.to)} y2={yAt(l.to)} stroke="#111" strokeWidth="4" />
+        ))}
         {!full && level - TOP >= 90 && (
           <g textAnchor="middle" fill="#fff">
             <text x="190" y={(TOP + level) / 2 - 14} fontSize="22" fillOpacity="0.7" fontWeight="600">
@@ -151,13 +155,14 @@ function MoneyJar({ layers, total, covered, drop, title, note }: { layers: CostL
           const paid = l.paid >= l.amount
           return (
             <g key={`label-${l.slug}`}>
-              <path d={`M384 ${center} H402 L420 ${y - 8} H426`} stroke="rgba(255,255,255,0.4)" fill="none" />
-              <text x="432" y={y} fontWeight={paid ? 500 : 700}>
+              <path d={`M384 ${center} H402 L420 ${y - 8} H428`} stroke={color(i)} strokeOpacity="0.8" strokeWidth="2" fill="none" />
+              <rect x="432" y={y - 18} width="20" height="20" rx="4" fill={color(i)} />
+              <text x="462" y={y} fontWeight={paid ? 500 : 700}>
                 {paid ? "✓ " : ""}
                 {short(l.label)} <tspan fill="rgba(255,255,255,0.65)">{eur(l.amount)}</tspan>
               </text>
               {partly(l) && (
-                <text x="432" y={y + 30} fontSize="20" fill="rgba(255,255,255,0.65)">
+                <text x="462" y={y + 30} fontSize="20" fill="rgba(255,255,255,0.65)">
                   {eur(l.paid)} covered so far
                 </text>
               )}
@@ -327,7 +332,7 @@ export function ContributeJars({ data, lines, qrSvg, url }: { data: JarsData; li
           covered={data.covered}
           drop={newestMoney}
           title={`💶 Money · ${data.monthName}`}
-          note={data.income.length > 0 ? data.income.map((i) => `${i.label} ${eur(i.amount)}`).join(" · ") : "nothing in yet this month"}
+          note={data.income.length > 0 ? data.income.map((i: Income) => `${i.label} ${eur(i.amount)}${i.invoiced ? " (invoiced)" : ""}`).join(" · ") : "nothing in yet this month"}
         />
       </section>
 

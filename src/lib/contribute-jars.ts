@@ -2,9 +2,12 @@
  * /contribute/screen as two jars that keep the hub open:
  *
  * - money: what the space costs a month, as layers (cheapest bills at the
- *   bottom, rent on top), filled from the bottom by what the community paid
- *   this month: memberships, donations, room rentals and coworking, net of
- *   refunds and fees (chb's public summary.json, per category). The parts
+ *   bottom, rent on top), filled from the bottom by this month's income:
+ *   memberships and donations as received, net of refunds and fees (chb's
+ *   public summary.json, per category), and bookings (rooms, coworking, their
+ *   catering) as invoiced this month, without VAT (chb's customers.json,
+ *   from Odoo): a booking is usually paid after the month it is invoiced in,
+ *   and counting it once, when invoiced, never counts it twice. The parts
  *   shown always add up to the amount covered.
  * - time: hours given this month, counted as one hour per community token
  *   issued (tokens-issued.json), by kind (from each token's reason). The jar
@@ -23,9 +26,12 @@ const TIER: Tier = "public"
 export const COVERING = [
   { slugs: ["membership"], label: "Memberships" },
   { slugs: ["donation"], label: "Donations" },
-  { slugs: ["rental", "rentals"], label: "Room rentals" },
-  { slugs: ["coworking"], label: "Coworking" },
 ] as const
+
+/** chb's month of invoices (YYYY/MM/public/customers.json, from Odoo): per customer, the kind of income and the amount without VAT. */
+export interface CustomersFile {
+  customers?: Array<{ incomeType?: string; untaxedAmount?: number | null }>
+}
 
 interface SummaryFile {
   categories?: Array<{ slug: string; currencies?: Array<{ currency: string; in?: number; out?: number; net?: number }> }>
@@ -35,18 +41,25 @@ export interface Income {
   label: string
   /** Euros, net, rounded down to the euro. */
   amount: number
+  /** Counted when invoiced rather than when paid. */
+  invoiced?: boolean
 }
 
 /**
- * This month's money toward the space, per kind (net of refunds and fees,
- * never below zero, whole euros), largest first. Kinds with nothing are left out.
+ * This month's money toward the space, per kind, largest first, in whole
+ * euros: memberships and donations received (net of refunds and fees, never
+ * below zero), bookings invoiced (without VAT). Kinds with nothing are left out.
  */
-export function monthIncome(summary: SummaryFile | null): Income[] {
+export function monthIncome(summary: SummaryFile | null, customers: CustomersFile | null = null): Income[] {
   const net = (slug: string) => {
     const eur = summary?.categories?.find((c) => c.slug === slug)?.currencies?.find((c) => c.currency === "EUR")
     return eur ? (eur.net ?? (eur.in ?? 0) - (eur.out ?? 0)) : 0
   }
-  return COVERING.map(({ slugs, label }) => ({ label, amount: Math.floor(Math.max(0, slugs.reduce((sum, s) => sum + net(s), 0))) }))
+  const bookings = (customers?.customers ?? []).filter((c) => c.incomeType === "sales_services").reduce((sum, c) => sum + (Number(c.untaxedAmount) || 0), 0)
+  return [
+    ...COVERING.map(({ slugs, label }) => ({ label, amount: Math.floor(Math.max(0, slugs.reduce((sum, s) => sum + net(s), 0))) })),
+    { label: "Bookings", amount: Math.floor(Math.max(0, bookings)), invoiced: true },
+  ]
     .filter((i) => i.amount > 0)
     .sort((a, b) => b.amount - a.amount)
 }
@@ -132,7 +145,7 @@ const monthKey = (d: Date) => [String(d.getUTCFullYear()), String(d.getUTCMonth(
 export function loadJars(costs: ScreenCost[], now = new Date()): JarsData {
   const [y, m] = monthKey(now)
   const [py, pm] = monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)))
-  const income = monthIncome(readTierJson<SummaryFile>(TIER, "summary.json", y, m))
+  const income = monthIncome(readTierJson<SummaryFile>(TIER, "summary.json", y, m), readTierJson<CustomersFile>(TIER, "customers.json", y, m))
   const covered = income.reduce((sum, i) => sum + i.amount, 0)
   const hours = hoursByKind(readTierJson<TokensIssuedFeed>(TIER, "tokens-issued.json", y, m))
   const last = hoursByKind(readTierJson<TokensIssuedFeed>(TIER, "tokens-issued.json", py, pm))
