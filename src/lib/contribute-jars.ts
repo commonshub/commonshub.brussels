@@ -28,8 +28,12 @@ export const COVERING = [
   { slugs: ["donation"], label: "Donations" },
 ] as const
 
-/** The kinds of invoiced income that are bookings: rooms, coworking, the catering that comes with them. */
-const BOOKING_TYPES = new Set(["sales_services", "rental", "rentals", "coworking", "catering"])
+/**
+ * The kinds of invoiced income that are bookings (chb's customers.json
+ * incomeType, docs/accounting-data.md): rooms, coworking, the catering that
+ * comes with them. Not the fridge (drinks), tickets or memberships.
+ */
+const BOOKING_TYPES = new Set(["room_rental", "coworking", "catering", "sales_services"])
 
 /** chb's month of invoices (YYYY/MM/public/customers.json, from Odoo): per customer, the kind of income and the amount without VAT. */
 export interface CustomersFile {

@@ -275,11 +275,12 @@ describe("the jars", () => {
       },
       {
         customers: [
-          { incomeType: "sales_services", untaxedAmount: 935.5 },
+          { incomeType: "room_rental", untaxedAmount: 935.5 },
           { incomeType: "sales_services", untaxedAmount: 381.5 },
           { incomeType: "membership", untaxedAmount: 266 },
-          { incomeType: "sales_services", untaxedAmount: null },
-          { incomeType: "rental", untaxedAmount: 0.4 },
+          { incomeType: "drinks", untaxedAmount: 8.12 },
+          { incomeType: "room_rental", untaxedAmount: null },
+          { incomeType: "catering", untaxedAmount: 0.4 },
         ],
       },
     )
