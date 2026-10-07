@@ -3,15 +3,15 @@ import type React from "react"
 
 import type { Contribution, Praise } from "@/lib/contributions-screen"
 import { RelativeTime } from "./relative-time"
-import { ACCENT, MUTED, s } from "./screen"
+import { MUTED, s } from "./screen"
 import { ScreenQr } from "./screen-qr"
 
 /**
  * /contributions/screen/2: a wall of thank-yous. Each one posted in 💝praise
  * is a sticky note ("To Leen, for figuring out the door! — Marijke"), each
  * contribution from #contributions a polaroid (its photo, or an emoji for
- * what was done). Notes drop onto the wall one after the other; the newest
- * is circled. No blurred shadows and nothing looping: the Samsung TV's
+ * what was done). Notes drop onto the wall one after the other, each with
+ * a small "2 days ago". No blurred shadows and nothing looping: the Samsung TV's
  * browser crashed on this page.
  */
 
@@ -40,7 +40,7 @@ function addressee(to: Praise["to"]): string {
   return `To ${names.length > 1 ? `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}` : names[0]},`
 }
 
-function Note({ praise, slot, color, order, newest }: { praise: Praise; slot: (typeof NOTE_SLOTS)[number]; color: string; order: number; newest: boolean }) {
+function Note({ praise, slot, color, order }: { praise: Praise; slot: (typeof NOTE_SLOTS)[number]; color: string; order: number }) {
   const long = praise.text.length
   const size = long > 120 ? 1.55 : long > 70 ? 1.8 : 2.1
   return (
@@ -64,22 +64,20 @@ function Note({ praise, slot, color, order, newest }: { praise: Praise; slot: (t
           color: "#2b2118",
           padding: `${s(1.3)} ${s(1.3)} ${s(1)}`,
           boxShadow: "0 6px 0 rgba(0,0,0,.35)",
-          outline: newest ? `${s(0.3)} solid ${ACCENT}` : undefined,
-          outlineOffset: s(0.3),
         }}
       >
         <span className="absolute left-1/2 -translate-x-1/2" style={{ top: s(-0.6), width: s(5.5), height: s(1.3), background: "rgba(255,255,255,0.35)", transform: "translateX(-50%) rotate(-3deg)" }} />
-        {newest && (
-          <span className="absolute font-sans" style={{ right: s(-1), top: s(-1.2), background: ACCENT, color: "#fff", fontSize: s(0.95), fontWeight: 700, padding: `${s(0.25)} ${s(0.6)}`, borderRadius: 999, transform: "rotate(6deg)" }}>
-            <RelativeTime ms={praise.at} />
-          </span>
-        )}
         <div style={{ fontSize: s(1.55), fontWeight: 700, lineHeight: 1.1 }}>{addressee(praise.to)}</div>
         <div className="line-clamp-4" style={{ fontSize: s(size), lineHeight: 1.05, marginTop: s(0.3) }}>
           {praise.text}
         </div>
-        <div className="text-right" style={{ fontSize: s(1.35), marginTop: s(0.6), opacity: 0.75 }}>
-          — {praise.from.name}
+        <div className="flex items-baseline justify-between" style={{ gap: s(0.6), marginTop: s(0.6) }}>
+          <span className="whitespace-nowrap font-sans" style={{ fontSize: s(0.85), opacity: 0.5 }}>
+            <RelativeTime ms={praise.at} />
+          </span>
+          <span className="truncate" style={{ fontSize: s(1.35), opacity: 0.75 }}>
+            — {praise.from.name}
+          </span>
         </div>
       </div>
     </div>
@@ -137,7 +135,7 @@ export function ThankYouWall({ praises, contributions, qrSvg, url, cta, label }:
           <p style={{ fontSize: s(1.8), color: MUTED }}>The wall is empty for now. Thank someone in 💝praise and it shows up here.</p>
         )}
         {notes.map((p, i) => (
-          <Note key={p.id} praise={p} slot={NOTE_SLOTS[i]} color={NOTE_COLORS[i % NOTE_COLORS.length]} order={i} newest={i === 0} />
+          <Note key={p.id} praise={p} slot={NOTE_SLOTS[i]} color={NOTE_COLORS[i % NOTE_COLORS.length]} order={i} />
         ))}
         {polaroids.map((c, i) => (
           <Polaroid key={c.id} item={c} slot={POLAROID_SLOTS[i]} order={notes.length + i} />
