@@ -43,8 +43,10 @@ import {
 /** Sizes in a unit that is 1% of a portrait tablet's width (and shrinks on a wider window). */
 const u = (n: number) => `calc(var(--u) * ${n})`;
 const TZ = "Europe/Brussels";
-/** Three minutes without a touch: back to /tablet (this week, no sheet open), freshly loaded. */
+/** Three minutes without a touch: back to /tablet (this week, no sheet open). */
 const IDLE_MS = 180_000;
+/** And reloaded every hour while nobody is using it, so it shows fresh sign-ups and bookings. */
+const RELOAD_MS = 3_600_000;
 
 const time = (ms: number) =>
   new Date(ms).toLocaleTimeString("en-GB", {
@@ -801,8 +803,9 @@ function PersonChip({
 
 /**
  * One day: a track from 8:00 to 22:00 with its bookings (orange while nobody
- * is on shift then) and its shifts (green), and below it who is on shift and
- * the bookings spelled out, since a one-hour block is too narrow to read.
+ * is on shift then) and who is on shift (green, avatar and name: a tap
+ * shows them and their hours), and below it the bookings spelled out, since
+ * a one-hour block is too narrow to read.
  */
 function DayRow({
   day,
@@ -834,9 +837,14 @@ function DayRow({
     const right = dayKey(endMs) === day.day ? at(minutesOf(endMs)) : 100;
     return { left: `${left}%`, width: `${Math.max(1.5, right - left)}%` };
   };
+  // A shift is as wide as its hours, or wider so its names fit (its exact hours are a tap away).
+  const grow = (startMs: number, endMs: number) => {
+    const { left, width } = span(startMs, endMs);
+    return { left, minWidth: width, width: "max-content", maxWidth: `calc(100% - ${left})` };
+  };
   return (
     <li className="flex shrink-0 items-start" style={{ gap: u(2) }}>
-      <div className="flex shrink-0 flex-col justify-center" style={{ width: u(15), minHeight: u(8) }}>
+      <div className="flex shrink-0 flex-col justify-center" style={{ width: u(15), minHeight: u(9.5) }}>
         <span className={`font-bold leading-tight ${isToday ? "text-primary" : ""}`} style={{ fontSize: u(2.9) }}>
           {isToday ? "Today" : new Date(ms).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}
         </span>
@@ -850,7 +858,7 @@ function DayRow({
           tabIndex={0}
           onClick={pickAt}
           className="relative overflow-hidden rounded-[1.5vw] bg-muted/60"
-          style={{ height: u(8) }}
+          style={{ height: u(9.5) }}
         >
           {[10, 12, 14, 16, 18, 20].map((h) => (
             <span key={h} className="absolute inset-y-0 border-l border-border/70" style={{ left: `${at(h * 60)}%` }} />
@@ -865,29 +873,32 @@ function DayRow({
               aria-label={b.title}
               onClick={(e) => (e.stopPropagation(), onBooking(b))}
               className={`absolute rounded-[0.8vw] ${covered(b, day.shifts) ? "bg-foreground/25" : "bg-primary"}`}
-              style={{ ...span(b.startMs, b.endMs), top: u(0.8), height: u(2.8) }}
+              style={{ ...span(b.startMs, b.endMs), top: u(0.8), height: u(2.6) }}
             />
           ))}
           {day.shifts.map((sh, i) => (
-            <button
+            <span
               key={i}
-              type="button"
-              aria-label={sh.people.map((p) => p.name).join(", ")}
-              onClick={(e) => (e.stopPropagation(), onPerson(sh.people[0], sh))}
-              className="absolute flex items-center overflow-hidden rounded-[0.8vw] bg-emerald-600"
-              style={{ ...span(sh.startMs, sh.endMs), bottom: u(0.8), height: u(3.4), padding: `0 ${u(0.4)}`, gap: u(0.4) }}
+              className="absolute flex items-center overflow-hidden rounded-[0.8vw] bg-emerald-600 text-white"
+              style={{ ...grow(sh.startMs, sh.endMs), bottom: u(0.8), height: u(4.4), padding: `0 ${u(1)} 0 ${u(0.5)}`, gap: u(1.2) }}
             >
               {sh.people.map((p) => (
-                <Avatar key={p.id} src={p.avatar} name={p.name} size={2.6} />
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={(e) => (e.stopPropagation(), onPerson(p, sh))}
+                  className="flex min-w-0 shrink-0 items-center"
+                  style={{ gap: u(0.8), fontSize: u(2.2) }}
+                >
+                  <Avatar src={p.avatar} name={p.name} size={3.4} />
+                  <span className="whitespace-nowrap font-semibold">{p.name}</span>
+                </button>
               ))}
-            </button>
+            </span>
           ))}
         </div>
-        {(day.shifts.length > 0 || day.bookings.length > 0) && (
+        {day.bookings.length > 0 && (
           <div className="flex flex-wrap" style={{ gap: u(1) }}>
-            {day.shifts.flatMap((sh, i) =>
-              sh.people.map((p) => <PersonChip key={`${i}-${p.id}`} person={p} shift={sh} onClick={() => onPerson(p, sh)} />),
-            )}
             {day.bookings.map((b) => {
               const needs = !covered(b, day.shifts);
               return (
@@ -978,13 +989,21 @@ export function TabletBoard({
   const close = useCallback(() => (setOpen(null), setDetail(null)), []);
   const pick = useCallback((slot: Slot) => (setDetail(null), setOpen(slot)), []);
 
-  // Three minutes without a touch: reload /tablet, so the next person finds this week, no sheet open, and fresh sign-ups.
+  // Three minutes without a touch: back to /tablet if someone left it elsewhere
+  // (another week, a sheet open, scrolled down); and every hour, reloaded, but
+  // only after three minutes without a touch, never under someone's fingers.
+  const state = useRef({ week, away: false });
+  state.current = { week, away: !!open || !!detail };
+  const list = useRef<HTMLUListElement>(null);
   useEffect(() => {
+    const loadedAt = Date.now();
     const touch = () => (lastTouch.current = Date.now());
     window.addEventListener("pointerdown", touch);
     window.addEventListener("keydown", touch);
     const id = setInterval(() => {
-      if (Date.now() - lastTouch.current > IDLE_MS) window.location.assign("/tablet");
+      if (Date.now() - lastTouch.current < IDLE_MS) return;
+      if (state.current.week !== 0 || state.current.away || Date.now() - loadedAt > RELOAD_MS) window.location.assign("/tablet");
+      else if (list.current?.scrollTop) list.current.scrollTo({ top: 0, behavior: "smooth" });
     }, 5_000);
     return () => {
       window.removeEventListener("pointerdown", touch);
@@ -1077,6 +1096,7 @@ export function TabletBoard({
       <WeekNav week={week} days={days} />
       <Ruler />
       <ul
+        ref={list}
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         style={{ gap: u(1.6), paddingBottom: u(5) }}
       >
