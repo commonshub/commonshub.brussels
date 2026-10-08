@@ -3,9 +3,9 @@ import { createHmac, timingSafeEqual } from "crypto"
 /**
  * The community tablet in the hub is trusted with members-only data (booking
  * titles, introductions), but /tablet is a public address. So trust belongs
- * to the device: a steward signs in on the tablet once and opens
- * /tablet/trust, which leaves a signed cookie for a year. Without it, /tablet
- * shows what anyone may see.
+ * to the device: a steward pairs it from their phone (lib/tablet-pairing),
+ * which leaves a signed cookie for a year. Nobody signs in on the tablet.
+ * Without the cookie, /tablet shows what anyone may see.
  *
  * The cookie is `<issued>.<steward id>.<signature>`, signed with the site's
  * auth secret: it cannot be made up, and rotating that secret revokes every

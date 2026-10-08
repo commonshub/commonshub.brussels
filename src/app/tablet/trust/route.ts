@@ -1,32 +1,18 @@
 import { NextResponse } from "next/server"
 
-import { auth } from "@/auth"
-import { isSteward } from "@/lib/admin-check"
 import { publicOrigin } from "@/lib/public-origin"
-import { TRUST_COOKIE, TRUST_MAX_AGE, trustToken } from "@/lib/tablet-trust"
+import { TRUST_COOKIE } from "@/lib/tablet-trust"
 
 export const dynamic = "force-dynamic"
 
 /**
- * Trust this device as the hub's tablet (see lib/tablet-trust): a signed-in
- * steward opens /tablet/trust on it once. Anyone else is sent to sign in
- * first. /tablet/trust?off=1 forgets the trust on this device.
+ * The hub's tablet is trusted by pairing it from a steward's phone
+ * (/tablet → "A steward can pair it", lib/tablet-pairing), never by signing
+ * in on it. This address only forgets the trust on this device (?off=1) and
+ * otherwise goes back to /tablet.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const origin = publicOrigin(request)
-  const back = new URL("/tablet", origin)
-  if (url.searchParams.get("off")) {
-    const res = NextResponse.redirect(back)
-    res.cookies.delete(TRUST_COOKIE)
-    return res
-  }
-  const session = await auth()
-  if (!session?.user) return NextResponse.redirect(new URL(`/auth/signin?callbackUrl=${encodeURIComponent("/tablet/trust")}`, origin))
-  if (!(await isSteward())) return NextResponse.json({ error: "Only a steward can trust a device as the hub's tablet" }, { status: 403 })
-  const id = session.user.discordId || "steward"
-  const res = NextResponse.redirect(back)
-  res.cookies.set(TRUST_COOKIE, trustToken(id), { httpOnly: true, secure: origin.startsWith("https:"), sameSite: "lax", path: "/", maxAge: TRUST_MAX_AGE })
-  console.log(`[tablet] device trusted by ${id}`)
+  const res = NextResponse.redirect(new URL("/tablet", publicOrigin(request)))
+  if (new URL(request.url).searchParams.get("off")) res.cookies.delete(TRUST_COOKIE)
   return res
 }
