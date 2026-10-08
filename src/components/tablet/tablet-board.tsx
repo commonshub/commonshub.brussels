@@ -668,6 +668,11 @@ function PersonSheet({
             {person.contributions ? `${person.contributions} contributions shared` : ""}
           </div>
         )}
+        {person.intro && (
+          <p className="whitespace-pre-line text-left text-muted-foreground" style={{ fontSize: u(2.9), lineHeight: 1.45, marginTop: u(1) }}>
+            “{person.intro}”
+          </p>
+        )}
         <p style={{ fontSize: u(3.4), marginTop: u(1) }}>
           {shift.endMs < Date.now() ? "Was on shift" : "On shift"} {onDay(shift.startMs)}{" "}
           <span className="font-bold">
@@ -968,11 +973,14 @@ function WeekNav({ week, days }: { week: number; days: TabletDay[] }) {
 export function TabletBoard({
   days,
   week,
+  trusted = false,
   shiftsAvailable,
   rewardAmountPerHour,
 }: {
   days: TabletDay[];
   week: number;
+  /** The hub's own tablet, trusted by a steward: members-only data is shown. */
+  trusted?: boolean;
   shiftsAvailable: boolean;
   rewardAmountPerHour: number;
 }) {
@@ -1142,6 +1150,15 @@ export function TabletBoard({
             onBooking={(booking) => setDetail({ kind: "event", booking, day: d })}
           />
         ))}
+        {!trusted && (
+          <li className="text-center text-muted-foreground" style={{ fontSize: u(2), marginTop: u(3) }}>
+            Is this the hub’s tablet?{" "}
+            <a href="/tablet/trust" className="underline">
+              A steward can trust it
+            </a>{" "}
+            to show booking names and introductions.
+          </li>
+        )}
       </ul>
 
       {detail?.kind === "person" && (
