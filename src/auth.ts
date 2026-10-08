@@ -7,6 +7,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   providers: [
     Discord({
+      // Discord now returns `iss=https://discord.com` on the OAuth callback (RFC 9207); without the issuer
+      // set here Auth.js checks it against its placeholder (https://authjs.dev) and every sign-in fails.
+      issuer: "https://discord.com",
       clientId: process.env.AUTH_DISCORD_ID!,
       clientSecret: process.env.AUTH_DISCORD_SECRET!,
       authorization: {
