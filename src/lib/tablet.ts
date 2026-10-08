@@ -44,6 +44,10 @@ export interface TabletBooking {
 export interface TabletPerson {
   id: string
   name: string
+  /** Their Discord username, to find their profile. */
+  username?: string
+  /** What they wrote in #introductions (on a trusted tablet only: it is members-only). */
+  intro?: string
   avatar?: string | null
   /** From the public contributors list: when they joined the community, how many contributions they shared. */
   joinedAt?: string | null
@@ -104,7 +108,7 @@ export function buildDays(now: number, bookings: TabletBooking[], shifts: Shift[
   for (const s of shifts) {
     const startMs = Date.parse(s.start)
     const endMs = Date.parse(s.end)
-    const people = s.signups.map((p) => ({ id: p.discordUserId || p.username, name: p.displayName || p.username })).filter((p) => p.name)
+    const people = s.signups.map((p) => ({ id: p.discordUserId || p.username, name: p.displayName || p.username, username: p.username })).filter((p) => p.name)
     if (people.length && shown(startMs, endMs)) byDay.get(dayKey(startMs))?.shifts.push({ startMs, endMs, people })
   }
   for (const d of days) {
@@ -161,4 +165,18 @@ export function shiftFor(b: { startMs: number; endMs: number }): { start: number
   const start = Math.min(LATEST_START, Math.max(EARLIEST_START, Math.floor((minutesOf(b.startMs) - SHIFT_LEAD_MINUTES) / START_STEP) * START_STEP))
   const hours = Math.min(4, Math.max(1, Math.ceil((b.endMs - b.startMs) / 3_600_000 + SHIFT_LEAD_MINUTES / 60)))
   return { start, hours }
+}
+
+/** What someone wrote in #introductions: their longest message there (the others are often welcomes), as plain text. */
+export function introOf(messages: Array<{ content?: string }> | undefined): string | undefined {
+  const text = (m: { content?: string }) =>
+    (m.content ?? "")
+      .replace(/<a?:(\w+):\d+>/g, "")
+      .replace(/<[@#][!&]?\d+>/g, "")
+      .replace(/\*\*|__|~~|`/g, "")
+      .replace(/[ \t]+/g, " ")
+      .trim()
+  const best = (messages ?? []).map(text).sort((a, b) => b.length - a.length)[0]
+  if (!best || best.length < 40) return undefined
+  return best.length > 600 ? `${best.slice(0, 600).replace(/\s+\S*$/, "")}…` : best
 }

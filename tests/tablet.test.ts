@@ -174,3 +174,25 @@ describe("signing up from the tablet", () => {
     }
   })
 })
+
+describe("the hub's own tablet", () => {
+  test("a steward's trust is a signed cookie, valid for a year; anything else is not trusted", async () => {
+    process.env.AUTH_SECRET = "test-secret"
+    const { isTrusted, trustToken } = await import("@/lib/tablet-trust")
+    const token = trustToken("618897639836090398", NOW)
+    expect(isTrusted(token, NOW + 86_400_000)).toBe(true)
+    expect(isTrusted(token, NOW + 366 * 86_400_000)).toBe(false)
+    expect(isTrusted(token.replace(/.$/, (c) => (c === "A" ? "B" : "A")), NOW)).toBe(false)
+    expect(isTrusted(`${Math.floor(NOW / 1000)}.1.forged`, NOW)).toBe(false)
+    expect(isTrusted(undefined, NOW)).toBe(false)
+  })
+
+  test("an introduction is the longest message, as plain text; a short welcome is not one", async () => {
+    const { introOf } = await import("@/lib/tablet")
+    expect(introOf([{ content: "Welcome Elias 🤗" }, { content: "Hi all! I'm **Miriam**, I love plants <:leaf:123> and I take care of the tokens. Ask me anything <@618897639836090398>" }])).toBe(
+      "Hi all! I'm Miriam, I love plants and I take care of the tokens. Ask me anything",
+    )
+    expect(introOf([{ content: "Welcome!" }])).toBeUndefined()
+    expect(introOf(undefined)).toBeUndefined()
+  })
+})
