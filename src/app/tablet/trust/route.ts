@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { auth } from "@/auth"
 import { isSteward } from "@/lib/admin-check"
+import { publicOrigin } from "@/lib/public-origin"
 import { TRUST_COOKIE, TRUST_MAX_AGE, trustToken } from "@/lib/tablet-trust"
 
 export const dynamic = "force-dynamic"
@@ -13,18 +14,19 @@ export const dynamic = "force-dynamic"
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const back = new URL("/tablet", url.origin)
+  const origin = publicOrigin(request)
+  const back = new URL("/tablet", origin)
   if (url.searchParams.get("off")) {
     const res = NextResponse.redirect(back)
     res.cookies.delete(TRUST_COOKIE)
     return res
   }
   const session = await auth()
-  if (!session?.user) return NextResponse.redirect(new URL(`/auth/signin?callbackUrl=${encodeURIComponent("/tablet/trust")}`, url.origin))
+  if (!session?.user) return NextResponse.redirect(new URL(`/auth/signin?callbackUrl=${encodeURIComponent("/tablet/trust")}`, origin))
   if (!(await isSteward())) return NextResponse.json({ error: "Only a steward can trust a device as the hub's tablet" }, { status: 403 })
   const id = session.user.discordId || "steward"
   const res = NextResponse.redirect(back)
-  res.cookies.set(TRUST_COOKIE, trustToken(id), { httpOnly: true, secure: url.protocol === "https:", sameSite: "lax", path: "/", maxAge: TRUST_MAX_AGE })
+  res.cookies.set(TRUST_COOKIE, trustToken(id), { httpOnly: true, secure: origin.startsWith("https:"), sameSite: "lax", path: "/", maxAge: TRUST_MAX_AGE })
   console.log(`[tablet] device trusted by ${id}`)
   return res
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
+import { publicOrigin } from "@/lib/public-origin"
+
 import settings from "@/settings/settings.json"
 
 import { FRIDGE, loadLatestDelivery, orderSummary } from "@/lib/fridge"
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
     metadata = { kind: "fridge", order: orderSummary(items).slice(0, 450), delivery: delivery.number }
   }
 
-  const origin = new URL(request.url).origin
+  const origin = publicOrigin(request)
   try {
     const session = await new Stripe(secretKey).checkout.sessions.create({
       mode: "payment",
