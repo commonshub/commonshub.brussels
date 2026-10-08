@@ -123,6 +123,7 @@ describe("signing up from the tablet", () => {
     let res!: Response
     await jest.isolateModulesAsync(async () => {
       jest.doMock("@/lib/tablet-data", () => ({ loadTabletBookings: () => [booking] }))
+      jest.doMock("@/lib/admin-check", () => ({ isMember: async () => false }))
       jest.doMock("@/lib/shifts-service", () => ({
         ShiftError: class extends Error {},
         isShiftsConfigured: () => true,
