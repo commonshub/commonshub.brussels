@@ -174,6 +174,7 @@ function SignupSheet({
   const [members, setMembers] = useState<Member[]>([]);
   const [searching, setSearching] = useState(false);
   const [person, setPerson] = useState<Picked | null>(me ? { kind: "discord", member: me } : null);
+  const isMe = !!me && person?.kind === "discord" && person.member.id === me.id;
   const [start, setStart] = useState(slot.start);
   const [hours, setHours] = useState(slot.hours);
   const [state, setState] = useState<{
@@ -318,13 +319,12 @@ function SignupSheet({
           </div>
         ) : (
           <>
-            {!me && (
             <section>
               <div
                 className="font-semibold"
                 style={{ fontSize: u(3.2), marginBottom: u(1.5) }}
               >
-                1. Who are you?
+                {me ? "1. Who’s signing up?" : "1. Who are you?"}
               </div>
               {person ? (
                 <div
@@ -353,7 +353,7 @@ function SignupSheet({
                         style={{ fontSize: u(3.6) }}
                       >
                         {person.kind === "discord"
-                          ? person.member.displayName
+                          ? `${person.member.displayName}${isMe ? " (you)" : ""}`
                           : person.email}
                       </span>
                     </span>
@@ -367,7 +367,7 @@ function SignupSheet({
                         setTimeout(() => input.current?.focus(), 0)
                       )}
                     >
-                      {person.kind === "discord" ? "Not me" : "Change"}
+                      {isMe ? "Someone else" : person.kind === "discord" && !me ? "Not me" : "Change"}
                     </button>
                   </div>
                   {person.kind === "email" && (
@@ -392,7 +392,7 @@ function SignupSheet({
                     ref={input}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Your name on Discord, or your email"
+                    placeholder={me ? "Their name on Discord, or their email" : "Your name on Discord, or your email"}
                     autoComplete="off"
                     className="w-full rounded-[2vw] border border-border bg-card outline-none focus:border-primary"
                     style={{ padding: `${u(2.2)} ${u(3)}`, fontSize: u(3.6) }}
@@ -401,6 +401,17 @@ function SignupSheet({
                     className="flex flex-wrap"
                     style={{ gap: u(1.5), marginTop: u(2), minHeight: u(9) }}
                   >
+                    {me && (
+                      <button
+                        type="button"
+                        onClick={() => setPerson({ kind: "discord", member: me })}
+                        className="flex items-center rounded-full border border-primary bg-primary/5"
+                        style={{ padding: `${u(1)} ${u(2.4)} ${u(1)} ${u(1)}`, gap: u(1.4), fontSize: u(3) }}
+                      >
+                        <Avatar src={me.avatar} name={me.displayName} size={6} />
+                        <span className="font-semibold">Me ({me.displayName})</span>
+                      </button>
+                    )}
                     {isEmail(query) && (
                       <button
                         type="button"
@@ -459,7 +470,6 @@ function SignupSheet({
                 </>
               )}
             </section>
-            )}
 
             <section
               className={slot.editTime ? "rounded-[2vw] ring-2 ring-primary" : ""}
@@ -469,7 +479,7 @@ function SignupSheet({
                 className="font-semibold"
                 style={{ fontSize: u(3.2), marginBottom: u(1.5) }}
               >
-                {me ? "When can you come?" : "2. When can you come?"}
+                2. When can you come?
               </div>
               <div className="flex items-center" style={{ gap: u(2) }}>
                 <Choice
@@ -546,7 +556,7 @@ function SignupSheet({
             >
               {state.kind === "sending"
                 ? "Signing you up…"
-                : me
+                : isMe
                   ? "Sign me up"
                   : person
                     ? `Sign up ${pickedName(person)}`
@@ -1118,13 +1128,17 @@ export function TabletBoard({
     window.addEventListener("pointerdown", enter);
     document.addEventListener("fullscreenchange", update);
     navigator.serviceWorker?.register("/tablet-sw.js", { scope: "/tablet" }).catch(() => {});
+    // A paired tablet renews its pairing as it loads: it stays paired for as long as it is used.
+    if (trusted) fetch("/api/tablet/renew", { method: "POST" }).catch(() => {});
     return () => {
       window.removeEventListener("pointerdown", enter);
       document.removeEventListener("fullscreenchange", update);
     };
-  }, [personal]);
+  }, [personal, trusted]);
 
   const today = dayKey(now);
+  // On the tablet, only a paired one signs people up (anyone standing there can pick any name); on /shifts, the signed-in member.
+  const canSignUp = shiftsAvailable && (personal || trusted);
   return (
     <div
       className={personal ? "mx-auto flex max-w-3xl flex-col bg-background px-4 pb-16 pt-28 text-foreground" : "fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground"}
@@ -1210,7 +1224,19 @@ export function TabletBoard({
           most: they show in orange while nobody is on shift for them. {tokens(rewardAmountPerHour)} an
           hour.
         </p>
-        {!shiftsAvailable && (
+        {!personal && !trusted && (
+          <p
+            className="rounded-[2vw] border border-primary bg-primary/5"
+            style={{ fontSize: u(2.8), marginTop: u(2), padding: u(2) }}
+          >
+            This tablet isn’t paired with the hub yet, so it can’t sign people up.{" "}
+            <button type="button" onClick={() => setPairing(true)} className="font-semibold text-primary underline">
+              A steward can pair it
+            </button>
+            .
+          </p>
+        )}
+        {(personal || trusted) && !shiftsAvailable && (
           <p
             className="rounded-[2vw] bg-muted"
             style={{ fontSize: u(2.8), marginTop: u(2), padding: u(2) }}
@@ -1233,21 +1259,12 @@ export function TabletBoard({
             key={d.day}
             day={d}
             now={now}
-            available={shiftsAvailable && d.day >= today}
+            available={canSignUp && d.day >= today}
             onPick={pick}
             onPerson={(person, shift) => setDetail({ kind: "person", person, shift, day: d })}
             onBooking={(booking) => setDetail({ kind: "event", booking, day: d })}
           />
         ))}
-        {!trusted && !personal && (
-          <li className="text-center text-muted-foreground" style={{ fontSize: u(2), marginTop: u(3) }}>
-            Is this the hub’s tablet?{" "}
-            <button type="button" onClick={() => setPairing(true)} className="underline">
-              A steward can pair it
-            </button>{" "}
-            to show booking names and introductions.
-          </li>
-        )}
       </ul>
 
       {pairing && <PairSheet onClose={() => setPairing(false)} />}
@@ -1256,7 +1273,7 @@ export function TabletBoard({
           person={detail.person}
           shift={detail.shift}
           day={detail.day.day}
-          available={shiftsAvailable && detail.shift.endMs > now}
+          available={canSignUp && detail.shift.endMs > now}
           onClose={close}
           onPick={pick}
         />
@@ -1266,7 +1283,7 @@ export function TabletBoard({
           booking={detail.booking}
           day={detail.day.day}
           shifts={detail.day.shifts}
-          available={shiftsAvailable && detail.booking.endMs > now}
+          available={canSignUp && detail.booking.endMs > now}
           onClose={close}
           onPick={pick}
           onPerson={(person, shift) => setDetail({ kind: "person", person, shift, day: detail.day })}

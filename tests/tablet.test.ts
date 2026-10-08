@@ -119,9 +119,11 @@ describe("signing up from the tablet", () => {
     shift: { id: "s", start: start.toISOString(), end: end.toISOString(), summary: eventTitle, signups: [] },
   }))
 
-  async function post(body: object) {
+  let session: object | null = { user: { discordId: "1" } }
+  async function post(body: object, headers: Record<string, string> = {}) {
     let res!: Response
     await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/auth", () => ({ auth: async () => session }))
       jest.doMock("@/lib/tablet-data", () => ({ loadTabletBookings: () => [booking] }))
       jest.doMock("@/lib/admin-check", () => ({ isMember: async () => false }))
       jest.doMock("@/lib/shifts-service", () => ({
@@ -136,7 +138,7 @@ describe("signing up from the tablet", () => {
             : new Response("{}", { status: 404 }),
       }))
       const { POST } = await import("@/app/api/tablet/signup/route")
-      res = await POST(new Request("http://localhost/api/tablet/signup", { method: "POST", body: JSON.stringify(body) }))
+      res = await POST(new Request("http://localhost/api/tablet/signup", { method: "POST", body: JSON.stringify(body), headers }))
     })
     return res
   }
@@ -160,6 +162,18 @@ describe("signing up from the tablet", () => {
     const res = await post({ day: tomorrow, start: 9 * 60, hours: 1, email: " Ann@Example.org ", name: "Ann" })
     expect(res.status).toBe(200)
     expect(signUp.mock.calls.at(-1)![0]).toEqual({ kind: "email", email: "ann@example.org", displayName: "Ann" })
+  })
+
+  test("only the hub's paired tablet or someone signed in with Discord can sign people up", async () => {
+    process.env.AUTH_SECRET = "test-secret"
+    const { trustToken, TRUST_COOKIE } = await import("@/lib/tablet-trust")
+    session = null
+    const body = { day: tomorrow, start: 12 * 60, hours: 2, discordUserId: "618897639836090398" }
+    expect((await post(body)).status).toBe(403)
+    expect((await post(body, { cookie: `${TRUST_COOKIE}=1.2.forged` })).status).toBe(403)
+    expect((await post(body, { cookie: `other=x; ${TRUST_COOKIE}=${trustToken("1")}` })).status).toBe(200)
+    session = { user: { discordId: "1" } }
+    expect((await post(body)).status).toBe(200)
   })
 
   test("refuses a day or time the tablet does not offer, an unknown or malformed Discord id, a bad email", async () => {
@@ -186,6 +200,18 @@ describe("the hub's own tablet", () => {
     expect(isTrusted(token.replace(/.$/, (c) => (c === "A" ? "B" : "A")), NOW)).toBe(false)
     expect(isTrusted(`${Math.floor(NOW / 1000)}.1.forged`, NOW)).toBe(false)
     expect(isTrusted(undefined, NOW)).toBe(false)
+  })
+
+  test("a paired tablet in use renews its trust (at most daily), so it stays paired", async () => {
+    process.env.AUTH_SECRET = "test-secret"
+    const { isTrusted, renewedToken, trustToken } = await import("@/lib/tablet-trust")
+    const token = trustToken("618897639836090398", NOW)
+    expect(renewedToken(token, NOW + 3_600_000)).toBeNull()
+    const later = NOW + 300 * 86_400_000
+    const fresh = renewedToken(token, later)!
+    expect(isTrusted(fresh, later + 300 * 86_400_000)).toBe(true)
+    expect(fresh.split(".")[1]).toBe("618897639836090398")
+    expect(renewedToken("1.2.forged", NOW)).toBeNull()
   })
 
   test("an introduction is the longest message, as plain text; a short welcome is not one", async () => {

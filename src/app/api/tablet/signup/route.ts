@@ -4,7 +4,8 @@ import settings from "@/settings/settings.json"
 import { discordGet } from "@/lib/discord"
 import { slotWindow } from "@/lib/tablet"
 import { loadTabletBookings } from "@/lib/tablet-data"
-import { isTrusted, TRUST_COOKIE } from "@/lib/tablet-trust"
+import { auth } from "@/auth"
+import { isTrusted, trustCookieOf } from "@/lib/tablet-trust"
 import { isMember } from "@/lib/admin-check"
 import { ShiftError, isShiftsConfigured, signUp, type Person } from "@/lib/shifts-service"
 
@@ -12,9 +13,9 @@ export const dynamic = "force-dynamic"
 
 const isEmail = (s: string) => s.length <= 120 && /^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/i.test(s)
 
-/** A tablet is one device in one place: a dozen sign-ups in ten minutes is plenty. */
+/** The tablet and /shifts together: thirty sign-ups in ten minutes is plenty. */
 const WINDOW_MS = 10 * 60_000
-const MAX_PER_WINDOW = 12
+const MAX_PER_WINDOW = 30
 const recent: number[] = []
 
 /** The Discord member behind an id picked from the autocomplete (any member of the server, bots excluded). */
@@ -27,7 +28,8 @@ async function discordPerson(id: string): Promise<Person | null> {
 }
 
 /**
- * Sign someone up for a shift from the community tablet: a Discord member
+ * Sign someone up for a shift, from the hub's paired tablet or from /shifts
+ * by a member signed in with Discord (nobody else may): a Discord member
  * (picked from the autocomplete) or anyone with an email address, on a day
  * of the coming two weeks, from a half hour, for one to four hours. The
  * times are worked out here (lib/tablet.ts slotWindow), never taken as they
@@ -38,6 +40,10 @@ async function discordPerson(id: string): Promise<Person | null> {
  */
 export async function POST(request: Request) {
   if (!isShiftsConfigured()) return NextResponse.json({ error: "Shift sign-ups are not available right now" }, { status: 503 })
+  const pairedTablet = isTrusted(trustCookieOf(request))
+  if (!pairedTablet && !(await auth())?.user) {
+    return NextResponse.json({ error: "Sign in with Discord to sign up for a shift (or use the hub's paired tablet)" }, { status: 403 })
+  }
 
   let body: { day?: unknown; start?: unknown; discordUserId?: unknown; email?: unknown; name?: unknown; hours?: unknown }
   try {
@@ -46,11 +52,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
   const window = typeof body.day === "string" ? slotWindow(body.day, Number(body.start), Number(body.hours)) : null
-  if (!window) return NextResponse.json({ error: "Pick a day and a time in the coming two weeks" }, { status: 400 })
+  if (!window) return NextResponse.json({ error: "Pick a day and a time in the coming weeks" }, { status: 400 })
   if (window.endMs < Date.now()) return NextResponse.json({ error: "That shift is already over" }, { status: 400 })
   // What the shift stewards: the bookings it overlaps, else the hub itself.
   // On the hub's paired tablet, or for a member on /shifts, private bookings keep their titles (the shifts calendar is for the team).
-  const trusted = isTrusted(request.headers.get("cookie")?.match(new RegExp(`(?:^|; )${TRUST_COOKIE}=([^;]+)`))?.[1]) || (await isMember())
+  const trusted = pairedTablet || (await isMember())
   const during = loadTabletBookings(window.startMs, window.endMs, trusted ? "members" : "public").filter((b) => b.startMs < window.endMs && b.endMs > window.startMs)
   const title = during.length ? during.map((b) => b.title).join(" · ").slice(0, 120) : "Stewarding the hub"
 
