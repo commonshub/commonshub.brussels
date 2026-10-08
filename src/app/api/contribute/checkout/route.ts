@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
+import { publicOrigin } from "@/lib/public-origin"
+
 import { THANKS_FIELD } from "@/lib/donor-thanks"
 
 import { findExpense, loadContributeExpenses } from "@/lib/contribute-expenses"
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
 
   // A one-time bill is paid once; only a recurring cost can be taken on monthly.
   const monthly = body.monthly === true && expense.kind === "recurring"
-  const origin = new URL(request.url).origin
+  const origin = publicOrigin(request)
   const stripe = new Stripe(secretKey)
   const metadata = { expense: expense.slug, reference: expense.reference, kind: expense.kind, monthly: monthly ? "yes" : "no" }
 
