@@ -77,7 +77,7 @@ const hm = (minutes: number) =>
 /** Noon of a calendar day, to name it. */
 const noon = (day: string) => Date.parse(`${day}T12:00:00Z`);
 
-interface Member {
+export interface Member {
   id: string;
   displayName: string;
   avatar: string | null;
@@ -159,18 +159,21 @@ interface Slot {
 function SignupSheet({
   slot,
   rewardPerHour,
+  me,
   onClose,
   onDone,
 }: {
   slot: Slot;
   rewardPerHour: number;
+  /** On /shifts: the signed-in member, who signs themselves up (no "Who are you?"). */
+  me?: Member;
   onClose: () => void;
   onDone: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [searching, setSearching] = useState(false);
-  const [person, setPerson] = useState<Picked | null>(null);
+  const [person, setPerson] = useState<Picked | null>(me ? { kind: "discord", member: me } : null);
   const [start, setStart] = useState(slot.start);
   const [hours, setHours] = useState(slot.hours);
   const [state, setState] = useState<{
@@ -183,8 +186,8 @@ function SignupSheet({
 
   // Opened to change the time: no keyboard over the time picker.
   useEffect(() => {
-    if (!slot.editTime) input.current?.focus();
-  }, [slot.editTime]);
+    if (!slot.editTime && !me) input.current?.focus();
+  }, [slot.editTime, me]);
 
   // Autocomplete over the community's Discord members.
   useEffect(() => {
@@ -315,6 +318,7 @@ function SignupSheet({
           </div>
         ) : (
           <>
+            {!me && (
             <section>
               <div
                 className="font-semibold"
@@ -455,6 +459,7 @@ function SignupSheet({
                 </>
               )}
             </section>
+            )}
 
             <section
               className={slot.editTime ? "rounded-[2vw] ring-2 ring-primary" : ""}
@@ -464,7 +469,7 @@ function SignupSheet({
                 className="font-semibold"
                 style={{ fontSize: u(3.2), marginBottom: u(1.5) }}
               >
-                2. When can you come?
+                {me ? "When can you come?" : "2. When can you come?"}
               </div>
               <div className="flex items-center" style={{ gap: u(2) }}>
                 <Choice
@@ -541,9 +546,11 @@ function SignupSheet({
             >
               {state.kind === "sending"
                 ? "Signing you up…"
-                : person
-                  ? `Sign up ${pickedName(person)}`
-                  : "Sign up"}
+                : me
+                  ? "Sign me up"
+                  : person
+                    ? `Sign up ${pickedName(person)}`
+                    : "Sign up"}
             </button>
           </>
         )}
@@ -1001,11 +1008,11 @@ const weekName = (week: number) =>
   week === 0 ? "This week" : week === 1 ? "Next week" : week === -1 ? "Last week" : week > 0 ? `In ${week} weeks` : `${-week} weeks ago`;
 
 /** Back and forth a week at a time. */
-function WeekNav({ week, days }: { week: number; days: TabletDay[] }) {
+function WeekNav({ week, days, path }: { week: number; days: TabletDay[]; path: string }) {
   const router = useRouter();
   const first = noon(days[0].day);
   const last = noon(days[days.length - 1].day);
-  const go = (w: number) => router.push(w ? `/tablet?week=${w}` : "/tablet");
+  const go = (w: number) => router.push(w ? `${path}?week=${w}` : path);
   const button = (w: number, label: string, enabled: boolean) => (
     <button
       type="button"
@@ -1033,20 +1040,32 @@ function WeekNav({ week, days }: { week: number; days: TabletDay[] }) {
   );
 }
 
+/**
+ * The shifts calendar, in one of two places:
+ * - /tablet, the hub's tablet: full screen, clock, anyone signs anyone up,
+ *   back to this week after three idle minutes, pairing with a steward's phone;
+ * - /shifts (`me` given): the same calendar in the site, for a signed-in
+ *   member who signs themselves up.
+ */
 export function TabletBoard({
   days,
   week,
   trusted = false,
   shiftsAvailable,
   rewardAmountPerHour,
+  me,
 }: {
   days: TabletDay[];
   week: number;
-  /** The hub's own tablet, trusted by a steward: members-only data is shown. */
+  /** Members-only data is shown (the hub's paired tablet, or a member on /shifts). */
   trusted?: boolean;
   shiftsAvailable: boolean;
   rewardAmountPerHour: number;
+  /** On /shifts: the signed-in member. */
+  me?: Member;
 }) {
+  const personal = !!me;
+  const path = personal ? "/shifts" : "/tablet";
   const router = useRouter();
   const now = useNow(0, 15_000);
   const [open, setOpen] = useState<Slot | null>(null);
@@ -1068,6 +1087,7 @@ export function TabletBoard({
   state.current = { week, away: !!open || !!detail, pairing };
   const list = useRef<HTMLUListElement>(null);
   useEffect(() => {
+    if (personal) return;
     const loadedAt = Date.now();
     const touch = () => (lastTouch.current = Date.now());
     window.addEventListener("pointerdown", touch);
@@ -1083,11 +1103,12 @@ export function TabletBoard({
       window.removeEventListener("keydown", touch);
       clearInterval(id);
     };
-  }, []);
+  }, [personal]);
 
   // Full screen on the first touch (a browser only allows it after one), and installable as an app.
   const [fullscreen, setFullscreen] = useState(true);
   useEffect(() => {
+    if (personal) return;
     const installed = window.matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
     const update = () => setFullscreen(installed || !!document.fullscreenElement || !document.fullscreenEnabled);
     update();
@@ -1101,21 +1122,23 @@ export function TabletBoard({
       window.removeEventListener("pointerdown", enter);
       document.removeEventListener("fullscreenchange", update);
     };
-  }, []);
+  }, [personal]);
 
   const today = dayKey(now);
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground"
+      className={personal ? "mx-auto flex max-w-3xl flex-col bg-background px-4 pb-16 pt-28 text-foreground" : "fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground"}
       style={
         {
-          ["--u" as string]: "min(1vw, calc(100vh / 160))",
-          padding: `${u(5)} ${u(5)} 0`,
+          // In the site, sized for a phone up to a tablet's width rather than filling the screen.
+          ["--u" as string]: personal ? "clamp(5px, 1vw, 7.6px)" : "min(1vw, calc(100vh / 160))",
+          ...(personal ? {} : { padding: `${u(5)} ${u(5)} 0` }),
           gap: u(3),
         } as React.CSSProperties
       }
     >
-      <style>{"html, body { overflow: hidden; }"}</style>
+      {!personal && <style>{"html, body { overflow: hidden; }"}</style>}
+      {!personal && (
       <header
         className="flex shrink-0 items-center justify-between"
         style={{ gap: u(3) }}
@@ -1166,6 +1189,7 @@ export function TabletBoard({
           </span>
         </span>
       </header>
+      )}
 
       <div className="shrink-0">
         <h1
@@ -1191,17 +1215,17 @@ export function TabletBoard({
             className="rounded-[2vw] bg-muted"
             style={{ fontSize: u(2.8), marginTop: u(2), padding: u(2) }}
           >
-            Sign-ups on the tablet are not available right now. Use /shifts on
+            Sign-ups {personal ? "here" : "on the tablet"} are not available right now. Use /shifts on
             our Discord.
           </p>
         )}
       </div>
 
-      <WeekNav week={week} days={days} />
+      <WeekNav week={week} days={days} path={path} />
       <Ruler />
       <ul
         ref={list}
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        className={personal ? "flex flex-col" : "flex min-h-0 flex-1 flex-col overflow-y-auto"}
         style={{ gap: u(1.6), paddingBottom: u(5) }}
       >
         {days.map((d) => (
@@ -1215,7 +1239,7 @@ export function TabletBoard({
             onBooking={(booking) => setDetail({ kind: "event", booking, day: d })}
           />
         ))}
-        {!trusted && (
+        {!trusted && !personal && (
           <li className="text-center text-muted-foreground" style={{ fontSize: u(2), marginTop: u(3) }}>
             Is this the hub’s tablet?{" "}
             <button type="button" onClick={() => setPairing(true)} className="underline">
@@ -1253,6 +1277,7 @@ export function TabletBoard({
           key={`${open.day}-${open.start}`}
           slot={open}
           rewardPerHour={rewardAmountPerHour}
+          me={me}
           onClose={close}
           onDone={() => router.refresh()}
         />
