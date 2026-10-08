@@ -147,7 +147,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     },
   },
-  pages: {
-    signIn: "/auth/signin",
-  },
+  // No custom sign-in page: /auth/signin never existed (a redirect there was a 404); Auth.js's own page offers Discord.
 })

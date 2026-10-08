@@ -933,6 +933,69 @@ function DayRow({
   );
 }
 
+/**
+ * Pairing this tablet from a steward's phone (lib/tablet-pairing): a QR code
+ * and a 6-digit code; once approved on the phone, the tablet reloads trusted.
+ * Nobody signs in on the tablet itself.
+ */
+function PairSheet({ onClose }: { onClose: () => void }) {
+  const [pairing, setPairing] = useState<{ id: string; code: string; qrSvg: string } | null>(null);
+  const [state, setState] = useState<"loading" | "waiting" | "expired" | "error">("loading");
+
+  const start = useCallback(() => {
+    setState("loading");
+    fetch("/api/tablet/pair", { method: "POST" })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((p: { id: string; code: string; qrSvg: string }) => (setPairing(p), setState("waiting")))
+      .catch(() => setState("error"));
+  }, []);
+  useEffect(start, [start]);
+
+  useEffect(() => {
+    if (state !== "waiting" || !pairing) return;
+    const id = setInterval(() => {
+      fetch(`/api/tablet/pair?id=${encodeURIComponent(pairing.id)}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d: { status: string }) => {
+          if (d.status === "approved") window.location.assign("/tablet");
+          else if (d.status === "expired") setState("expired");
+        })
+        .catch(() => {});
+    }, 2_000);
+    return () => clearInterval(id);
+  }, [state, pairing]);
+
+  return (
+    <Sheet onClose={onClose}>
+      <SheetHeader kicker="Stewards" title="Pair this tablet" onClose={onClose} />
+      <p className="text-muted-foreground" style={{ fontSize: u(3) }}>
+        Scan the code with your phone, signed in as a steward, and approve. Or open commonshub.brussels/tablet/pair and type the
+        code. The tablet then shows booking names and introductions. Nobody signs in here.
+      </p>
+      {state === "waiting" && pairing && (
+        <div className="flex flex-col items-center" style={{ gap: u(3) }}>
+          <div className="rounded-[2vw] bg-white" style={{ width: u(52), height: u(52), padding: u(2) }} dangerouslySetInnerHTML={{ __html: pairing.qrSvg }} />
+          <div className="font-mono font-bold tabular-nums" style={{ fontSize: u(9), letterSpacing: "0.15em" }}>
+            {pairing.code.slice(0, 3)} {pairing.code.slice(3)}
+          </div>
+          <div className="text-muted-foreground" style={{ fontSize: u(2.6) }}>
+            Waiting for a steward to approve…
+          </div>
+        </div>
+      )}
+      {state === "loading" && <p style={{ fontSize: u(3) }}>One moment…</p>}
+      {(state === "expired" || state === "error") && (
+        <div className="flex flex-col items-start" style={{ gap: u(2) }}>
+          <p style={{ fontSize: u(3) }}>{state === "expired" ? "This code has expired." : "Could not start pairing."}</p>
+          <button type="button" onClick={start} className="rounded-full bg-primary font-semibold text-primary-foreground" style={{ padding: `${u(1.8)} ${u(4)}`, fontSize: u(3) }}>
+            Show a new code
+          </button>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
 /** "This week", "Next week", "In 3 weeks", "Last week", "2 weeks ago". */
 const weekName = (week: number) =>
   week === 0 ? "This week" : week === 1 ? "Next week" : week === -1 ? "Last week" : week > 0 ? `In ${week} weeks` : `${-week} weeks ago`;
@@ -992,6 +1055,7 @@ export function TabletBoard({
     | { kind: "event"; booking: TabletBooking; day: TabletDay }
     | null
   >(null);
+  const [pairing, setPairing] = useState(false);
   const lastTouch = useRef(Date.now());
 
   const close = useCallback(() => (setOpen(null), setDetail(null)), []);
@@ -1000,8 +1064,8 @@ export function TabletBoard({
   // Three minutes without a touch: back to /tablet if someone left it elsewhere
   // (another week, a sheet open, scrolled down); and every hour, reloaded, but
   // only after three minutes without a touch, never under someone's fingers.
-  const state = useRef({ week, away: false });
-  state.current = { week, away: !!open || !!detail };
+  const state = useRef({ week, away: false, pairing: false });
+  state.current = { week, away: !!open || !!detail, pairing };
   const list = useRef<HTMLUListElement>(null);
   useEffect(() => {
     const loadedAt = Date.now();
@@ -1009,7 +1073,8 @@ export function TabletBoard({
     window.addEventListener("pointerdown", touch);
     window.addEventListener("keydown", touch);
     const id = setInterval(() => {
-      if (Date.now() - lastTouch.current < IDLE_MS) return;
+      // Waiting for a steward to approve the pairing on their phone: nobody touches the tablet meanwhile.
+      if (state.current.pairing || Date.now() - lastTouch.current < IDLE_MS) return;
       if (state.current.week !== 0 || state.current.away || Date.now() - loadedAt > RELOAD_MS) window.location.assign("/tablet");
       else if (list.current?.scrollTop) list.current.scrollTo({ top: 0, behavior: "smooth" });
     }, 5_000);
@@ -1153,14 +1218,15 @@ export function TabletBoard({
         {!trusted && (
           <li className="text-center text-muted-foreground" style={{ fontSize: u(2), marginTop: u(3) }}>
             Is this the hub’s tablet?{" "}
-            <a href="/tablet/trust" className="underline">
-              A steward can trust it
-            </a>{" "}
+            <button type="button" onClick={() => setPairing(true)} className="underline">
+              A steward can pair it
+            </button>{" "}
             to show booking names and introductions.
           </li>
         )}
       </ul>
 
+      {pairing && <PairSheet onClose={() => setPairing(false)} />}
       {detail?.kind === "person" && (
         <PersonSheet
           person={detail.person}
