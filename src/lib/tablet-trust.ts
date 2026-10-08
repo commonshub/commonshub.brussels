@@ -9,7 +9,12 @@ import { createHmac, timingSafeEqual } from "crypto"
  *
  * The cookie is `<issued>.<steward id>.<signature>`, signed with the site's
  * auth secret: it cannot be made up, and rotating that secret revokes every
- * trusted device.
+ * trusted device. It is renewed whenever the tablet loads /tablet (at most
+ * once a day, /api/tablet/renew), so a tablet in use stays paired for good:
+ * restarting the app or the tablet keeps it, only clearing the browser's data
+ * (or a year unused) needs a new pairing. Neither an IP address (anyone on
+ * the hub's wifi would share it) nor a browser fingerprint (it changes with
+ * updates, and can be copied) would be safer than this cookie.
  */
 
 export const TRUST_COOKIE = "chb_tablet"
@@ -35,4 +40,17 @@ export function isTrusted(token: string | undefined | null, now = Date.now()): b
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return false
   const age = now / 1000 - Number(issued)
   return age >= 0 && age < TRUST_MAX_AGE
+}
+
+/** The trust cookie's value in a request. */
+export function trustCookieOf(request: Request): string | undefined {
+  return request.headers.get("cookie")?.match(new RegExp(`(?:^|; )${TRUST_COOKIE}=([^;]+)`))?.[1]
+}
+
+/** A fresh cookie value for a valid trust older than a day (same steward), or null: keeps a tablet in use paired. */
+export function renewedToken(token: string | undefined | null, now = Date.now()): string | null {
+  if (!token || !isTrusted(token, now)) return null
+  const [issued, steward] = token.split(".")
+  if (now / 1000 - Number(issued) < 86_400) return null
+  return trustToken(steward, now)
 }
