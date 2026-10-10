@@ -330,11 +330,16 @@ export async function searchGuildMembers(guildId: string, query: string, limit =
 }
 
 /** A direct message from the bot to one member. */
-export async function sendDirectMessage(userId: string, content: string): Promise<boolean> {
+/** A DM; with `buttons`, link buttons under it (five at most, one row). */
+export async function sendDirectMessage(userId: string, message: string | { content: string; buttons?: Array<{ label: string; url: string; emoji?: string }> }): Promise<boolean> {
   const channel = await discordPost("/users/@me/channels", { recipient_id: userId })
   if (!channel.ok) return false
   const { id } = (await channel.json()) as { id: string }
-  const res = await discordPost(`/channels/${id}/messages`, { content, allowed_mentions: { parse: [] } })
+  const { content, buttons = [] } = typeof message === "string" ? { content: message } : message
+  const components = buttons.length
+    ? [{ type: 1, components: buttons.slice(0, 5).map((b) => ({ type: 2, style: 5, label: b.label, url: b.url, ...(b.emoji ? { emoji: { name: b.emoji } } : {}) })) }]
+    : undefined
+  const res = await discordPost(`/channels/${id}/messages`, { content, allowed_mentions: { parse: [] }, ...(components ? { components } : {}) })
   return res.ok
 }
 

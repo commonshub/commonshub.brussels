@@ -280,19 +280,35 @@ export async function sendShiftConfirmation(
 }
 
 /** The Discord DM after a sign-up made at the tablet. */
-export function buildShiftDm(d: ShiftConfirmation): string {
+/** A link button under a Discord message (Discord allows URLs up to 512 characters). */
+export interface DmButton {
+  label: string
+  url: string
+  emoji?: string
+}
+
+/**
+ * The Discord DM confirming a shift: the details as text, and the long links
+ * (open the door, cancel) as buttons under it rather than spelled out. A link
+ * too long for a button stays in the text, as a short masked link.
+ */
+export function buildShiftDm(d: ShiftConfirmation): { content: string; buttons: DmButton[] } {
   const tz = d.timezone || "Europe/Brussels";
+  const buttons: DmButton[] = [];
+  const masked: string[] = [];
+  const link = (label: string, url: string, emoji: string) => (url.length <= 512 ? buttons.push({ label, url, emoji }) : masked.push(`${emoji} [${label}](<${url}>)`));
+  if (d.doorLink) link("Open the door", d.doorLink, "🚪");
+  link("Handbook", HANDBOOK_URL, "📖");
+  if (d.cancelUrl) link("Cancel", d.cancelUrl, "✖️");
   const lines = [
     `📋 **You're on shift: ${longDay(d.start, tz)}, ${hhmm(d.start, tz)}–${hhmm(d.end, tz)}** at the Commons Hub${d.via === "tablet" ? " (signed up at the community tablet)" : ""}.`,
     ...(d.eventTitle ? [`🎪 You steward: **${d.eventTitle}**`] : []),
     `🪙 Reward: ${rewardText(d.reward)}, to claim after the shift as usual.`,
-    ...(d.doorLink ? [`🚪 Open the door: <${d.doorLink}>`] : []),
-    `📖 Handbook: <${HANDBOOK_URL}>`,
-    ...(d.cancelUrl
-      ? [`\nNot you, or can't make it? Cancel: <${d.cancelUrl}>`]
-      : []),
+    ...(d.doorLink ? ["🚪 The door button works from 30 minutes before your shift."] : []),
+    ...masked,
+    ...(d.cancelUrl ? ["Not you, or can't make it? Cancel below."] : []),
   ];
-  return lines.join("\n");
+  return { content: lines.join("\n"), buttons };
 }
 
 /** The Discord DM after a cancellation from the cancel link. */
