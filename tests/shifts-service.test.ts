@@ -5,7 +5,7 @@ jest.mock("@/lib/nostr-server", () => ({ COMMUNITY: {}, coordinatorPubkey: () =>
 jest.mock("@/lib/nostr-conventions", () => ({ buildRsvp: () => ({}) }))
 jest.mock("@/lib/door-link", () => ({ buildDoorLink: async () => null }))
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { auditTimestamp, cancelLine, parseSignups, signCancel, signupLine, verifyCancel } = require("@/lib/shifts-service") as typeof import("@/lib/shifts-service")
+const { auditTimestamp, cancelLine, parseSignups, personKey, signCancel, signupLine, verifyCancel } = require("@/lib/shifts-service") as typeof import("@/lib/shifts-service")
 const { buildShiftEmail, buildShiftIcs } = require("@/lib/shift-email") as typeof import("@/lib/shift-email")
 /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -66,6 +66,15 @@ describe("the calendar's audit lines", () => {
     expect(botParse(description).map((s) => s.username)).toEqual(["leen8610"])
     // And an email sign-up can be cancelled.
     expect(parseSignups(`${description}\n${cancelLine({ displayName: "Ann", handle: "email:ann@example.org" }, now)}`).map((s) => s.username)).toEqual(["leen8610"])
+  })
+
+  test("who signed up, as a key safe for a public page: the Discord id, or a hash of the email address", () => {
+    expect(personKey({ discordUserId: "618897639836090398", username: "leen8610" })).toBe("618897639836090398")
+    expect(personKey({ discordUserId: "", username: "leen8610" })).toBe("leen8610")
+    const key = personKey({ discordUserId: "", username: "email:ann@example.org" })
+    expect(key).toMatch(/^e-[\w-]{16}$/)
+    expect(key).not.toContain("ann")
+    expect(personKey({ discordUserId: "", username: "email:ann@example.org" })).toBe(key)
   })
 
   test("Brussels time, as the bot writes it", () => {

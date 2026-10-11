@@ -51,6 +51,8 @@ export interface ShiftSignup {
   discordUserId: string
   username: string
   displayName: string
+  /** Who it is, safe to show anywhere (see personKey): set by listShifts. */
+  key?: string
 }
 
 export interface Shift {
@@ -110,6 +112,19 @@ export function parseSignups(description: string | undefined): ShiftSignup[] {
   return [...active.values()]
 }
 
+/**
+ * Who signed up, as a key the tablet can show and send back: their Discord
+ * id (or username, for an old bot line without the id). Someone signed up
+ * by email is a keyed hash of the address, never the address: the tablet is
+ * a public page.
+ */
+export function personKey(s: { discordUserId: string; username: string }): string {
+  if (s.discordUserId) return s.discordUserId
+  if (!s.username.startsWith("email:")) return s.username
+  const secret = process.env.SHIFT_CANCEL_SECRET || process.env.AUTH_SECRET || ""
+  return `e-${createHmac("sha256", secret).update(`shift-person:${s.username}`).digest("base64url").slice(0, 16)}`
+}
+
 const appendLine = (description: string | undefined, line: string) => `${(description ?? "").trimEnd()}${description?.trim() ? "\n" : ""}${line}`
 const isCancelledEvent = (e: GCalEvent) => (e.summary ?? "").startsWith("[Cancelled]")
 const hm = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ })
@@ -119,7 +134,7 @@ export async function listShifts(from: Date, to: Date): Promise<Shift[]> {
   const events = await listEvents(SHIFTS_CALENDAR, from, to)
   return events
     .filter((e) => e.id && e.start?.dateTime && e.end?.dateTime && !isCancelledEvent(e))
-    .map((e) => ({ id: e.id!, start: e.start.dateTime, end: e.end.dateTime, summary: e.summary, signups: parseSignups(e.description) }))
+    .map((e) => ({ id: e.id!, start: e.start.dateTime, end: e.end.dateTime, summary: e.summary, signups: parseSignups(e.description).map((s) => ({ ...s, key: personKey(s) })) }))
     .filter((s) => s.signups.length > 0)
 }
 
@@ -196,7 +211,7 @@ export interface SignupResult {
   emailed: boolean
 }
 
-export async function signUp(person: Person, start: Date, end: Date, eventTitle?: string): Promise<SignupResult> {
+export async function signUp(person: Person, start: Date, end: Date, eventTitle?: string, opts: { changedFrom?: { start: Date; end: Date } } = {}): Promise<SignupResult> {
   if (!isShiftsConfigured()) throw new ShiftError("Shift sign-ups are not available right now", "not_configured", 503)
   const sameWindow = (e: GCalEvent) => Math.abs(Date.parse(e.start.dateTime) - start.getTime()) < 60_000 && Math.abs(Date.parse(e.end.dateTime) - end.getTime()) < 60_000
   const existing = (await listEvents(SHIFTS_CALENDAR, new Date(start.getTime() - 60_000), new Date(end.getTime() + 60_000))).find((e) => e.start?.dateTime && e.end?.dateTime && sameWindow(e))
@@ -239,17 +254,23 @@ export async function signUp(person: Person, start: Date, end: Date, eventTitle?
     cancelUrl,
     calendarEventId: event.id,
     via: "tablet",
+    changed: !!opts.changedFrom,
   }
+  const from = opts.changedFrom
+  const posted = (who: string) =>
+    from
+      ? `🔁 ${who} changed their shift on **${day(start)}** from ${hm(from.start)}-${hm(from.end)} to ${hm(start)}-${hm(end)}${eventTitle ? ` to steward **${eventTitle}**` : ""}`
+      : `📋 ${who} signed up via the community tablet for a shift on **${day(start)}** ${hm(start)}-${hm(end)}${eventTitle ? ` to steward **${eventTitle}**` : ""}`
 
   let dmSent = false
   if (person.kind === "discord") {
     await publishRsvp("signup", person, start, end)
     if (isDiscordConfigured()) {
       dmSent = await sendDirectMessage(person.id, buildShiftDm(confirmation)).catch(() => false)
-      sendMessage(SHIFTS_CHANNEL, `📋 <@${person.id}> signed up via the community tablet for a shift on **${day(start)}** ${hm(start)}-${hm(end)}${eventTitle ? ` to steward **${eventTitle}**` : ""}`).catch(() => {})
+      sendMessage(SHIFTS_CHANNEL, posted(`<@${person.id}>`)).catch(() => {})
     }
   } else if (isDiscordConfigured()) {
-    sendMessage(SHIFTS_CHANNEL, `📋 ${person.displayName} (by email) signed up via the community tablet for a shift on **${day(start)}** ${hm(start)}-${hm(end)}${eventTitle ? ` to steward **${eventTitle}**` : ""}`).catch(() => {})
+    sendMessage(SHIFTS_CHANNEL, posted(`${person.displayName} (by email)`)).catch(() => {})
   }
   let emailed = false
   if (confirmation.email) {
@@ -289,3 +310,50 @@ export async function cancel(token: string): Promise<{ alreadyCancelled: boolean
   return { alreadyCancelled: false, shift, displayName: mine.displayName }
 }
 
+
+/**
+ * Change someone's hours: the shifts they are on back to back (the tablet
+ * shows them as one) become one shift from `start` to `end`. They are
+ * cancelled in the old time windows, quietly (no "cancelled" DM), and
+ * signed up in the new one, which DMs them the new times, door link and
+ * cancel link, and says so in #shifts.
+ */
+export async function changeShift(key: string, ids: string[], start: Date, end: Date, eventTitle?: string): Promise<SignupResult> {
+  if (!isShiftsConfigured()) throw new ShiftError("Changing shifts is not available right now", "not_configured", 503)
+  const events = await Promise.all([...new Set(ids)].slice(0, 12).map((id) => getEvent(SHIFTS_CALENDAR, id).catch(() => null)))
+  const mine = events.flatMap((e) => {
+    if (!e?.id || !e.start?.dateTime || !e.end?.dateTime || isCancelledEvent(e)) return []
+    const signup = parseSignups(e.description).find((s) => personKey(s) === key)
+    return signup ? [{ event: e, signup }] : []
+  })
+  if (!mine.length) throw new ShiftError("This shift does not exist anymore", "not_found", 404)
+  const s = mine[0].signup
+  const person: Person | null = s.username.startsWith("email:")
+    ? { kind: "email", email: s.username.slice(6), displayName: s.displayName }
+    : s.discordUserId
+      ? { kind: "discord", id: s.discordUserId, username: s.username, displayName: s.displayName }
+      : null
+  if (!person) throw new ShiftError("Change this shift with /shifts on Discord", "invalid", 400)
+  const windowOf = (e: GCalEvent) => ({ start: Date.parse(e.start.dateTime), end: Date.parse(e.end.dateTime) })
+  const from = { start: new Date(Math.min(...mine.map((m) => windowOf(m.event).start))), end: new Date(Math.max(...mine.map((m) => windowOf(m.event).end))) }
+  if (mine.length === 1 && from.start.getTime() === start.getTime() && from.end.getTime() === end.getTime()) {
+    throw new ShiftError("That is already the shift's time", "invalid", 400)
+  }
+
+  // Full in the new window (not counting them)? Say so before cancelling anything.
+  const sameWindow = (e: GCalEvent) => Math.abs(Date.parse(e.start.dateTime) - start.getTime()) < 60_000 && Math.abs(Date.parse(e.end.dateTime) - end.getTime()) < 60_000
+  const target = (await listEvents(SHIFTS_CALENDAR, new Date(start.getTime() - 60_000), new Date(end.getTime() + 60_000))).find((e) => e.start?.dateTime && e.end?.dateTime && sameWindow(e))
+  if (target && !isCancelledEvent(target) && parseSignups(target.description).filter((x) => personKey(x) !== key).length >= MAX_PER_SHIFT) {
+    throw new ShiftError("The shift at that time is full", "full", 409)
+  }
+
+  for (const { event, signup } of mine) {
+    const left = parseSignups(event.description).filter((x) => x.username !== signup.username)
+    await patchEvent(SHIFTS_CALENDAR, event.id!, {
+      description: appendLine(event.description, cancelLine({ displayName: signup.displayName, handle: signup.username })),
+      ...(left.length === 0 ? { summary: `[Cancelled] ${event.summary ?? "Shift"}` } : {}),
+    })
+    if (person.kind === "discord") await publishRsvp("cancel", person, new Date(windowOf(event).start), new Date(windowOf(event).end))
+  }
+  return signUp(person, start, end, eventTitle, { changedFrom: from })
+}

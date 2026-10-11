@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "@jest/globals"
 
 import { isScreenRoute } from "@/lib/screen"
 import { brusselsMs } from "@/lib/events-board-format"
-import { buildDays, covered, joinSlot, uncovered, weekRange, mergeRooms, shiftFor, slotWindow } from "@/lib/tablet"
+import { buildDays, covered, joinSlot, uncovered, weekRange, mergeRooms, rangeWindow, shiftFor, slotWindow } from "@/lib/tablet"
 
 const H = 3_600_000
 const at = (iso: string) => Date.parse(iso)
@@ -39,6 +39,42 @@ describe("the community tablet", () => {
     expect(days[0].shifts.map((s) => s.people.map((p) => p.name))).toEqual([["Leen"]])
     expect(covered(days[0].bookings[0], days[0].shifts)).toBe(true)
     expect(covered(days[1].bookings[0], days[1].shifts)).toBe(false)
+  })
+
+  test("someone's shifts back to back or overlapping are one stretch, with the events behind it; others stay apart", () => {
+    const t = (hh: string) => `2026-10-12T${hh}:00+02:00`
+    const days = buildDays(
+      NOW,
+      [],
+      [
+        shift(t("08:30"), t("12:30"), [["m", "Miriam"]]),
+        shift(t("10:00"), t("18:30"), [["m", "Miriam"], ["l", "Leen"]]),
+        shift(t("12:00"), t("13:00"), [["m", "Miriam"]]),
+        shift(t("19:00"), t("21:00"), [["m", "Miriam"]]),
+      ],
+      7,
+    )
+    const monday = days.find((d) => d.day === "2026-10-12")!
+    expect(monday.shifts.map((s) => [s.people.map((p) => p.name), s.startMs, s.endMs, s.ids.length])).toEqual([
+      [["Miriam"], at(t("08:30")), at(t("18:30")), 3],
+      [["Leen"], at(t("10:00")), at(t("18:30")), 1],
+      [["Miriam"], at(t("19:00")), at(t("21:00")), 1],
+    ])
+  })
+
+  test("someone signed up by email shows by name only: no address in the page", () => {
+    const [day] = buildDays(NOW, [], [{ id: "x", start: "2026-10-07T14:00:00+02:00", end: "2026-10-07T16:00:00+02:00", signups: [{ discordUserId: "", username: "email:ann@example.org", displayName: "Ann", key: "e-abc" }] }], 1)
+    expect(day.shifts[0].people).toEqual([{ id: "e-abc", name: "Ann" }])
+    expect(JSON.stringify(day)).not.toContain("example.org")
+  })
+
+  test("changing someone's hours: on the half hour, one to twelve hours, ending by midnight", () => {
+    expect(rangeWindow("2026-10-12", 10 * 60, 18 * 60 + 30, NOW)).toEqual({ startMs: at("2026-10-12T10:00:00+02:00"), endMs: at("2026-10-12T18:30:00+02:00") })
+    expect(rangeWindow("2026-10-12", 20 * 60, 24 * 60, NOW)).toEqual({ startMs: at("2026-10-12T20:00:00+02:00"), endMs: at("2026-10-13T00:00:00+02:00") })
+    for (const [start, end] of [[10 * 60, 10 * 60 + 30], [8 * 60, 21 * 60], [10 * 60, 18 * 60 + 15], [21 * 60, 24 * 60 + 60], [6 * 60, 9 * 60]]) {
+      expect(rangeWindow("2026-10-12", start, end, NOW)).toBeNull()
+    }
+    expect(rangeWindow("2026-10-06", 10 * 60, 12 * 60, NOW)).toBeNull()
   })
 
   test("one event booked in several rooms is one booking with all its rooms; different events stay apart", () => {
@@ -221,5 +257,42 @@ describe("the hub's own tablet", () => {
     )
     expect(introOf([{ content: "Welcome!" }])).toBeUndefined()
     expect(introOf(undefined)).toBeUndefined()
+  })
+})
+
+describe("changing someone's hours from the tablet", () => {
+  const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })
+  const changeShift = jest.fn(async () => ({ dmSent: true, emailed: false, cancelUrl: "x", shift: {} }))
+  let session: object | null = { user: { discordId: "1" } }
+  async function post(body: object) {
+    let res!: Response
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/auth", () => ({ auth: async () => session }))
+      jest.doMock("@/lib/tablet-data", () => ({ loadTabletBookings: () => [] }))
+      jest.doMock("@/lib/admin-check", () => ({ isMember: async () => false }))
+      jest.doMock("@/lib/shifts-service", () => ({ ShiftError: class extends Error {}, isShiftsConfigured: () => true, changeShift }))
+      const { POST } = await import("@/app/api/tablet/shift/route")
+      res = await POST(new Request("http://localhost/api/tablet/shift", { method: "POST", body: JSON.stringify(body) }))
+    })
+    return res
+  }
+
+  test("the shifts shown as one become one, at the times checked here", async () => {
+    const res = await post({ ids: ["a1", "b2"], person: "618897639836090398", day: tomorrow, start: 600, end: 1110 })
+    expect(res.status).toBe(200)
+    expect(changeShift).toHaveBeenCalledWith("618897639836090398", ["a1", "b2"], new Date(brusselsMs(tomorrow, "10:00")), new Date(brusselsMs(tomorrow, "18:30")), "Stewarding the hub")
+  })
+
+  test("only someone who may sign people up; and not with bad times or ids", async () => {
+    for (const body of [
+      { ids: [], person: "1", day: tomorrow, start: 600, end: 720 },
+      { ids: ["a"], person: "<b>", day: tomorrow, start: 600, end: 720 },
+      { ids: ["a"], person: "1", day: tomorrow, start: 600, end: 630 },
+      { ids: ["a"], person: "1", day: tomorrow, start: 420, end: 1320 },
+    ]) {
+      expect((await post(body)).status).toBe(400)
+    }
+    session = null
+    expect((await post({ ids: ["a"], person: "1", day: tomorrow, start: 600, end: 720 })).status).toBe(403)
   })
 })

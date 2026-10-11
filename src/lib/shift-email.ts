@@ -35,6 +35,8 @@ export interface ShiftConfirmation {
   calendarEventId?: string;
   /** Who signed them up: themselves on Discord, or someone at the community tablet. */
   via?: "discord" | "tablet";
+  /** Their hours changed (the tablet's "Change hours"): this replaces the shift they had. */
+  changed?: boolean;
 }
 
 /** "Tue 7 Oct" in the hub's timezone. */
@@ -301,7 +303,9 @@ export function buildShiftDm(d: ShiftConfirmation): { content: string; buttons: 
   link("Handbook", HANDBOOK_URL, "📖");
   if (d.cancelUrl) link("Cancel", d.cancelUrl, "✖️");
   const lines = [
-    `📋 **You're on shift: ${longDay(d.start, tz)}, ${hhmm(d.start, tz)}–${hhmm(d.end, tz)}** at the Commons Hub${d.via === "tablet" ? " (signed up at the community tablet)" : ""}.`,
+    d.changed
+      ? `🔁 **Your shift changed: ${longDay(d.start, tz)}, ${hhmm(d.start, tz)}–${hhmm(d.end, tz)}** at the Commons Hub (at the community tablet). It replaces your earlier hours that day.`
+      : `📋 **You're on shift: ${longDay(d.start, tz)}, ${hhmm(d.start, tz)}–${hhmm(d.end, tz)}** at the Commons Hub${d.via === "tablet" ? " (signed up at the community tablet)" : ""}.`,
     ...(d.eventTitle ? [`🎪 You steward: **${d.eventTitle}**`] : []),
     `🪙 Reward: ${rewardText(d.reward)}, to claim after the shift as usual.`,
     ...(d.doorLink ? ["🚪 The door button works from 30 minutes before your shift."] : []),
