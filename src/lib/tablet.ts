@@ -39,7 +39,12 @@ export interface TabletBooking {
   endMs: number
   /** What it is about, for an event (plain text). */
   description?: string
+  /** Called off (its title says so): shown greyed out, needing nobody. */
+  cancelled?: boolean
 }
+
+/** A booking called off keeps its slot in the calendar with "cancelled" in its title: "(cancelled)", "[Cancelled]", "Cancelled: …". */
+export const isCancelledTitle = (title: string) => /\bcancell?ed\b/i.test(title)
 
 export interface TabletPerson {
   id: string
@@ -88,7 +93,7 @@ export function mergeRooms(bookings: TabletBooking[]): TabletBooking[] {
 
 /** What a shift stewards: the bookings it overlaps, else the hub itself. */
 export function stewardedTitle(bookings: TabletBooking[], window: { startMs: number; endMs: number }): string {
-  const during = bookings.filter((b) => b.startMs < window.endMs && b.endMs > window.startMs)
+  const during = bookings.filter((b) => !b.cancelled && b.startMs < window.endMs && b.endMs > window.startMs)
   return during.length ? during.map((b) => b.title).join(" · ").slice(0, 120) : "Stewarding the hub"
 }
 

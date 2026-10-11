@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "@jest/globals"
 
 import { isScreenRoute } from "@/lib/screen"
 import { brusselsMs } from "@/lib/events-board-format"
-import { buildDays, covered, joinSlot, uncovered, weekRange, mergeRooms, rangeWindow, shiftFor, slotWindow } from "@/lib/tablet"
+import { buildDays, covered, isCancelledTitle, joinSlot, uncovered, weekRange, mergeRooms, rangeWindow, shiftFor, slotWindow, stewardedTitle } from "@/lib/tablet"
 
 const H = 3_600_000
 const at = (iso: string) => Date.parse(iso)
@@ -75,6 +75,13 @@ describe("the community tablet", () => {
       expect(rangeWindow("2026-10-12", start, end, NOW)).toBeNull()
     }
     expect(rangeWindow("2026-10-06", 10 * 60, 12 * 60, NOW)).toBeNull()
+  })
+
+  test("a booking whose title says it was cancelled stays, greyed out, and needs no steward", () => {
+    for (const t of ["Oxfam Wereldwinkels VZW (cancelled)", "[Cancelled] Potluck", "Cancelled: yoga", "CANCELED workshop"]) expect(isCancelledTitle(t)).toBe(true)
+    for (const t of ["Cancellation policy talk", "Potluck"]) expect(isCancelledTitle(t)).toBe(false)
+    const w = { startMs: at("2026-10-12T09:00:00+02:00"), endMs: at("2026-10-12T12:00:00+02:00") }
+    expect(stewardedTitle([{ id: "o", title: "Oxfam (cancelled)", rooms: [], cancelled: true, ...w }], w)).toBe("Stewarding the hub")
   })
 
   test("one event booked in several rooms is one booking with all its rooms; different events stay apart", () => {
