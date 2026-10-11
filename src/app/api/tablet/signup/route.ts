@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import settings from "@/settings/settings.json"
 import { discordGet } from "@/lib/discord"
-import { slotWindow } from "@/lib/tablet"
+import { slotWindow, stewardedTitle } from "@/lib/tablet"
 import { loadTabletBookings } from "@/lib/tablet-data"
 import { auth } from "@/auth"
 import { isTrusted, trustCookieOf } from "@/lib/tablet-trust"
@@ -57,8 +57,7 @@ export async function POST(request: Request) {
   // What the shift stewards: the bookings it overlaps, else the hub itself.
   // On the hub's paired tablet, or for a member on /shifts, private bookings keep their titles (the shifts calendar is for the team).
   const trusted = pairedTablet || (await isMember())
-  const during = loadTabletBookings(window.startMs, window.endMs, trusted ? "members" : "public").filter((b) => b.startMs < window.endMs && b.endMs > window.startMs)
-  const title = during.length ? during.map((b) => b.title).join(" · ").slice(0, 120) : "Stewarding the hub"
+  const title = stewardedTitle(loadTabletBookings(window.startMs, window.endMs, trusted ? "members" : "public"), window)
 
   let person: Person | null = null
   if (typeof body.discordUserId === "string" && /^\d{5,25}$/.test(body.discordUserId)) {

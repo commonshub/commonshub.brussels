@@ -58,6 +58,8 @@ export interface TabletShift {
   startMs: number
   endMs: number
   people: TabletPerson[]
+  /** The shifts calendar's events behind it (someone on back-to-back shifts is shown once, for the whole time). */
+  ids: string[]
 }
 
 export interface TabletDay {
@@ -84,6 +86,12 @@ export function mergeRooms(bookings: TabletBooking[]): TabletBooking[] {
   return out
 }
 
+/** What a shift stewards: the bookings it overlaps, else the hub itself. */
+export function stewardedTitle(bookings: TabletBooking[], window: { startMs: number; endMs: number }): string {
+  const during = bookings.filter((b) => b.startMs < window.endMs && b.endMs > window.startMs)
+  return during.length ? during.map((b) => b.title).join(" · ").slice(0, 120) : "Stewarding the hub"
+}
+
 /** "2026-10-14": a calendar day a number of days after another. */
 export const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
 
@@ -105,11 +113,38 @@ export function buildDays(now: number, bookings: TabletBooking[], shifts: Shift[
   const byDay = new Map(days.map((d) => [d.day, d]))
   const shown = (startMs: number, endMs: number) => dayKey(startMs) !== today || endMs > now
   for (const b of mergeRooms(bookings)) if (shown(b.startMs, b.endMs)) byDay.get(dayKey(b.startMs))?.bookings.push(b)
+  // Each person's shifts that day, back to back or overlapping, become one stretch of time;
+  // people on exactly the same stretch share it.
+  const stretches = new Map<string, Array<{ person: TabletPerson; startMs: number; endMs: number; ids: string[] }>>()
   for (const s of shifts) {
     const startMs = Date.parse(s.start)
     const endMs = Date.parse(s.end)
-    const people = s.signups.map((p) => ({ id: p.discordUserId || p.username, name: p.displayName || p.username, username: p.username })).filter((p) => p.name)
-    if (people.length && shown(startMs, endMs)) byDay.get(dayKey(startMs))?.shifts.push({ startMs, endMs, people })
+    if (!shown(startMs, endMs) || !byDay.has(dayKey(startMs))) continue
+    for (const p of s.signups) {
+      const email = p.username.startsWith("email:")
+      const person: TabletPerson = { id: p.key ?? (p.discordUserId || p.username), name: p.displayName || (email ? "" : p.username), ...(email ? {} : { username: p.username }) }
+      if (!person.name) continue
+      const k = `${dayKey(startMs)}|${person.id}`
+      stretches.set(k, [...(stretches.get(k) ?? []), { person, startMs, endMs, ids: [s.id] }])
+    }
+  }
+  for (const [k, list] of stretches) {
+    const merged: typeof list = []
+    for (const x of list.sort((a, b) => a.startMs - b.startMs)) {
+      const last = merged.at(-1)
+      if (last && x.startMs <= last.endMs) {
+        last.endMs = Math.max(last.endMs, x.endMs)
+        last.ids.push(...x.ids.filter((id) => !last.ids.includes(id)))
+      } else merged.push({ ...x, ids: [...x.ids] })
+    }
+    const day = byDay.get(k.split("|")[0])!
+    for (const m of merged) {
+      const same = day.shifts.find((sh) => sh.startMs === m.startMs && sh.endMs === m.endMs)
+      if (same) {
+        same.people.push(m.person)
+        same.ids.push(...m.ids.filter((id) => !same.ids.includes(id)))
+      } else day.shifts.push({ startMs: m.startMs, endMs: m.endMs, people: [m.person], ids: m.ids })
+    }
   }
   for (const d of days) {
     d.bookings.sort((a, b) => a.startMs - b.startMs)
@@ -145,6 +180,16 @@ export function slotWindow(day: string, startMinutes: number, hours: number, now
   const mm = String(startMinutes % 60).padStart(2, "0")
   const startMs = brusselsMs(day, `${hh}:${mm}`)
   return { startMs, endMs: startMs + hours * 3_600_000 }
+}
+
+/** Changing someone's hours: up to twelve, on the half hour, starting 7:00 to 22:00, ending by midnight. */
+export const MAX_CHANGED_HOURS = 12
+export function rangeWindow(day: string, startMinutes: number, endMinutes: number, now = Date.now()): { startMs: number; endMs: number } | null {
+  if (!Number.isInteger(endMinutes) || endMinutes % START_STEP || endMinutes > 24 * 60) return null
+  const minutes = endMinutes - startMinutes
+  if (minutes < 60 || minutes > MAX_CHANGED_HOURS * 60) return null
+  const start = slotWindow(day, startMinutes, 1, now)
+  return start && { startMs: start.startMs, endMs: start.startMs + minutes * 60_000 }
 }
 
 /** Minutes after midnight (Brussels) of an instant. */

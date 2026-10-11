@@ -14,6 +14,7 @@ import {
   DEFAULT_SHIFT_HOURS,
   EARLIEST_START,
   LATEST_START,
+  MAX_CHANGED_HOURS,
   minutesOf,
   SHIFT_HOURS,
   joinSlot,
@@ -650,6 +651,7 @@ function PersonSheet({
   available,
   onClose,
   onPick,
+  onEdit,
 }: {
   person: TabletPerson;
   shift: TabletShift;
@@ -657,6 +659,7 @@ function PersonSheet({
   available: boolean;
   onClose: () => void;
   onPick: (slot: Slot) => void;
+  onEdit: () => void;
 }) {
   const { start, hours } = joinSlot(shift);
   const others = shift.people.filter((p) => p.id !== person.id);
@@ -716,12 +719,150 @@ function PersonSheet({
           >
             Come at another time
           </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-full border border-border font-semibold"
+            style={{ padding: `${u(2.2)} ${u(4)}`, fontSize: u(3.2) }}
+          >
+            Change {person.name}’s hours
+          </button>
         </div>
       ) : shift.endMs > Date.now() ? (
         <p className="text-center text-muted-foreground" style={{ fontSize: u(2.8) }}>
           Want to join? Use /shifts on our Discord.
         </p>
       ) : null}
+    </Sheet>
+  );
+}
+
+/** Changing someone's hours: their shifts that day, shown as one, become one from a new start to a new end. */
+function EditSheet({
+  person,
+  shift,
+  day,
+  rewardPerHour,
+  onClose,
+  onDone,
+}: {
+  person: TabletPerson;
+  shift: TabletShift;
+  day: string;
+  rewardPerHour: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const snap = (ms: number) => Math.round(minutesOf(ms) / START_STEP) * START_STEP;
+  const [start, setStart] = useState(() => Math.min(LATEST_START, Math.max(EARLIEST_START, snap(shift.startMs))));
+  const [end, setEnd] = useState(() => {
+    const e = dayKey(shift.endMs) === day ? snap(shift.endMs) : 24 * 60;
+    return Math.min(24 * 60, Math.max(start + 60, e));
+  });
+  const [state, setState] = useState<{ kind: "idle" | "sending" | "done" | "error"; message?: string; dmSent?: boolean; emailed?: boolean }>({ kind: "idle" });
+  const hours = (end - start) / 60;
+  const ok = hours >= 1 && hours <= MAX_CHANGED_HOURS;
+
+  async function save() {
+    setState({ kind: "sending" });
+    try {
+      const res = await fetch("/api/tablet/shift", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: shift.ids, person: person.id, day, start, end }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; dmSent?: boolean; emailed?: boolean };
+      if (!res.ok || !data.ok) throw new Error(data.error || "Could not change the shift");
+      setState({ kind: "done", dmSent: data.dmSent, emailed: data.emailed });
+      onDone();
+    } catch (error) {
+      setState({ kind: "error", message: error instanceof Error ? error.message : "Could not change the shift" });
+    }
+  }
+
+  const stepper = (label: string, value: number, set: (m: number) => void, min: number, max: number) => (
+    <div className="flex items-center justify-between" style={{ gap: u(2) }}>
+      <span className="font-semibold" style={{ fontSize: u(3.2), minWidth: u(12) }}>
+        {label}
+      </span>
+      <Choice active={false} onClick={() => set(Math.max(min, value - START_STEP))}>
+        − 30 min
+      </Choice>
+      <span className="font-bold tabular-nums" style={{ fontSize: u(6), minWidth: u(18), textAlign: "center" }}>
+        {hm(value % (24 * 60))}
+      </span>
+      <Choice active={false} onClick={() => set(Math.min(max, value + START_STEP))}>
+        + 30 min
+      </Choice>
+    </div>
+  );
+
+  return (
+    <Sheet onClose={onClose}>
+      <SheetHeader kicker={dayTitle(day)} title={`${person.name}’s hours`} onClose={onClose} />
+      {state.kind === "done" ? (
+        <div className="flex flex-col items-center text-center" style={{ gap: u(2.5), padding: `${u(3)} 0` }}>
+          <div style={{ fontSize: u(10) }}>👍</div>
+          <p style={{ fontSize: u(3.4) }}>
+            {person.name} is now on shift{" "}
+            <span className="font-bold">
+              {hm(start)}–{hm(end % (24 * 60))}
+            </span>
+            .{" "}
+            {state.dmSent || state.emailed
+              ? `We sent ${person.name} ${state.dmSent ? "a message on Discord" : "an email"} with the new times.`
+              : ""}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-primary font-semibold text-primary-foreground"
+            style={{ padding: `${u(2)} ${u(6)}`, fontSize: u(3.2), marginTop: u(1) }}
+          >
+            Done
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center" style={{ gap: u(2) }}>
+            <Avatar src={person.avatar} name={person.name} size={7} />
+            <span className="text-muted-foreground" style={{ fontSize: u(3) }}>
+              Now {time(shift.startMs)}–{time(shift.endMs)}
+            </span>
+          </div>
+          <div className="flex flex-col" style={{ gap: u(2) }}>
+            {stepper("From", start, (m) => (setStart(m), setEnd((e) => Math.max(e, m + 60))), EARLIEST_START, LATEST_START)}
+            {stepper("To", end, (m) => (setEnd(m), setStart((s) => Math.min(s, m - 60))), EARLIEST_START + 60, 24 * 60)}
+          </div>
+          <div className="rounded-[2vw] bg-muted" style={{ padding: u(3), fontSize: u(3.2) }}>
+            <span className="font-bold">
+              {hm(start)}–{hm(end % (24 * 60))}
+            </span>{" "}
+            · {hours}h
+            {person.username && (
+              <>
+                {" "}
+                · earns <span className="font-bold text-primary">{tokens(hours * rewardPerHour)}</span>
+              </>
+            )}
+            {!ok && <span className="text-destructive"> · at most {MAX_CHANGED_HOURS} hours</span>}
+          </div>
+          {state.kind === "error" && (
+            <p className="text-destructive" style={{ fontSize: u(3) }}>
+              {state.message}
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={!ok || state.kind === "sending"}
+            onClick={save}
+            className="rounded-full bg-primary font-bold text-primary-foreground disabled:opacity-40"
+            style={{ padding: `${u(2.6)} ${u(4)}`, fontSize: u(3.8) }}
+          >
+            {state.kind === "sending" ? "Saving…" : "Save"}
+          </button>
+        </>
+      )}
     </Sheet>
   );
 }
@@ -1082,6 +1223,7 @@ export function TabletBoard({
   const [detail, setDetail] = useState<
     | { kind: "person"; person: TabletPerson; shift: TabletShift; day: TabletDay }
     | { kind: "event"; booking: TabletBooking; day: TabletDay }
+    | { kind: "edit"; person: TabletPerson; shift: TabletShift; day: TabletDay }
     | null
   >(null);
   const [pairing, setPairing] = useState(false);
@@ -1276,6 +1418,17 @@ export function TabletBoard({
           available={canSignUp && detail.shift.endMs > now}
           onClose={close}
           onPick={pick}
+          onEdit={() => setDetail({ ...detail, kind: "edit" })}
+        />
+      )}
+      {detail?.kind === "edit" && (
+        <EditSheet
+          person={detail.person}
+          shift={detail.shift}
+          day={detail.day.day}
+          rewardPerHour={rewardAmountPerHour}
+          onClose={close}
+          onDone={() => router.refresh()}
         />
       )}
       {detail?.kind === "event" && (
