@@ -904,7 +904,11 @@ function EventSheet({
       )}
       <div>
         <div className="font-semibold" style={{ fontSize: u(3), marginBottom: u(1.5) }}>
-          {!during.length
+          {booking.cancelled
+            ? during.length
+              ? "It was cancelled, so nobody needs to be there for it. On shift then:"
+              : "It was cancelled, so nobody needs to be there for it."
+            : !during.length
             ? "Nobody is on shift for it yet"
             : gap
               ? `On shift for part of it; nobody from ${time(gap.startMs)}`
@@ -918,7 +922,7 @@ function EventSheet({
           </div>
         )}
       </div>
-      {available ? (
+      {booking.cancelled ? null : available ? (
         <button
           type="button"
           onClick={() => onPick({ day, start, hours, context: booking.title })}
@@ -1035,7 +1039,7 @@ function DayRow({
               type="button"
               aria-label={b.title}
               onClick={(e) => (e.stopPropagation(), onBooking(b))}
-              className={`absolute rounded-[0.8vw] ${covered(b, day.shifts) ? "bg-foreground/25" : "bg-primary"}`}
+              className={`absolute rounded-[0.8vw] ${b.cancelled ? "bg-foreground/10" : covered(b, day.shifts) ? "bg-foreground/25" : "bg-primary"}`}
               style={{ ...span(b.startMs, b.endMs), top: u(0.8), height: u(2.6) }}
             />
           ))}
@@ -1063,20 +1067,20 @@ function DayRow({
         {day.bookings.length > 0 && (
           <div className="flex flex-wrap" style={{ gap: u(1) }}>
             {day.bookings.map((b) => {
-              const needs = !covered(b, day.shifts);
+              const needs = !b.cancelled && !covered(b, day.shifts);
               return (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => onBooking(b)}
-                  className={`flex min-w-0 max-w-full items-baseline rounded-[2vw] border text-left ${needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"}`}
+                  className={`flex min-w-0 max-w-full items-baseline rounded-[2vw] border text-left ${needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"} ${b.cancelled ? "opacity-50" : ""}`}
                   style={{ gap: u(1), padding: `${u(0.6)} ${u(1.8)}`, fontSize: u(2.2) }}
                 >
                   <span className="shrink-0 font-semibold tabular-nums">
                     {time(b.startMs)}–{time(b.endMs)}
                   </span>
                   <span className="min-w-0">
-                    {b.title}
+                    <span className={b.cancelled ? "line-through" : ""}>{b.title}</span>
                     {b.rooms.length > 0 && !(b.rooms.length === 1 && b.title.startsWith(b.rooms[0])) && (
                       <span className="text-muted-foreground"> · {b.rooms.join(", ")}</span>
                     )}

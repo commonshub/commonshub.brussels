@@ -22,7 +22,7 @@ import * as path from "path"
 import { tierDir, type Tier } from "./data-paths"
 import { readEventsForMonth, readLatestEvents, readTierJson } from "./dataset"
 import { discordGet, isDiscordConfigured } from "./discord"
-import { buildDays, introOf, weekRange, type TabletBooking, type TabletDay } from "./tablet"
+import { buildDays, introOf, isCancelledTitle, weekRange, type TabletBooking, type TabletDay } from "./tablet"
 import { isShiftsConfigured, listShifts, REWARD_PER_HOUR } from "./shifts-service"
 
 interface BookingsFile {
@@ -127,9 +127,11 @@ export function loadTabletBookings(fromMs: number, toMs: number, tier: Tier = "p
       seen.add(id)
       const event = b.eventUrl ? eventByUrl.get(b.eventUrl) : undefined
       if (b.eventUrl) seen.add(b.eventUrl)
+      const title = event?.name || b.title || `${b.roomName ?? "Room"} booking`
       out.push({
         id,
-        title: event?.name || b.title || `${b.roomName ?? "Room"} booking`,
+        title,
+        ...(isCancelledTitle(title) ? { cancelled: true } : {}),
         rooms: b.roomName ? [b.roomName] : [],
         startMs,
         endMs,
@@ -141,7 +143,7 @@ export function loadTabletBookings(fromMs: number, toMs: number, tier: Tier = "p
     const startMs = Date.parse(e.startAt)
     const endMs = e.endAt ? Date.parse(e.endAt) : startMs + 2 * 3_600_000
     if (!Number.isFinite(startMs) || endMs <= fromMs || startMs >= toMs || (e.url && seen.has(e.url))) continue
-    out.push({ id: e.id, title: e.name, rooms: [], startMs, endMs, ...(e.description ? { description: plain(e.description) } : {}) })
+    out.push({ id: e.id, title: e.name, rooms: [], startMs, endMs, ...(isCancelledTitle(e.name) ? { cancelled: true } : {}), ...(e.description ? { description: plain(e.description) } : {}) })
   }
   return out.sort((a, b) => a.startMs - b.startMs)
 }
