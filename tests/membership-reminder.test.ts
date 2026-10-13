@@ -71,7 +71,7 @@ describe("the welcome email", () => {
 
   test("an organisation: named in the opening, organisation perks, escaped in HTML", () => {
     const e = buildWelcomeEmail({ name: "Bees & Co", email: "hello@bees.example", organisation: true })
-    expect(e.subject).toBe("Welcome to the Commons Hub")
+    expect(e.subject).toBe("Welcome to the Commons Hub, Bees & Co")
     expect(e.text).toContain("making Bees & Co a member")
     expect(e.html).toContain("Bees &amp; Co")
     expect(e.text).toContain(WELCOME_PERKS.organisation[0])
