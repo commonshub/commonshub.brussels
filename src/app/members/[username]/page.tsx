@@ -12,6 +12,7 @@ import path from "path";
 import { isMember } from "@/lib/admin-check";
 import { tierDir } from "@/lib/data-paths";
 import { SignInPrompt } from "@/components/day/sign-in-prompt";
+import { listPages } from "@/lib/member-pages";
 
 interface Contributor {
   id: string;
@@ -177,6 +178,9 @@ export default async function MemberProfilePage({ params }: MemberPageProps) {
   const member = publicMember;
   const { introductions = [], contributions = [], totalContributions = 0, imagesByMonth = {}, userMap = {}, channelMap = {} } = data ?? {};
 
+  // The pages they published (lib/member-pages.ts): members see them all, others the public ones.
+  const pages = listPages(member.username.toLowerCase()).filter((p) => viewerIsMember || p.visibility === "public");
+
   // Resolve local image paths for all messages
   const resolvedIntroductions = resolveMessagesImages(introductions);
   const resolvedContributions = resolveMessagesImages(contributions);
@@ -225,6 +229,22 @@ export default async function MemberProfilePage({ params }: MemberPageProps) {
 
             <MemberBalance userId={member.id} />
           </div>
+
+          {pages.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-foreground mb-2">Pages</h2>
+              <ul className="divide-y divide-border rounded-lg border border-border">
+                {pages.map((p) => (
+                  <li key={p.slug}>
+                    <Link href={`/members/${p.username}/${p.slug}`} className="block px-4 py-3 hover:bg-muted/40">
+                      <div className="font-medium text-foreground">{p.title}</div>
+                      {p.description && <div className="text-sm text-muted-foreground line-clamp-2">{p.description}</div>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {data ? (
             <MemberProfileContent

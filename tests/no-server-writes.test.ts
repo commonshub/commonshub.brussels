@@ -24,6 +24,15 @@ const CACHE_MODULES = [
   "lib/image-proxy-server.ts", // resized images
 ].sort();
 
+/**
+ * The one store of user content, outside the dataset: members' pages (HTML
+ * with images and videos up to 25 MB, too big for nostr events), under
+ * PAGES_DIR, its own volume, never DATA_DIR. Keep this list at one.
+ */
+const USER_CONTENT_MODULES = [
+  "lib/member-pages.ts",
+];
+
 const WRITE_CALLS = [
   "writeFileSync",
   "appendFileSync",
@@ -59,7 +68,7 @@ describe("the website never writes outside its caches", () => {
       .map((file) => path.relative(SRC, file).split(path.sep).join("/"))
       .sort();
 
-    expect(writers).toEqual(CACHE_MODULES);
+    expect(writers).toEqual([...CACHE_MODULES, ...USER_CONTENT_MODULES].sort());
   });
 
   test("no module builds a write path out of DATA_DIR", () => {
