@@ -18,6 +18,7 @@ import { getConversationKey, encrypt, decrypt } from "nostr-tools/nip44"
 
 import { grantGuildRole, sendDirectMessage, sendMessage, isDiscordConfigured } from "./discord"
 import { tokenBalanceOf } from "./token-balance"
+import { forgetRoles } from "./live-roles"
 import settings from "@/settings/settings.json"
 import { formatAddress, fromSite } from "./email-address"
 import { buildWelcomeEmail } from "./membership-welcome"
@@ -27,6 +28,8 @@ import {
   HELLO,
   PENDING_URL,
   VOUCHES_NEEDED,
+  VOUCH_EMOJI,
+  buildVouch,
   applicationUri,
   buildAcceptedEmail,
   buildReceivedEmail,
@@ -104,8 +107,75 @@ export async function loadVouchers(ids: string[]): Promise<Map<string, Array<{ d
   const links = parseAttestations(attestations, providers)
   const discordIds = [...new Set(links.filter((l) => l.keys.some((k) => authors.includes(k))).map((l) => l.discordId))]
   const holders = new Set((await Promise.all(discordIds.map(async (d) => ((await hasTokens(d)) ? d : null)))).filter(Boolean))
-  for (const id of ids) result.set(id, vouchersOf(events, id, links, (d) => holders.has(d)))
+  for (const id of ids) result.set(id, vouchersOf(events, id, links, (d) => holders.has(d), siteIdentity()?.pubkey))
   return result
+}
+
+// ── vouching on Discord: a ✅ reaction on the application's post ──────────
+
+async function bot(path: string, init: RequestInit = {}): Promise<Response | null> {
+  const token = process.env.DISCORD_BOT_TOKEN
+  if (!token) return null
+  return fetch(`https://discord.com/api/v10${path}`, { ...init, headers: { Authorization: `Bot ${token}`, ...(init.headers ?? {}) }, cache: "no-store" }).catch(() => null)
+}
+
+/** Who reacted with the vouch emoji on a post (people, not bots). */
+async function reactors(messageId: string): Promise<Array<{ id: string; name: string }>> {
+  const res = await bot(`/channels/${REQUESTS}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}?limit=100`)
+  if (!res?.ok) return []
+  const users = (await res.json()) as Array<{ id: string; username: string; global_name?: string | null; bot?: boolean }>
+  return users.filter((u) => !u.bot).map((u) => ({ id: u.id, name: (u.global_name || u.username).replace(/[\n<>@]/g, "").slice(0, 60) }))
+}
+
+/** The bot's own ✅ on the post, so members only have to tap it. */
+export const addVouchReaction = (messageId: string) => bot(`/channels/${REQUESTS}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}/@me`, { method: "PUT" })
+
+/** Applications posted before their post was recorded: find it in #requests by its first line. */
+async function findPost(a: Application): Promise<string | null> {
+  const res = await bot(`/channels/${REQUESTS}/messages?limit=100`)
+  if (!res?.ok) return null
+  const messages = (await res.json()) as Array<{ id: string; content: string; author?: { bot?: boolean } }>
+  return messages.find((m) => m.author?.bot && m.content.startsWith(`👋 **New membership application: ${a.name}**`))?.id ?? null
+}
+
+/**
+ * Turn ✅ reactions on #requests posts into vouches: one Nostr vouch signed by
+ * the site on behalf of each member who reacted and holds tokens (others are
+ * ignored), withdrawn (NIP-09) if they remove their reaction before the
+ * application is approved. Then approve whatever reached three vouches.
+ */
+export async function syncReactionVouches(): Promise<void> {
+  const site = siteIdentity()
+  if (!site || !isDiscordConfigured()) return
+  const pending = (await listApplications()).filter((a) => a.status === "pending")
+  if (!pending.length) return
+  const events = await queryRelays({ kinds: [KIND_COMMENT], authors: [site.pubkey], "#I": pending.map((a) => applicationUri(a.id)), "#t": ["on-behalf"], limit: 1000 }, 4000)
+  for (let a of pending) {
+    if (!a.discordMessageId) {
+      const found = await findPost(a)
+      if (!found) continue
+      a = { ...a, discordMessageId: found }
+      await saveApplication(a)
+      await addVouchReaction(found)
+    }
+    const reacted = await reactors(a.discordMessageId!)
+    const mine = events.filter((e) => e.tags.some((t) => t[0] === "I" && t[1] === applicationUri(a.id)))
+    const recorded = new Map(mine.map((e) => [e.tags.find((t) => t[0] === "discord")?.[1], e]))
+    let changed = false
+    for (const r of reacted) {
+      if (recorded.has(r.id) || !(await hasTokens(r.id))) continue
+      await publishAsSite(buildVouch(a.id, a.name, COMMUNITY, site.pubkey, new Date(), { discordId: r.id, name: r.name }))
+      changed = true
+    }
+    const still = new Set(reacted.map((r) => r.id))
+    for (const [discordId, e] of recorded) {
+      if (discordId && !still.has(discordId)) {
+        await publishAsSite({ kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", e.id], ["k", String(KIND_COMMENT)]], content: "Reaction removed on Discord" })
+        changed = true
+      }
+    }
+    if (changed) await approveIfVouched(a.id)
+  }
 }
 
 // ── emails ──────────────────────────────────────────────────────────────────
@@ -176,6 +246,7 @@ export async function claimMemberRole(id: string, user: { discordId: string; nam
   const granted = await grantGuildRole(GUILD, user.discordId, MEMBER_ROLE, user.accessToken)
   if (granted === "not-in-server") return { ok: false, error: "You're not in our Discord server yet: log in with Discord once more and allow us to add you.", status: 409, relogin: true }
   if (granted !== "granted") return { ok: false, error: "We couldn't give you the member role. A steward has been told and will do it by hand.", status: 502 }
+  forgetRoles(user.discordId)
   const already = a.discordId === user.discordId
   if (!already) {
     await saveApplication({ ...a, discordId: user.discordId })
@@ -214,7 +285,7 @@ export async function onboardPaid(id: string): Promise<boolean> {
   if (!a || a.status === "member") return false
   await sendOnboarding(a)
   await saveApplication({ ...a, status: "member", paidAt: new Date().toISOString() })
-  if (isDiscordConfigured()) sendMessage(REQUESTS, `🎉 **${a.name}** paid their membership and got the onboarding email. Welcome! (${PENDING_URL})`).catch(() => {})
+  if (isDiscordConfigured()) sendMessage(REQUESTS, `🎉 **${a.name}** paid their membership and got the onboarding email. Welcome! ([pending applications](<${PENDING_URL}>))`).catch(() => {})
   return true
 }
 

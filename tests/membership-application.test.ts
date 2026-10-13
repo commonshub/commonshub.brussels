@@ -80,6 +80,21 @@ describe("vouching", () => {
   })
 })
 
+describe("vouching by reacting on Discord", () => {
+  const site = "s".repeat(64)
+  const community = { guildId: "1", name: "Hub" }
+  test("the site's vouch on behalf of a member who reacted counts for that member, once, only with tokens", () => {
+    const onBehalf = (discordId: string, name: string, at: number) => ({ ...buildVouch("abc123", "Ann", community, site, new Date(), { discordId, name }), pubkey: site, created_at: at })
+    const theirOwn = { ...buildVouch("abc123", "Ann", community, site), pubkey: "k1", created_at: 5 }
+    const links = [{ discordId: "1", name: "Leen", keys: ["k1"], roles: [] }]
+    const events = [onBehalf("1", "Leen", 1), onBehalf("2", "Miriam", 2), onBehalf("3", "Broke", 3), theirOwn]
+    expect(vouchersOf(events, "abc123", links, (d) => d !== "3", site).map((v) => v.name)).toEqual(["Leen", "Miriam"])
+    // Signed by anyone else, a "discord" tag means nothing.
+    expect(vouchersOf([{ ...onBehalf("2", "Miriam", 2), pubkey: "intruder" }], "abc123", links, () => true, site)).toEqual([])
+    expect(onBehalf("2", "Miriam", 2).tags).toContainEqual(["t", "on-behalf"])
+  })
+})
+
 describe("who they know at the hub", () => {
   test("members picked from Discord (ids checked, deduplicated) and names typed by hand", () => {
     const a = parseApplication(
