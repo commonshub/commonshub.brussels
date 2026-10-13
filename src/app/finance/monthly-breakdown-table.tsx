@@ -137,15 +137,15 @@ export function MonthlyBreakdownTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-right text-green-600 whitespace-nowrap w-[140px]">
-                      +€{month.inflow.toLocaleString()}
+                      €{month.inflow.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-red-600 whitespace-nowrap w-[140px]">
-                      -€{month.outflow.toLocaleString()}
+                      €{month.outflow.toLocaleString()}
                     </TableCell>
                     <TableCell
                       className={`text-right font-medium whitespace-nowrap w-[140px] ${month.net >= 0 ? "text-green-600" : "text-red-600"}`}
                     >
-                      {month.net >= 0 ? "+" : ""}€{month.net.toLocaleString()}
+                      {month.net < 0 ? "−" : ""}€{Math.abs(month.net).toLocaleString()}
                     </TableCell>
                   </TableRow>
                   {expandedMonth === month.month &&
@@ -164,16 +164,15 @@ export function MonthlyBreakdownTable({
                           </span>
                         </TableCell>
                         <TableCell className="text-right text-green-600 py-2 whitespace-nowrap w-[140px]">
-                          +€{monthData.inflow.toLocaleString()}
+                          €{monthData.inflow.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right text-red-600 py-2 whitespace-nowrap w-[140px]">
-                          -€{monthData.outflow.toLocaleString()}
+                          €{monthData.outflow.toLocaleString()}
                         </TableCell>
                         <TableCell
                           className={`text-right font-medium py-2 whitespace-nowrap w-[140px] ${monthData.net >= 0 ? "text-green-600" : "text-red-600"}`}
                         >
-                          {monthData.net >= 0 ? "+" : ""}€
-                          {monthData.net.toLocaleString()}
+                          {monthData.net < 0 ? "−" : ""}€{Math.abs(monthData.net).toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))}

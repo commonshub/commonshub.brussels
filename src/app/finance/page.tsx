@@ -6,10 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { getFinancialsOverview } from "@/lib/financials";
 import { MonthlyBreakdownTable } from "./monthly-breakdown-table";
-import { AccountCards } from "./account-cards";
+import { AccountsBreakdown } from "./account-cards";
 import { readAllAnnualAccounts } from "@/lib/annual-accounts";
 import { loadFinanceOutlook } from "@/lib/finance-outlook";
 import { FinanceOutlookSection } from "./outlook";
@@ -62,28 +62,21 @@ export default async function FinanceOverviewPage() {
               <div className="text-4xl font-bold">
                 €{(totalBalance ?? 0).toLocaleString()}
               </div>
-              <div className="flex gap-6 text-sm">
-                <div className="flex items-center gap-1 text-green-600">
-                  <ArrowDownLeft className="w-4 h-4" />
-                  <span className="font-medium">
-                    +€{Math.round(totalInflow).toLocaleString()}
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                <span className="whitespace-nowrap">
+                  <span className="text-muted-foreground">In </span>
+                  <span className="font-medium tabular-nums text-green-600">€{Math.round(totalInflow).toLocaleString()}</span>
+                </span>
+                <span className="whitespace-nowrap">
+                  <span className="text-muted-foreground">Out </span>
+                  <span className="font-medium tabular-nums text-red-600">€{Math.round(totalOutflow).toLocaleString()}</span>
+                </span>
+                <span className="whitespace-nowrap">
+                  <span className="text-muted-foreground">Net </span>
+                  <span className={`font-medium tabular-nums ${totalInflow - totalOutflow >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {totalInflow - totalOutflow < 0 ? "−" : ""}€{Math.abs(Math.round(totalInflow - totalOutflow)).toLocaleString()}
                   </span>
-                </div>
-                <div className="flex items-center gap-1 text-red-600">
-                  <ArrowUpRight className="w-4 h-4" />
-                  <span className="font-medium">
-                    -€{Math.round(totalOutflow).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">Net:</span>
-                  <span
-                    className={`font-medium ${totalInflow - totalOutflow >= 0 ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {totalInflow - totalOutflow >= 0 ? "+" : ""}€
-                    {Math.round(totalInflow - totalOutflow).toLocaleString()}
-                  </span>
-                </div>
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Inflow and outflow count every transaction across all active
@@ -93,14 +86,13 @@ export default async function FinanceOverviewPage() {
             </CardContent>
           </Card>
 
+          <AccountsBreakdown active={accounts} archived={archivedAccounts} />
+
           {/* Monthly Breakdown (interactive) */}
           <MonthlyBreakdownTable
             accounts={accounts}
             aggregatedMonthlyBreakdown={aggregatedMonthlyBreakdown}
           />
-
-          {/* Account Cards Grid (active by default; archived behind a toggle) */}
-          <AccountCards active={accounts} archived={archivedAccounts} />
 
           {/* Annual accounts, as filed with the National Bank */}
           {annualAccounts.length > 0 && (
