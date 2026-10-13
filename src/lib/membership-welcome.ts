@@ -9,8 +9,6 @@
  * (bun scripts/export-reminder-template.ts).
  */
 
-import { SHIFTS_CHANNEL_URL } from "./shift-email"
-
 const HUB = {
   name: "Commons Hub Brussels",
   address: "Rue de la Madeleine 51, 1000 Brussels",
@@ -47,11 +45,14 @@ export const WELCOME_PERKS = {
   ],
 }
 
+const DOOR_CHANNEL_URL = "https://discord.com/channels/1280532848604086365/1306678821751230514"
+
 const STEPS = [
-  { title: "Join us on Discord", text: "That's where the community talks, plans and asks for help.", href: HUB.discord, label: "discord.commonshub.brussels" },
+  { title: "Join us on Discord", text: "That's where the community talks, plans and asks for help. Once you're in, reply to this email with your Discord username: we'll give you the member role, which opens the members' channels and the door.", href: HUB.discord, label: "discord.commonshub.brussels" },
+  { title: "Open the door", text: "With the member role, go to the #door channel on Discord and type \"open\" (or use the /open command): the door at Rue de la Madeleine 51 buzzes open within a few seconds. Tip: add #door to your favourites, or ask for the phone shortcut that does it in one tap.", href: DOOR_CHANNEL_URL, label: "#door on Discord" },
   { title: "Come to the Heartbeat", text: "Every Monday, 13:00–14:00 at the hub: what's happening, what's needed, who does what.", href: HUB.events, label: "See what's on" },
   { title: "Read the handbook", text: "How the hub works: the door, the kitchen, the rooms, the tokens.", href: HUB.handbook, label: "Commons Hub Handbook" },
-  { title: "Take a first shift", text: "Welcome people at an event and earn tokens. It's the quickest way to meet everyone. Type /shifts in #shifts on Discord to pick one.", href: SHIFTS_CHANNEL_URL, label: "#shifts on Discord" },
+  { title: "Take a first shift", text: "Welcome people at an event and earn tokens. It's the quickest way to meet everyone. Pick one on commonshub.brussels/shifts, or type /shifts in #shifts on Discord.", href: "https://commonshub.brussels/shifts", label: "commonshub.brussels/shifts" },
 ]
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")

@@ -1,68 +1,54 @@
+import { randomBytes } from "crypto"
 import { NextResponse } from "next/server"
-import { Resend } from "resend"
+
 import { createDiscordThread } from "@/lib/discord"
 import settings from "@/settings/settings.json"
-import { formatAddress, fromSite, fromSubmitter } from "@/lib/email-address"
+import { PENDING_URL, parseApplication } from "@/lib/membership-application"
+import { isApplicationsConfigured, saveApplication, sendReceived } from "@/lib/membership-applications-store"
 
+/** Ten applications in ten minutes is plenty. */
+const WINDOW_MS = 10 * 60_000
+const recent: number[] = []
+
+/**
+ * An application to become a member: kept (encrypted) on the community
+ * relays for members to vouch on /members/pending, confirmed to the
+ * applicant by email (cc hello@), and announced in #requests without the
+ * email address.
+ */
 export async function POST(request: Request) {
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
+  if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+  const application = parseApplication(body, randomBytes(6).toString("base64url"))
+  if ("error" in application) return NextResponse.json({ error: application.error }, { status: 400 })
+
+  const now = Date.now()
+  while (recent.length && recent[0] < now - WINDOW_MS) recent.shift()
+  if (recent.length >= 10) return NextResponse.json({ error: "Too many applications right now, please try again in a few minutes" }, { status: 429 })
+  recent.push(now)
+
   try {
-    // Initialize Resend client at runtime, not at build time
-    const resend = new Resend(process.env.RESEND_API_KEY)
-
-    const { name, organisation, email, plan, motivation } = await request.json()
-
-    if (!name || !email || !plan || !motivation) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    // Send notification email to Commons Hub
-    await resend.emails.send({
-      from: fromSubmitter(name),
-      to: "hello@commonshub.brussels",
-      replyTo: formatAddress(name, email),
-      subject: `New Membership Application: ${name}`,
-      html: `
-        <h2>New Membership Application</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Organisation/Community:</strong> ${organisation || "N/A"}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Membership Plan:</strong> ${plan}</p>
-        <h3>Motivation:</h3>
-        <p>${motivation.replace(/\n/g, "<br>")}</p>
-      `,
-    })
-
-    // Send confirmation email to applicant
-    await resend.emails.send({
-      from: fromSite(),
-      to: formatAddress(name, email),
-      subject: "We received your membership application!",
-      html: `
-        <h2>Thank you for your application, ${name}!</h2>
-        <p>We have received your application to join Commons Hub Brussels.</p>
-        <p><strong>Selected Plan:</strong> ${plan}</p>
-        <p>Our team will review your application and get back to you shortly.</p>
-        <p>In the meantime, feel free to join our Discord community and attend our open events!</p>
-        <br>
-        <p>Warm regards,<br>The Commons Hub Brussels Team</p>
-      `,
-    })
-
-    const discordContent = `👋 **New Membership Application**
-
-**Name:** ${name}
-**Email:** ${email}
-${organisation ? `**Organisation:** ${organisation}` : ""}
-**Plan:** ${plan}
-
-**Motivation:**
-${motivation}`
-
-    await createDiscordThread(settings.discord.channels.requests, `👤 Membership: ${name} - ${plan}`, discordContent)
-
-    return NextResponse.json({ success: true })
+    if (isApplicationsConfigured()) await saveApplication(application)
+    await sendReceived(application)
   } catch (error) {
-    console.error("Error sending email:", error)
+    console.error("[membership] could not record the application:", error)
     return NextResponse.json({ error: "Failed to send application. Please try again." }, { status: 500 })
   }
+
+  const a = application
+  const lines = [
+    `👋 **New membership application: ${a.name}** (${a.type}${a.people ? `, ${a.people} people` : ""})`,
+    ...(a.website ? [`**Website:** ${a.website}`] : []),
+    ...(a.needs.length ? [`**Needs:** ${a.needs.join("; ")}`] : []),
+    ...(a.contribute ? [`**Can contribute:** ${a.contribute}`] : []),
+    ...(a.heardFrom ? [`**Heard about us:** ${a.heardFrom}`] : []),
+    ...(a.whoYouKnow ? [`**Knows at the hub:** ${a.whoYouKnow}`] : []),
+    ...(a.notes ? [`**Notes:** ${a.notes}`] : []),
+    "",
+    `Members with tokens can vouch for them on ${PENDING_URL} (3 vouches and they're in).`,
+  ]
+  await createDiscordThread(settings.discord.channels.requests, `👤 Membership: ${a.name}`.slice(0, 100), lines.join("\n").slice(0, 1900)).catch((error) =>
+    console.error("[membership] could not post the application on Discord:", error),
+  )
+  return NextResponse.json({ success: true })
 }

@@ -94,38 +94,6 @@ const communityBenefits = [
   },
 ];
 
-const individualTiers = [
-  { amount: 10, period: "month" },
-  { amount: 15, period: "month" },
-  { amount: 20, period: "month" },
-  { amount: 50, period: "month" },
-  { amount: 100, period: "month" },
-];
-
-const communityTiers = [
-  { amount: 100, period: "year" },
-  { amount: 250, period: "year" },
-  { amount: 500, period: "year" },
-  { amount: 1000, period: "year" },
-];
-
-const orgTiers = [
-  { amount: 200, period: "year" },
-  { amount: 500, period: "year" },
-  { amount: 1000, period: "year" },
-  { amount: 5000, period: "year" },
-  { amount: 10000, period: "year" },
-];
-
-const timeCommitments = [
-  { label: "0", value: "0" },
-  { label: "1h/month", value: "1h/month" },
-  { label: "3h/month", value: "3h/month" },
-  { label: "1h/week", value: "1h/week" },
-  { label: "3h/week", value: "3h/week" },
-  { label: "1 day/week", value: "1day/week" },
-];
-
 const needsOptions = [
   { id: "space-work", label: "I need a space to work" },
   { id: "space-meetings", label: "I need a space for meetings" },
@@ -147,8 +115,9 @@ export function MembershipJoinSection() {
   const [website, setWebsite] = useState("");
   const [numberOfPeople, setNumberOfPeople] = useState("");
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
-  const [euroContribution, setEuroContribution] = useState<number | null>(null);
-  const [timeContribution, setTimeContribution] = useState<string | null>(null);
+  const [contribute, setContribute] = useState("");
+  const [heardFrom, setHeardFrom] = useState("");
+  const [whoYouKnow, setWhoYouKnow] = useState("");
   const [otherNotes, setOtherNotes] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -168,40 +137,19 @@ export function MembershipJoinSection() {
     setIsSubmitting(true);
     setError(null);
 
-    // Build the plan string
-    const planLabel = memberType === "individual"
-      ? `Individual - €${euroContribution?.toLocaleString()}/month`
-      : memberType === "community"
-        ? `Community - €${euroContribution?.toLocaleString()}/year`
-        : `Organisation - €${euroContribution?.toLocaleString()}/year`;
-
-    // Build motivation/notes including all collected information
-    const needsLabels = selectedNeeds.map(id =>
-      needsOptions.find(opt => opt.id === id)?.label
-    ).filter(Boolean);
-
-    const motivationParts = [];
-    if (needsLabels.length > 0) {
-      motivationParts.push(`**Needs:**\n${needsLabels.map(n => `- ${n}`).join("\n")}`);
-    }
-    if (timeContribution && timeContribution !== "0") {
-      motivationParts.push(`**Time contribution:** ${timeContribution}`);
-    }
-    if (memberType !== "individual" && numberOfPeople) {
-      motivationParts.push(`**Number of people:** ${numberOfPeople}`);
-    }
-    if (otherNotes) {
-      motivationParts.push(`**Additional notes:**\n${otherNotes}`);
-    }
-
-    const motivation = motivationParts.join("\n\n") || "No additional information provided.";
-
     const data = {
+      type: memberType,
       name,
-      organisation: memberType !== "individual" ? (website || name) : "",
       email,
-      plan: planLabel,
-      motivation,
+      website: memberType !== "individual" ? website : "",
+      people: memberType !== "individual" ? numberOfPeople : "",
+      needs: selectedNeeds
+        .map((id) => needsOptions.find((opt) => opt.id === id)?.label)
+        .filter(Boolean),
+      contribute,
+      heardFrom,
+      whoYouKnow,
+      notes: otherNotes,
     };
 
     try {
@@ -224,8 +172,6 @@ export function MembershipJoinSection() {
     }
   };
 
-  const currentTiers = memberType === "individual" ? individualTiers : memberType === "community" ? communityTiers : orgTiers;
-
   return (
     <section className="py-24">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -246,7 +192,14 @@ export function MembershipJoinSection() {
             <CheckCircle className="w-20 h-20 text-primary mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">Application Submitted!</h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Thank you for your application! We&apos;ll be in touch soon, and you&apos;ll receive an invitation to come visit the Hub.
+              Thank you! Your application is pending: members of the community
+              will review it and we&apos;ll get back to you as soon as possible.
+              We sent you an email with the details. In the meantime, you&apos;re
+              always welcome at our{" "}
+              <a href="/potluck" className="text-primary underline">
+                Friday community potluck
+              </a>
+              .
             </p>
             <Button
               className="mt-8"
@@ -257,8 +210,9 @@ export function MembershipJoinSection() {
                 setWebsite("");
                 setNumberOfPeople("");
                 setSelectedNeeds([]);
-                setEuroContribution(null);
-                setTimeContribution(null);
+                setContribute("");
+                setHeardFrom("");
+                setWhoYouKnow("");
                 setOtherNotes("");
               }}
             >
@@ -430,55 +384,46 @@ export function MembershipJoinSection() {
           {/* Contributions */}
           <Card className="mb-8">
             <CardContent className="pt-6">
-              <Label className="block text-base font-medium mb-6">
-                What can you contribute to the community?
+              <Label htmlFor="contribute" className="text-base font-medium">
+                What can you contribute to the community?{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
+              <Textarea
+                id="contribute"
+                value={contribute}
+                onChange={(e) => setContribute(e.target.value)}
+                placeholder="Skills, time, ideas, things you'd like to organise…"
+                className="mt-1.5 min-h-[100px]"
+              />
+            </CardContent>
+          </Card>
 
-              {/* Euro contribution */}
-              <div className="mb-6">
-                <p className="text-sm text-muted-foreground mb-3">
-                  Euros{" "}
-                  {memberType === "individual" ? "(per month)" : "(per year)"}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {currentTiers.map((tier) => (
-                    <button
-                      key={tier.amount}
-                      type="button"
-                      onClick={() => setEuroContribution(tier.amount)}
-                      className={`px-4 py-2 cursor-pointer rounded-lg border text-sm font-medium transition-colors ${
-                        euroContribution === tier.amount
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-muted/50 hover:border-primary hover:bg-primary/5"
-                      }`}
-                    >
-                      €{tier.amount.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Time contribution */}
+          {/* How they know us */}
+          <Card className="mb-8">
+            <CardContent className="pt-6 space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Tokens (time)
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {timeCommitments.map((time) => (
-                    <button
-                      key={time.value}
-                      type="button"
-                      onClick={() => setTimeContribution(time.value)}
-                      className={`px-4 py-2 cursor-pointer rounded-lg border text-sm font-medium transition-colors ${
-                        timeContribution === time.value
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-muted/50 hover:border-primary hover:bg-primary/5"
-                      }`}
-                    >
-                      {time.label}
-                    </button>
-                  ))}
-                </div>
+                <Label htmlFor="heard-from" className="text-base font-medium">
+                  How did you hear about the Commons Hub?
+                </Label>
+                <Textarea
+                  id="heard-from"
+                  value={heardFrom}
+                  onChange={(e) => setHeardFrom(e.target.value)}
+                  placeholder="A friend, an event, a search, walking by…"
+                  className="mt-1.5 min-h-[70px]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="who-you-know" className="text-base font-medium">
+                  Who do you know at the hub?
+                </Label>
+                <Textarea
+                  id="who-you-know"
+                  value={whoYouKnow}
+                  onChange={(e) => setWhoYouKnow(e.target.value)}
+                  placeholder="Names of members you know, if any"
+                  className="mt-1.5 min-h-[70px]"
+                />
               </div>
             </CardContent>
           </Card>
@@ -518,7 +463,7 @@ export function MembershipJoinSection() {
               type="submit"
               size="lg"
               className="cursor-pointer"
-              disabled={isSubmitting || !name || !email || !euroContribution}
+              disabled={isSubmitting || !name || !email}
             >
               {isSubmitting ? "Submitting..." : "Apply to become a member"}
             </Button>
@@ -535,7 +480,10 @@ export function MembershipJoinSection() {
             <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
               Come meet the community! Every Friday at 12:30pm it&apos;s
               community potluck at the Commons Hub. Bring some food to share and
-              meet fellow commoners.
+              meet fellow commoners.{" "}
+              <a href="/potluck" className="text-primary underline">
+                More about the potluck
+              </a>
             </p>
           </div>
           <CommunityActivityGallery

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Utensils, ArrowRight } from "lucide-react";
+import { Utensils, ArrowRight, CalendarDays, MapPin, Soup, Users } from "lucide-react";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
 import settings from "@/settings/settings.json";
 
@@ -28,6 +28,25 @@ export default function PotluckPage() {
               Every Friday lunch time, we share food. Bring something to share
               and join us.
             </p>
+          </div>
+        </section>
+
+        <section className="px-4 py-12 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2">
+            {[
+              { icon: CalendarDays, title: "When", text: "Every Friday, 12:30 to 13:30. Early birds join the park cleaning at 12:00, just before." },
+              { icon: MapPin, title: "Where", text: "At the Commons Hub, Rue de la Madeleine 51, 1000 Brussels, a few minutes from Brussels Central station." },
+              { icon: Soup, title: "What to bring", text: "Something to share: a dish, a salad, bread, fruit, a drink. Home-made or bought, it all ends up on the same table. Forgot? Come anyway." },
+              { icon: Users, title: "Who comes", text: "Members, neighbours, people curious about the hub. No sign-up and nothing to pay: it's the easiest way to meet the community, and for anyone who applied to become a member, to get to know us." },
+            ].map((item) => (
+              <div key={item.title} className="rounded-xl border border-border bg-card p-6">
+                <div className="mb-3 flex items-center gap-3">
+                  <item.icon className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold text-foreground">{item.title}</h2>
+                </div>
+                <p className="text-muted-foreground">{item.text}</p>
+              </div>
+            ))}
           </div>
         </section>
 
