@@ -63,7 +63,11 @@ export async function MemberPageView({ page }: { page: MemberPage }) {
           </a>
         </div>
         <div className="overflow-hidden rounded-lg border border-border">
-          <MemberPageFrame src={src} title={page.title} viewer={viewer} />
+          <MemberPageFrame
+            src={src}
+            page={{ username: page.username, slug: page.slug, title: page.title, ...(page.discordChannel ? { channel: page.discordChannel.name } : {}) }}
+            viewer={viewer}
+          />
         </div>
       </div>
     </div>

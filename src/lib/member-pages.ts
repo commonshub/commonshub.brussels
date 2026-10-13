@@ -39,6 +39,8 @@ export interface MemberPage {
   publishedAt: string
   updatedAt: string
   files: Array<{ path: string; size: number }>
+  /** The channel chb.discord.send({ to: "channel" }) posts in, chosen by the author at publish (one they can post in). */
+  discordChannel?: { id: string; name: string }
 }
 
 export interface PageFileInput {
@@ -175,6 +177,8 @@ export function savePage(input: {
   files?: PageFileInput[]
   /** Who may replace an existing page besides its author. */
   canOverride?: boolean
+  /** Already checked (member-page-actions-server.ts checkPageChannel). */
+  discordChannel?: { id: string; name: string }
   now?: Date
 }): MemberPage {
   const { username, slug } = input
@@ -215,6 +219,8 @@ export function savePage(input: {
     publishedAt: existing?.publishedAt ?? now,
     updatedAt: now,
     files: written.map((w) => ({ path: w.path, size: w.data.length })),
+    // Kept from the previous version unless a new one is given.
+    ...(input.discordChannel ?? existing?.discordChannel ? { discordChannel: input.discordChannel ?? existing!.discordChannel } : {}),
   }
 
   const dir = pageDir(username, slug)
@@ -366,11 +372,14 @@ export function sandboxCsp(origin: string): string {
  *   await chb.me()            → { signedIn, username, displayName, member, steward }
  *   await chb.fetch("/data/2026/09/transactions.json")  → the text (GET, /data and /opendata only)
  *   await chb.json(path)      → the same, parsed
+ *   await chb.discord.send({ to: "author" | "channel", content, fields })
+ *   await chb.email.send({ subject, content, fields, replyTo })
+ *                             → { sent: where }, once the viewer confirmed it (lib/member-page-actions.ts)
  * It also tells the parent its height, so the frame grows with the page.
  * The frame may load before the parent listens: the parent says hello when
  * it does, and the frame sends again what is still unanswered.
  */
-export const BRIDGE_SCRIPT = `<script>(function(){var n=0,w={},last=0;function post(m){parent.postMessage(m,"*")}function ask(t,p){return new Promise(function(ok,ko){var id=++n,m={chb:t,id:id,path:p};w[id]={ok:ok,ko:ko,m:m};post(m);setTimeout(function(){if(w[id]){delete w[id];ko(new Error("chb: no answer"))}},20000)})}function size(){var h=Math.ceil(Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0));if(h!==last){last=h;post({chb:"height",value:h})}}addEventListener("message",function(e){if(e.source!==parent)return;var d=e.data||{};if(d.chbHello){for(var k in w)post(w[k].m);last=0;size();return}var c=w[d.id];if(!c||!d.chbReply)return;delete w[d.id];d.error?c.ko(new Error(d.error)):c.ok(d.value)});window.chb={me:function(){return ask("me")},fetch:function(p){return ask("fetch",p)},json:function(p){return ask("fetch",p).then(JSON.parse)}};addEventListener("load",size);if(window.ResizeObserver)new ResizeObserver(size).observe(document.documentElement);setInterval(size,1000)})();</script>`
+export const BRIDGE_SCRIPT = `<script>(function(){var n=0,w={},last=0;function post(m){parent.postMessage(m,"*")}function ask(t,x){return new Promise(function(ok,ko){var id=++n,m={chb:t,id:id};for(var k in x)m[k]=x[k];w[id]={ok:ok,ko:ko,m:m};post(m);setTimeout(function(){if(w[id]){delete w[id];ko(new Error("chb: no answer"))}},t==="action"?600000:20000)})}function size(){var h=Math.ceil(Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0));if(h!==last){last=h;post({chb:"height",value:h})}}addEventListener("message",function(e){if(e.source!==parent)return;var d=e.data||{};if(d.chbHello){for(var k in w)post(w[k].m);last=0;size();return}var c=w[d.id];if(!c||!d.chbReply)return;delete w[d.id];d.error?c.ko(new Error(d.error)):c.ok(d.value)});function act(kind){return function(o){return ask("action",{kind:kind,data:o})}}window.chb={me:function(){return ask("me")},fetch:function(p){return ask("fetch",{path:p})},json:function(p){return ask("fetch",{path:p}).then(JSON.parse)},discord:{send:act("discord")},email:{send:act("email")}};addEventListener("load",size);if(window.ResizeObserver)new ResizeObserver(size).observe(document.documentElement);setInterval(size,1000)})();</script>`
 
 /** The page's HTML with the bridge put first in <head> (or at the very start). */
 export function withBridge(html: string): string {
