@@ -34,7 +34,8 @@ describe("a membership application", () => {
 
   test("the first email: pending, we'll get back asap, the potluck, their answers", () => {
     const { subject, html, text } = buildReceivedEmail(app)
-    expect(subject).toBe("Your membership application to the Commons Hub")
+    // One thread per applicant in the shared inbox: the name is in the subject.
+    expect(subject).toBe("Your membership application to the Commons Hub: Ann Smith")
     expect(text).toContain("Hi Ann,")
     expect(text).toContain("Your application is pending")
     expect(text).toContain("as soon as possible")

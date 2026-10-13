@@ -171,7 +171,7 @@ function answers(a: Application): string[] {
 
 /** Right after applying: received, pending, we'll get back to you; come to the potluck meanwhile. */
 export function buildReceivedEmail(a: Application): { subject: string; html: string; text: string } {
-  return render("Your membership application to the Commons Hub", [
+  return render(`Your membership application to the Commons Hub: ${a.name}`, [
     { p: `Hi ${firstName(a)},` },
     { p: "Thank you for applying to become a member of the Commons Hub Brussels! We've received your application." },
     { p: "Your application is pending. Members of the community will review it, and we'll get back to you as soon as possible." },
@@ -190,7 +190,7 @@ export function buildReceivedEmail(a: Application): { subject: string; html: str
 export function buildAcceptedEmail(a: Application, vouchers: Array<{ name: string }>, paymentUrl: string): { subject: string; html: string; text: string } {
   const names = vouchers.map((v) => v.name)
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "members of the community")
-  return render("You've been accepted at the Commons Hub!", [
+  return render(`You've been accepted at the Commons Hub, ${firstName(a)}!`, [
     { p: `Hi ${firstName(a)},` },
     { p: `Good news: your membership application has been accepted! ${list} vouched for you.` },
     { p: "The last step is your membership fee. It's how we pay the rent and keep this common space open for everyone." },

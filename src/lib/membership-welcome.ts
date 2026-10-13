@@ -58,7 +58,7 @@ const STEPS = [
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
 export function buildWelcomeEmail(d: MembershipWelcome): { subject: string; html: string; text: string } {
-  const subject = d.organisation ? "Welcome to the Commons Hub" : `Welcome to the Commons Hub, ${d.name}`
+  const subject = `Welcome to the Commons Hub, ${d.name}`
   const opening = d.organisation
     ? `Thank you for making ${d.name} a member of the Commons Hub. Memberships are how we pay the rent and keep this common space open for everyone. We're glad you're with us.`
     : "Thank you for becoming a member of the Commons Hub. Memberships are how we pay the rent and keep this common space open for everyone. We're glad you're with us."
