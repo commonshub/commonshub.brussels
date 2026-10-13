@@ -11,6 +11,8 @@ import { getFinancialsOverview } from "@/lib/financials";
 import { MonthlyBreakdownTable } from "./monthly-breakdown-table";
 import { AccountCards } from "./account-cards";
 import { readAllAnnualAccounts } from "@/lib/annual-accounts";
+import { loadFinanceOutlook } from "@/lib/finance-outlook";
+import { FinanceOutlookSection } from "./outlook";
 
 // Data is read from local files at request time; never statically cached.
 export const dynamic = "force-dynamic";
@@ -31,6 +33,7 @@ export default async function FinanceOverviewPage() {
   const totalBalance = Math.round(
     accounts.reduce((sum, acc) => sum + (acc.balance ?? 0), 0)
   );
+  const outlook = loadFinanceOutlook(totalBalance);
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,6 +47,8 @@ export default async function FinanceOverviewPage() {
               account to see full details.
             </p>
           </div>
+
+          <FinanceOutlookSection outlook={outlook} />
 
           {/* Total Summary Card */}
           <Card className="bg-primary/5 border-primary/20">
