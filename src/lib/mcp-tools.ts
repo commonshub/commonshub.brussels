@@ -25,6 +25,7 @@ import settings from "@/settings/settings.json"
 import { discordFetch } from "./discord"
 import { addToCalendar, createEvent, getEventDetails, listEvents, LumaError, lookupOnCalendar, resolveEventId } from "./luma-api"
 import { listDatasetFiles, listDatasetPeriods, queryDataset, readDatasetFile, summarizeTokens } from "./mcp-dataset"
+import { checkPageChannel } from "./member-page-actions-server"
 import { deletePage, getPage, isSlug, LIMITS, listPages, PageError, readAliases, savePage, setAlias, slugify, type PageFileInput } from "./member-pages"
 
 export type Scope = "read" | "elinor"
@@ -265,6 +266,9 @@ const LOCAL: LocalTool[] = [
       "and fetch() from https://commonshub.brussels/opendata/… (public data, CORS). No other server, no forms posting out, no cookies. " +
       "For data the viewer may read as a signed-in member, the page gets window.chb: await chb.me() → {signedIn, username, displayName, member, steward}; " +
       "await chb.json('/data/2026/09/members/transactions.json') or chb.fetch(path) for text (GET of /data/… and /opendata/… only). " +
+      "For forms and interactions, as the viewer and only after they confirm in a dialog of the site: await chb.discord.send({ to: 'author', content, fields }) DMs the page's author; " +
+      "chb.discord.send({ to: 'channel', … }) posts in discordChannel (set it at publish: a channel the author can post in); await chb.email.send({ subject, content, fields, replyTo }) emails hello@commonshub.brussels. " +
+      "fields is an object of form answers; each resolves to { sent } or rejects (cancelled, not signed in, rate-limited: 5 per 10 min). The site adds who sent it and from which page; mentions never ping. " +
       "Make it responsive (no horizontal scroll at 390px). Default visibility: members. Limits: HTML 2 MB, 25 MB per file, 60 MB in all, 100 files. " +
       "Files: text for code and data, base64 for images and videos, or url for a Discord attachment the member sent.",
     inputSchema: obj(
@@ -274,6 +278,7 @@ const LOCAL: LocalTool[] = [
         slug: str("Its address under /members/<username>/: lowercase letters, digits, dashes. Default: from the title.", { pattern: "^[a-z0-9-]{1,64}$" }),
         description: str("One or two sentences shown above the page."),
         visibility: { type: "string", enum: ["members", "public"], description: "members (default): only signed-in members see it. public: anyone." },
+        discordChannel: str("Optional: the id of the Discord channel or thread chb.discord.send({ to: 'channel' }) posts in, usually where the member asked. They must be able to post there themselves."),
         html: str("The full HTML document (index.html)."),
         files: {
           type: "array",
@@ -298,6 +303,15 @@ const LOCAL: LocalTool[] = [
       const files = await pageFiles(a.files)
       const html = typeof a.html === "string" ? a.html : ""
       if (!html.trim()) throw new ToolError("html is required")
+      const channelId = text(a, "discordChannel", false)
+      let discordChannel: { id: string; name: string } | undefined
+      if (channelId) {
+        try {
+          discordChannel = await checkPageChannel(channelId, discordId)
+        } catch (error) {
+          throw new ToolError(error instanceof Error ? error.message : "Invalid discordChannel")
+        }
+      }
       const page = pageError(() =>
         savePage({
           username: user.username,
@@ -309,9 +323,10 @@ const LOCAL: LocalTool[] = [
           html,
           files,
           canOverride: user.steward,
+          discordChannel,
         }),
       )
-      return { url: pageUrl(page.username, page.slug), visibility: page.visibility, files: page.files.length, updatedAt: page.updatedAt, replaced: page.publishedAt !== page.updatedAt }
+      return { url: pageUrl(page.username, page.slug), visibility: page.visibility, ...(page.discordChannel ? { discordChannel: `#${page.discordChannel.name}` } : {}), files: page.files.length, updatedAt: page.updatedAt, replaced: page.publishedAt !== page.updatedAt }
     },
   },
   {
