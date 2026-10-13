@@ -5,7 +5,7 @@ import { SignInPrompt } from "@/components/day/sign-in-prompt"
 import { PendingApplications } from "@/components/membership/pending-applications"
 import { isMember } from "@/lib/admin-check"
 import { VOUCHES_NEEDED, withoutEmail } from "@/lib/membership-application"
-import { hasTokens, isApplicationsConfigured, listApplications, loadVouchers } from "@/lib/membership-applications-store"
+import { hasTokens, isApplicationsConfigured, listApplications, loadVouchers, syncReactionVouches } from "@/lib/membership-applications-store"
 import { COMMUNITY, RELAYS, siteIdentity } from "@/lib/nostr-server"
 
 // Reads the relays and the session at request time.
@@ -38,6 +38,8 @@ export default async function PendingApplicationsPage() {
   if (!(await isMember())) return shell(<p className="text-muted-foreground">This page is for members only.</p>)
   if (!isApplicationsConfigured()) return shell(<p className="text-muted-foreground">Applications are not available right now.</p>)
 
+  // Fresh ✅ reactions on Discord count too (they're also synced every two minutes); don't wait long for them.
+  await Promise.race([syncReactionVouches().catch((error) => console.error("[membership] reaction sync failed:", error)), new Promise((r) => setTimeout(r, 4000))])
   const all = await listApplications()
   const recentMs = Date.now() - 30 * 86_400_000
   const shown = all.filter((a) => a.status === "pending" || Date.parse(a.approvedAt ?? a.submittedAt) > recentMs)

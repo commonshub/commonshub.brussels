@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import Discord from "next-auth/providers/discord"
 import settings from "@/settings/settings.json"
+import { liveRoles, roleNames } from "@/lib/live-roles"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   basePath: "/api/auth",
@@ -95,6 +96,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.error("Error fetching Discord guild member:", error)
           token.roles = []
           token.roleDetails = []
+        }
+      }
+
+      // Roles change after sign-in (a new member gets the role after paying, a steward gives one):
+      // use the roles they have now, not the ones copied at sign-in (lib/live-roles.ts).
+      if (!account && token.discordId) {
+        const roles = await liveRoles(token.discordId as string).catch(() => null)
+        if (roles && (roles.length !== ((token.roles as string[]) ?? []).length || roles.some((r) => !(token.roles as string[]).includes(r)))) {
+          token.roles = roles
+          token.roleDetails = await roleNames(roles).catch(() => roles.map((id) => ({ id, name: "Role" })))
         }
       }
 

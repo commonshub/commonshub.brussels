@@ -18,6 +18,8 @@
 import { buildComment, type Community, type MemberLink, type SignedLike, type Template } from "./nostr-conventions"
 
 export const VOUCHES_NEEDED = 3
+/** Reacting with this on the application's post in #requests is a vouch. */
+export const VOUCH_EMOJI = "✅"
 export const PAYMENT_LINK = "https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
 /** That payment link's id in Stripe: its checkouts are memberships. */
 export const PAYMENT_LINK_ID = "plink_1PjHtRFAhaWeDyow3NXAwNW0"
@@ -46,6 +48,8 @@ export interface Application {
   notes?: string
   /** Their Discord account, once they logged in after paying (and got the member role). */
   discordId?: string
+  /** The post in #requests (members vouch there by reacting with VOUCH_EMOJI). */
+  discordMessageId?: string
   /** How the application started: the form, or a payment without one. */
   source?: "form" | "payment"
   status: ApplicationStatus
@@ -100,10 +104,17 @@ export function parseApplication(body: Record<string, unknown>, id: string, now 
 /** What a vouch is about: the application, as a NIP-73 web id. */
 export const applicationUri = (id: string) => `${PENDING_URL}#${id}`
 
-/** A vouch: a NIP-22 comment on the application, signed by the member's own key, tagged `vouch`. */
-export function buildVouch(id: string, name: string, community: Community, sitePubkey: string, now = new Date()): Template {
-  const comment = buildComment(applicationUri(id), "web", `I vouch for ${name}.`, community, sitePubkey, now)
-  return { ...comment, tags: [...comment.tags, ["t", "vouch"]] }
+/**
+ * A vouch: a NIP-22 comment on the application, tagged `vouch`, signed by the
+ * member's own key, or by the site on behalf of a member who reacted on
+ * Discord (`onBehalf`: their Discord id and name, tagged `on-behalf`).
+ */
+export function buildVouch(id: string, name: string, community: Community, sitePubkey: string, now = new Date(), onBehalf?: { discordId: string; name: string }): Template {
+  const comment = buildComment(applicationUri(id), "web", `${onBehalf ? `${onBehalf.name} vouches` : "I vouch"} for ${name}.`, community, sitePubkey, now)
+  return {
+    ...comment,
+    tags: [...comment.tags, ["t", "vouch"], ...(onBehalf ? [["discord", onBehalf.discordId], ["name", onBehalf.name], ["t", "on-behalf"], ["via", "discord-reaction"]] : [])],
+  }
 }
 
 const tagOf = (e: SignedLike, name: string) => e.tags.find((t) => t[0] === name)?.[1]
@@ -112,13 +123,18 @@ const tagOf = (e: SignedLike, name: string) => e.tags.find((t) => t[0] === name)
  * Who vouched for an application: one per Discord member (their keys are
  * attested by the site), oldest first, only members who hold tokens.
  */
-export function vouchersOf(events: SignedLike[], id: string, links: MemberLink[], hasTokens: (discordId: string) => boolean): Array<{ discordId: string; name: string; at: string }> {
+export function vouchersOf(events: SignedLike[], id: string, links: MemberLink[], hasTokens: (discordId: string) => boolean, sitePubkey?: string): Array<{ discordId: string; name: string; at: string }> {
   const byKey = new Map<string, MemberLink>()
   for (const l of links) for (const k of l.keys) byKey.set(k, l)
+  // A vouch the site signed for a member who reacted on Discord names them in its tags.
+  const onBehalf = (e: SignedLike): MemberLink | undefined => {
+    const discordId = e.pubkey === sitePubkey ? tagOf(e, "discord") : undefined
+    return discordId ? { discordId, name: tagOf(e, "name"), keys: [], roles: [] } : undefined
+  }
   const out = new Map<string, { discordId: string; name: string; at: string }>()
   for (const e of [...events].sort((a, b) => a.created_at - b.created_at)) {
     if (tagOf(e, "I") !== applicationUri(id) || !e.tags.some((t) => t[0] === "t" && t[1] === "vouch")) continue
-    const link = byKey.get(e.pubkey)
+    const link = onBehalf(e) ?? byKey.get(e.pubkey)
     if (!link || out.has(link.discordId) || !hasTokens(link.discordId)) continue
     out.set(link.discordId, { discordId: link.discordId, name: link.name || "A member", at: new Date(e.created_at * 1000).toISOString() })
   }
