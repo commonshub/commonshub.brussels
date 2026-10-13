@@ -25,6 +25,8 @@ export interface MembershipWelcome {
   name: string
   email: string
   organisation?: boolean
+  /** The welcome page where they log in with Discord and get the member role (the website's flow). */
+  claimUrl?: string
 }
 
 /** What the membership gives, as on /membership. */
@@ -47,8 +49,11 @@ export const WELCOME_PERKS = {
 
 const DOOR_CHANNEL_URL = "https://discord.com/channels/1280532848604086365/1306678821751230514"
 
-const STEPS = [
-  { title: "Join us on Discord", text: "That's where the community talks, plans and asks for help. Once you're in, reply to this email with your Discord username: we'll give you the member role, which opens the members' channels and the door.", href: HUB.discord, label: "discord.commonshub.brussels" },
+/** The first steps; with a claimUrl, the first is logging in with Discord on the site to get the member role. */
+const steps = (d: MembershipWelcome) => [
+  d.claimUrl
+    ? { title: "Log in with Discord to get your member role", text: "Discord is where the community talks, plans and asks for help. Log in with Discord (it's free to create an account if you don't have one yet): we'll add you to our server with the member role, which opens the members' channels and the door.", href: d.claimUrl, label: "Get my member role" }
+    : { title: "Join us on Discord", text: "That's where the community talks, plans and asks for help. Once you're in, reply to this email with your Discord username: we'll give you the member role, which opens the members' channels and the door.", href: HUB.discord, label: "discord.commonshub.brussels" },
   { title: "Open the door", text: "With the member role, go to the #door channel on Discord and type \"open\" (or use the /open command): the door at Rue de la Madeleine 51 buzzes open within a few seconds. Tip: add #door to your favourites, or ask for the phone shortcut that does it in one tap.", href: DOOR_CHANNEL_URL, label: "#door on Discord" },
   { title: "Come to the Heartbeat", text: "Every Monday, 13:00–14:00 at the hub: what's happening, what's needed, who does what.", href: HUB.events, label: "See what's on" },
   { title: "Read the handbook", text: "How the hub works: the door, the kitchen, the rooms, the tokens.", href: HUB.handbook, label: "Commons Hub Handbook" },
@@ -76,7 +81,7 @@ export function buildWelcomeEmail(d: MembershipWelcome): { subject: string; html
   <p style="margin:0 0 12px">${esc(opening)}</p>
 
   <h2 style="font-size:17px;margin:24px 0 6px">Your first steps</h2>
-  ${STEPS.map(
+  ${steps(d).map(
     (s, i) => `<p style="margin:0 0 12px"><strong>${i + 1}. ${esc(s.title)}.</strong> ${esc(s.text)}<br><a href="${esc(s.href)}" style="color:#b83500">${esc(s.label)}</a></p>`,
   ).join("\n  ")}
 
@@ -98,7 +103,7 @@ export function buildWelcomeEmail(d: MembershipWelcome): { subject: string; html
     opening,
     "",
     "YOUR FIRST STEPS",
-    ...STEPS.flatMap((s, i) => ["", `${i + 1}. ${s.title}. ${s.text}`, s.href]),
+    ...steps(d).flatMap((s, i) => ["", `${i + 1}. ${s.title}. ${s.text}`, s.href]),
     "",
     "WHAT YOUR MEMBERSHIP GIVES YOU",
     ...perks.map((p) => `- ${p}`),

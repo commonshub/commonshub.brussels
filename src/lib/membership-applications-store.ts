@@ -13,9 +13,10 @@
  * whom beyond an opaque application id.
  */
 
+import { createHmac, randomBytes, timingSafeEqual } from "crypto"
 import { getConversationKey, encrypt, decrypt } from "nostr-tools/nip44"
 
-import { sendDirectMessage, sendMessage, isDiscordConfigured } from "./discord"
+import { grantGuildRole, sendDirectMessage, sendMessage, isDiscordConfigured } from "./discord"
 import { tokenBalanceOf } from "./token-balance"
 import settings from "@/settings/settings.json"
 import { formatAddress, fromSite } from "./email-address"
@@ -124,8 +125,64 @@ async function sendEmail(to: string, name: string, email: { subject: string; htm
 
 export const sendReceived = (a: Application) => sendEmail(a.email, a.name, buildReceivedEmail(a))
 export const sendAccepted = (a: Application, vouchers: Array<{ name: string }>) => sendEmail(a.email, a.name, buildAcceptedEmail(a, vouchers, paymentUrlFor(a)))
-export const sendOnboarding = (a: Pick<Application, "email" | "name" | "type">) =>
-  sendEmail(a.email, a.name, buildWelcomeEmail({ name: a.type === "individual" ? a.name.split(" ")[0] : a.name, email: a.email, organisation: a.type === "organisation" }))
+export const sendOnboarding = (a: Pick<Application, "id" | "email" | "name" | "type">) =>
+  sendEmail(a.email, a.name, buildWelcomeEmail({ name: a.type === "individual" ? a.name.split(" ")[0] : a.name, email: a.email, organisation: a.type === "organisation", claimUrl: claimUrl(a.id) }))
+
+// ── after paying: log in with Discord, get the member role ─────────────────
+
+const claimSig = (id: string) => createHmac("sha256", process.env.AUTH_SECRET || "").update(`membership-claim:${id}`).digest("base64url").slice(0, 22)
+/** The link in the onboarding email: the welcome page, for this application only. */
+export const claimUrl = (id: string) => `https://commonshub.brussels/membership/welcome?t=${encodeURIComponent(`${id}.${claimSig(id)}`)}`
+/** The application a claim token is for, or null. */
+export function verifyClaim(t: string | null | undefined): string | null {
+  const m = t?.match(/^([\w-]{6,40})\.([\w-]{22})$/)
+  if (!m || !process.env.AUTH_SECRET) return null
+  const a = Buffer.from(claimSig(m[1]))
+  const b = Buffer.from(m[2])
+  return a.length === b.length && timingSafeEqual(a, b) ? m[1] : null
+}
+
+/** Someone paid the membership without applying first: they become an application, already a member. */
+export async function applicationFromPayment(p: { name?: string | null; email: string; sessionId: string }): Promise<Application> {
+  const a: Application = {
+    id: randomBytes(6).toString("base64url"),
+    submittedAt: new Date().toISOString(),
+    type: "individual",
+    name: (p.name || p.email.split("@")[0]).replace(/[\n<>]/g, " ").trim().slice(0, 120),
+    email: p.email.toLowerCase(),
+    needs: [],
+    status: "approved",
+    approvedAt: new Date().toISOString(),
+    source: "payment",
+  }
+  await saveApplication(a)
+  return a
+}
+
+const MEMBER_ROLE = settings.discord.roles.member
+const GUILD = settings.discord.guildId
+
+/**
+ * A paid member logged in with Discord: give them the member role (adding
+ * them to the server first if needed). An application is claimed by one
+ * Discord account only.
+ */
+export async function claimMemberRole(id: string, user: { discordId: string; name: string; accessToken?: string }): Promise<{ ok: true; already: boolean } | { ok: false; error: string; status: number; relogin?: boolean }> {
+  const a = await getApplication(id)
+  if (!a) return { ok: false, error: "We can't find this membership. Reply to the onboarding email and we'll sort it out.", status: 404 }
+  if (a.status !== "member") return { ok: false, error: "We haven't received the payment yet. It can take a minute: try again shortly.", status: 409 }
+  if (a.discordId && a.discordId !== user.discordId) return { ok: false, error: "This membership is already linked to another Discord account. Reply to the onboarding email if that's a mistake.", status: 409 }
+  if (!isDiscordConfigured()) return { ok: false, error: "Discord is not available right now, please try again later.", status: 503 }
+  const granted = await grantGuildRole(GUILD, user.discordId, MEMBER_ROLE, user.accessToken)
+  if (granted === "not-in-server") return { ok: false, error: "You're not in our Discord server yet: log in with Discord once more and allow us to add you.", status: 409, relogin: true }
+  if (granted !== "granted") return { ok: false, error: "We couldn't give you the member role. A steward has been told and will do it by hand.", status: 502 }
+  const already = a.discordId === user.discordId
+  if (!already) {
+    await saveApplication({ ...a, discordId: user.discordId })
+    sendMessage(REQUESTS, `🔑 <@${user.discordId}> (${a.name}) logged in after paying and got the member role. Welcome!`).catch(() => {})
+  }
+  return { ok: true, already }
+}
 
 const REQUESTS = settings.discord.channels.requests
 

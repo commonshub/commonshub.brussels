@@ -19,6 +19,8 @@ import { buildComment, type Community, type MemberLink, type SignedLike, type Te
 
 export const VOUCHES_NEEDED = 3
 export const PAYMENT_LINK = "https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
+/** That payment link's id in Stripe: its checkouts are memberships. */
+export const PAYMENT_LINK_ID = "plink_1PjHtRFAhaWeDyow3NXAwNW0"
 export const SITE = "https://commonshub.brussels"
 export const POTLUCK_URL = `${SITE}/potluck`
 export const PENDING_URL = `${SITE}/members/pending`
@@ -39,7 +41,13 @@ export interface Application {
   contribute?: string
   heardFrom?: string
   whoYouKnow?: string
+  /** Members they know, picked from the community's Discord (pinged in #requests). */
+  knows?: Array<{ discordId: string; name: string }>
   notes?: string
+  /** Their Discord account, once they logged in after paying (and got the member role). */
+  discordId?: string
+  /** How the application started: the form, or a payment without one. */
+  source?: "form" | "payment"
   status: ApplicationStatus
   /** Who vouched, when approved (names as on Discord). */
   vouchers?: Array<{ discordId: string; name: string }>
@@ -63,6 +71,12 @@ export function parseApplication(body: Record<string, unknown>, id: string, now 
   if (!isEmail(email)) return { error: "Please enter a valid email address" }
   const needs = Array.isArray(body.needs) ? body.needs.map((n) => text(n, 120)).filter(Boolean).slice(0, 12) : []
   const optional = (k: string, max = 2000) => text(body[k], max) || undefined
+  const knows = (Array.isArray(body.knows) ? body.knows : [])
+    .map((k) => (k && typeof k === "object" ? (k as Record<string, unknown>) : {}))
+    .filter((k) => typeof k.id === "string" && /^\d{5,25}$/.test(k.id))
+    .map((k) => ({ discordId: k.id as string, name: text(k.name, 80).replace(/[\n<>@]/g, "") || "a member" }))
+    .filter((k, i, all) => all.findIndex((x) => x.discordId === k.discordId) === i)
+    .slice(0, 10)
   return {
     id,
     submittedAt: now.toISOString(),
@@ -74,8 +88,10 @@ export function parseApplication(body: Record<string, unknown>, id: string, now 
     contribute: optional("contribute"),
     heardFrom: optional("heardFrom", 1000),
     whoYouKnow: optional("whoYouKnow", 1000),
+    ...(knows.length ? { knows } : {}),
     notes: optional("notes"),
     status: "pending",
+    source: "form",
   }
 }
 
@@ -156,6 +172,9 @@ ${blocks
   return { subject, html, text }
 }
 
+/** Who they know at the hub: the members they picked, and any names typed. */
+export const knownNames = (a: Pick<Application, "knows" | "whoYouKnow">) => [...(a.knows ?? []).map((k) => k.name), ...(a.whoYouKnow ? [a.whoYouKnow] : [])].join(", ")
+
 /** The answers, as the applicant gave them, so they (and hello@, in cc) can read them back. */
 function answers(a: Application): string[] {
   return [
@@ -164,7 +183,7 @@ function answers(a: Application): string[] {
     ...(a.needs.length ? [`How the community can help: ${a.needs.join("; ")}`] : []),
     ...(a.contribute ? [`What you can contribute: ${a.contribute}`] : []),
     ...(a.heardFrom ? [`How you heard about us: ${a.heardFrom}`] : []),
-    ...(a.whoYouKnow ? [`Who you know at the hub: ${a.whoYouKnow}`] : []),
+    ...(knownNames(a) ? [`Who you know at the hub: ${knownNames(a)}`] : []),
     ...(a.notes ? [`Anything else: ${a.notes}`] : []),
   ]
 }
