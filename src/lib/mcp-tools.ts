@@ -11,6 +11,10 @@
  *
  * Two keys: ELINOR_MCP_TOKEN opens everything (it is also what this server
  * presents to the Discord bot); MCP_API_KEY opens what only reads.
+ * - members' pages: publish an HTML page (with its scripts, images, videos)
+ *   at /members/<username>/<slug>, list and delete them; stewards give one
+ *   a short address (lib/member-pages.ts, sandboxed).
+ *
  * Acting for someone (adding or creating an event) needs their Discord id:
  * members (the Discord member role) add events straight to the calendar,
  * anyone else's submission waits for an admin.
@@ -21,6 +25,7 @@ import settings from "@/settings/settings.json"
 import { discordFetch } from "./discord"
 import { addToCalendar, createEvent, getEventDetails, listEvents, LumaError, lookupOnCalendar, resolveEventId } from "./luma-api"
 import { listDatasetFiles, listDatasetPeriods, queryDataset, readDatasetFile, summarizeTokens } from "./mcp-dataset"
+import { deletePage, getPage, isSlug, LIMITS, listPages, PageError, readAliases, savePage, setAlias, slugify, type PageFileInput } from "./member-pages"
 
 export type Scope = "read" | "elinor"
 
@@ -62,6 +67,64 @@ function isoDate(args: Record<string, unknown>, key: string, required = true): s
   const ms = Date.parse(v)
   if (!Number.isFinite(ms)) throw new ToolError(`${key} must be an ISO 8601 date-time, e.g. 2026-10-20T18:00:00+02:00`)
   return new Date(ms).toISOString()
+}
+
+/** The Discord user behind an id, as our server knows them: username, roles, steward or not. */
+async function guildUser(discordUserId: string): Promise<{ username: string; member: boolean; steward: boolean } | null> {
+  if (!/^\d{5,25}$/.test(discordUserId)) throw new ToolError("requestedBy must be a Discord user id (digits)")
+  const res = await discordFetch(`/guilds/${settings.discord.guildId}/members/${discordUserId}`)
+  if (!res.ok) return null
+  const m = (await res.json()) as { roles?: string[]; user?: { username?: string } }
+  const roles = m.roles ?? []
+  const stewardRole = (settings.discord.roles as { steward?: string }).steward
+  let steward = !!stewardRole && roles.includes(stewardRole)
+  if (!steward && roles.length > 0) {
+    const all = await discordFetch(`/guilds/${settings.discord.guildId}/roles`)
+    const names = all.ok ? ((await all.json()) as Array<{ id: string; name: string }>) : []
+    steward = names.some((r) => roles.includes(r.id) && r.name.toLowerCase().includes("steward"))
+  }
+  return { username: (m.user?.username ?? "").toLowerCase(), member: roles.includes(settings.discord.roles.member), steward }
+}
+
+/** Discord's own CDN, where the attachments people send Elinor live: the only place the server fetches a file from. */
+const ATTACHMENT_HOSTS = new Set(["cdn.discordapp.com", "media.discordapp.net"])
+
+async function pageFiles(raw: unknown): Promise<PageFileInput[]> {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw)) throw new ToolError("files must be an array of { path, text | base64 | url }")
+  const out: PageFileInput[] = []
+  for (const f of raw as Array<Record<string, unknown>>) {
+    const p = typeof f?.path === "string" ? f.path : ""
+    if (typeof f?.text === "string") out.push({ path: p, text: f.text })
+    else if (typeof f?.base64 === "string") out.push({ path: p, base64: f.base64 })
+    else if (typeof f?.url === "string") {
+      let url: URL
+      try {
+        url = new URL(f.url)
+      } catch {
+        throw new ToolError(`Invalid url for ${p}`)
+      }
+      if (url.protocol !== "https:" || !ATTACHMENT_HOSTS.has(url.hostname)) throw new ToolError(`${p}: url must be a Discord attachment (cdn.discordapp.com); otherwise pass the file as base64`)
+      const res = await fetch(url, { redirect: "error", cache: "no-store" })
+      if (!res.ok) throw new ToolError(`${p}: Discord answered ${res.status} for the attachment (links expire: ask for it again)`)
+      const data = Buffer.from(await res.arrayBuffer())
+      if (data.length > LIMITS.file) throw new ToolError(`${p} is over ${LIMITS.file / 1048576} MB`)
+      out.push({ path: p, base64: data.toString("base64") })
+    } else throw new ToolError(`File ${p || "(no path)"} needs text, base64 or url`)
+  }
+  return out
+}
+
+const SITE = "https://commonshub.brussels"
+const pageUrl = (username: string, slug: string) => `${SITE}/members/${username}/${slug}`
+
+function pageError<T>(run: () => T): T {
+  try {
+    return run()
+  } catch (error) {
+    if (error instanceof PageError) throw new ToolError(error.message)
+    throw error
+  }
 }
 
 /** Is this Discord user a member of the hub (the member role on our server)? */
@@ -191,6 +254,130 @@ const LOCAL: LocalTool[] = [
       })
     },
   },
+  // ── members' pages ──
+  {
+    name: "publish_member_page",
+    scope: "elinor",
+    description:
+      "Publish an HTML page for a member (members only) at https://commonshub.brussels/members/<their username>/<slug>, e.g. a data visualization. Republishing the same slug replaces it. " +
+      "The page runs sandboxed: it may use inline scripts and styles, its own files (relative paths like data.csv or img/a.png), " +
+      "libraries from cdnjs.cloudflare.com, cdn.jsdelivr.net, unpkg.com, esm.sh, cdn.plot.ly, d3js.org, Google Fonts, OpenStreetMap/Carto tiles, " +
+      "and fetch() from https://commonshub.brussels/opendata/… (public data, CORS). No other server, no forms posting out, no cookies. " +
+      "For data the viewer may read as a signed-in member, the page gets window.chb: await chb.me() → {signedIn, username, displayName, member, steward}; " +
+      "await chb.json('/data/2026/09/members/transactions.json') or chb.fetch(path) for text (GET of /data/… and /opendata/… only). " +
+      "Make it responsive (no horizontal scroll at 390px). Default visibility: members. Limits: HTML 2 MB, 25 MB per file, 60 MB in all, 100 files. " +
+      "Files: text for code and data, base64 for images and videos, or url for a Discord attachment the member sent.",
+    inputSchema: obj(
+      {
+        requestedBy,
+        title: str("The page's title."),
+        slug: str("Its address under /members/<username>/: lowercase letters, digits, dashes. Default: from the title.", { pattern: "^[a-z0-9-]{1,64}$" }),
+        description: str("One or two sentences shown above the page."),
+        visibility: { type: "string", enum: ["members", "public"], description: "members (default): only signed-in members see it. public: anyone." },
+        html: str("The full HTML document (index.html)."),
+        files: {
+          type: "array",
+          description: "Other files of the page, referenced by relative path from the HTML.",
+          items: {
+            type: "object",
+            properties: { path: str("e.g. data.json, img/photo.jpg, video.mp4"), text: str("Content as text."), base64: str("Content as base64."), url: str("A Discord attachment URL (cdn.discordapp.com).") },
+            required: ["path"],
+            additionalProperties: false,
+          },
+        },
+      },
+      ["requestedBy", "title", "html"],
+    ),
+    run: async (a) => {
+      const discordId = text(a, "requestedBy")!
+      const user = await guildUser(discordId)
+      if (!user?.member) throw new ToolError("Only members of the Commons Hub can publish pages on the website.")
+      if (!user.username) throw new ToolError("Could not read their Discord username")
+      const slug = text(a, "slug", false) ?? slugify(text(a, "title")!)
+      if (!isSlug(slug)) throw new ToolError(`Invalid slug "${slug}"`)
+      const files = await pageFiles(a.files)
+      const html = typeof a.html === "string" ? a.html : ""
+      if (!html.trim()) throw new ToolError("html is required")
+      const page = pageError(() =>
+        savePage({
+          username: user.username,
+          discordId,
+          slug,
+          title: text(a, "title")!,
+          description: text(a, "description", false),
+          visibility: a.visibility === "public" ? "public" : "members",
+          html,
+          files,
+          canOverride: user.steward,
+        }),
+      )
+      return { url: pageUrl(page.username, page.slug), visibility: page.visibility, files: page.files.length, updatedAt: page.updatedAt, replaced: page.publishedAt !== page.updatedAt }
+    },
+  },
+  {
+    name: "list_member_pages",
+    scope: "elinor",
+    description: "List the pages members published on the website (all, or one member's), newest first, with their short addresses.",
+    inputSchema: obj({ username: str("A member's Discord username, to list only theirs.") }),
+    run: (a) => {
+      const aliases = Object.entries(readAliases())
+      return listPages(text(a, "username", false)?.toLowerCase()).map((p) => ({
+        url: pageUrl(p.username, p.slug),
+        title: p.title,
+        username: p.username,
+        visibility: p.visibility,
+        updatedAt: p.updatedAt,
+        aliases: aliases.filter(([, t]) => t.username === p.username && t.slug === p.slug).map(([alias]) => `${SITE}/${alias}`),
+      }))
+    },
+  },
+  {
+    name: "delete_member_page",
+    scope: "elinor",
+    description: "Delete a member's page (its author, or a steward). Its short addresses go with it.",
+    inputSchema: obj({ requestedBy, slug: str("The page's slug."), username: str("Whose page; default: the person asking.") }, ["requestedBy", "slug"]),
+    run: async (a) => {
+      const discordId = text(a, "requestedBy")!
+      const user = await guildUser(discordId)
+      if (!user?.member) throw new ToolError("Only members can delete pages.")
+      const username = text(a, "username", false)?.toLowerCase() ?? user.username
+      const page = getPage(username, text(a, "slug")!)
+      if (!page) throw new ToolError(`No page /members/${username}/${text(a, "slug")}`)
+      if (page.discordId !== discordId && !user.steward) throw new ToolError("Only its author or a steward can delete this page.")
+      deletePage(page.username, page.slug)
+      return { deleted: pageUrl(page.username, page.slug) }
+    },
+  },
+  {
+    name: "set_page_alias",
+    scope: "elinor",
+    description: "Stewards only: give a member's page a short address at the root of the site, https://commonshub.brussels/<alias> (or remove one with remove: true). An alias can't take an existing page of the site.",
+    inputSchema: obj(
+      {
+        requestedBy,
+        alias: str("The short address, e.g. budget-2027.", { pattern: "^[a-z0-9-]{1,64}$" }),
+        username: str("The page's author (Discord username)."),
+        slug: str("The page's slug."),
+        remove: { type: "boolean", description: "Remove the alias instead." },
+      },
+      ["requestedBy", "alias"],
+    ),
+    run: async (a) => {
+      const discordId = text(a, "requestedBy")!
+      const user = await guildUser(discordId)
+      if (!user?.steward) throw new ToolError("Only stewards can give a page a short address.")
+      const alias = text(a, "alias")!.toLowerCase()
+      if (a.remove === true) {
+        pageError(() => setAlias(alias, null, discordId))
+        return { removed: `${SITE}/${alias}` }
+      }
+      const username = text(a, "username")!.toLowerCase()
+      const slug = text(a, "slug")!
+      const taken = readAliases()[alias]
+      pageError(() => setAlias(alias, { username, slug }, discordId))
+      return { url: `${SITE}/${alias}`, page: pageUrl(username, slug), ...(taken ? { replaced: pageUrl(taken.username, taken.slug) } : {}) }
+    },
+  },
 ]
 
 // ── the Discord bot's tools, proxied ──
@@ -241,6 +428,8 @@ const WRITES = { readOnlyHint: false, destructiveHint: false, openWorldHint: tru
 function annotate(name: string, scope: Scope): McpTool["annotations"] {
   if (name === "luma_add_event") return { ...WRITES, idempotentHint: true }
   if (name === "luma_create_event") return { ...WRITES, idempotentHint: false }
+  if (name === "publish_member_page" || name === "set_page_alias") return { ...WRITES, idempotentHint: true, openWorldHint: false }
+  if (name === "delete_member_page") return { ...WRITES, destructiveHint: true, idempotentHint: true, openWorldHint: false }
   if (name.startsWith("propose_")) return { ...WRITES, idempotentHint: false }
   return scope === "read" || !name.startsWith("propose_") ? READ_ONLY : WRITES
 }
