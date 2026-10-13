@@ -27,8 +27,14 @@ export async function POST(request: Request) {
   if (recent.length >= 10) return NextResponse.json({ error: "Too many applications right now, please try again in a few minutes" }, { status: 429 })
   recent.push(now)
 
+  // Kept for vouching; if the relays refuse it, the application still reaches us (email cc hello@, #requests).
+  let saved = false
+  if (isApplicationsConfigured()) {
+    saved = await saveApplication(application)
+      .then(() => true)
+      .catch((error) => (console.error("[membership] could not keep the application on the relays:", error), false))
+  }
   try {
-    if (isApplicationsConfigured()) await saveApplication(application)
     await sendReceived(application)
   } catch (error) {
     console.error("[membership] could not record the application:", error)
@@ -45,7 +51,9 @@ export async function POST(request: Request) {
     ...(a.whoYouKnow ? [`**Knows at the hub:** ${a.whoYouKnow}`] : []),
     ...(a.notes ? [`**Notes:** ${a.notes}`] : []),
     "",
-    `Members with tokens can vouch for them on ${PENDING_URL} (3 vouches and they're in).`,
+    saved
+      ? `Members with tokens can vouch for them on ${PENDING_URL} (3 vouches and they're in).`
+      : "⚠️ Could not add it to /members/pending: a steward needs to handle it by hand.",
   ]
   await createDiscordThread(settings.discord.channels.requests, `👤 Membership: ${a.name}`.slice(0, 100), lines.join("\n").slice(0, 1900)).catch((error) =>
     console.error("[membership] could not post the application on Discord:", error),
