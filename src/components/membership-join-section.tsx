@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { KnownMembersPicker, type KnownMember } from "@/components/membership/known-members-picker";
 import { User, Building2, Users } from "lucide-react";
 import { Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb, Gamepad2, Users2 } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
@@ -117,7 +118,7 @@ export function MembershipJoinSection() {
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
   const [contribute, setContribute] = useState("");
   const [heardFrom, setHeardFrom] = useState("");
-  const [whoYouKnow, setWhoYouKnow] = useState("");
+  const [known, setKnown] = useState<KnownMember[]>([]);
   const [otherNotes, setOtherNotes] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,7 +149,8 @@ export function MembershipJoinSection() {
         .filter(Boolean),
       contribute,
       heardFrom,
-      whoYouKnow,
+      knows: known.filter((k) => k.id).map((k) => ({ id: k.id, name: k.name })),
+      whoYouKnow: known.filter((k) => !k.id).map((k) => k.name).join(", "),
       notes: otherNotes,
     };
 
@@ -212,7 +214,7 @@ export function MembershipJoinSection() {
                 setSelectedNeeds([]);
                 setContribute("");
                 setHeardFrom("");
-                setWhoYouKnow("");
+                setKnown([]);
                 setOtherNotes("");
               }}
             >
@@ -417,13 +419,7 @@ export function MembershipJoinSection() {
                 <Label htmlFor="who-you-know" className="text-base font-medium">
                   Who do you know at the hub?
                 </Label>
-                <Textarea
-                  id="who-you-know"
-                  value={whoYouKnow}
-                  onChange={(e) => setWhoYouKnow(e.target.value)}
-                  placeholder="Names of members you know, if any"
-                  className="mt-1.5 min-h-[70px]"
-                />
+                <KnownMembersPicker value={known} onChange={setKnown} />
               </div>
             </CardContent>
           </Card>

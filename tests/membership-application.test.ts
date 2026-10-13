@@ -6,6 +6,7 @@ import {
   buildAcceptedEmail,
   buildReceivedEmail,
   buildVouch,
+  knownNames,
   parseApplication,
   paymentUrlFor,
   vouchersOf,
@@ -76,5 +77,20 @@ describe("vouching", () => {
   test("one per member (any of their keys), only attested members with tokens, only for this application", () => {
     const events = [vouch("k1", 1), vouch("k1b", 2), vouch("k2", 3), vouch("k3", 4), vouch("stranger", 5), vouch("k2", 6, "other1")]
     expect(vouchersOf(events, "abc123", links, (d) => d !== "3").map((v) => v.name)).toEqual(["Leen", "Miriam"])
+  })
+})
+
+describe("who they know at the hub", () => {
+  test("members picked from Discord (ids checked, deduplicated) and names typed by hand", () => {
+    const a = parseApplication(
+      { name: "Bo", email: "bo@example.org", knows: [{ id: "618897639836090398", name: "Leen" }, { id: "618897639836090398", name: "Leen" }, { id: "<@everyone>", name: "x" }, { id: "907316481405124628", name: "Mir<iam>" }], whoYouKnow: "Jan" },
+      "abc123",
+    ) as Application
+    expect(a.knows).toEqual([
+      { discordId: "618897639836090398", name: "Leen" },
+      { discordId: "907316481405124628", name: "Miriam" },
+    ])
+    expect(knownNames(a)).toBe("Leen, Miriam, Jan")
+    expect(buildReceivedEmail(a).text).toContain("Who you know at the hub: Leen, Miriam, Jan")
   })
 })

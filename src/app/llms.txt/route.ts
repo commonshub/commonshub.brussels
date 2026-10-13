@@ -41,7 +41,7 @@ Read-only JSON, no key, CORS open. \`/data/\` and \`/api/\` are internal to the 
 - [Community](${BASE_URL}/community.md): Community activity, month by month
 - [Workshops](${BASE_URL}/workshops): Workshop offerings
 - [Contact](${BASE_URL}/contact): Get in touch
-- [Apply](${BASE_URL}/apply): Apply for membership
+- [Membership](${BASE_URL}/membership): Apply for membership
 
 ## Skills
 

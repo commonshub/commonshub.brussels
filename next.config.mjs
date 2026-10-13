@@ -41,6 +41,8 @@ const nextConfig = {
     return [
       // The old data docs pointed agents at /data and /api, which are not public.
       { source: '/DATA.md', destination: '/opendata', permanent: true },
+      // One place to apply for a membership.
+      { source: '/apply', destination: '/membership', permanent: true },
     ]
   },
   typescript: {

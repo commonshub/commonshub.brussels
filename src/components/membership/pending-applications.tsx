@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { useNostr } from "@/components/nostr-provider"
 import { Button } from "@/components/ui/button"
-import { buildVouch, type PublicApplication } from "@/lib/membership-application"
+import { buildVouch, knownNames, type PublicApplication } from "@/lib/membership-application"
 
 type Row = PublicApplication & { vouchedBy: Array<{ discordId: string; name: string }> }
 
@@ -78,7 +78,7 @@ export function PendingApplications({
                 ["How the community can help", a.needs.join("; ")],
                 ["Can contribute", a.contribute],
                 ["Heard about us", a.heardFrom],
-                ["Knows at the hub", a.whoYouKnow],
+                ["Knows at the hub", knownNames(a)],
                 ["Anything else", a.notes],
               ]
                 .filter(([, v]) => v)

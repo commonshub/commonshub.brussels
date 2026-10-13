@@ -48,9 +48,10 @@ export async function POST(request: Request) {
     ...(a.needs.length ? [`**Needs:** ${a.needs.join("; ")}`] : []),
     ...(a.contribute ? [`**Can contribute:** ${a.contribute}`] : []),
     ...(a.heardFrom ? [`**Heard about us:** ${a.heardFrom}`] : []),
-    ...(a.whoYouKnow ? [`**Knows at the hub:** ${a.whoYouKnow}`] : []),
+    ...(a.knows?.length || a.whoYouKnow ? [`**Knows at the hub:** ${[...(a.knows ?? []).map((k) => `<@${k.discordId}>`), ...(a.whoYouKnow ? [a.whoYouKnow] : [])].join(", ")}`] : []),
     ...(a.notes ? [`**Notes:** ${a.notes}`] : []),
     "",
+    ...(a.knows?.length ? [`${a.knows.map((k) => `<@${k.discordId}>`).join(" ")} ${a.name} says they know you: can you vouch for them?`] : []),
     saved
       ? `Members with tokens can vouch for them on ${PENDING_URL} (3 vouches and they're in).`
       : "⚠️ Could not add it to /members/pending: a steward needs to handle it by hand.",

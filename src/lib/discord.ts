@@ -343,3 +343,27 @@ export async function sendDirectMessage(userId: string, message: string | { cont
   return res.ok
 }
 
+
+/**
+ * Make someone a member on Discord: add them to the server if they are not in
+ * it yet (with their OAuth token, which needs the guilds.join scope), and give
+ * them a role. True once they have it.
+ */
+export async function grantGuildRole(guildId: string, userId: string, roleId: string, userAccessToken?: string): Promise<"granted" | "not-in-server" | "failed"> {
+  if (userAccessToken) {
+    // 201: added with the role; 204: already in the server (roles are not applied then).
+    const res = await discordFetch(`/guilds/${guildId}/members/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token: userAccessToken, roles: [roleId] }),
+    })
+    if (res.status === 201) return "granted"
+    if (res.status !== 204) console.error("[discord] could not add the member to the server:", res.status, (await res.text()).slice(0, 200))
+  }
+  const res = await discordFetch(`/guilds/${guildId}/members/${userId}/roles/${roleId}`, { method: "PUT", headers: { "X-Audit-Log-Reason": "Paid membership (commonshub.brussels)" } })
+  if (res.ok) return "granted"
+  const detail = await res.text()
+  console.error("[discord] could not give the role:", res.status, detail.slice(0, 200))
+  // 10007 Unknown Member: they are not in the server (and no token that may add them).
+  return res.status === 404 && detail.includes("10007") ? "not-in-server" : "failed"
+}

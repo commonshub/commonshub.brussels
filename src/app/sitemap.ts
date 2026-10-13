@@ -58,7 +58,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
     },
     {
-      url: `${BASE_URL}/apply`,
+      url: `${BASE_URL}/membership`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.6,
