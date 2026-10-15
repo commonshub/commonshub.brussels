@@ -101,6 +101,20 @@ export function parseApplication(body: Record<string, unknown>, id: string, now 
 
 // ── vouching ────────────────────────────────────────────────────────────────
 
+const VOUCH_LINE = /\n\n\*\*Vouched \(\d+ of \d+\):\*\*[^\n]*$/
+
+/**
+ * The application's post in #requests, with a last line saying who vouched
+ * so far, however they did it (a ✅ there or the button on the website):
+ * the two are the same vouch, and both show on Discord. Without vouchers the
+ * line goes away.
+ */
+export function withVouchLine(content: string, vouchers: Array<{ discordId: string }>, needed = VOUCHES_NEEDED): string {
+  const line = vouchers.length ? `\n\n**Vouched (${vouchers.length} of ${needed}):** ${vouchers.map((v) => `<@${v.discordId}>`).join(" ")}` : ""
+  const base = content.replace(VOUCH_LINE, "")
+  return base.slice(0, 2000 - line.length) + line
+}
+
 /** What a vouch is about: the application, as a NIP-73 web id. */
 export const applicationUri = (id: string) => `${PENDING_URL}#${id}`
 

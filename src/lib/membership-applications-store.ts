@@ -35,6 +35,7 @@ import {
   buildReceivedEmail,
   paymentUrlFor,
   vouchersOf,
+  withVouchLine,
   type Application,
 } from "./membership-application"
 
@@ -130,6 +131,21 @@ async function reactors(messageId: string): Promise<Array<{ id: string; name: st
 /** The bot's own ✅ on the post, so members only have to tap it. */
 export const addVouchReaction = (messageId: string) => bot(`/channels/${REQUESTS}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}/@me`, { method: "PUT" })
 
+/** Show who vouched on the application's post (lib/membership-application.ts withVouchLine). Never pings: it's an edit, and mentions are off. */
+async function updateVouchLine(a: Application, vouchers: Array<{ discordId: string }>): Promise<void> {
+  if (!a.discordMessageId) return
+  const res = await bot(`/channels/${REQUESTS}/messages/${a.discordMessageId}`)
+  if (!res?.ok) return
+  const { content } = (await res.json()) as { content: string }
+  const next = withVouchLine(content, vouchers)
+  if (next === content) return
+  await bot(`/channels/${REQUESTS}/messages/${a.discordMessageId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: next, allowed_mentions: { parse: [] } }),
+  })
+}
+
 /** Applications posted before their post was recorded: find it in #requests by its first line. */
 async function findPost(a: Application): Promise<string | null> {
   const res = await bot(`/channels/${REQUESTS}/messages?limit=100`)
@@ -175,6 +191,8 @@ export async function syncReactionVouches(): Promise<void> {
       }
     }
     if (changed) await approveIfVouched(a.id)
+    // Vouches from the website, and posts from before the line existed.
+    else await updateVouchLine(a, (await loadVouchers([a.id])).get(a.id) ?? []).catch(() => {})
   }
 }
 
@@ -257,12 +275,17 @@ export async function claimMemberRole(id: string, user: { discordId: string; nam
 
 const REQUESTS = settings.discord.channels.requests
 
-/** Approve an application once enough members with tokens vouched; tell them and the community. Returns the vouchers. */
+/**
+ * Approve an application once enough members with tokens vouched; tell them
+ * and the community. Returns the vouchers. Called after every vouch, from the
+ * website or a ✅ on Discord, it also updates who vouched on the post.
+ */
 const approving = new Set<string>()
 export async function approveIfVouched(id: string): Promise<{ status: Application["status"]; vouchers: Array<{ name: string }> } | null> {
   const a = await getApplication(id)
   if (!a) return null
   const vouchers = (await loadVouchers([id])).get(id) ?? []
+  if (a.status === "pending" && isDiscordConfigured()) await updateVouchLine(a, vouchers).catch((error) => console.error("[membership] could not show the vouches on Discord:", error))
   if (a.status !== "pending" || vouchers.length < VOUCHES_NEEDED || approving.has(id)) return { status: a.status, vouchers }
   approving.add(id)
   try {
