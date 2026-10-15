@@ -129,3 +129,18 @@ describe("the sandbox", () => {
     expect(mp.bridgeAllows("/database")).toBe(false)
   })
 })
+
+describe("full screen at <slug>.html", () => {
+  const { isFullScreenPage, pageSegment } = require("@/lib/member-pages-bridge")
+  test("the .html segment names the same page, full screen", () => {
+    expect(pageSegment("membership-v2.html")).toEqual({ slug: "membership-v2", fullScreen: true })
+    expect(pageSegment("membership-v2")).toEqual({ slug: "membership-v2", fullScreen: false })
+  })
+  test("only members' pages and aliases lose the site's header", () => {
+    expect(isFullScreenPage("/members/xdamman/membership-v2.html")).toBe(true)
+    expect(isFullScreenPage("/potluck.html")).toBe(true)
+    expect(isFullScreenPage("/members/xdamman/membership-v2")).toBe(false)
+    expect(isFullScreenPage("/members/xdamman")).toBe(false)
+    expect(isFullScreenPage("/finance")).toBe(false)
+  })
+})
