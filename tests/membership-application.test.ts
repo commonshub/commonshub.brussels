@@ -109,3 +109,19 @@ describe("who they know at the hub", () => {
     expect(buildReceivedEmail(a).text).toContain("Who you know at the hub: Leen, Miriam, Jan")
   })
 })
+
+describe("who vouched, on the Discord post", () => {
+  const { withVouchLine } = require("@/lib/membership-application")
+  const post = "👋 **New membership application: Ana**\nMembers with tokens: react with ✅ to vouch."
+  test("adds one line, replaced as vouches come and go, whichever way they were given", () => {
+    const one = withVouchLine(post, [{ discordId: "1" }])
+    expect(one).toBe(`${post}\n\n**Vouched (1 of 3):** <@1>`)
+    const two = withVouchLine(one, [{ discordId: "1" }, { discordId: "2" }])
+    expect(two).toBe(`${post}\n\n**Vouched (2 of 3):** <@1> <@2>`)
+    expect(withVouchLine(two, [])).toBe(post)
+    expect(withVouchLine(two, [{ discordId: "1" }, { discordId: "2" }])).toBe(two)
+  })
+  test("stays within Discord's 2000 characters", () => {
+    expect(withVouchLine("x".repeat(1990), [{ discordId: "123456789012345678" }]).length).toBeLessThanOrEqual(2000)
+  })
+})
