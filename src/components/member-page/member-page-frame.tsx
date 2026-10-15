@@ -35,7 +35,7 @@ type Pending = { action: PageAction; resolve: (r: { value?: unknown; error?: str
  * them in our own dialog, which the frame can't draw on or click. Messages
  * from anything but this frame are ignored.
  */
-export function MemberPageFrame({ src, page, viewer }: { src: string; page: FramePage; viewer: Viewer }) {
+export function MemberPageFrame({ src, page, viewer, fill = false }: { src: string; page: FramePage; viewer: Viewer; fill?: boolean }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(600)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -101,7 +101,8 @@ export function MemberPageFrame({ src, page, viewer }: { src: string; page: Fram
         referrerPolicy="no-referrer"
         onLoad={() => frame.current?.contentWindow?.postMessage({ chbHello: true }, "*")}
         className="block w-full border-0 bg-white"
-        style={{ height }}
+        // Full screen: the frame is the window and scrolls itself.
+        style={fill ? { height: "100%" } : { height }}
       />
       {pending && <ConfirmSend pending={pending} page={page} viewer={viewer} onDone={done} />}
     </>

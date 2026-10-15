@@ -9,8 +9,11 @@ import { MemberPageFrame, type Viewer } from "./member-page-frame"
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Brussels" })
 
-/** A member's page: a thin header (title, author, date) above the sandboxed frame. */
-export async function MemberPageView({ page }: { page: MemberPage }) {
+/**
+ * A member's page: a thin header (title, author, date) above the sandboxed
+ * frame; or, full screen (<slug>.html), the frame alone filling the window.
+ */
+export async function MemberPageView({ page, fullScreen = false }: { page: MemberPage; fullScreen?: boolean }) {
   const session = await auth()
   const user = session?.user as { username?: string; name?: string | null } | undefined
   const member = await isMember()
@@ -42,6 +45,14 @@ export async function MemberPageView({ page }: { page: MemberPage }) {
   }
 
   const src = sandboxBase(page)
+  const framePage = { username: page.username, slug: page.slug, title: page.title, ...(page.discordChannel ? { channel: page.discordChannel.name } : {}) }
+  if (fullScreen) {
+    return (
+      <div className="h-dvh w-full overflow-hidden bg-white">
+        <MemberPageFrame src={src} page={framePage} viewer={viewer} fill />
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -58,14 +69,14 @@ export async function MemberPageView({ page }: { page: MemberPage }) {
             </p>
             {page.description && <p className="mt-2 max-w-3xl text-muted-foreground">{page.description}</p>}
           </div>
-          <a href={src} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <a href={`/members/${page.username}/${page.slug}.html`} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             Full screen <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
         <div className="overflow-hidden rounded-lg border border-border">
           <MemberPageFrame
             src={src}
-            page={{ username: page.username, slug: page.slug, title: page.title, ...(page.discordChannel ? { channel: page.discordChannel.name } : {}) }}
+            page={framePage}
             viewer={viewer}
           />
         </div>
