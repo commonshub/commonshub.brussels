@@ -424,7 +424,7 @@ async function discordBotTools({ fresh = false } = {}): Promise<McpTool[]> {
   try {
     const { result } = await botRpc("tools/list")
     const tools = ((result as { tools?: McpTool[] })?.tools ?? []).filter((t) => !LOCAL.some((l) => l.name === t.name))
-    botTools = { at: Date.now(), tools: tools.map((t) => ({ ...t, description: `${t.description} (Discord bot)`, annotations: t.annotations ?? annotate(t.name, "elinor") })) }
+    botTools = { at: Date.now(), tools: tools.map((t) => ({ ...t, description: `${t.description} (Discord bot)`, annotations: t.annotations ?? botAnnotate(t.name) })) }
   } catch (error) {
     console.error("[mcp] Discord bot tools unavailable:", error instanceof Error ? error.message : error)
     botTools = { at: Date.now() - 4 * 60_000, tools: botTools?.tools ?? [] }
@@ -447,6 +447,17 @@ function annotate(name: string, scope: Scope): McpTool["annotations"] {
   if (name === "delete_member_page") return { ...WRITES, destructiveHint: true, idempotentHint: true, openWorldHint: false }
   if (name.startsWith("propose_")) return { ...WRITES, idempotentHint: false }
   return scope === "read" || !name.startsWith("propose_") ? READ_ONLY : WRITES
+}
+
+/**
+ * A bot tool that doesn't describe itself: reading only when its name says
+ * so, a proposal (the person concerned confirms in Discord), or else a write
+ * that may not be undone (it could move or burn tokens), so the client asks.
+ */
+export function botAnnotate(name: string): McpTool["annotations"] {
+  if (/^(list|get|search|find|show|check)_/.test(name)) return READ_ONLY
+  if (name.startsWith("propose_")) return { ...WRITES, idempotentHint: false }
+  return { ...WRITES, destructiveHint: true, idempotentHint: false }
 }
 
 export async function listTools(scope: Scope): Promise<McpTool[]> {

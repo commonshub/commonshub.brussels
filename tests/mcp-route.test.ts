@@ -300,3 +300,12 @@ describe("/mcp route", () => {
     });
   });
 });
+
+describe("the Discord bot's tools, when they don't describe themselves", () => {
+  it("are read-only only by name, and otherwise make the client ask", async () => {
+    const { botAnnotate } = await import("@/lib/mcp-tools");
+    expect(botAnnotate("list_purchasable_items")?.readOnlyHint).toBe(true);
+    expect(botAnnotate("propose_purchase")).toMatchObject({ readOnlyHint: false, destructiveHint: false });
+    expect(botAnnotate("buy_coworking")).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+  });
+});
