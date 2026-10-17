@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 
 import { createDiscordThread } from "@/lib/discord"
 import settings from "@/settings/settings.json"
-import { PENDING_URL, parseApplication } from "@/lib/membership-application"
+import { PENDING_URL, parseApplication, spamReason } from "@/lib/membership-application"
 import { VOUCH_EMOJI } from "@/lib/membership-application"
 import { addVouchReaction, isApplicationsConfigured, saveApplication, sendReceived } from "@/lib/membership-applications-store"
 
@@ -20,6 +20,12 @@ const recent: number[] = []
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
   if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+  // Bots get the same answer as people, and nothing is kept, emailed or posted.
+  const spam = spamReason(body)
+  if (spam) {
+    console.log(`[membership] ignored a bot application (${spam}): ${String(body.name ?? "").slice(0, 60)}`)
+    return NextResponse.json({ success: true })
+  }
   const application = parseApplication(body, randomBytes(6).toString("base64url"))
   if ("error" in application) return NextResponse.json({ error: application.error }, { status: 400 })
 

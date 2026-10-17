@@ -6,9 +6,11 @@ import {
   buildAcceptedEmail,
   buildReceivedEmail,
   buildVouch,
+  isGibberishName,
   knownNames,
   parseApplication,
   paymentUrlFor,
+  spamReason,
   vouchersOf,
   withoutEmail,
   type Application,
@@ -123,5 +125,21 @@ describe("who vouched, on the Discord post", () => {
   })
   test("stays within Discord's 2000 characters", () => {
     expect(withVouchLine("x".repeat(1990), [{ discordId: "123456789012345678" }]).length).toBeLessThanOrEqual(2000)
+  })
+})
+
+describe("bots on the form", () => {
+  test("gibberish names, not real ones", () => {
+    for (const n of ["nntmgkmPCwTxURdm", "qWrtZpLkmXvB", "hGfDsAqWnBvC"]) expect(isGibberishName(n)).toBe(true)
+    for (const n of ["Ann Smith", "Xavier", "TheCommonsHub", "ImpactHubBXL", "OpenCollective", "Schwarzschild", "MacDonald", "Jean-Pierre Van den Berghe", "ABCDEFGHIJKL"]) expect(isGibberishName(n)).toBe(false)
+  })
+
+  test("the trap field, the fill time, the name", () => {
+    const person = { name: "Ann Smith", email: "a@b.co", homepage: "", elapsedMs: 45_000 }
+    expect(spamReason(person)).toBeNull()
+    expect(spamReason({ ...person, homepage: "http://spam.example" })).toBe("trap field filled")
+    expect(spamReason({ ...person, elapsedMs: 800 })).toBe("sent after 800ms")
+    expect(spamReason({ name: "Ann Smith", email: "a@b.co" })).toBe("no fill time")
+    expect(spamReason({ ...person, name: "nntmgkmPCwTxURdm" })).toBe("gibberish name")
   })
 })

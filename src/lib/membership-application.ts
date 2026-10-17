@@ -67,6 +67,39 @@ const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\r
 export const isEmail = (s: string) => s.length <= 200 && /^[^\s@<>,;]+@[^\s@<>,;]+\.[a-z]{2,}$/i.test(s)
 
 /** An application from the form, checked; or an error to show. */
+// ── spam ────────────────────────────────────────────────────────────────────
+
+/** Faster than anyone fills in the form. */
+export const MIN_FILL_MS = 3000
+
+/**
+ * A name like "nntmgkmPCwTxURdm": one long word of letters, capitals in
+ * the middle, and either a long run of consonants or hardly any vowels.
+ * "TheCommonsHub", "ImpactHubBXL" or "Schwarzschild" stay people.
+ */
+export function isGibberishName(name: string): boolean {
+  const s = name.trim()
+  if (s.length < 10 || !/^[a-z]+$/i.test(s)) return false
+  if ((s.slice(1).match(/[A-Z]/g) ?? []).length < 2 || !/[a-z]/.test(s)) return false
+  const vowels = (s.match(/[aeiouy]/gi) ?? []).length
+  const longestConsonants = Math.max(0, ...(s.match(/[^aeiouy]+/gi) ?? []).map((r) => r.length))
+  return longestConsonants >= 5 || vowels / s.length < 0.2
+}
+
+/**
+ * Why a submission looks like a bot, or null: the hidden "homepage" field
+ * filled in (people never see it), sent within MIN_FILL_MS of the form
+ * appearing (or without saying when, as a script posting straight here
+ * does), or a gibberish name. The route answers bots as if all went well.
+ */
+export function spamReason(body: Record<string, unknown>): string | null {
+  if (typeof body.homepage === "string" && body.homepage.trim()) return "trap field filled"
+  const elapsed = typeof body.elapsedMs === "number" ? body.elapsedMs : NaN
+  if (!(elapsed >= MIN_FILL_MS)) return Number.isFinite(elapsed) ? `sent after ${Math.round(elapsed)}ms` : "no fill time"
+  if (typeof body.name === "string" && isGibberishName(body.name)) return "gibberish name"
+  return null
+}
+
 export function parseApplication(body: Record<string, unknown>, id: string, now = new Date()): Application | { error: string } {
   const type: MemberType = body.type === "community" || body.type === "organisation" ? body.type : "individual"
   const name = text(body.name, 120).replace(/[\n<>]/g, " ")
