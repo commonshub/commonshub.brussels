@@ -21,11 +21,12 @@ describe("after paying: log in with Discord, get the member role", () => {
     expect(verifyClaim(null)).toBeNull()
   })
 
-  test("the onboarding email starts with logging in with Discord; without the link (chb), it asks for the username", () => {
+  test("the onboarding email starts with getting Discord, then logging in with it; without the link (chb), it asks for the username", () => {
     const withLink = buildWelcomeEmail({ name: "Ann", email: "ann@example.org", claimUrl: claimUrl("abc123") })
-    expect(withLink.text).toContain("1. Log in with Discord to get your member role.")
+    expect(withLink.text).toContain("1. Get Discord.")
+    expect(withLink.text).toContain("2. Log in with Discord to get your member role.")
     expect(withLink.html).toContain("/membership/welcome?t=abc123.")
-    expect(withLink.text).toContain("2. Open the door.")
+    expect(withLink.text).toContain("3. Open the door.")
     expect(buildWelcomeEmail({ name: "Ann", email: "ann@example.org" }).text).toContain("reply to this email with your Discord username")
   })
 })

@@ -1,30 +1,38 @@
-Welcome, {{firstName}}!
+Welcome, {{firstName}}! 👋
 
 Thank you for becoming a member of the Commons Hub. Memberships are how we pay the rent and keep this common space open for everyone. We're glad you're with us.
 
-YOUR FIRST STEPS
+✨ YOUR FIRST STEPS
 
-1. Join us on Discord. That's where the community talks, plans and asks for help.
+📲 1. Get Discord. Discord is where the community talks, plans and asks for help. Get the app for your phone or your computer (it's free).
+https://discord.com/download
+
+🎟️ 2. Join us on Discord. Join our server, then reply to this email with your Discord username: we'll give you the member role, which opens the members' channels and the door.
 https://discord.commonshub.brussels
 
-2. Come to the Heartbeat. Every Monday, 13:00–14:00 at the hub: what's happening, what's needed, who does what.
-https://commonshub.brussels/events
+🚪 3. Open the door. With the member role, go to the #door channel and type "open": the door at Rue de la Madeleine 51 buzzes open within a few seconds. Tip: add the #door channel to your favourites.
+https://discord.com/channels/1280532848604086365/1306678821751230514
 
-3. Read the handbook. How the hub works: the door, the kitchen, the rooms, the tokens.
+💓 4. Come to the Heartbeat, if you like. Every Monday, 13:00–14:00 at the hub: what's happening, what's needed, who does what. It's optional, and a nice way to meet everyone.
+https://discord.com/channels/1280532848604086365/1443604524307583099
+
+📖 5. Read the handbook. How the hub works: the door, the kitchen, the rooms, the tokens.
 https://commonshub.brussels/handbook
 
-4. Take a first shift. Welcome people at an event and earn tokens. It's the quickest way to meet everyone. Type /shifts in #shifts on Discord to pick one.
-https://discord.com/channels/1280532848604086365/1484493597901455370
+🙌 6. Take a first shift. Welcome people at an event and earn tokens: the quickest way to meet everyone. Pick one on commonshub.brussels/shifts, or in the #shifts channel.
+https://discord.com/channels/1280532848604086365/1443604838255427584
 
-WHAT YOUR MEMBERSHIP GIVES YOU
-- Feel at home in the hub: access to the door at all times, and help yourself in the kitchen.
-- 30% off all events and room rentals.
-- Cowork at the hub one day a month.
-- Tokens for the time you give, which you can spend on the space, and a voice in how the hub is run.
-- All Discord channels, and the Heartbeat meeting every Monday, 13:00–14:00.
+🎁 WHAT YOUR MEMBERSHIP GIVES YOU
+- 🗳️ Take part in decisions and help shape the Hub: make proposals, and earn tokens for the time you give.
+- 🌱 Help care for the space and our shared resources.
+- 🏷️ Lower prices when you book rooms or events.
+- 💻 The Friday open coworking for members, newcomers and prospective commoners, and our community activities.
+- 💬 The members' channels on Discord and, if you like, the weekly Heartbeat meeting (Mondays, 13:00–14:00).
 
-Questions? Ask Elinor, our community bot, on Discord, or just reply to this email.
+Coworking on other days is an extra service for members, charged separately: 2 tokens a day, 1 token for half a day (type /buy on Discord).
 
-See you at the hub!
+Questions? Ask Elinor, our community bot, on Discord (https://elinor.commonshub.brussels), or just reply to this email.
+
+See you at the hub! 🧡
 
 Commons Hub Brussels · Rue de la Madeleine 51, 1000 Brussels · https://commonshub.brussels
