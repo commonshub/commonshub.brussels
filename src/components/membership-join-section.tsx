@@ -12,54 +12,53 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { KnownMembersPicker, type KnownMember } from "@/components/membership/known-members-picker";
 import { User, Building2, Users } from "lucide-react";
-import { Laptop, Coins, Calendar, CheckCircle, Home, DoorOpen, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb, Gamepad2, Users2 } from "lucide-react";
+import { Laptop, Coins, CheckCircle, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb, Users2 } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 
+// As on the poster (/membership/poster). The coworking is the Friday open
+// coworking, a community activity: membership doesn't buy desk days (which
+// would be a service, with VAT).
 const individualBenefits = [
   {
-    icon: Home,
-    content: "You can feel at home in the hub, you have access to the door at all times, and help yourself in the kitchen",
+    icon: Lightbulb,
+    content: "Take part in decisions and help shape the Hub: make proposals, and earn tokens for the time you give",
   },
   {
-    icon: Gamepad2,
+    icon: Heart,
+    content: "Help care for the space and our shared resources",
+  },
+  {
+    icon: BadgePercent,
+    content: "Get lower prices when you book rooms or events",
+  },
+  {
+    icon: Laptop,
     content: (
       <>
-        Play{" "}
-        <Link href="/workshops/commons-game" className="text-primary hover:underline">
-          the Commons Games
-        </Link>{" "}
-        and learn{" "}
-        <Link href="/workshops/commons-game#principles" className="text-primary hover:underline">
-          Elinor Ostrom&apos;s 8 principles to govern the commons
+        Join the Friday open coworking for members, newcomers and prospective commoners, and our{" "}
+        <Link href="/events" className="text-primary hover:underline">
+          community activities
         </Link>
       </>
     ),
   },
   {
-    icon: BadgePercent,
-    content: "You receive 30% discount on all events and when renting the rooms",
-  },
-  {
-    icon: Laptop,
-    content: "You can cowork at the hub for one day/month (or pay-as-you-go if you need more, or pay €100/month for unlimited access)",
-  },
-  {
-    icon: Coins,
-    content: "You get access to our internal economy, and governance/decision making processes (through tokens for volunteer work) and you can make use of the space with those tokens",
-  },
-  {
-    icon: Heart,
-    content: "You are welcome to join our Heartbeat meetings every Monday 13:00-14:00",
-  },
-  {
     icon: Hash,
-    content: "You receive access to all Discord channels",
-  },
-  {
-    icon: Lightbulb,
-    content: "You can make proposals and join conversations, and cocreate the hub",
+    content: "Join the members' channels on Discord and the weekly Heartbeat meetings (Mondays, 13:00–14:00)",
   },
 ];
+
+const steps = [
+  { title: "Apply and meet us", text: "Tell us why you want to join. Come to a potluck or an activity." },
+  { title: "Receive three vouches", text: "Three active community members get to know you and vouch for you." },
+  { title: "Take part", text: "Join the community and help care for our shared space." },
+];
+
+const prices = {
+  individual: "From €10 a month, or €100 a year.",
+  community: "From €100 a year.",
+  organisation: "From €200 a year.",
+};
 
 const organisationBenefits = [
   {
@@ -68,7 +67,7 @@ const organisationBenefits = [
   },
   {
     icon: BadgePercent,
-    content: "30% discount on bookings and events",
+    content: "Lower prices on bookings and events",
   },
   {
     icon: KeyRound,
@@ -179,14 +178,28 @@ export function MembershipJoinSection() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
+          <p className="text-sm italic text-muted-foreground">A space becomes a commons when we care for it together</p>
+          <h1 className="mt-3 text-4xl sm:text-5xl font-bold text-foreground mb-6">
             Become a Member
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            Rediscover with us the commons, an alternative model of society
-            where our common resources are managed by the people that depend on
-            them.
+            Membership is for people and organisations who want to be part of
+            the Commons Hub and help care for it.
           </p>
+        </div>
+
+        {/* How it works */}
+        <div className="mb-12">
+          <h2 className="text-center text-lg font-semibold text-foreground">Membership grows from trust</h2>
+          <ol className="mt-5 grid gap-4 sm:grid-cols-3">
+            {steps.map((step, i) => (
+              <li key={step.title} className="rounded-lg border border-border p-4">
+                <p className="text-2xl font-bold text-primary">{String(i + 1).padStart(2, "0")}</p>
+                <p className="mt-1 font-medium text-foreground">{step.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{step.text}</p>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {isSuccess ? (
@@ -282,6 +295,10 @@ export function MembershipJoinSection() {
                 </li>
               ))}
             </ul>
+            <p className="mt-6 text-foreground">
+              <span className="font-semibold">{prices[memberType]}</span>{" "}
+              <span className="text-sm text-muted-foreground">Rooms and events are booked separately and invoiced with VAT.</span>
+            </p>
           </div>
 
           {/* Name and website */}
