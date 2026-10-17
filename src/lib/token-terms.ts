@@ -8,6 +8,8 @@
  * coworking: a desk for the day (/buy on Discord). rooms: booking any room
  * by the hour, the coworking room in the evening included.
  */
+// chb (rooms.md, cmd/events_generate.go) and the token bot (src/lib/token-terms.ts)
+// copy these verbatim: tell them when the wording changes.
 export const TOKEN_TERMS = {
   coworking:
     "Contributor coworking (with tokens): use an available desk when capacity is idle; no guaranteed desk, no advance reservation, subject to community activities.",
