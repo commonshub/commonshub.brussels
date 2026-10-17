@@ -28,7 +28,7 @@ const s = (n: number) => `calc(var(--s) * ${n})`;
  * floating. Public data only (see lib/members-screen.ts).
  */
 /** Always the public address, whichever copy of the site is on the screen. */
-const JOIN_URL = "https://commonshub.brussels/membership";
+const JOIN_URL = "https://commonshub.brussels/apply";
 
 /**
  * The heartbeat, one sequence every BEAT seconds: the logo beats first

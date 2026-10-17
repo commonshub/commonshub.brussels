@@ -34,7 +34,7 @@ export const WELCOME_PERKS = {
   individual: [
     "Feel at home in the hub: access to the door at all times, and help yourself in the kitchen.",
     "30% off all events and room rentals.",
-    "Cowork at the hub one day a month.",
+    "The Friday open coworking for members, newcomers and prospective commoners.",
     "Tokens for the time you give, which you can spend on the space, and a voice in how the hub is run.",
     "All Discord channels, and the Heartbeat meeting every Monday, 13:00–14:00.",
   ],
