@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -123,6 +123,12 @@ export function MembershipJoinSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // When the form appeared and the hidden trap field: the API ignores bots by them.
+  const shownAt = useRef(0);
+  const [homepage, setHomepage] = useState("");
+  useEffect(() => {
+    shownAt.current = Date.now();
+  }, []);
 
   const toggleNeed = (needId: string) => {
     setSelectedNeeds((prev) =>
@@ -151,6 +157,8 @@ export function MembershipJoinSection() {
       knows: known.filter((k) => k.id).map((k) => ({ id: k.id, name: k.name })),
       whoYouKnow: known.filter((k) => !k.id).map((k) => k.name).join(", "),
       notes: otherNotes,
+      homepage,
+      elapsedMs: shownAt.current ? Date.now() - shownAt.current : undefined,
     };
 
     try {
@@ -236,6 +244,11 @@ export function MembershipJoinSection() {
           </div>
         ) : (
         <form onSubmit={handleSubmit}>
+          {/* A trap for bots: hidden from people and screen readers, never focused. */}
+          <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+            <label htmlFor="homepage">Leave this empty</label>
+            <input id="homepage" name="homepage" type="text" tabIndex={-1} autoComplete="off" value={homepage} onChange={(e) => setHomepage(e.target.value)} />
+          </div>
           {/* Member type selector */}
           <div className="mb-10">
             <Label className="block text-center text-lg font-medium mb-4">
