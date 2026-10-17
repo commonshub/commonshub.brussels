@@ -15,6 +15,7 @@ import { ArrowRight, Users, Coins } from "lucide-react";
 import { BookingDialog } from "@/components/booking-dialog";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
 import roomsData from "@/settings/rooms.json";
+import { TokenTerms } from "@/components/token-terms";
 
 const cards = [
   {
@@ -106,7 +107,7 @@ export function BookingSection() {
           </p>
           <p className="mt-2 text-sm text-muted-foreground max-w-2xl mx-auto">
             Members enjoy a 30% discount and priority booking. They can also use
-            tokens earned from community contributions.
+            tokens earned from community contributions.*
           </p>
         </div>
 
@@ -175,6 +176,7 @@ export function BookingSection() {
             </Card>
           ))}
         </div>
+        <TokenTerms kinds={["rooms"]} className="mt-6 text-center" />
 
         <div className="mt-12 text-center">
           <Link href="/rooms" className="text-primary hover:underline mr-4">

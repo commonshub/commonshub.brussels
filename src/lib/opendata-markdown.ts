@@ -3,6 +3,7 @@ import * as path from "path";
 import { tierDir } from "./data-paths";
 import { annotationsFor, loadOpendataAnnotations } from "./opendata-annotations";
 import { buildOpendataMonthly, opendataCoverage, type OpendataMonth } from "./opendata-monthly";
+import { TOKEN_TERMS } from "./token-terms";
 
 /**
  * Markdown versions of /finance, /economy and /community for agents
@@ -117,7 +118,7 @@ export function economyMarkdown(baseUrl: string): string {
 
 > A new economic model to sustain our community with the Commons Hub Token.
 
-The Commons Hub Token (CHT, on Celo) is brought into existence when a member of the community contributes time, energy and care: a steward role earns a recurring amount, and so do organised shifts and other contributions. Tokens are redeemed for the community's resources, such as booking a room (CHT per hour: ${baseUrl}/rooms.md). Euros are tracked separately: see ${baseUrl}/finance.md.
+The Commons Hub Token (CHT, on Celo) is brought into existence when a member of the community contributes time, energy and care: a steward role earns a recurring amount, and so do organised shifts and other contributions. Tokens are redeemed for the community's resources, such as booking a room (CHT per hour: ${baseUrl}/rooms.md). Tokens buy idle capacity, not the service euros buy: ${TOKEN_TERMS.rooms} ${TOKEN_TERMS.coworking} Euros are tracked separately: see ${baseUrl}/finance.md.
 
 ## CHT, last ${months.length} months
 

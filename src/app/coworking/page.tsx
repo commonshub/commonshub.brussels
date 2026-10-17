@@ -5,6 +5,7 @@ import { ArrowRight, Wifi, Coffee, Users } from "lucide-react";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
 import roomsData from "@/settings/rooms.json";
 import settings from "@/settings/settings.json";
+import { TokenTerms } from "@/components/token-terms";
 
 export const metadata = {
   title: "Coworking | Commons Hub Brussels",
@@ -45,8 +46,9 @@ export default function CoworkingPage() {
               <p>
                 <span className="font-semibold text-foreground">Coworking is an extra service for members, charged separately:</span> it is not
                 part of the membership, and you need to be a member to use it. Pay in euros, €25 a day or €100 a month (+ VAT), or
-                in tokens, 2 a day or 1 for half a day (type <code className="text-foreground">/buy</code> on Discord).
+                in tokens, 2 a day or 1 for half a day (type <code className="text-foreground">/buy</code> on Discord).*
               </p>
+              <TokenTerms kinds={["coworking"]} className="mt-2" />
               <p className="mt-2">
                 Every Friday, the open coworking is free for members, newcomers and prospective commoners: come and meet the community.
               </p>

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, CheckCircle, Users, Coins } from "lucide-react";
 import roomsData from "@/settings/rooms.json";
+import { TokenTerms } from "@/components/token-terms";
 
 interface BookingFormProps {
   preselectedRoomId?: string;
@@ -188,6 +189,7 @@ export function BookingForm({
                     {selectedRoom.tokensPerHour > 1 ? "s" : ""}/hour for members
                   </span>
                 </div>
+                <TokenTerms kinds={["rooms"]} className="mt-2" />
               </div>
             )}
           </div>

@@ -36,11 +36,12 @@ export function EconomySection() {
               </p>
               <p className="text-muted-foreground">
                 The more you contribute to the space, the more Commons Hub
-                Tokens (CHT) you receive.
+                tokens you receive.
               </p>
               <p className="text-muted-foreground">
-                Redeem those tokens for goods and services offered by the
-                community.
+                Use those tokens for what the community has spare: a desk or a
+                room when it&apos;s free, subject to community activities, with
+                no cleaning or stewarding included.
               </p>
             </div>
           </div>
