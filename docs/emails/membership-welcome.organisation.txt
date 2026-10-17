@@ -26,10 +26,10 @@ WHAT YOUR MEMBERSHIP GIVES YOU
 - Your logo on the website as a partner organisation.
 - Membership for two people, who can both open the door.
 - Lower prices on bookings and events.
-- Make the hub the place where your community meets, and earn tokens to rent the space for your meetups.
+- Make the hub the place where your community meets, and earn tokens to book the space for your meetups (when it's idle).
 - Make proposals and join the conversations that shape the hub.
 
-Coworking on other days is an extra service for members, charged separately: €25 a day or €100 a month (+ VAT), or in tokens, 2 a day or 1 for half a day (type /buy on Discord).
+Coworking on other days is an extra service for members, charged separately: €25 a day or €100 a month (+ VAT), or in tokens, 2 a day or 1 for half a day (type /buy on Discord). Contributor coworking (with tokens): use an available desk when capacity is idle; no guaranteed desk, no advance reservation, subject to community activities. Rooms booked with tokens: only when capacity is idle, subject to community activities, without cleaning or stewarding.
 
 Questions? Ask Elinor, our community bot, on Discord (https://elinor.commonshub.brussels), or just reply to this email.
 

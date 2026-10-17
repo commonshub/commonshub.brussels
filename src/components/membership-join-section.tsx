@@ -86,7 +86,7 @@ const communityBenefits = [
   },
   {
     icon: Coins,
-    content: "Contribute to the space to earn tokens to rent the space for your meetups",
+    content: "Contribute to the space to earn tokens to book the space for your meetups (when it's idle, subject to community activities, without cleaning or stewarding)",
   },
   {
     icon: Lightbulb,

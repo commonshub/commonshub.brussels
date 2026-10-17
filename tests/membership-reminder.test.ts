@@ -71,6 +71,10 @@ describe("the welcome email", () => {
     expect(e.text).not.toContain("/open")
     expect(e.text).not.toMatch(/30%|one day a month/)
     expect(e.text).toContain("extra service")
+    // Paying with tokens is not the euro service: said wherever tokens pay (VAT).
+    const { TOKEN_TERMS } = require("@/lib/token-terms")
+    expect(e.text).toContain(TOKEN_TERMS.coworking)
+    expect(e.text).toContain(TOKEN_TERMS.rooms)
   })
 
   test("an organisation: named in the opening, organisation perks, escaped in HTML", () => {

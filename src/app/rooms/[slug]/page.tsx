@@ -8,6 +8,7 @@ import roomsData from "@/settings/rooms.json";
 import { RoomBookingForm } from "@/components/room-booking-form";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
 import { bookableFromLabel } from "@/lib/room-hours";
+import { TokenTerms } from "@/components/token-terms";
 interface RoomPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -88,6 +89,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
                     {room.bookableFrom && <span>{bookableFromLabel(room.bookableFrom)}</span>}
                   </div>
                 )}
+                {room.tokensPerHour > 0 && <TokenTerms kinds={["rooms"]} className="sm:basis-full" />}
                 {room.membershipRequired && (
                   <Badge variant="secondary">Members Only</Badge>
                 )}

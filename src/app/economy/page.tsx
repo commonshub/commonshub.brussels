@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Users } from "lucide-react";
 import { CommunityActivityGallery } from "@/components/community-activity-gallery";
 import { StewardRolesPreview } from "@/components/steward-roles-preview";
 import roomsData from "@/settings/rooms.json";
+import { TokenTerms } from "@/components/token-terms";
 
 export const metadata = {
   title: "Economy | Commons Hub Brussels",
@@ -149,6 +150,8 @@ export default function EconomyPage() {
                   </Link>
                 ))}
             </div>
+
+            <TokenTerms kinds={["rooms", "coworking"]} className="mt-6 space-y-1 text-center" />
 
             <div className="text-center mt-8">
               <Link

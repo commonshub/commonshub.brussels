@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import roomsData from "@/settings/rooms.json";
 import { bookableFromLabel } from "@/lib/room-hours";
+import { TokenTerms } from "@/components/token-terms";
 
 interface EmbeddedBookingFormProps {
   roomId: string;
@@ -116,6 +117,7 @@ export function EmbeddedBookingForm({
               {room?.bookableFrom && <>, {bookableFromLabel(room.bookableFrom)}</>}
             </span>
           )}
+          {tokensPerHour > 0 && <TokenTerms kinds={["rooms"]} className="mt-1 block" />}
         </CardDescription>
       </CardHeader>
       <CardContent>

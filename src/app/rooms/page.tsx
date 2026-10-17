@@ -12,6 +12,7 @@ import { Users, ArrowRight, Coins } from "lucide-react";
 import roomsData from "@/settings/rooms.json";
 import { bookableFromLabel } from "@/lib/room-hours";
 import { getProxiedImageUrl } from "@/lib/image-proxy";
+import { TokenTerms } from "@/components/token-terms";
 
 export const metadata = {
   title: "Our Rooms | Commons Hub Brussels",
@@ -98,6 +99,7 @@ export default function RoomsPage() {
                 </Card>
               ))}
             </div>
+            <TokenTerms kinds={["rooms", "coworking"]} className="mt-8 space-y-1" />
           </div>
         </section>
       </main>

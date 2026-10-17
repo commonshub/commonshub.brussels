@@ -11,6 +11,8 @@
  * scripts/export-reminder-template.ts) are the templates for whoever will.
  */
 
+import { TOKEN_TERMS } from "./token-terms"
+
 const HUB = {
   name: "Commons Hub Brussels",
   address: "Rue de la Madeleine 51, 1000 Brussels",
@@ -49,13 +51,13 @@ export const WELCOME_PERKS = {
     "Your logo on the website as a partner organisation.",
     "Membership for two people, who can both open the door.",
     "Lower prices on bookings and events.",
-    "Make the hub the place where your community meets, and earn tokens to rent the space for your meetups.",
+    "Make the hub the place where your community meets, and earn tokens to book the space for your meetups (when it's idle).",
     "Make proposals and join the conversations that shape the hub.",
   ],
 }
 
 /** Coworking on other days: an extra service, not part of the membership. */
-const COWORKING_NOTE = "Coworking on other days is an extra service for members, charged separately: €25 a day or €100 a month (+ VAT), or in tokens, 2 a day or 1 for half a day (type /buy on Discord)."
+const COWORKING_NOTE = `Coworking on other days is an extra service for members, charged separately: €25 a day or €100 a month (+ VAT), or in tokens, 2 a day or 1 for half a day (type /buy on Discord). ${TOKEN_TERMS.coworking} ${TOKEN_TERMS.rooms}`
 
 /** A channel on our Discord server: opens the Discord app there (on a phone), or Discord in the browser. */
 const GUILD = "1280532848604086365"
