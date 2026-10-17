@@ -142,7 +142,7 @@
       "name": "Coworking Space",
       "slug": "coworking",
       "capacity": 30,
-      "description": "Our open coworking area where community members come together to work, connect, and collaborate. Available for members and day-pass visitors.",
+      "description": "Our open coworking area where community members come together to work, connect, and collaborate. For members, as an extra service charged separately (not part of the membership).",
       "shortDescription": "Open workspace for the community",
       "pricePerHour": 50,
       "tokensPerHour": 2,

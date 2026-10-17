@@ -41,7 +41,17 @@ export default function CoworkingPage() {
                 commoners
               </span>
             </div>
-            <div className="mt-10 flex justify-center">
+            <div className="mx-auto mt-10 max-w-2xl rounded-lg border border-border bg-card p-5 text-left text-sm text-muted-foreground">
+              <p>
+                <span className="font-semibold text-foreground">Coworking is an extra service for members, charged separately:</span> it is not
+                part of the membership, and you need to be a member to use it. A day costs 2 tokens, half a day 1 token (type{" "}
+                <code className="text-foreground">/buy</code> on Discord).
+              </p>
+              <p className="mt-2">
+                Every Friday, the open coworking is free for members, newcomers and prospective commoners: come and meet the community.
+              </p>
+            </div>
+            <div className="mt-8 flex justify-center">
               <Button asChild size="lg">
                 <Link href="/membership">Become a Member</Link>
               </Button>
@@ -139,8 +149,9 @@ export default function CoworkingPage() {
               Come work with us
             </h2>
             <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-              The coworking is reserved for members. Join the community to get
-              access — and a desk full of friendly faces.
+              Coworking is for members, as an extra service charged
+              separately. Join the community first, and come to the Friday
+              open coworking to meet everyone.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">
