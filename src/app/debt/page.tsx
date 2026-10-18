@@ -24,6 +24,7 @@ export const metadata: Metadata = {
     title: "Commons Hub Brussels — debt tokens",
     description:
       "Interest-free debt issued by the Commons Hub, redeemable against the space and what the community offers. The full ledger, in the open.",
+    images: ["/images/ogimage-default.jpg"],
   },
 };
 
