@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     url: "/events",
     siteName: "Commons Hub Brussels",
     type: "website",
+    images: ["/images/ogimage-default.jpg"],
   },
   twitter: { card: "summary_large_image" },
 };

@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   description:
     "A common space for your community to meet, dream and work. A space to rediscover the commons. Come visit us in front of Central Station.",
   generator: "xavier@commonshub.brussels",
+  // The preview when a link is shared; without it, LinkedIn & co pick any image on the page (a partner's logo).
+  openGraph: {
+    type: "website",
+    siteName: "Commons Hub Brussels",
+    // No title or description here: pages without their own fall back to their <title> and description.
+    images: [{ url: "/images/ogimage-default.jpg", width: 1200, height: 630, alt: "Commons Hub Brussels" }],
+  },
+  // No twitter:image: X falls back to og:image, so pages with their own opengraph-image keep it there too.
+  twitter: { card: "summary_large_image" },
   icons: {
     icon: [
       {
