@@ -236,11 +236,11 @@ export function verifyClaim(t: string | null | undefined): string | null {
 }
 
 /** Someone paid the membership without applying first: they become an application, already a member. */
-export async function applicationFromPayment(p: { name?: string | null; email: string; sessionId: string }): Promise<Application> {
+export async function applicationFromPayment(p: { name?: string | null; email: string; sessionId: string; type?: Application["type"] }): Promise<Application> {
   const a: Application = {
     id: randomBytes(6).toString("base64url"),
     submittedAt: new Date().toISOString(),
-    type: "individual",
+    type: p.type ?? "individual",
     name: (p.name || p.email.split("@")[0]).replace(/[\n<>]/g, " ").trim().slice(0, 120),
     email: p.email.toLowerCase(),
     needs: [],

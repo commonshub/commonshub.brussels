@@ -20,9 +20,30 @@ import { buildComment, type Community, type MemberLink, type SignedLike, type Te
 export const VOUCHES_NEEDED = 3
 /** Reacting with this on the application's post in #membership is a vouch. */
 export const VOUCH_EMOJI = "✅"
-export const PAYMENT_LINK = "https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
-/** That payment link's id in Stripe: its checkouts are memberships. */
-export const PAYMENT_LINK_ID = "plink_1PjHtRFAhaWeDyow3NXAwNW0"
+/** Individuals choose what they pay each month: solidarity, regular (the default) or support. */
+export const MONTHLY_PRICES = [
+  { amount: 10, label: "Solidarity" },
+  { amount: 15, label: "Regular" },
+  { amount: 20, label: "Support" },
+] as const
+export type MonthlyPrice = (typeof MONTHLY_PRICES)[number]["amount"]
+export const DEFAULT_MONTHLY: MonthlyPrice = 15
+
+/**
+ * The membership's Stripe payment links, each with its id: a checkout on any
+ * of them is a membership, and they all lead to the same emails (accepted,
+ * then onboarding once paid) and the same welcome page.
+ */
+export const PAYMENT_LINKS = {
+  individual10: { url: "https://buy.stripe.com/00g9C7dFH8EI07eaEJ", id: "plink_1PjHtRFAhaWeDyow3NXAwNW0" },
+  individual15: { url: "https://buy.stripe.com/5kQdR92CwbSMc719i9eUU0i", id: "plink_1SYRa8FAhaWeDyowP8xQhIOq" },
+  individual20: { url: "https://buy.stripe.com/00wbJ14KE8GA9YT51TeUU0j", id: "plink_1SYRb4FAhaWeDyowNZRe1eI3" },
+  community: { url: "https://buy.stripe.com/5kA4hNbxz4os2fm3cl", id: "plink_1PjIOoFAhaWeDyow9KVEHSWN" },
+  organisation: { url: "https://buy.stripe.com/7sY14ngtm7Cw1sn3XPeUU0l", id: "plink_1USHnBFAhaWeDyowEoNWZlOg" },
+} as const
+export const isMembershipLink = (id: unknown) => Object.values(PAYMENT_LINKS).some((l) => l.id === id)
+/** Who pays on a link without having applied: an organisation on its link, else an individual. */
+export const typeOfLink = (id: unknown): MemberType => (id === PAYMENT_LINKS.organisation.id ? "organisation" : id === PAYMENT_LINKS.community.id ? "community" : "individual")
 export const SITE = "https://commonshub.brussels"
 export const POTLUCK_URL = `${SITE}/potluck`
 export const PENDING_URL = `${SITE}/members/pending`
@@ -46,6 +67,8 @@ export interface Application {
   /** Members they know, picked from the community's Discord (pinged in #membership). */
   knows?: Array<{ discordId: string; name: string }>
   notes?: string
+  /** What an individual chose to pay each month. Applications from before the choice have none: they pay €10. */
+  monthly?: MonthlyPrice
   /** Their Discord account, once they logged in after paying (and got the member role). */
   discordId?: string
   /** The post in #membership (members vouch there by reacting with VOUCH_EMOJI). */
@@ -61,9 +84,9 @@ export interface Application {
   paidAt?: string
 }
 
-/** What members see on /members/pending: everything but the email address. */
-export type PublicApplication = Omit<Application, "email">
-export const withoutEmail = ({ email: _email, ...rest }: Application): PublicApplication => rest
+/** What members see on /members/pending: everything but the email address and what they chose to pay. */
+export type PublicApplication = Omit<Application, "email" | "monthly">
+export const withoutEmail = ({ email: _email, monthly: _monthly, ...rest }: Application): PublicApplication => rest
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\r/g, "").trim().slice(0, max) : "")
 export const isEmail = (s: string) => s.length <= 200 && /^[^\s@<>,;]+@[^\s@<>,;]+\.[a-z]{2,}$/i.test(s)
@@ -129,6 +152,7 @@ export function parseApplication(body: Record<string, unknown>, id: string, now 
     whoYouKnow: optional("whoYouKnow", 1000),
     ...(knows.length ? { knows } : {}),
     notes: optional("notes"),
+    ...(type === "individual" ? { monthly: MONTHLY_PRICES.find((p) => p.amount === Number(body.monthly))?.amount ?? DEFAULT_MONTHLY } : {}),
     status: "pending",
     source: "form",
   }
@@ -244,6 +268,7 @@ export const knownNames = (a: Pick<Application, "knows" | "whoYouKnow">) => [...
 function answers(a: Application): string[] {
   return [
     `Joining as: ${a.type}${a.type !== "individual" && a.people ? ` (${a.people} people)` : ""}`,
+    `Membership: ${priceOf(a)}`,
     ...(a.website ? [`Website: ${a.website}`] : []),
     ...(a.needs.length ? [`How the community can help: ${a.needs.join("; ")}`] : []),
     ...(a.contribute ? [`What you can contribute: ${a.contribute}`] : []),
@@ -285,9 +310,24 @@ export function buildAcceptedEmail(a: Application, vouchers: Array<{ name: strin
   ])
 }
 
+/** What they'll pay, in words. */
+export function priceOf(a: Pick<Application, "type" | "monthly">): string {
+  if (a.type === "organisation") return "€200 a year"
+  if (a.type === "community") return "€100 a year"
+  const monthly = a.monthly ?? 10
+  return `€${monthly} a month (${MONTHLY_PRICES.find((p) => p.amount === monthly)?.label.toLowerCase()})`
+}
+
+/** The payment link for their membership: organisations and communities a year, individuals the monthly amount they chose. */
+export function paymentLinkFor(a: Pick<Application, "type" | "monthly">): string {
+  if (a.type === "organisation") return PAYMENT_LINKS.organisation.url
+  if (a.type === "community") return PAYMENT_LINKS.community.url
+  return PAYMENT_LINKS[`individual${a.monthly ?? 10}`].url
+}
+
 /** The payment link for an application: tied to it, with their email filled in. */
-export const paymentUrlFor = (a: Pick<Application, "id" | "email">) =>
-  `${PAYMENT_LINK}?client_reference_id=${encodeURIComponent(`application_${a.id}`)}&prefilled_email=${encodeURIComponent(a.email)}`
+export const paymentUrlFor = (a: Pick<Application, "id" | "email" | "type" | "monthly">) =>
+  `${paymentLinkFor(a)}?client_reference_id=${encodeURIComponent(`application_${a.id}`)}&prefilled_email=${encodeURIComponent(a.email)}`
 
 /** The application a Stripe checkout pays for, from its client_reference_id. */
 export const applicationIdFromReference = (ref: string | null | undefined) => ref?.match(/^application_([\w-]{6,40})$/)?.[1] ?? null
