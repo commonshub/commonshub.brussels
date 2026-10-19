@@ -1,6 +1,6 @@
 /**
  * Runs once when the server starts. Vouches given on Discord (a ✅ reaction on
- * an application's post in #requests) are synced every two minutes, so an
+ * an application's post in #membership) are synced every two minutes, so an
  * application is approved without anyone opening /members/pending.
  */
 export async function register() {
