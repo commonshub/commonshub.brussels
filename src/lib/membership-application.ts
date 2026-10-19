@@ -18,7 +18,7 @@
 import { buildComment, type Community, type MemberLink, type SignedLike, type Template } from "./nostr-conventions"
 
 export const VOUCHES_NEEDED = 3
-/** Reacting with this on the application's post in #requests is a vouch. */
+/** Reacting with this on the application's post in #membership is a vouch. */
 export const VOUCH_EMOJI = "✅"
 export const PAYMENT_LINK = "https://buy.stripe.com/00g9C7dFH8EI07eaEJ"
 /** That payment link's id in Stripe: its checkouts are memberships. */
@@ -43,13 +43,15 @@ export interface Application {
   contribute?: string
   heardFrom?: string
   whoYouKnow?: string
-  /** Members they know, picked from the community's Discord (pinged in #requests). */
+  /** Members they know, picked from the community's Discord (pinged in #membership). */
   knows?: Array<{ discordId: string; name: string }>
   notes?: string
   /** Their Discord account, once they logged in after paying (and got the member role). */
   discordId?: string
-  /** The post in #requests (members vouch there by reacting with VOUCH_EMOJI). */
+  /** The post in #membership (members vouch there by reacting with VOUCH_EMOJI). */
   discordMessageId?: string
+  /** Its channel: #membership; posts from before it had one are in #requests. */
+  discordChannelId?: string
   /** How the application started: the form, or a payment without one. */
   source?: "form" | "payment"
   status: ApplicationStatus
@@ -137,7 +139,7 @@ export function parseApplication(body: Record<string, unknown>, id: string, now 
 const VOUCH_LINE = /\n\n\*\*Vouched \(\d+ of \d+\):\*\*[^\n]*$/
 
 /**
- * The application's post in #requests, with a last line saying who vouched
+ * The application's post in #membership, with a last line saying who vouched
  * so far, however they did it (a ✅ there or the button on the website):
  * the two are the same vouch, and both show on Discord. Without vouchers the
  * line goes away.

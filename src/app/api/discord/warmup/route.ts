@@ -20,6 +20,7 @@ function getAllChannelIds(): string[] {
   if (channels.general) channelIds.add(channels.general)
   if (channels.introductions) channelIds.add(channels.introductions)
   if (channels.requests) channelIds.add(channels.requests)
+  if (channels.membership) channelIds.add(channels.membership)
   if (channels.contributions) channelIds.add(channels.contributions)
 
   // Add room channels from rooms.json

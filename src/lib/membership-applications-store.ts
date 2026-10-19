@@ -114,6 +114,11 @@ export async function loadVouchers(ids: string[]): Promise<Map<string, Array<{ d
 
 // ── vouching on Discord: a ✅ reaction on the application's post ──────────
 
+/** Where applications are posted, and where the news about them goes. */
+const MEMBERSHIP = settings.discord.channels.membership
+/** The channel of an application's post: posts from before #membership are in #requests. */
+const postChannel = (a: Pick<Application, "discordChannelId">) => a.discordChannelId ?? settings.discord.channels.requests
+
 async function bot(path: string, init: RequestInit = {}): Promise<Response | null> {
   const token = process.env.DISCORD_BOT_TOKEN
   if (!token) return null
@@ -121,41 +126,41 @@ async function bot(path: string, init: RequestInit = {}): Promise<Response | nul
 }
 
 /** Who reacted with the vouch emoji on a post (people, not bots). */
-async function reactors(messageId: string): Promise<Array<{ id: string; name: string }>> {
-  const res = await bot(`/channels/${REQUESTS}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}?limit=100`)
+async function reactors(channelId: string, messageId: string): Promise<Array<{ id: string; name: string }>> {
+  const res = await bot(`/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}?limit=100`)
   if (!res?.ok) return []
   const users = (await res.json()) as Array<{ id: string; username: string; global_name?: string | null; bot?: boolean }>
   return users.filter((u) => !u.bot).map((u) => ({ id: u.id, name: (u.global_name || u.username).replace(/[\n<>@]/g, "").slice(0, 60) }))
 }
 
 /** The bot's own ✅ on the post, so members only have to tap it. */
-export const addVouchReaction = (messageId: string) => bot(`/channels/${REQUESTS}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}/@me`, { method: "PUT" })
+export const addVouchReaction = (channelId: string, messageId: string) => bot(`/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(VOUCH_EMOJI)}/@me`, { method: "PUT" })
 
 /** Show who vouched on the application's post (lib/membership-application.ts withVouchLine). Never pings: it's an edit, and mentions are off. */
 async function updateVouchLine(a: Application, vouchers: Array<{ discordId: string }>): Promise<void> {
   if (!a.discordMessageId) return
-  const res = await bot(`/channels/${REQUESTS}/messages/${a.discordMessageId}`)
+  const res = await bot(`/channels/${postChannel(a)}/messages/${a.discordMessageId}`)
   if (!res?.ok) return
   const { content } = (await res.json()) as { content: string }
   const next = withVouchLine(content, vouchers)
   if (next === content) return
-  await bot(`/channels/${REQUESTS}/messages/${a.discordMessageId}`, {
+  await bot(`/channels/${postChannel(a)}/messages/${a.discordMessageId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: next, allowed_mentions: { parse: [] } }),
   })
 }
 
-/** Applications posted before their post was recorded: find it in #requests by its first line. */
+/** Applications posted before their post was recorded: find it in #membership by its first line. */
 async function findPost(a: Application): Promise<string | null> {
-  const res = await bot(`/channels/${REQUESTS}/messages?limit=100`)
+  const res = await bot(`/channels/${MEMBERSHIP}/messages?limit=100`)
   if (!res?.ok) return null
   const messages = (await res.json()) as Array<{ id: string; content: string; author?: { bot?: boolean } }>
   return messages.find((m) => m.author?.bot && m.content.startsWith(`👋 **New membership application: ${a.name}**`))?.id ?? null
 }
 
 /**
- * Turn ✅ reactions on #requests posts into vouches: one Nostr vouch signed by
+ * Turn ✅ reactions on the applications' posts into vouches: one Nostr vouch signed by
  * the site on behalf of each member who reacted and holds tokens (others are
  * ignored), withdrawn (NIP-09) if they remove their reaction before the
  * application is approved. Then approve whatever reached three vouches.
@@ -170,11 +175,11 @@ export async function syncReactionVouches(): Promise<void> {
     if (!a.discordMessageId) {
       const found = await findPost(a)
       if (!found) continue
-      a = { ...a, discordMessageId: found }
+      a = { ...a, discordMessageId: found, discordChannelId: MEMBERSHIP }
       await saveApplication(a)
-      await addVouchReaction(found)
+      await addVouchReaction(MEMBERSHIP, found)
     }
-    const reacted = await reactors(a.discordMessageId!)
+    const reacted = await reactors(postChannel(a), a.discordMessageId!)
     const mine = events.filter((e) => e.tags.some((t) => t[0] === "I" && t[1] === applicationUri(a.id)))
     const recorded = new Map(mine.map((e) => [e.tags.find((t) => t[0] === "discord")?.[1], e]))
     let changed = false
@@ -268,12 +273,11 @@ export async function claimMemberRole(id: string, user: { discordId: string; nam
   const already = a.discordId === user.discordId
   if (!already) {
     await saveApplication({ ...a, discordId: user.discordId })
-    sendMessage(REQUESTS, `🔑 <@${user.discordId}> (${a.name}) logged in after paying and got the member role. Welcome!`).catch(() => {})
+    sendMessage(MEMBERSHIP, `🔑 <@${user.discordId}> (${a.name}) logged in after paying and got the member role. Welcome!`).catch(() => {})
   }
   return { ok: true, already }
 }
 
-const REQUESTS = settings.discord.channels.requests
 
 /**
  * Approve an application once enough members with tokens vouched; tell them
@@ -293,7 +297,7 @@ export async function approveIfVouched(id: string): Promise<{ status: Applicatio
     await saveApplication(approved)
     await sendAccepted(approved, vouchers)
     if (isDiscordConfigured()) {
-      sendMessage(REQUESTS, `✅ **${a.name}**'s membership application was approved: ${vouchers.map((v) => `<@${v.discordId}>`).join(", ")} vouched. They got the payment link.`).catch(() => {})
+      sendMessage(MEMBERSHIP, `✅ **${a.name}**'s membership application was approved: ${vouchers.map((v) => `<@${v.discordId}>`).join(", ")} vouched. They got the payment link.`).catch(() => {})
       for (const v of vouchers) sendDirectMessage(v.discordId, `✅ ${a.name} was accepted as a member, thanks to your vouch. Say hi when you see them at the hub!`).catch(() => {})
     }
     return { status: "approved", vouchers }
@@ -308,7 +312,7 @@ export async function onboardPaid(id: string): Promise<boolean> {
   if (!a || a.status === "member") return false
   await sendOnboarding(a)
   await saveApplication({ ...a, status: "member", paidAt: new Date().toISOString() })
-  if (isDiscordConfigured()) sendMessage(REQUESTS, `🎉 **${a.name}** paid their membership and got the onboarding email. Welcome! ([pending applications](<${PENDING_URL}>))`).catch(() => {})
+  if (isDiscordConfigured()) sendMessage(MEMBERSHIP, `🎉 **${a.name}** paid their membership and got the onboarding email. Welcome! ([pending applications](<${PENDING_URL}>))`).catch(() => {})
   return true
 }
 

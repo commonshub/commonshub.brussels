@@ -14,7 +14,7 @@ const recent: number[] = []
 /**
  * An application to become a member: kept (encrypted) on the community
  * relays for members to vouch on /members/pending, confirmed to the
- * applicant by email (cc hello@), and announced in #requests without the
+ * applicant by email (cc hello@), and announced in #membership without the
  * email address.
  */
 export async function POST(request: Request) {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   if (recent.length >= 10) return NextResponse.json({ error: "Too many applications right now, please try again in a few minutes" }, { status: 429 })
   recent.push(now)
 
-  // Kept for vouching; if the relays refuse it, the application still reaches us (email cc hello@, #requests).
+  // Kept for vouching; if the relays refuse it, the application still reaches us (email cc hello@, #membership).
   let saved = false
   if (isApplicationsConfigured()) {
     saved = await saveApplication(application)
@@ -63,14 +63,14 @@ export async function POST(request: Request) {
       ? `Members with tokens: react with ${VOUCH_EMOJI} to vouch, or vouch on [the pending applications](<${PENDING_URL}>). 3 vouches and they're in.`
       : "⚠️ Could not add it to /members/pending: a steward needs to handle it by hand.",
   ]
-  const post = await createDiscordThread(settings.discord.channels.requests, `👤 Membership: ${a.name}`.slice(0, 100), lines.join("\n").slice(0, 1900)).catch((error) => {
+  const post = await createDiscordThread(settings.discord.channels.membership, `👤 Membership: ${a.name}`.slice(0, 100), lines.join("\n").slice(0, 1900)).catch((error) => {
     console.error("[membership] could not post the application on Discord:", error)
     return null
   })
   // A thread started from a message has the message's id: members vouch by reacting on it.
   if (saved && post?.threadId) {
-    await addVouchReaction(post.threadId)
-    await saveApplication({ ...a, discordMessageId: post.threadId }).catch((error) => console.error("[membership] could not record the post:", error))
+    await addVouchReaction(settings.discord.channels.membership, post.threadId)
+    await saveApplication({ ...a, discordMessageId: post.threadId, discordChannelId: settings.discord.channels.membership }).catch((error) => console.error("[membership] could not record the post:", error))
   }
   return NextResponse.json({ success: true })
 }
