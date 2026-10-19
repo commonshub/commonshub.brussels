@@ -14,6 +14,7 @@ import { KnownMembersPicker, type KnownMember } from "@/components/membership/kn
 import { User, Building2, Users } from "lucide-react";
 import { Laptop, Coins, CheckCircle, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb, Users2 } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
+import { DEFAULT_MONTHLY, MONTHLY_PRICES, type MonthlyPrice } from "@/lib/membership-application";
 
 // As on the poster (/membership/poster). The coworking is the Friday open
 // coworking, a community activity: membership doesn't buy desk days (which
@@ -55,9 +56,9 @@ const steps = [
 ];
 
 const prices = {
-  individual: "From €10 a month, or €100 a year.",
-  community: "From €100 a year.",
-  organisation: "From €200 a year.",
+  individual: "€10, €15 or €20 a month: you choose.",
+  community: "€100 a year.",
+  organisation: "€200 a year.",
 };
 
 const organisationBenefits = [
@@ -86,7 +87,7 @@ const communityBenefits = [
   },
   {
     icon: Coins,
-    content: "Contribute to the space to earn tokens to book the space for your meetups (when it's idle, subject to community activities, without cleaning or stewarding)",
+    content: "Contribute to the space to earn tokens to book the space for your meetups*",
   },
   {
     icon: Lightbulb,
@@ -120,6 +121,7 @@ export function MembershipJoinSection() {
   const [known, setKnown] = useState<KnownMember[]>([]);
   const [otherNotes, setOtherNotes] = useState("");
   const [email, setEmail] = useState("");
+  const [monthly, setMonthly] = useState<MonthlyPrice>(DEFAULT_MONTHLY);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +160,7 @@ export function MembershipJoinSection() {
       whoYouKnow: known.filter((k) => !k.id).map((k) => k.name).join(", "),
       notes: otherNotes,
       homepage,
+      ...(memberType === "individual" ? { monthly } : {}),
       elapsedMs: shownAt.current ? Date.now() - shownAt.current : undefined,
     };
 
@@ -198,7 +201,7 @@ export function MembershipJoinSection() {
 
         {/* How it works */}
         <div className="mb-12">
-          <h2 className="text-center text-lg font-semibold text-foreground">Membership grows from trust</h2>
+          <h2 className="text-center text-lg font-semibold text-foreground">Membership grows at the speed of trust</h2>
           <ol className="mt-5 grid gap-4 sm:grid-cols-3">
             {steps.map((step, i) => (
               <li key={step.title} className="rounded-lg border border-border p-4">
@@ -230,6 +233,7 @@ export function MembershipJoinSection() {
                 setIsSuccess(false);
                 setName("");
                 setEmail("");
+                setMonthly(DEFAULT_MONTHLY);
                 setWebsite("");
                 setNumberOfPeople("");
                 setSelectedNeeds([]);
@@ -312,6 +316,11 @@ export function MembershipJoinSection() {
               <span className="font-semibold">{prices[memberType]}</span>{" "}
               <span className="text-sm text-muted-foreground">Rooms and events are booked separately and invoiced with VAT.</span>
             </p>
+            {memberType === "community" && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                * When it&apos;s idle, subject to community activities, without cleaning or stewarding.
+              </p>
+            )}
           </div>
 
           {/* Name and website */}
@@ -334,7 +343,7 @@ export function MembershipJoinSection() {
                       ? "John Doe"
                       : memberType === "community"
                         ? "Awesome Community"
-                        : "Company Inc."
+                        : "Organisation ASBL"
                   }
                   className="mt-1.5"
                   required
@@ -353,6 +362,32 @@ export function MembershipJoinSection() {
                   required
                 />
               </div>
+
+              {memberType === "individual" && (
+                <fieldset>
+                  <legend className="text-sm font-medium leading-none">How much would you like to pay each month?</legend>
+                  <div role="radiogroup" className="mt-2 grid grid-cols-3 gap-2">
+                    {MONTHLY_PRICES.map((p) => (
+                      <button
+                        key={p.amount}
+                        type="button"
+                        role="radio"
+                        aria-checked={monthly === p.amount}
+                        onClick={() => setMonthly(p.amount)}
+                        className={`rounded-lg border px-2 py-3 text-center transition-colors ${
+                          monthly === p.amount ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        <span className="block text-lg font-semibold text-foreground">€{p.amount}</span>
+                        <span className="block text-xs">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Same membership whatever you pay. You pay once your application is accepted.
+                  </p>
+                </fieldset>
+              )}
 
               {memberType !== "individual" && (
                 <>

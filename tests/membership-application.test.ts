@@ -7,6 +7,10 @@ import {
   buildReceivedEmail,
   buildVouch,
   isGibberishName,
+  isMembershipLink,
+  PAYMENT_LINKS,
+  priceOf,
+  typeOfLink,
   knownNames,
   parseApplication,
   paymentUrlFor,
@@ -49,7 +53,7 @@ describe("a membership application", () => {
 
   test("accepted: who vouched, the payment link tied to the application, onboarding after paying", () => {
     const url = paymentUrlFor(app)
-    expect(url).toBe("https://buy.stripe.com/00g9C7dFH8EI07eaEJ?client_reference_id=application_abc123&prefilled_email=ann%40example.org")
+    expect(url).toBe("https://buy.stripe.com/5kQdR92CwbSMc719i9eUU0i?client_reference_id=application_abc123&prefilled_email=ann%40example.org")
     expect(applicationIdFromReference("application_abc123")).toBe("abc123")
     expect(applicationIdFromReference("fridge")).toBeNull()
     const { text } = buildAcceptedEmail(app, [{ name: "Leen" }, { name: "Miriam" }, { name: "Xavier" }], url)
@@ -141,5 +145,40 @@ describe("bots on the form", () => {
     expect(spamReason({ ...person, elapsedMs: 800 })).toBe("sent after 800ms")
     expect(spamReason({ name: "Ann Smith", email: "a@b.co" })).toBe("no fill time")
     expect(spamReason({ ...person, name: "nntmgkmPCwTxURdm" })).toBe("gibberish name")
+  })
+})
+
+describe("what they pay", () => {
+  const base = { name: "Ann", email: "a@b.co" }
+  test("individuals choose €10, €15 or €20 a month, €15 by default; others pay a year", () => {
+    expect(parseApplication({ ...base, monthly: 10 }, "x")).toMatchObject({ monthly: 10 })
+    expect(parseApplication({ ...base, monthly: "20" }, "x")).toMatchObject({ monthly: 20 })
+    expect(parseApplication({ ...base, monthly: 3 }, "x")).toMatchObject({ monthly: 15 })
+    expect(parseApplication(base, "x")).toMatchObject({ monthly: 15 })
+    expect(parseApplication({ ...base, type: "organisation", monthly: 20 }, "x")).not.toHaveProperty("monthly")
+  })
+
+  test("each price has its link, all of them memberships, and the same emails", () => {
+    const link = (a: Partial<Application>) => paymentUrlFor({ id: "abc123", email: "a@b.co", type: "individual", ...a }).split("?")[0]
+    expect(link({ monthly: 10 })).toBe(PAYMENT_LINKS.individual10.url)
+    expect(link({ monthly: 20 })).toBe(PAYMENT_LINKS.individual20.url)
+    expect(link({})).toBe(PAYMENT_LINKS.individual10.url) // applied before the choice
+    expect(link({ type: "organisation" })).toBe(PAYMENT_LINKS.organisation.url)
+    expect(link({ type: "community" })).toBe(PAYMENT_LINKS.community.url)
+    for (const l of Object.values(PAYMENT_LINKS)) expect(isMembershipLink(l.id)).toBe(true)
+    expect(isMembershipLink("plink_fridge")).toBe(false)
+    expect(typeOfLink(PAYMENT_LINKS.organisation.id)).toBe("organisation")
+    expect(typeOfLink(PAYMENT_LINKS.individual20.id)).toBe("individual")
+    for (const monthly of [10, 15, 20] as const) {
+      const a = { ...app, monthly }
+      const accepted = buildAcceptedEmail(a, [{ name: "Leen" }], paymentUrlFor(a)).text
+      expect(accepted.replace(paymentUrlFor(a), "LINK")).toBe(buildAcceptedEmail(app, [{ name: "Leen" }], paymentUrlFor(app)).text.replace(paymentUrlFor(app), "LINK"))
+    }
+    expect(buildReceivedEmail({ ...app, monthly: 10 }).text).toContain("Membership: €10 a month (solidarity)")
+    expect(priceOf({ type: "organisation" })).toBe("€200 a year")
+  })
+
+  test("members don't see what someone chose to pay", () => {
+    expect(withoutEmail({ ...app, monthly: 10 })).not.toHaveProperty("monthly")
   })
 })

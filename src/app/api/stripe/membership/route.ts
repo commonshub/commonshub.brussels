@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
-import { PAYMENT_LINK_ID } from "@/lib/membership-application"
+import { isMembershipLink, typeOfLink } from "@/lib/membership-application"
 import { applicationFromPayment, onboardPaid } from "@/lib/membership-applications-store"
 import { applicationForSession } from "@/lib/membership-checkout"
 
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic"
  * Stripe → the site, for checkout.session.completed: someone paid their
  * membership, so they get the onboarding email (with the link to log in with
  * Discord and get the member role). An accepted applicant is found by the
- * payment link's `client_reference_id=application_<id>`, or by their email;
+ * payment link's `client_reference_id=application_<id>` (any of the
+ * membership's links: lib/membership-application.ts PAYMENT_LINKS), or by their email;
  * someone who paid the membership link without applying becomes an
  * application there and then. Other checkouts (the fridge, contributions)
  * are ignored. Signed by Stripe (STRIPE_MEMBERSHIP_WEBHOOK_SECRET).
@@ -33,8 +34,8 @@ export async function POST(request: Request) {
   try {
     let id = await applicationForSession(session)
     const email = (session.customer_details?.email ?? session.customer_email ?? "").toLowerCase()
-    if (!id && session.payment_link === PAYMENT_LINK_ID && email) {
-      id = (await applicationFromPayment({ name: session.customer_details?.name, email, sessionId: session.id })).id
+    if (!id && isMembershipLink(session.payment_link) && email) {
+      id = (await applicationFromPayment({ name: session.customer_details?.name, email, sessionId: session.id, type: typeOfLink(session.payment_link) })).id
     }
     if (!id) return NextResponse.json({ ignored: "not a membership" })
     return NextResponse.json({ onboarded: await onboardPaid(id) })

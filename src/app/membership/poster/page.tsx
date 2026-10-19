@@ -32,9 +32,9 @@ const STEPS = [
 ]
 
 const PLANS = [
-  { name: "Individual", price: "from €10", per: "a month, or €100 a year" },
-  { name: "Community", price: "from €100", per: "a year" },
-  { name: "Organisation", price: "from €200", per: "a year" },
+  { name: "Individual", price: "€10 · 15 · 20", per: "a month, you choose" },
+  { name: "Community", price: "€100", per: "a year" },
+  { name: "Organisation", price: "€200", per: "a year" },
 ]
 
 const label = { fontSize: u(4.6), fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" } as const
@@ -95,7 +95,7 @@ export default async function MembershipPosterPage() {
           </div>
         </div>
 
-        <h3 style={{ ...label, marginTop: u(9) }}>Membership grows from trust</h3>
+        <h3 style={{ ...label, marginTop: u(9) }}>Membership grows at the speed of trust</h3>
         <ol className="grid grid-cols-3" style={{ marginTop: u(3), gap: u(5) }}>
           {STEPS.map((step, i) => (
             <li key={step.title} style={{ borderTop: `${u(0.6)} solid #000`, paddingTop: u(2.5) }}>

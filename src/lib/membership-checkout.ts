@@ -1,6 +1,6 @@
 import Stripe from "stripe"
 
-import { applicationIdFromReference, PAYMENT_LINK_ID } from "./membership-application"
+import { applicationIdFromReference, isMembershipLink } from "./membership-application"
 import { listApplications } from "./membership-applications-store"
 
 /** The application a membership checkout pays for: by its client_reference_id, else by the payer's email (accepted or paid applications). */
@@ -8,7 +8,7 @@ export async function applicationForSession(session: Stripe.Checkout.Session): P
   const fromReference = applicationIdFromReference(session.client_reference_id)
   if (fromReference) return fromReference
   const email = (session.customer_details?.email ?? session.customer_email ?? "").toLowerCase()
-  if (!email || session.payment_link !== PAYMENT_LINK_ID) return null
+  if (!email || !isMembershipLink(session.payment_link)) return null
   return (await listApplications()).find((a) => (a.status === "approved" || a.status === "member") && a.email === email)?.id ?? null
 }
 
@@ -19,7 +19,7 @@ export async function paidMembershipSession(sessionId: string): Promise<Stripe.C
   try {
     const session = await new Stripe(apiKey).checkout.sessions.retrieve(sessionId)
     const paid = session.payment_status === "paid" || session.status === "complete"
-    const membership = session.payment_link === PAYMENT_LINK_ID || !!applicationIdFromReference(session.client_reference_id)
+    const membership = isMembershipLink(session.payment_link) || !!applicationIdFromReference(session.client_reference_id)
     return paid && membership ? session : null
   } catch {
     return null
