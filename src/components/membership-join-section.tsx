@@ -30,7 +30,7 @@ const individualBenefits = [
   },
   {
     icon: BadgePercent,
-    content: "Get lower prices when you book rooms or events",
+    content: "Get members prices when you book rooms or events",
   },
   {
     icon: Laptop,
@@ -68,7 +68,7 @@ const organisationBenefits = [
   },
   {
     icon: BadgePercent,
-    content: "Lower prices on bookings and events",
+    content: "Members prices on bookings and events",
   },
   {
     icon: KeyRound,
@@ -194,8 +194,8 @@ export function MembershipJoinSection() {
             Become a Member
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            Membership is for people and organisations who want to be part of
-            the Commons Hub and help care for it.
+            For people, communities and organisations who want to make the Hub
+            their home and steward it with us.
           </p>
         </div>
 
