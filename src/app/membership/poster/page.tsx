@@ -20,7 +20,7 @@ const JOIN_URL = "https://commonshub.brussels/apply"
 const POSTER_BENEFITS = [
   "Take part in decisions and help shape the Hub",
   "Help care for the space and our shared resources",
-  "Get lower prices when you book rooms or events",
+  "Get members prices when you book rooms or events",
   "Join the Friday open coworking for members, newcomers and prospective commoners, and our community activities",
   "Join the members' channels and the weekly Heartbeat meetings",
 ]
@@ -74,7 +74,7 @@ export default async function MembershipPosterPage() {
 
         <p style={{ marginTop: u(10), fontSize: u(4.2), fontStyle: "italic" }}>A space becomes a commons when we care for it together</p>
         <h2 style={{ marginTop: u(2), fontSize: u(17), lineHeight: 1.05, fontWeight: 700, letterSpacing: "-0.02em" }}>Become a member</h2>
-        <p style={{ marginTop: u(3), fontSize: u(5.4), lineHeight: 1.3 }}>Membership is for people and organisations who want to be part of the Commons Hub and help care for it.</p>
+        <p style={{ marginTop: u(3), fontSize: u(5.4), lineHeight: 1.3 }}>For people, communities and organisations who want to make the Hub their home and steward it with us.</p>
 
         <div className="flex" style={{ marginTop: u(8), gap: u(10) }}>
           <div className="min-w-0 flex-1">
