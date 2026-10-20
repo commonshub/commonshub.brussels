@@ -37,12 +37,16 @@ const PLANS = [
   { name: "Organisation", price: "€200", per: "a year" },
 ]
 
+/** The brand colours, as on our other posters: the orange of the logo and its near-black. */
+const ORANGE = "#FF4C02"
+const INK = "#001309"
+
 const label = { fontSize: u(4.6), fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" } as const
 
 /**
  * An A4 poster inviting people to become members: what they can do, how
  * membership works (three vouches), what it costs, and a QR code to /apply.
- * Black on white to save ink.
+ * Black on white, with the headline in the brand orange.
  */
 export default async function MembershipPosterPage() {
   const qr = await QRCode.toString(JOIN_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0, color: { dark: "#000000", light: "#0000" } })
@@ -54,7 +58,7 @@ export default async function MembershipPosterPage() {
       <div className="print:hidden flex w-full flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Membership poster</h1>
-          <p className="text-sm text-muted-foreground">A4, black on white to save ink. Print it, or save it as a PDF from the print dialog.</p>
+          <p className="text-sm text-muted-foreground">A4, black on white with an orange headline. Print it, or save it as a PDF from the print dialog.</p>
         </div>
         <PrintButton />
       </div>
@@ -72,11 +76,15 @@ export default async function MembershipPosterPage() {
           </span>
         </div>
 
-        <p style={{ marginTop: u(10), fontSize: u(4.2), fontStyle: "italic" }}>A space becomes a commons when we care for it together</p>
-        <h2 style={{ marginTop: u(2), fontSize: u(17), lineHeight: 1.05, fontWeight: 700, letterSpacing: "-0.02em" }}>Become a member</h2>
-        <p style={{ marginTop: u(3), fontSize: u(5.4), lineHeight: 1.3 }}>For people, communities and organisations who want to make the Hub their home and steward it with us.</p>
+        <h2 style={{ marginTop: u(6), fontSize: u(13), lineHeight: 1.02, fontWeight: 800, letterSpacing: "-0.035em" }}>
+          <span style={{ display: "block", color: ORANGE, textWrap: "balance" }}>Make the Commons Hub your home</span>
+          <span style={{ display: "block", marginTop: u(1.5), color: INK }}>Become a member</span>
+        </h2>
+        <p style={{ marginTop: u(4), fontSize: u(5), lineHeight: 1.3, fontWeight: 700, color: INK }}>
+          For people, communities and organisations who want to <span style={{ color: ORANGE }}>make the Hub their home</span> and <span style={{ color: ORANGE }}>steward it with us</span>.
+        </p>
 
-        <div className="flex" style={{ marginTop: u(8), gap: u(10) }}>
+        <div className="flex" style={{ marginTop: u(6), gap: u(10) }}>
           <div className="min-w-0 flex-1">
             <h3 style={label}>As a member, you can</h3>
             <ul style={{ marginTop: u(2), fontSize: u(4.4), lineHeight: 1.35 }}>
@@ -95,7 +103,7 @@ export default async function MembershipPosterPage() {
           </div>
         </div>
 
-        <h3 style={{ ...label, marginTop: u(9) }}>Membership grows at the speed of trust</h3>
+        <h3 style={{ ...label, marginTop: u(6.5) }}>Membership grows at the speed of trust</h3>
         <ol className="grid grid-cols-3" style={{ marginTop: u(3), gap: u(5) }}>
           {STEPS.map((step, i) => (
             <li key={step.title} style={{ borderTop: `${u(0.6)} solid #000`, paddingTop: u(2.5) }}>
@@ -106,17 +114,17 @@ export default async function MembershipPosterPage() {
           ))}
         </ol>
 
-        <h3 style={{ ...label, marginTop: u(9) }}>What it costs</h3>
+        <h3 style={{ ...label, marginTop: u(5.5) }}>What it costs</h3>
         <div className="grid grid-cols-3" style={{ marginTop: u(3), gap: u(4) }}>
           {PLANS.map((p) => (
-            <div key={p.name} style={{ border: `${u(0.4)} solid #000`, borderRadius: u(3), padding: u(4) }}>
+            <div key={p.name} style={{ border: `${u(0.4)} solid #000`, borderRadius: u(3), padding: u(3.5) }}>
               <p style={{ fontSize: u(4.4), fontWeight: 600 }}>{p.name}</p>
               <p style={{ marginTop: u(1.5), fontSize: u(7), fontWeight: 700, lineHeight: 1.1 }}>{p.price}</p>
               <p style={{ fontSize: u(3.8) }}>{p.per}</p>
             </div>
           ))}
         </div>
-        <p style={{ marginTop: u(3), fontSize: u(3.6), lineHeight: 1.35 }}>Rooms and events are booked separately and invoiced with VAT.</p>
+        <p style={{ marginTop: u(2.5), fontSize: u(3.6), lineHeight: 1.35 }}>Rooms and events are booked separately and invoiced with VAT.</p>
 
         <div className="mt-auto flex items-end justify-between" style={{ borderTop: `${u(0.3)} solid #000`, paddingTop: u(4), fontSize: u(4.2) }}>
           <span>Be part of it. Help care for it.</span>

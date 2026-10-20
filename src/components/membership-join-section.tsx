@@ -189,13 +189,14 @@ export function MembershipJoinSection() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <p className="text-sm italic text-muted-foreground">A space becomes a commons when we care for it together</p>
-          <h1 className="mt-3 text-4xl sm:text-5xl font-bold text-foreground mb-6">
-            Become a Member
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] text-balance">
+            <span className="block text-primary">Make the Commons Hub your home</span>
+            <span className="mt-2 block text-foreground">Become a member</span>
           </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            For people, communities and organisations who want to make the Hub
-            their home and steward it with us.
+          <p className="mt-6 text-lg font-semibold text-foreground">
+            For people, communities and organisations who want to{" "}
+            <span className="text-primary">make the Hub their home</span> and{" "}
+            <span className="text-primary">steward it with us</span>.
           </p>
         </div>
 
