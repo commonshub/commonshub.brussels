@@ -6,23 +6,22 @@ import { PrintButton } from "@/components/poster/print-button"
 
 export const metadata: Metadata = {
   title: "Membership poster | Commons Hub Brussels",
-  description: "Print the A4 poster to become a member of the Commons Hub Brussels: what members do, the three vouches, prices and a QR code to /apply.",
+  description: "Print the A4 poster to become a member of the Commons Hub Brussels: what members can do, the three vouches, prices and a QR code to /apply.",
 }
 
 /** Always the public address, whichever copy of the site prints the poster. */
 const JOIN_URL = "https://commonshub.brussels/apply"
 
 /**
- * What members can do, as on /apply (membership-join-section). The coworking
- * is the Friday open coworking, a community activity: membership doesn't buy
- * desk days (which would be a service, with VAT).
+ * What members can do. The coworking is an extra service, charged separately
+ * with VAT: membership doesn't include it (see the fine print).
  */
 const POSTER_BENEFITS = [
-  "Take part in decisions and help shape the Hub",
-  "Help care for the space and our shared resources",
-  "Get members prices when you book rooms or events",
-  "Join the Friday open coworking for members, newcomers and prospective commoners, and our community activities",
-  "Join the members' channels and the weekly Heartbeat meetings",
+  "Participate in community events",
+  "Join the coworking (charged separately €100/month + VAT)",
+  "Book rooms at community price",
+  "Take part in the decision making process",
+  "Join our Discord to connect with the community",
 ]
 
 const STEPS = [
@@ -64,27 +63,11 @@ export default async function MembershipPosterPage() {
       </div>
 
       <div className="poster flex flex-col bg-white text-black shadow-sm ring-1 ring-black/10" style={{ width: u(210), height: u(297), padding: u(16) }}>
-        <div className="flex items-center" style={{ gap: u(3.5) }}>
-          <span className="shrink-0" style={{ width: u(11), height: u(11), display: "block" }}>
-            <PosterLogo className="h-full w-full" />
-          </span>
-          <span style={{ fontSize: u(6.5), fontWeight: 600 }}>Commons Hub Brussels</span>
-          <span className="ml-auto text-right" style={{ fontSize: u(3.6), lineHeight: 1.3 }}>
-            Rue de la Madeleine 51
-            <br />
-            opposite Brussels Central
-          </span>
-        </div>
-
-        <h2 style={{ marginTop: u(6), fontSize: u(13), lineHeight: 1.02, fontWeight: 800, letterSpacing: "-0.035em" }}>
+        <h2 style={{ fontSize: u(16), lineHeight: 1.02, fontWeight: 800, letterSpacing: "-0.035em" }}>
           <span style={{ display: "block", color: ORANGE, textWrap: "balance" }}>Make the Commons Hub your home</span>
           <span style={{ display: "block", marginTop: u(1.5), color: INK }}>Become a member</span>
         </h2>
-        <p style={{ marginTop: u(4), fontSize: u(5), lineHeight: 1.3, fontWeight: 700, color: INK }}>
-          For people, communities and organisations who want to <span style={{ color: ORANGE }}>make the Hub their home</span> and <span style={{ color: ORANGE }}>steward it with us</span>.
-        </p>
-
-        <div className="flex" style={{ marginTop: u(6), gap: u(10) }}>
+        <div className="flex" style={{ marginTop: u(9), gap: u(10) }}>
           <div className="min-w-0 flex-1">
             <h3 style={label}>As a member, you can</h3>
             <ul style={{ marginTop: u(2), fontSize: u(4.4), lineHeight: 1.35 }}>
@@ -103,7 +86,7 @@ export default async function MembershipPosterPage() {
           </div>
         </div>
 
-        <h3 style={{ ...label, marginTop: u(6.5) }}>Membership grows at the speed of trust</h3>
+        <h3 style={{ ...label, marginTop: u(9) }}>Membership grows at the speed of trust</h3>
         <ol className="grid grid-cols-3" style={{ marginTop: u(3), gap: u(5) }}>
           {STEPS.map((step, i) => (
             <li key={step.title} style={{ borderTop: `${u(0.6)} solid #000`, paddingTop: u(2.5) }}>
@@ -114,7 +97,7 @@ export default async function MembershipPosterPage() {
           ))}
         </ol>
 
-        <h3 style={{ ...label, marginTop: u(5.5) }}>What it costs</h3>
+        <h3 style={{ ...label, marginTop: u(9) }}>What it costs</h3>
         <div className="grid grid-cols-3" style={{ marginTop: u(3), gap: u(4) }}>
           {PLANS.map((p) => (
             <div key={p.name} style={{ border: `${u(0.4)} solid #000`, borderRadius: u(3), padding: u(3.5) }}>
@@ -124,11 +107,22 @@ export default async function MembershipPosterPage() {
             </div>
           ))}
         </div>
-        <p style={{ marginTop: u(2.5), fontSize: u(3.6), lineHeight: 1.35 }}>Rooms and events are booked separately and invoiced with VAT.</p>
+        <p style={{ marginTop: u(3), fontSize: u(3.2), lineHeight: 1.4, color: "#444" }}>
+          Your membership fee supports the association and the life of its community: it is not payment for a service. That&apos;s why,
+          under Belgian VAT rules, anything you buy as a service (coworking, renting a room, an event ticket) is never included in the
+          membership: it is charged separately and invoiced with VAT, at the community price for members.
+        </p>
 
-        <div className="mt-auto flex items-end justify-between" style={{ borderTop: `${u(0.3)} solid #000`, paddingTop: u(4), fontSize: u(4.2) }}>
-          <span>Be part of it. Help care for it.</span>
-          <span style={{ fontWeight: 700 }}>commonshub.brussels/apply</span>
+        <div className="mt-auto flex items-center justify-between" style={{ borderTop: `${u(0.3)} solid #000`, paddingTop: u(5), gap: u(6) }}>
+          <span style={{ fontSize: u(5), fontWeight: 700, lineHeight: 1.25, color: INK }}>
+            Join the community and <span style={{ color: ORANGE }}>rediscover the commons</span> with us
+          </span>
+          <span className="flex shrink-0 items-center" style={{ gap: u(3) }}>
+            <span style={{ width: u(11), height: u(11), display: "block" }}>
+              <PosterLogo className="h-full w-full" />
+            </span>
+            <span style={{ fontSize: u(4.6), fontWeight: 700 }}>commonshub.brussels</span>
+          </span>
         </div>
       </div>
     </div>
