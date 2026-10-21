@@ -45,7 +45,7 @@ const label = { fontSize: u(4.6), fontWeight: 700, textTransform: "uppercase", l
 /**
  * An A4 poster inviting people to become members: what they can do, how
  * membership works (three vouches), what it costs, and a QR code to /apply.
- * Black on white, with the headline in the brand orange.
+ * Black on white, with "Become a member" in the brand orange.
  */
 export default async function MembershipPosterPage() {
   const qr = await QRCode.toString(JOIN_URL, { type: "svg", errorCorrectionLevel: "M", margin: 0, color: { dark: "#000000", light: "#0000" } })
@@ -64,8 +64,8 @@ export default async function MembershipPosterPage() {
 
       <div className="poster flex flex-col bg-white text-black shadow-sm ring-1 ring-black/10" style={{ width: u(210), height: u(297), padding: u(16) }}>
         <h2 style={{ fontSize: u(16), lineHeight: 1.02, fontWeight: 800, letterSpacing: "-0.035em" }}>
-          <span style={{ display: "block", color: ORANGE, textWrap: "balance" }}>Make the Commons Hub your home</span>
-          <span style={{ display: "block", marginTop: u(1.5), color: INK }}>Become a member</span>
+          <span style={{ display: "block", color: INK, textWrap: "balance" }}>Make the Commons Hub your home</span>
+          <span style={{ display: "block", marginTop: u(1.5), color: ORANGE }}>Become a member</span>
         </h2>
         <div className="flex" style={{ marginTop: u(9), gap: u(10) }}>
           <div className="min-w-0 flex-1">
@@ -114,14 +114,14 @@ export default async function MembershipPosterPage() {
         </p>
 
         <div className="mt-auto flex items-center justify-between" style={{ borderTop: `${u(0.3)} solid #000`, paddingTop: u(5), gap: u(6) }}>
-          <span style={{ fontSize: u(5), fontWeight: 700, lineHeight: 1.25, color: INK }}>
-            Join the community and <span style={{ color: ORANGE }}>rediscover the commons</span> with us
-          </span>
           <span className="flex shrink-0 items-center" style={{ gap: u(3) }}>
             <span style={{ width: u(11), height: u(11), display: "block" }}>
               <PosterLogo className="h-full w-full" />
             </span>
             <span style={{ fontSize: u(4.6), fontWeight: 700 }}>commonshub.brussels</span>
+          </span>
+          <span className="text-right" style={{ fontSize: u(5), fontWeight: 700, lineHeight: 1.25, color: INK }}>
+            Join the community and <span style={{ color: ORANGE }}>rediscover the commons</span> with us
           </span>
         </div>
       </div>
