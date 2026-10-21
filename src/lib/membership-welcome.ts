@@ -41,7 +41,7 @@ export interface MembershipWelcome {
  */
 export const WELCOME_PERKS = {
   individual: [
-    "Take part in decisions and help shape the Hub: make proposals, and earn tokens for the time you give.",
+    "Take part in decisions and help shape the Hub: make proposals, and get tokens for your contributions to the community.",
     "Help care for the space and our shared resources.",
     "Lower prices when you book rooms or events.",
     "The Friday open coworking for members, newcomers and prospective commoners, and our community activities.",
