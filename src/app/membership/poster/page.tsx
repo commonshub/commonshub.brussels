@@ -113,16 +113,14 @@ export default async function MembershipPosterPage() {
           membership: it is charged separately and invoiced with VAT, at the community price for members.
         </p>
 
-        <div className="mt-auto flex items-center justify-between" style={{ borderTop: `${u(0.3)} solid #000`, paddingTop: u(5), gap: u(6) }}>
-          <span className="flex shrink-0 items-center" style={{ gap: u(3) }}>
-            <span style={{ width: u(11), height: u(11), display: "block" }}>
+        <div className="mt-auto flex items-center justify-between" style={{ borderTop: `${u(0.3)} solid #000`, paddingTop: u(5), gap: u(6), fontSize: u(4.6) }}>
+          <span className="flex items-center" style={{ gap: u(3) }}>
+            <span style={{ width: u(10), height: u(10), display: "block" }}>
               <PosterLogo className="h-full w-full" />
             </span>
-            <span style={{ fontSize: u(4.6), fontWeight: 700 }}>commonshub.brussels</span>
+            <span style={{ fontWeight: 700 }}>commonshub.brussels/apply</span>
           </span>
-          <span className="text-right" style={{ fontSize: u(5), fontWeight: 700, lineHeight: 1.25, color: INK }}>
-            Join the community and <span style={{ color: ORANGE }}>rediscover the commons</span> with us
-          </span>
+          <span className="text-right">Apply to join the community</span>
         </div>
       </div>
     </div>
