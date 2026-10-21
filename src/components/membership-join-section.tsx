@@ -12,40 +12,47 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { KnownMembersPicker, type KnownMember } from "@/components/membership/known-members-picker";
 import { User, Building2, Users } from "lucide-react";
-import { Laptop, Coins, CheckCircle, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Heart, Hash, Lightbulb, Users2 } from "lucide-react";
+import { Laptop, Coins, CheckCircle, Megaphone, BadgePercent, KeyRound, MessageSquarePlus, Hash, Lightbulb, Users2 } from "lucide-react";
 import { CommunityActivityGallery } from "./community-activity-gallery";
 import { DEFAULT_MONTHLY, MONTHLY_PRICES, type MonthlyPrice } from "@/lib/membership-application";
 
-// As on the poster (/membership/poster). The coworking is the Friday open
-// coworking, a community activity: membership doesn't buy desk days (which
-// would be a service, with VAT).
+// As on the poster (/membership/poster). Coworking is an extra service,
+// charged separately with VAT: membership doesn't include it (see the fine print).
 const individualBenefits = [
   {
-    icon: Lightbulb,
-    content: "Take part in decisions and help shape the Hub: make proposals, and earn tokens for the time you give",
-  },
-  {
-    icon: Heart,
-    content: "Help care for the space and our shared resources",
-  },
-  {
-    icon: BadgePercent,
-    content: "Get members prices when you book rooms or events",
-  },
-  {
-    icon: Laptop,
+    icon: Users2,
     content: (
       <>
-        Join the Friday open coworking for members, newcomers and prospective commoners, and our{" "}
+        Participate in{" "}
         <Link href="/events" className="text-primary hover:underline">
-          community activities
+          community events
         </Link>
       </>
     ),
   },
   {
+    icon: BadgePercent,
+    content: "Book rooms at community price",
+  },
+  {
+    icon: Laptop,
+    content: (
+      <>
+        Join the{" "}
+        <Link href="/coworking" className="text-primary hover:underline">
+          coworking
+        </Link>{" "}
+        (charged separately €100/month + VAT)
+      </>
+    ),
+  },
+  {
+    icon: Lightbulb,
+    content: "Take part in the decision making process: make proposals, and get tokens for your contributions to the community",
+  },
+  {
     icon: Hash,
-    content: "Join the members' channels on Discord and the weekly Heartbeat meetings (Mondays, 13:00–14:00)",
+    content: "Join our Discord to connect with the community",
   },
 ];
 
@@ -385,7 +392,9 @@ export function MembershipJoinSection() {
                     ))}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Same membership whatever you pay. You pay once your application is accepted.
+                    Your membership fee supports the association and the life of its community: it is not payment for a service. That&apos;s why,
+                    under Belgian VAT rules, anything you buy as a service (coworking, renting a room, an event ticket) is never included in the
+                    membership: it is charged separately and invoiced with VAT, at the community price for members.
                   </p>
                 </fieldset>
               )}

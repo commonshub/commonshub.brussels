@@ -18,8 +18,8 @@ const JOIN_URL = "https://commonshub.brussels/apply"
  */
 const POSTER_BENEFITS = [
   "Participate in community events",
-  "Join the coworking (charged separately €100/month + VAT)",
   "Book rooms at community price",
+  "Join the coworking (charged separately €100/month + VAT)",
   "Take part in the decision making process",
   "Join our Discord to connect with the community",
 ]
