@@ -14,17 +14,18 @@ export const DOOR_OPEN_URL = "https://door.commonshub.brussels/open"
 /** The door accepts a signed link from 30 minutes before its start until 30 minutes after its end (token-bot signs the pass 30 minutes shorter at each end). */
 export const DOOR_GRACE_MINUTES = 30
 
-/** Desk coworking prices, as on /coworking (+ VAT). There is no half-day price in euros. */
-export const COWORKING_EUR = { day: 25, month: 100 }
+/** Desk coworking prices in euros, excl. VAT (/coworking shows them with "+ VAT"). */
+export const COWORKING_EUR = { halfDay: 15, day: 25, month: 100 }
 
 export const GUEST_PASS_TOKENS = { "half-day": 1, day: 2 } as const
 export type PassLength = keyof typeof GUEST_PASS_TOKENS
 
-/** "Half day: 1 token (a coworking day is €25 + VAT)", "Full day: €25 (+VAT) or 2 tokens". */
+/** "Half day: €15 (+ VAT) or 1 token", "Full day: €25 (+ VAT) or 2 tokens". */
 export function passCost(length: PassLength): string {
+  const tokens = GUEST_PASS_TOKENS[length]
   return length === "day"
-    ? `Full day: €${COWORKING_EUR.day} (+VAT) or ${GUEST_PASS_TOKENS.day} tokens`
-    : `Half day: ${GUEST_PASS_TOKENS["half-day"]} token (a coworking day is €${COWORKING_EUR.day} + VAT)`
+    ? `Full day: €${COWORKING_EUR.day} (+ VAT) or ${tokens} tokens`
+    : `Half day: €${COWORKING_EUR.halfDay} (+ VAT) or ${tokens} token`
 }
 
 /** The legal fine print under a pass (same as the guest email). */

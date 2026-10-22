@@ -42,9 +42,9 @@ describe("guest pass page", () => {
     expect(parsePass(fragment.replace(/&sig=[^&]+/, ""))).toBeNull()
   })
 
-  it("shows the cost in euros where there is a euro price, and the plain-language fine print", () => {
-    expect(passCost("day")).toBe("Full day: €25 (+VAT) or 2 tokens")
-    expect(passCost("half-day")).toBe("Half day: 1 token (a coworking day is €25 + VAT)")
+  it("shows the cost in euros (+ VAT, as on /coworking) and in tokens, and the plain-language fine print", () => {
+    expect(passCost("day")).toBe("Full day: €25 (+ VAT) or 2 tokens")
+    expect(passCost("half-day")).toBe("Half day: €15 (+ VAT) or 1 token")
     expect(PASS_DISCLAIMER).toContain("Too Good To Go")
     expect(PASS_DISCLAIMER).toContain("not payment for a service")
   })
