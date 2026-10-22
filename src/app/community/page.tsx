@@ -119,7 +119,7 @@ export default function CommunityPage() {
                         alt={partner.name}
                         width={80}
                         height={80}
-                        className="object-contain max-h-16 max-w-16"
+                        className="object-contain max-h-16 max-w-16 w-auto h-auto"
                       />
                     </a>
                   </HoverCardTrigger>
