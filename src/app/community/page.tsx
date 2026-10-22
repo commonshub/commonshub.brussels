@@ -117,9 +117,9 @@ export default function CommunityPage() {
                       <Image
                         src={partner.logo || "/placeholder.svg"}
                         alt={partner.name}
-                        width={80}
-                        height={80}
-                        className="object-contain max-h-16 max-w-16 w-auto h-auto"
+                        width={64}
+                        height={64}
+                        className="object-contain w-16 h-16"
                       />
                     </a>
                   </HoverCardTrigger>
@@ -131,7 +131,7 @@ export default function CommunityPage() {
                           alt={partner.name}
                           width={48}
                           height={48}
-                          className="object-contain"
+                          className="object-contain w-12 h-12"
                         />
                       </div>
                       <div className="space-y-1">
