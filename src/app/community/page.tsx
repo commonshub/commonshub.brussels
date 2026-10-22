@@ -114,24 +114,28 @@ export default function CommunityPage() {
                       rel="noopener noreferrer"
                       className="group flex items-center justify-center p-4 rounded-lg bg-card border border-border hover:border-primary/50 hover:shadow-md transition-all w-24 h-24 grayscale hover:grayscale-0"
                     >
-                      <Image
-                        src={partner.logo || "/placeholder.svg"}
-                        alt={partner.name}
-                        width={64}
-                        height={64}
-                        className="object-contain w-16 h-16"
-                      />
+                      <span className="relative w-full h-full">
+                        <Image
+                          src={partner.logo || "/placeholder.svg"}
+                          alt={partner.name}
+                          fill
+                          className="object-contain"
+                          sizes="64px"
+                          unoptimized
+                        />
+                      </span>
                     </a>
                   </HoverCardTrigger>
                   <HoverCardContent className="w-80">
                     <div className="flex gap-4">
-                      <div className="flex-shrink-0">
+                      <div className="relative flex-shrink-0 w-12 h-12">
                         <Image
                           src={partner.logo || "/placeholder.svg"}
                           alt={partner.name}
-                          width={48}
-                          height={48}
-                          className="object-contain w-12 h-12"
+                          fill
+                          className="object-contain"
+                          sizes="48px"
+                          unoptimized
                         />
                       </div>
                       <div className="space-y-1">
