@@ -1,3 +1,4 @@
+import { fetchUncompressed } from "@/lib/fetch-uncompressed";
 import { ImageResponse } from "next/og";
 import { readFile } from "fs/promises";
 import { join } from "path";
@@ -23,7 +24,7 @@ async function loadCover(src: string | undefined): Promise<string | null> {
       const type = src.endsWith(".png") ? "image/png" : "image/jpeg";
       return `data:${type};base64,${file.toString("base64")}`;
     }
-    const response = await fetch(src);
+    const response = await fetchUncompressed(src);
     if (!response.ok) return null;
     const type = response.headers.get("content-type") || "image/png";
     // Satori renders PNG and JPEG only.

@@ -1,3 +1,4 @@
+import { fetchUncompressed } from "@/lib/fetch-uncompressed";
 import { NextResponse } from "next/server";
 import settings from "@/settings/settings.json";
 
@@ -16,7 +17,7 @@ interface NewsletterIssue {
 
 async function fetchOgImage(url: string): Promise<string | undefined> {
   try {
-    const response = await fetch(url, {
+    const response = await fetchUncompressed(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; CommonshubBot/1.0)",
       },

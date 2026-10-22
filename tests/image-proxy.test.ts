@@ -274,3 +274,23 @@ describe("Image Proxy API Route", () => {
     })
   })
 })
+
+describe("fetchUncompressed (CVE-2026-111497: never run Bun's brotli decoder on remote content)", () => {
+  const { fetchUncompressed } = require("@/lib/fetch-uncompressed")
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch })
+
+  it("asks for an uncompressed body and turns decompression off", async () => {
+    global.fetch = jest.fn().mockResolvedValue(new Response("ok", { headers: { "content-type": "image/png" } })) as any
+    await fetchUncompressed("https://images.lumacdn.com/x.png", { headers: { "User-Agent": "bot" } })
+    expect(global.fetch).toHaveBeenCalledWith("https://images.lumacdn.com/x.png", expect.objectContaining({
+      decompress: false,
+      headers: { "User-Agent": "bot", "Accept-Encoding": "identity" },
+    }))
+  })
+
+  it("refuses a compressed body instead of decoding it", async () => {
+    global.fetch = jest.fn().mockResolvedValue(new Response("\x1b\x00", { headers: { "content-encoding": "br" } })) as any
+    await expect(fetchUncompressed("https://evil.s3.amazonaws.com/x.png")).rejects.toThrow("refused a compressed response (br)")
+  })
+})
