@@ -1,3 +1,4 @@
+import { fetchUncompressed } from "./fetch-uncompressed";
 import crypto from "crypto";
 import { attachmentKey, freshAttachmentUrl, isDiscordAttachmentUrl } from "./discord-attachments";
 import fs from "fs";
@@ -234,7 +235,7 @@ export async function fetchAndProcessExternalImage(
     }
 
     const get = (target: string) =>
-      fetch(target, { headers: { "User-Agent": "Mozilla/5.0 (compatible; CommonsHubBot/1.0)" } });
+      fetchUncompressed(target, { headers: { "User-Agent": "Mozilla/5.0 (compatible; CommonsHubBot/1.0)" } });
     let response = await get(discord ? await freshAttachmentUrl(url) : url);
     // A link that still looked valid may have been revoked: renew once.
     if (discord && (response.status === 403 || response.status === 404)) {

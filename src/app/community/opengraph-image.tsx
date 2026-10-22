@@ -1,3 +1,4 @@
+import { fetchUncompressed } from "@/lib/fetch-uncompressed";
 import { tierDir } from "@/lib/data-paths";
 import { ImageResponse } from "next/og";
 import { readFile } from "fs/promises";
@@ -15,7 +16,7 @@ export const contentType = "image/png";
 
 async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetchUncompressed(imageUrl);
     if (!response.ok) return null;
     const buffer = await response.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
