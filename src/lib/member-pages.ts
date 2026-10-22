@@ -258,7 +258,7 @@ export const RESERVED = new Set([
   "api", "book", "brand", "calendar", "calendar.ics", "collectives", "community", "community.md", "contact", "contribute",
   "contributions", "coworking", "data", "debt", "docs", "donate", "economy", "economy.md", "events", "events.md", "expenses",
   "finance", "finance.md", "fiscal-sponsorship", "fridge", "handbook", "integrity", "llms.txt", "mcp", "members", "membership",
-  "newsletter", "opendata", "opendata.md", "posters", "potluck", "reports", "robots.txt", "rooms", "rooms.md", "sandbox",
+  "newsletter", "opendata", "opendata.md", "pass", "posters", "potluck", "reports", "robots.txt", "rooms", "rooms.md", "sandbox",
   "screen", "screens", "shifts", "sitemap.xml", "status", "status.json", "stewards", "tablet", "taxes", "today", "volunteer",
   "workshops", "apply", "admin", "login", "logout", "auth", "p", "pages", "static", "_next", "favicon.ico", "brandkit", "images",
 ])
