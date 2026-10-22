@@ -162,5 +162,12 @@
     "logo": "/images/partners/wikipolicy.png",
     "website": "https://wikipolicy.net",
     "description": "Democratic infrastructure where citizens inform, deliberate, co-create and decide on the policies that shape their future."
+  },
+  {
+    "name": "Moral Ambition",
+    "type": "organisation",
+    "logo": "/images/partners/moralambition.png",
+    "website": "https://www.moralambition.org",
+    "description": "A movement and school helping talented people dedicate their careers to tackling the world's biggest problems."
   }
 ]
