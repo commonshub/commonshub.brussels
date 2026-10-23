@@ -162,5 +162,13 @@
     "logo": "/images/partners/wikipolicy.png",
     "website": "https://wikipolicy.net",
     "description": "Democratic infrastructure where citizens inform, deliberate, co-create and decide on the policies that shape their future."
+  },
+  {
+    "name": "Bigkids",
+    "type": "organisation",
+    "logo": "/images/partners/bigkids.png",
+    "website": "https://bigkidsdigital.com",
+    "description": "Digital transformation studio helping organisations co-evolve with their tech: IT setup, automation, consultancy and training, with values-aligned tools.",
+    "featured": true
   }
 ]
