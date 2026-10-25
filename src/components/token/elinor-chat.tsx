@@ -103,3 +103,32 @@ export function ElinorChat({ className = "" }: { className?: string }) {
     </div>
   )
 }
+
+/** An example from the offers and needs market: a need in #needs, a member who helps, paid with /send. */
+export function MarketChat({ className = "" }: { className?: string }) {
+  return (
+    <div className={`overflow-hidden rounded-2xl bg-[#313338] font-sans shadow-lg ${className}`} role="img" aria-label="Example: a member asks in #needs for help fixing their bike, another member helps, and gets 2 tokens with /send.">
+      <div className="flex items-center gap-2 border-b border-black/30 px-4 py-3 text-[15px] font-semibold text-white">
+        <span className="text-xl text-[#80848e]">#</span> needs
+      </div>
+      <div className="py-2">
+        <Message who="Ana" color="#57a5f2" letter="A" time="Today at 09:15">
+          <p>Anyone around who could help me fix the brakes of my bike this week? 🚲 2 tokens for it!</p>
+        </Message>
+        <Message who="Tom" color="#3ba55c" letter="T" time="Today at 09:40">
+          <p>I can do it on Thursday at lunch, bring it to the hub 🔧</p>
+        </Message>
+        <Message who="Ana" color="#57a5f2" letter="A" time="Thursday at 13:30">
+          <p>Thanks Tom, they work like new! 🙏</p>
+        </Message>
+        <Message who="Commons Hub" bot color="#FF4C02" letter="C" time="Thursday at 13:31">
+          <p className="text-xs text-[#949ba4]">Ana used /send</p>
+          <p>
+            ✅ Sent <strong className="text-white">2 tokens</strong> to <Mention>@Tom</Mention>
+          </p>
+          <p className="text-xs text-[#949ba4]">For: fixing my bike&apos;s brakes</p>
+        </Message>
+      </div>
+    </div>
+  )
+}

@@ -14,8 +14,10 @@ export interface EarnWay {
   title: string
   amount: string
   text: string
-  photo: string
-  photoAlt: string
+  /** A photo, or a drawn example (`visual`) for ways nobody has photographed. */
+  photo?: string
+  photoAlt?: string
+  visual?: "market"
   caption?: string
   /** Extra photos, shown smaller. */
   more?: Array<{ src: string; alt: string }>
@@ -62,6 +64,14 @@ export const EARN: EarnWay[] = [
     photo: "/images/token/tablet-shifts.jpg",
     photoAlt: "The shifts tablet: this week's shifts, who signed up, and the bookings that need a steward",
     caption: "The tablet at the entrance: tap a time to sign up.",
+  },
+  {
+    id: "market",
+    title: "Offers and needs",
+    amount: "agreed between you",
+    text: "Members help each other, and pay each other in tokens. Post what you can do in #offers, answer someone's request in #needs: fixing a bike, a translation, a hand to move, a lesson. The one you helped sends you tokens with /send.",
+    visual: "market",
+    caption: "An example from #needs on Discord.",
   },
 ]
 

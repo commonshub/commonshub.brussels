@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ChevronLeft, ChevronRight, Maximize, X } from "lucide-react"
 
 import Image from "@/components/optimized-image"
-import { ElinorChat } from "@/components/token/elinor-chat"
+import { ElinorChat, MarketChat } from "@/components/token/elinor-chat"
 import { EARN, GUEST_PASS_SCREENS, ROLES, ROOM_TOKENS, tokens } from "@/lib/token-story"
 
 const way = (id: string) => EARN.find((w) => w.id === id)!
@@ -28,7 +28,13 @@ function EarnSlide({ id, children }: { id: string; children?: React.ReactNode })
   return (
     <div className="grid h-full items-center gap-[4vmin] md:grid-cols-[1.2fr_1fr]">
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <Photo src={w.photo} alt={w.photoAlt} className="min-h-[30vh] flex-1" position={id === "shifts" ? "object-left-top" : "object-center"} />
+        {w.visual === "market" ? (
+          <div className="flex min-h-0 flex-1 items-center overflow-hidden">
+            <MarketChat className="w-full" />
+          </div>
+        ) : (
+          <Photo src={w.photo!} alt={w.photoAlt ?? ""} className="min-h-[30vh] flex-1" position={id === "shifts" ? "object-left-top" : "object-center"} />
+        )}
         {w.more && (
           <div className="hidden h-[22vh] grid-cols-2 gap-3 md:grid">
             {w.more.map((m) => (
@@ -60,7 +66,7 @@ const SLIDES: Array<{ title: string; render: () => React.ReactNode }> = [
             <span className="text-primary">Get tokens.</span>
           </h1>
         </div>
-        <Photo src={way("heartbeat").photo} alt={way("heartbeat").photoAlt} className="h-[38vh] md:h-[70vh]" />
+        <Photo src={way("heartbeat").photo!} alt={way("heartbeat").photoAlt!} className="h-[38vh] md:h-[70vh]" />
       </div>
     ),
   },
@@ -100,6 +106,7 @@ const SLIDES: Array<{ title: string; render: () => React.ReactNode }> = [
     ),
   },
   { title: "Steward a shift", render: () => <EarnSlide id="shifts" /> },
+  { title: "Offers and needs", render: () => <EarnSlide id="market" /> },
   {
     title: "Anything else",
     render: () => (
