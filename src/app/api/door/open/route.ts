@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { isMember } from "@/lib/admin-check"
 import { buildDoorLink } from "@/lib/door-link"
+import { publicOrigin } from "@/lib/public-origin"
 
 export const dynamic = "force-dynamic"
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic"
  */
 export async function POST(request: Request) {
   const session = await auth()
-  if (!session?.user || !(await isMember())) return NextResponse.redirect(new URL("/", request.url), 303)
+  if (!session?.user || !(await isMember())) return NextResponse.redirect(new URL("/", publicOrigin(request)), 303)
   const now = new Date()
   const url = await buildDoorLink({ name: session.user.username || "A member", host: "Commons Hub", reason: "Member (website)", start: new Date(now.getTime() - 60_000), end: new Date(now.getTime() + 10 * 60_000) })
   if (!url) return NextResponse.json({ error: "The door can't be opened from here right now" }, { status: 503 })
