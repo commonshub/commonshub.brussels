@@ -74,9 +74,13 @@ export function Header() {
               <Link href="/rooms">Book Space</Link>
             </Button>
             <NostrOutboxBadge />
+            <TokenPill balance={balance} />
             <AuthButton />
           </div>
 
+          <div className="md:hidden ml-auto mr-1">
+            <TokenPill balance={balance} />
+          </div>
           <button
             className="md:hidden p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -168,11 +172,11 @@ export function Header() {
                         {session.user.username}
                       </p>
 
-                      {/* CHT Balance */}
+                      {/* Token balance */}
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Coins className="w-3.5 h-3.5" />
                         <span>
-                          {balance !== null ? `${balance} CHT` : "..."}
+                          {balance !== null ? `${balance} tokens` : "..."}
                         </span>
                       </div>
 
@@ -214,5 +218,21 @@ export function Header() {
         </div>
       )}
     </header>
+  );
+}
+
+/** The signed-in member's tokens, in the top bar. */
+function TokenPill({ balance }: { balance: number | null }) {
+  if (balance === null) return null;
+  return (
+    <Link
+      href="/economy"
+      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary hover:bg-primary/15"
+      title="Your tokens"
+    >
+      <Coins className="w-4 h-4" />
+      {balance.toLocaleString("en-GB", { maximumFractionDigits: 2 })}
+      <span className="sr-only sm:not-sr-only font-normal">tokens</span>
+    </Link>
   );
 }

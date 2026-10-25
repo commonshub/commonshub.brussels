@@ -303,7 +303,13 @@ export function buildAcceptedEmail(a: Application, vouchers: Array<{ name: strin
     { p: `Hi ${firstName(a)},` },
     { p: `Good news: your membership application has been accepted! ${list} vouched for you.` },
     { p: "The last step is your membership fee. It's how we pay the rent and keep this common space open for everyone." },
-    { button: "Pay my membership", href: paymentUrl },
+    ...(a.type === "individual"
+      ? [
+          { p: `You chose ${priceOf(a)}. Everyone picks what they pay from their own income and situation: ${MONTHLY_PRICES.map((p) => `€${p.amount} (${p.label.toLowerCase()})`).join(", ")}. You can change it anytime: log in on commonshub.brussels and open your membership.` },
+          { button: `Pay €${a.monthly ?? 10} a month`, href: paymentUrl },
+          ...MONTHLY_PRICES.filter((p) => p.amount !== (a.monthly ?? 10)).map((p) => ({ before: "Or", link: `pay €${p.amount} a month (${p.label.toLowerCase()})`, href: paymentUrlFor({ ...a, monthly: p.amount }) })),
+        ]
+      : [{ button: "Pay my membership", href: paymentUrl }]),
     { p: "As soon as you've paid, you'll receive the onboarding email: how to open the door, how to join the conversations on Discord, and your first steps in the community." },
     { p: "Questions? Just reply to this email. See you soon at the hub!" },
     { p: "The Commons Hub Brussels community" },

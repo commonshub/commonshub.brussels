@@ -14,7 +14,9 @@
     "instagram": "https://www.instagram.com/commonshub_bxl/",
     "linkedin": "https://be.linkedin.com/company/commonshub-brussels/",
     "twitter": "https://x.com/commonshub_bxl",
-    "discord": "https://discord.commonshub.brussels"
+    "discord": "https://discord.commonshub.brussels",
+    "mastodon": "",
+    "map": "https://map.commonshub.brussels"
   },
   "email": {
     "from": "hello@commonshub.brussels",
@@ -27,6 +29,7 @@
     },
     "channels": {
       "general": "1280532849287495726",
+      "elinor": "1471181855788372110",
       "introductions": "1380592679364329522",
       "requests": "1443603372967198883",
       "membership": "1280927007097753692",

@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       contribute: "I can help with the website and host a workshop on open source.",
       heardFrom: "A friend told me about the Friday potluck.",
       whoYouKnow: "Xavier and Leen",
+      monthly: 15,
       status: body.reason === "application-received" ? "pending" : "approved",
     }
     const vouchers = [{ name: "Leen" }, { name: "Miriam" }, { name: "Xavier" }]
