@@ -175,7 +175,11 @@ describe("what they pay", () => {
       // Their choice is the button; the two other amounts are offered too, each with its own link.
       expect(accepted).toContain(`Pay €${monthly} a month: ${paymentUrlFor(a)}`)
       for (const other of [10, 15, 20].filter((m) => m !== monthly) as Array<10 | 15 | 20>) expect(accepted).toContain(paymentUrlFor({ ...a, monthly: other }))
-      expect(accepted).toContain("You can change it anytime")
+      expect(accepted).toContain("you can change it anytime")
+      expect(accepted).toContain(`- €${monthly} (${monthly === 10 ? "Solidarity" : monthly === 15 ? "Regular" : "Support"}), your choice: ${paymentUrlFor(a)}`)
+      // The year by bank transfer: a page tied to the application by its id only.
+      for (const yearly of [100, 150, 200]) expect(accepted).toContain(`https://commonshub.brussels/membership/pay/${yearly}?ref=abc123`)
+      expect(accepted).not.toMatch(/membership\/pay\/[^\s]*(ann|example)/i)
     }
     expect(buildAcceptedEmail({ ...app, type: "organisation" }, [{ name: "Leen" }], PAYMENT_LINKS.organisation.url).text).not.toContain("a month")
     expect(buildReceivedEmail({ ...app, monthly: 10 }).text).toContain("Membership: €10 a month (solidarity)")
