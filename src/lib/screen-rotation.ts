@@ -3,7 +3,7 @@ import { hostedEventPath, hostedEvents, type HostedEvent } from "./hosted-events
 /**
  * /screen: what the hub's big screen cycles through. Today's hosted events
  * first (their programme screens), then the upcoming events, the community
- * and contribution screens, and the thank-yous (two designs, taking turns).
+ * and contribution screens, the money raised today, and the thank-yous (two designs, taking turns).
  */
 export interface ScreenSlide {
   path: string
@@ -26,13 +26,14 @@ export function todaysEvents(now: number, events: HostedEvent[] = hostedEvents):
   })
 }
 
-/** Today's event screens (shown longer), then upcoming events, members and contribute. */
+/** Today's event screens (shown longer), then upcoming events, members, contribute, raised today and thank-yous. */
 export function screenSlides(now: number, every = 30, events: HostedEvent[] = hostedEvents): ScreenSlide[] {
   return [
     ...todaysEvents(now, events).map((event) => ({ path: `${hostedEventPath(event)}/screen`, seconds: every * 2 })),
     { path: "/events/screen/1", variants: ["/events/screen/1", "/events/screen/2", "/events/screen/3"], seconds: every },
     { path: "/members/screen", seconds: every },
     { path: "/contribute/screen", seconds: every },
+    { path: "/donate/screen", seconds: every },
     { path: "/contributions/screen/1", variants: ["/contributions/screen/1", "/contributions/screen/2"], seconds: every },
   ]
 }
