@@ -42,7 +42,7 @@ export async function callTokenBot(endpoint: "options" | "availability" | "cowor
 export const ALLOWED_FIELDS: Record<string, string[]> = {
   options: [],
   availability: ["room", "start", "end"],
-  cowork: ["requestId"],
+  cowork: ["requestId", "item"],
   guestpass: ["requestId", "length", "start", "guestName", "guestEmail"],
   book: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail"],
 }

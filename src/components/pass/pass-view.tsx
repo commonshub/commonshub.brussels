@@ -52,7 +52,7 @@ export function PassView() {
     <div className="mx-auto max-w-lg px-4 pb-12 pt-6">
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="bg-primary px-6 py-5 text-primary-foreground">
-          <p className="text-sm font-semibold uppercase tracking-wide opacity-90">Coworking pass · {pass.length === "day" ? "full day" : "half day"}</p>
+          <p className="text-sm font-semibold uppercase tracking-wide opacity-90">{pass.room ? `Room booking · ${pass.room}` : `Coworking pass · ${pass.length === "day" ? "full day" : "half day"}`}</p>
           <h1 className="mt-1 break-words text-3xl font-extrabold leading-tight">{pass.guest}</h1>
         </div>
 
@@ -67,7 +67,11 @@ export function PassView() {
               <span className="text-muted-foreground">Right in front of Brussels Central Station</span>
             </span>
           </p>
-          <p className="flex items-start gap-3"><Ticket className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span>{passCost(pass.length)}, paid by {pass.host}</span></p>
+          {pass.room ? (
+            <p className="flex items-start gap-3"><Ticket className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span>{pass.room}, booked by {pass.host}</span></p>
+          ) : (
+            <p className="flex items-start gap-3"><Ticket className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span>{passCost(pass.length)}, paid by {pass.host}</span></p>
+          )}
         </div>
 
         <div className="border-t border-dashed border-border px-6 py-6 text-center">

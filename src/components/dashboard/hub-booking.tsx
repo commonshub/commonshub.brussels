@@ -22,12 +22,15 @@ type Mode = "cowork-me" | "cowork-guest" | "room-me" | "room-guest"
 interface Options {
   balance: number
   tokenSymbol: string
-  cowork: { item: { id: string; label: string; price: number; terms: string } | null }
+  hasWallet?: boolean
+  cowork: { item: CoworkItem | null; items?: CoworkItem[]; note?: string }
   guestPass: Record<"half-day" | "day", { price: number; hours: number; eur: number }> & { maxDaysAhead: number }
   rooms: Array<{ slug: string; name: string; capacity?: number; tokenPricePerHour: number | null; bookableFromNote?: string }>
   terms: { cowork: string; room: string }
   disclaimer: string
 }
+
+type CoworkItem = { id: string; label: string; price: number; terms: string }
 
 type Done =
   | { kind: "me"; title: string; start: string; end: string; allDay?: boolean; price: number; balanceAfter: number; location: string }
@@ -83,12 +86,14 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const [guestName, setGuestName] = useState("")
   const [guestEmail, setGuestEmail] = useState("")
   const [quote, setQuote] = useState<{ price: number } | null>(null)
+  const [coworkItem, setCoworkItem] = useState<string | null>(null)
 
   useEffect(() => {
     post("options")
       .then((o: Options) => {
         setOptions(o)
         setRoom((r) => r || o.rooms[0]?.slug || "")
+        setCoworkItem((c) => c ?? o.cowork.item?.id ?? o.cowork.items?.[0]?.id ?? null)
       })
       .catch((e: Error) => setError(e.message))
   }, [])
@@ -124,7 +129,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
     setBusy(true)
     try {
       if (mode === "cowork-me") {
-        const r = await post("cowork", { requestId })
+        const r = await post("cowork", { requestId, ...(coworkItem ? { item: coworkItem } : {}) })
         const today = todayInBrussels()
         setDone({ kind: "me", title: "Coworking at the Commons Hub", start: today, end: today, allDay: true, price: r.price, balanceAfter: r.balanceAfter, location: "Rue de la Madeleine 51, 1000 Brussels" })
       } else if (mode === "cowork-guest") {
@@ -147,7 +152,9 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
 
   if (done) return <Confirmation done={done} onClose={onClose} />
 
-  const price = mode === "cowork-me" ? options?.cowork.item?.price : mode === "cowork-guest" ? options?.guestPass[length].price : quote?.price
+  const coworkItems = options ? (options.cowork.items?.length ? options.cowork.items : options.cowork.item ? [options.cowork.item] : []) : []
+  const chosenCowork = coworkItems.find((i) => i.id === coworkItem) ?? coworkItems[0]
+  const price = mode === "cowork-me" ? chosenCowork?.price : mode === "cowork-guest" ? options?.guestPass[length].price : quote?.price
   const enough = options && price !== undefined ? options.balance >= price : true
   const maxDate = options ? todayInBrussels(options.guestPass.maxDaysAhead) : undefined
 
@@ -162,11 +169,31 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
 
       {options && (
         <div className="space-y-4">
+          {options.hasWallet === false && <p className="text-sm text-destructive">You don&apos;t have a token wallet yet: ask Elinor on Discord to set one up.</p>}
+
           {mode === "cowork-me" &&
-            (options.cowork.item ? (
-              <p className="text-sm text-foreground">
-                <span className="font-semibold">{options.cowork.item.label}</span>, for today: {tokens(options.cowork.item.price)}.
-              </p>
+            (coworkItems.length ? (
+              <>
+                <div className={`grid gap-2 ${coworkItems.length > 1 ? "grid-cols-2" : ""}`} role="radiogroup" aria-label="Coworking">
+                  {coworkItems.map((i) => (
+                    <button
+                      key={i.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={chosenCowork?.id === i.id}
+                      onClick={() => {
+                        setCoworkItem(i.id)
+                        setRequestId(crypto.randomUUID())
+                      }}
+                      className={`rounded-xl border-2 p-3 text-center text-sm transition ${chosenCowork?.id === i.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/60"}`}
+                    >
+                      <span className="block font-semibold text-foreground">{i.label}</span>
+                      <span className="block text-xs text-muted-foreground">{tokens(i.price)}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{options.cowork.note ?? "For today: there's no advance reservation."}</p>
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">Coworking with tokens isn&apos;t available right now.</p>
             ))}
@@ -261,7 +288,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
             <div className="rounded-xl bg-muted p-3 text-sm">
               <p className="font-semibold text-foreground">Cost: {tokens(price)}</p>
               {!enough && <p className="mt-1 text-destructive">You don&apos;t have enough tokens for this. You can /claim tokens for a contribution on Discord.</p>}
-              <p className="mt-1 text-xs text-muted-foreground">{isRoom ? options.terms.room : mode === "cowork-me" ? options.cowork.item?.terms : options.terms.cowork}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{isRoom ? options.terms.room : mode === "cowork-me" ? chosenCowork?.terms : options.terms.cowork}</p>
             </div>
           )}
 
