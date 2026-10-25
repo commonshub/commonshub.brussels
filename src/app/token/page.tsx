@@ -11,7 +11,7 @@ import settings from "@/settings/settings.json"
 
 export const metadata: Metadata = {
   title: "The Commons Hub Token | Commons Hub Brussels",
-  description: "Earn tokens by taking care of the hub (the Heartbeat, park cleaning, roles, shifts) and use them to cowork, invite a friend or book a room.",
+  description: "Earn tokens by taking care of the community (the Heartbeat, park cleaning, roles, shifts) and use them to cowork, invite a friend or book a room.",
 }
 
 /**
@@ -24,7 +24,7 @@ export default function TokenPage() {
       <section className="mx-auto max-w-5xl px-4 pb-10 pt-12 sm:px-6 sm:pt-16">
         <p className="text-sm font-semibold uppercase tracking-wide text-primary">The Commons Hub Token</p>
         <h1 className="mt-2 text-4xl font-extrabold leading-tight text-foreground text-balance sm:text-6xl">
-          Take care of the hub. <span className="text-primary">Get tokens.</span>
+          Take care of the community. <span className="text-primary">Get tokens.</span>
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
           Euros are scarce: they measure what we sell. Our token is abundant: it comes into existence whenever a member gives time, energy and care to the community. Members then use it for what the hub has to spare: an idle desk, a free room, a day at the hub for a friend.

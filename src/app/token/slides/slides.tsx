@@ -55,7 +55,7 @@ const SLIDES: Array<{ title: string; render: () => React.ReactNode }> = [
         <div>
           <p className="text-[clamp(14px,1.5vw,22px)] font-semibold uppercase tracking-wide text-primary">The Commons Hub Token</p>
           <h1 className="mt-3 text-[clamp(40px,7vw,110px)] font-extrabold leading-[0.95] text-foreground">
-            Take care of the hub.
+            Take care of the community.
             <br />
             <span className="text-primary">Get tokens.</span>
           </h1>
