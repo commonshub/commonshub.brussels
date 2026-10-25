@@ -27,6 +27,10 @@ export const MONTHLY_PRICES = [
   { amount: 20, label: "Support" },
 ] as const
 export type MonthlyPrice = (typeof MONTHLY_PRICES)[number]["amount"]
+/** Or a year by bank transfer: ten months' worth (two months free). */
+export const YEARLY_PRICES = MONTHLY_PRICES.map((p) => ({ amount: p.amount * 10, label: p.label }))
+/** The page with the bank details for a year's membership, tied to the application by its opaque id (no name or email in the link). */
+export const yearlyPayUrl = (amount: number, applicationId?: string) => `${SITE}/membership/pay/${amount}${applicationId ? `?ref=${encodeURIComponent(applicationId)}` : ""}`
 export const DEFAULT_MONTHLY: MonthlyPrice = 15
 
 /**
@@ -222,7 +226,18 @@ const ADDRESS = "Rue de la Madeleine 51, 1000 Brussels"
 const firstName = (a: Pick<Application, "name" | "type">) => (a.type === "individual" ? a.name.split(" ")[0] : a.name)
 
 /** A block of the email: a paragraph, a heading, a list, or a button. */
-type Block = { p: string } | { h: string } | { ul: string[] } | { button: string; href: string } | { link: string; href: string; before?: string }
+type Box = { amount: string; label: string; href: string; selected?: boolean }
+type Block = { p: string } | { h: string } | { ul: string[] } | { button: string; href: string } | { link: string; href: string; before?: string } | { boxes: Box[]; title: string }
+
+/** A row of amounts to pick from, like on the website: each box is a link, the chosen one highlighted. */
+const boxesHtml = (b: { boxes: Box[]; title: string }) =>
+  `<p style="margin:20px 0 8px;font-weight:600">${esc(b.title)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 12px"><tr>${b.boxes
+    .map(
+      (x, i) =>
+        `${i ? '<td width="3%" style="font-size:0">&nbsp;</td>' : ""}<td width="${Math.floor((100 - 3 * (b.boxes.length - 1)) / b.boxes.length)}%" align="center" style="border:2px solid ${x.selected ? "#d9442b" : "#eaded9"};background:${x.selected ? "#fdece8" : "#ffffff"};border-radius:12px"><a href="${esc(x.href)}" style="display:block;padding:12px 4px;color:#001309;text-decoration:none"><span style="display:block;font-size:20px;font-weight:700">${esc(x.amount)}</span><span style="display:block;font-size:13px;color:${x.selected ? "#001309" : "#5d625e"};font-weight:${x.selected ? 700 : 400}">${esc(x.label)}</span></a></td>`,
+    )
+    .join("")}</tr></table>`
 
 function render(subject: string, blocks: Block[]): { subject: string; html: string; text: string } {
   const html = `<!doctype html>
@@ -240,6 +255,8 @@ ${blocks
         ? `<ul style="margin:0 0 12px;padding-left:20px">${b.ul.map((li) => `<li style="margin:0 0 6px">${esc(li)}</li>`).join("")}</ul>`
         : "button" in b
           ? `<p style="margin:20px 0"><a href="${esc(b.href)}" style="display:inline-block;background:#b83500;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">${esc(b.button)}</a></p>`
+          : "boxes" in b
+            ? boxesHtml(b)
           : "link" in b
             ? `<p style="margin:0 0 12px">${b.before ? `${esc(b.before)} ` : ""}<a href="${esc(b.href)}" style="color:#b83500">${esc(b.link)}</a></p>`
             : `<p style="margin:0 0 12px">${esc(b.p).replace(/\n/g, "<br>")}</p>`,
@@ -251,7 +268,7 @@ ${blocks
 </body></html>`
   const text = [
     ...blocks.flatMap((b) =>
-      "h" in b ? ["", b.h.toUpperCase()] : "ul" in b ? b.ul.map((li) => `- ${li}`) : "button" in b ? [`${b.button}: ${b.href}`] : "link" in b ? [`${b.before ? `${b.before} ` : ""}${b.link}: ${b.href}`] : [b.p, ""],
+      "h" in b ? ["", b.h.toUpperCase()] : "ul" in b ? b.ul.map((li) => `- ${li}`) : "button" in b ? [`${b.button}: ${b.href}`] : "boxes" in b ? ["", b.title, ...b.boxes.map((x) => `- ${x.amount} (${x.label})${x.selected ? ", your choice" : ""}: ${x.href}`), ""] : "link" in b ? [`${b.before ? `${b.before} ` : ""}${b.link}: ${b.href}`] : [b.p, ""],
     ),
     "",
     `Commons Hub Brussels · ${ADDRESS} · ${SITE}`,
@@ -305,9 +322,10 @@ export function buildAcceptedEmail(a: Application, vouchers: Array<{ name: strin
     { p: "The last step is your membership fee. It's how we pay the rent and keep this common space open for everyone." },
     ...(a.type === "individual"
       ? [
-          { p: `You chose ${priceOf(a)}. Everyone picks what they pay from their own income and situation: ${MONTHLY_PRICES.map((p) => `€${p.amount} (${p.label.toLowerCase()})`).join(", ")}. You can change it anytime: log in on commonshub.brussels and open your membership.` },
+          { p: `You chose ${priceOf(a)}. Everyone picks what they pay from their own income and situation, and you can change it anytime: log in on commonshub.brussels and open your membership.` },
           { button: `Pay €${a.monthly ?? 10} a month`, href: paymentUrl },
-          ...MONTHLY_PRICES.filter((p) => p.amount !== (a.monthly ?? 10)).map((p) => ({ before: "Or", link: `pay €${p.amount} a month (${p.label.toLowerCase()})`, href: paymentUrlFor({ ...a, monthly: p.amount }) })),
+          { title: "Monthly, by card", boxes: MONTHLY_PRICES.map((p) => ({ amount: `€${p.amount}`, label: p.label, href: paymentUrlFor({ ...a, monthly: p.amount }), selected: p.amount === (a.monthly ?? 10) })) },
+          { title: "Or the whole year, by bank transfer (two months free)", boxes: YEARLY_PRICES.map((p) => ({ amount: `€${p.amount}`, label: p.label, href: yearlyPayUrl(p.amount, a.id) })) },
         ]
       : [{ button: "Pay my membership", href: paymentUrl }]),
     { p: "As soon as you've paid, you'll receive the onboarding email: how to open the door, how to join the conversations on Discord, and your first steps in the community." },
