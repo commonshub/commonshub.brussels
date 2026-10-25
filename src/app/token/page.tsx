@@ -105,7 +105,7 @@ export default function TokenPage() {
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {GUEST_PASS_SCREENS.map((s, i) => (
             <figure key={s.src}>
-              <div className="relative aspect-[390/844] overflow-hidden rounded-[1.6rem] border-4 border-foreground bg-muted shadow-md">
+              <div className="relative aspect-[390/844] overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
                 <Image src={s.src} alt={s.alt} fill sizes="(min-width: 1024px) 230px, 45vw" className="object-cover object-top" />
               </div>
               <figcaption className="mt-2 text-center text-sm text-muted-foreground">
@@ -119,7 +119,7 @@ export default function TokenPage() {
           <div>
             <h3 className="text-2xl font-bold text-foreground">Book a room, just by asking Elinor</h3>
             <p className="mt-2 text-muted-foreground">
-              Elinor, our community assistant, proposes the booking on Discord; you confirm and pay in tokens. You can also use <code className="rounded bg-muted px-1">/book</code>, or your dashboard on the website.
+              Elinor, our community assistant, proposes the booking on Discord, and you pay with your tokens in one tap. You can also use <code className="rounded bg-muted px-1">/book</code>, or your dashboard on the website.
             </p>
             <ul className="mt-4 space-y-1 text-sm">
               {ROOM_TOKENS.map((r) => (

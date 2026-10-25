@@ -147,7 +147,7 @@ const SLIDES: Array<{ title: string; render: () => React.ReactNode }> = [
         <div className="mt-[3vmin] grid min-h-0 flex-1 grid-cols-2 gap-[2vmin] md:grid-cols-4">
           {GUEST_PASS_SCREENS.map((s, i) => (
             <figure key={s.src} className="flex min-h-0 flex-col items-center">
-              <div className="relative aspect-[390/844] h-full max-h-[62vh] overflow-hidden rounded-[1.6rem] border-4 border-foreground bg-muted shadow-lg md:max-h-[66vh]">
+              <div className="relative aspect-[390/844] h-full max-h-[62vh] overflow-hidden rounded-xl border border-border bg-muted shadow-sm md:max-h-[66vh]">
                 <Image src={s.src} alt={s.alt} fill sizes="25vw" className="object-cover object-top" />
               </div>
               <figcaption className="mt-2 text-center text-[clamp(12px,1.2vw,18px)] text-muted-foreground">
@@ -165,7 +165,7 @@ const SLIDES: Array<{ title: string; render: () => React.ReactNode }> = [
       <div className="grid h-full items-center gap-[4vmin] md:grid-cols-[1fr_1.1fr]">
         <div>
           <h2 className="text-[clamp(30px,4.6vw,70px)] font-extrabold leading-[1.05] text-foreground">Book a room, just by asking Elinor</h2>
-          <p className="mt-4 text-[clamp(16px,1.7vw,24px)] text-muted-foreground">She proposes it on Discord; you confirm and pay in tokens.</p>
+          <p className="mt-4 text-[clamp(16px,1.7vw,24px)] text-muted-foreground">She proposes it on Discord, and you pay with your tokens in one tap.</p>
           <ul className="mt-5 hidden space-y-1 text-[clamp(13px,1.3vw,19px)] md:block">
             {ROOM_TOKENS.map((r) => (
               <li key={r.name} className="flex justify-between gap-3 border-b border-border py-0.5">
