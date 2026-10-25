@@ -2,7 +2,9 @@
  * Guest passes: a member buys a door link for a guest with their tokens on
  * Discord (opencollective/token-bot, /guestpass). The member shares
  * commonshub.brussels/pass#<signed door-link parameters>&pass=half-day|day;
- * the page shows the pass and opens the real signed link.
+ * the page shows the pass and opens the real signed link. A room booked for
+ * a guest without an email (/book, or the dashboard) gives the same page
+ * with &pass=room&room=<room name>: no coworking cost on it.
  *
  * Everything sits in the URL fragment, which browsers never send to the
  * server: the website never receives, stores or logs the guest's name. The
@@ -39,6 +41,8 @@ export interface Pass {
   guest: string
   host: string
   length: PassLength
+  /** A room booking rather than a coworking pass: the room's name. */
+  room?: string
   /** When the door opens for the guest, and until when. */
   from: Date
   until: Date
@@ -61,6 +65,7 @@ export function parsePass(fragment: string): Pass | null {
     guest: name,
     host,
     length: q.get("pass") === "day" ? "day" : "half-day",
+    ...(q.get("pass") === "room" ? { room: (q.get("room") || "A room").slice(0, 80) } : {}),
     from: new Date(start * 1000 - grace),
     until: new Date((start + duration * 60) * 1000 + grace),
     doorUrl: `${DOOR_OPEN_URL}?${door.toString()}`,

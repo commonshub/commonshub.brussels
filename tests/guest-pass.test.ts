@@ -29,6 +29,13 @@ describe("guest pass page", () => {
     expect(door.searchParams.has("pass")).toBe(false) // not part of the signed link
   })
 
+  it("a room booked for a guest: the room, no coworking cost", () => {
+    const room = parsePass(fragment.replace("pass=half-day", "pass=room&room=Mush+Room"))!
+    expect(room.room).toBe("Mush Room")
+    expect(new URL(room.doorUrl).searchParams.has("room")).toBe(false)
+    expect(parsePass(fragment)!.room).toBeUndefined()
+  })
+
   it("is upcoming, active, then expired", () => {
     const p = parsePass(fragment)!
     expect(passState(p, new Date("2026-10-23T06:59:00Z"))).toBe("upcoming")

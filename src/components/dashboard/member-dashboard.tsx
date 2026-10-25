@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { CalendarDays, DoorOpen, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
 
 import { Logo } from "@/components/logo"
+import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { planFor } from "@/lib/member-plan"
@@ -51,17 +52,21 @@ export function MemberDashboard({ user }: { user: User }) {
       </Suspense>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <ActionCard icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Come and work at the hub, or invite a guest for half a day or a day.">
-          <ActionLink href="/coworking">For me</ActionLink>
-          <ActionLink href={ELINOR} external hint="Ask Elinor, or use /guestpass on Discord">
+        <ActionCard icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Contributor coworking with your tokens, or a guest pass for half a day or a day.">
+          <HubBookingButton mode="cowork-me" className={ACTION}>
+            For me, today
+          </HubBookingButton>
+          <HubBookingButton mode="cowork-guest" className={ACTION}>
             For a guest
-          </ActionLink>
+          </HubBookingButton>
         </ActionCard>
-        <ActionCard icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="At the community price, for a meeting, a workshop or an event.">
-          <ActionLink href="/rooms">For me</ActionLink>
-          <ActionLink href={ELINOR} external hint="Ask Elinor, or use /book on Discord">
+        <ActionCard icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="With your tokens, for a meeting, a workshop or an event.">
+          <HubBookingButton mode="room-me" className={ACTION}>
+            For me
+          </HubBookingButton>
+          <HubBookingButton mode="room-guest" className={ACTION}>
             For a guest
-          </ActionLink>
+          </HubBookingButton>
         </ActionCard>
       </div>
 
@@ -116,18 +121,7 @@ function ActionCard({ icon, title, text, children }: { icon: React.ReactNode; ti
   )
 }
 
-function ActionLink({ href, external, hint, children }: { href: string; external?: boolean; hint?: string; children: React.ReactNode }) {
-  const className = "inline-flex rounded-full border-2 border-primary px-4 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
-  return external ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={className} title={hint}>
-      {children}
-    </a>
-  ) : (
-    <Link href={href} className={className}>
-      {children}
-    </Link>
-  )
-}
+const ACTION = "inline-flex rounded-full border-2 border-primary px-4 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
 
 /** Shown only while someone is waiting for vouches. */
 async function VouchCard() {
