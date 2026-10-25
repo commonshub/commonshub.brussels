@@ -16,7 +16,8 @@ export const metadata: Metadata = {
 
 /**
  * The hub's big screen: rotates between today's event programme (if any),
- * /members/screen and /contribute/screen. ?every=30 sets the seconds per
+ * upcoming events, /members/screen, /contribute/screen, /donate/screen and
+ * the thank-yous. ?every=30 sets the seconds per
  * screen (an event's programme stays twice as long). Re-checks today's
  * events every 10 minutes, and each slide reloads itself when it gets old
  * (see screen-rotator.tsx).

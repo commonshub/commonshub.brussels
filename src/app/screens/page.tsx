@@ -21,7 +21,7 @@ const GROUPS: Array<{ title: string; intro: string; screens: Screen[] }> = [
   {
     title: "The big screen",
     intro: "What the TV at the hub shows: /screen takes turns through the screens below, each design in turn.",
-    screens: [{ path: "/screen", title: "Rotation", about: "Today's event programme, upcoming events, members, contribute, thank-yous. Arrow keys skip ahead." }],
+    screens: [{ path: "/screen", title: "Rotation", about: "Today's event programme, upcoming events, members, contribute, raised today, thank-yous. Arrow keys skip ahead." }],
   },
   {
     title: "Upcoming events",
