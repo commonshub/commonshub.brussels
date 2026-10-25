@@ -172,8 +172,12 @@ describe("what they pay", () => {
     for (const monthly of [10, 15, 20] as const) {
       const a = { ...app, monthly }
       const accepted = buildAcceptedEmail(a, [{ name: "Leen" }], paymentUrlFor(a)).text
-      expect(accepted.replace(paymentUrlFor(a), "LINK")).toBe(buildAcceptedEmail(app, [{ name: "Leen" }], paymentUrlFor(app)).text.replace(paymentUrlFor(app), "LINK"))
+      // Their choice is the button; the two other amounts are offered too, each with its own link.
+      expect(accepted).toContain(`Pay €${monthly} a month: ${paymentUrlFor(a)}`)
+      for (const other of [10, 15, 20].filter((m) => m !== monthly) as Array<10 | 15 | 20>) expect(accepted).toContain(paymentUrlFor({ ...a, monthly: other }))
+      expect(accepted).toContain("You can change it anytime")
     }
+    expect(buildAcceptedEmail({ ...app, type: "organisation" }, [{ name: "Leen" }], PAYMENT_LINKS.organisation.url).text).not.toContain("a month")
     expect(buildReceivedEmail({ ...app, monthly: 10 }).text).toContain("Membership: €10 a month (solidarity)")
     expect(priceOf({ type: "organisation" })).toBe("€200 a year")
   })

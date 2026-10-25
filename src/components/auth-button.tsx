@@ -52,10 +52,10 @@ export function AuthButton() {
             <div className="space-y-2">
               <p className="font-medium">{session.user.username}</p>
 
-              {/* CHT Balance */}
+              {/* Token balance */}
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Coins className="w-3.5 h-3.5" />
-                <span>{balance !== null ? `${balance} CHT` : "Loading..."}</span>
+                <span>{balance !== null ? `${balance} tokens` : "Loading..."}</span>
               </div>
 
               {/* Roles */}
