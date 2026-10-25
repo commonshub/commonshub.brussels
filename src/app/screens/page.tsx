@@ -38,6 +38,7 @@ const GROUPS: Array<{ title: string; intro: string; screens: Screen[] }> = [
     screens: [
       { path: "/members/screen", title: "Members", about: "The logo beats; partners and members light up as the wave reaches them." },
       { path: "/contribute/screen", title: "Two jars", about: "Money fills the month's costs, time fills with the hours given." },
+      { path: "/donate/screen", title: "Raised today", about: "Money received today by card and bank transfer, live, against a month of the hub's costs." },
     ],
   },
   {
