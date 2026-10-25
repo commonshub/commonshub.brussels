@@ -259,7 +259,7 @@ export const RESERVED = new Set([
   "contributions", "coworking", "data", "debt", "docs", "donate", "economy", "economy.md", "events", "events.md", "expenses",
   "finance", "finance.md", "fiscal-sponsorship", "fridge", "handbook", "homepage", "integrity", "llms.txt", "mcp", "members", "membership",
   "newsletter", "opendata", "opendata.md", "pass", "posters", "potluck", "reports", "robots.txt", "rooms", "rooms.md", "sandbox",
-  "screen", "screens", "shifts", "sitemap.xml", "status", "status.json", "stewards", "tablet", "taxes", "today", "volunteer",
+  "screen", "screens", "shifts", "sitemap.xml", "status", "status.json", "stewards", "tablet", "taxes", "today", "token", "volunteer",
   "workshops", "apply", "admin", "login", "logout", "auth", "p", "pages", "static", "_next", "favicon.ico", "brandkit", "images",
 ])
 
