@@ -1,8 +1,7 @@
 /**
  * An example of booking a room through Elinor on Discord, drawn in
- * Discord's look with the bot's real wording (token-bot proposals.ts and
- * /book): the member asks, Elinor proposes, the member confirms, sees the
- * summary, pays in tokens, and the room is booked.
+ * Discord's look: the member asks, Elinor proposes the booking with its
+ * price in tokens, the member pays with tokens, and the room is booked.
  */
 
 function Avatar({ letter, bg }: { letter: string; bg: string }) {
@@ -40,7 +39,7 @@ const Small = ({ children }: { children: React.ReactNode }) => <p className="tex
 
 export function ElinorChat({ className = "" }: { className?: string }) {
   return (
-    <div className={`overflow-hidden rounded-2xl bg-[#313338] font-sans shadow-lg ${className}`} role="img" aria-label="Example: a member asks Elinor on Discord to book the Mush Room; Elinor proposes it, the member confirms and pays 2 tokens, and the room is booked.">
+    <div className={`overflow-hidden rounded-2xl bg-[#313338] font-sans shadow-lg ${className}`} role="img" aria-label="Example: a member asks Elinor on Discord to book the Mush Room; Elinor proposes it for 2 tokens, the member pays with tokens, and the room is booked.">
       <div className="flex items-center gap-2 border-b border-black/30 px-4 py-3 text-[15px] font-semibold text-white">
         <span className="text-xl text-[#80848e]">#</span> elinor
       </div>
@@ -57,32 +56,11 @@ export function ElinorChat({ className = "" }: { className?: string }) {
           <p>
             Book <strong className="text-white">Mush Room</strong> on <strong className="text-white">Tue 27 Oct, 14:00–16:00</strong> for “Reading circle”
           </p>
-          <p>💰 2 tokens or €80 (+ VAT): you choose and pay in the next step</p>
+          <p>💰 2 tokens</p>
           <Small>Asked by Xavier · only @Xavier can confirm · expires in 24 hours</Small>
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button kind="green">Confirm, then pay</Button>
+            <Button kind="green">Pay with tokens</Button>
             <Button kind="grey">Cancel</Button>
-          </div>
-        </Message>
-        <Message who="Elinor" bot color="#FF4C02" letter="E" time="Today at 10:03">
-          <Small>👁 Only you can see this</Small>
-          <p>
-            📋 <strong className="text-white">Booking Summary</strong>
-          </p>
-          <p>
-            <strong className="text-white">Event:</strong> Reading circle
-            <br />
-            <strong className="text-white">Room:</strong> Mush Room
-            <br />
-            <strong className="text-white">Duration:</strong> 2 hours, Tue 27 Oct 14:00–16:00
-            <br />
-            <strong className="text-white">Price:</strong> 2 tokens
-            <br />
-            <strong className="text-white">Your balance:</strong> 12 tokens
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button kind="green">Confirm &amp; pay</Button>
-            <Button kind="red">Cancel</Button>
           </div>
         </Message>
         <Message who="Elinor" bot color="#FF4C02" letter="E" time="Today at 10:03">
