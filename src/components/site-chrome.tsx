@@ -18,7 +18,8 @@ import settings from "@/settings/settings.json"
 export function SiteChrome({ header, footer, children }: { header: React.ReactNode; footer: React.ReactNode; children: React.ReactNode }) {
   const pathname = usePathname()
   const { data: session, status } = useSession()
-  if (isScreenRoute(pathname) || isFullScreenPage(pathname)) return <>{children}</>
+  // Slide decks (/token/slides) fill the window too.
+  if (isScreenRoute(pathname) || isFullScreenPage(pathname) || pathname?.endsWith("/slides")) return <>{children}</>
   const dashboard = pathname === "/" && (status === "loading" || !!session?.user?.roles?.includes(settings.discord.roles.member))
   return (
     <>
