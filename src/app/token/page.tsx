@@ -3,7 +3,7 @@ import Image from "@/components/optimized-image"
 import Link from "next/link"
 import { Presentation } from "lucide-react"
 
-import { ElinorChat } from "@/components/token/elinor-chat"
+import { ElinorChat, MarketChat } from "@/components/token/elinor-chat"
 import { TokenTerms } from "@/components/token-terms"
 import { PASS_DISCLAIMER } from "@/lib/guest-pass"
 import { EARN, GUEST_PASS_SCREENS, ROLES, ROOM_TOKENS, tokens } from "@/lib/token-story"
@@ -11,7 +11,7 @@ import settings from "@/settings/settings.json"
 
 export const metadata: Metadata = {
   title: "The Commons Hub Token | Commons Hub Brussels",
-  description: "Earn tokens by taking care of the community (the Heartbeat, park cleaning, roles, shifts) and use them to cowork, invite a friend or book a room.",
+  description: "Earn tokens by taking care of the community (the Heartbeat, park cleaning, roles, shifts, helping each other) and use them to cowork, invite a friend or book a room.",
 }
 
 /**
@@ -45,9 +45,13 @@ export default function TokenPage() {
           {EARN.map((way, i) => (
             <article key={way.id} className={`grid items-center gap-6 md:grid-cols-2 md:gap-10 ${i % 2 ? "md:[&>*:first-child]:order-2" : ""}`}>
               <figure>
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
-                  <Image src={way.photo} alt={way.photoAlt} fill sizes="(min-width: 768px) 480px, 100vw" className={way.id === "shifts" ? "object-cover object-left-top" : "object-cover"} />
-                </div>
+                {way.visual === "market" ? (
+                  <MarketChat />
+                ) : (
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
+                    <Image src={way.photo!} alt={way.photoAlt ?? ""} fill sizes="(min-width: 768px) 480px, 100vw" className={way.id === "shifts" ? "object-cover object-left-top" : "object-cover"} />
+                  </div>
+                )}
                 {way.more && (
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     {way.more.map((m) => (
