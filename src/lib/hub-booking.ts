@@ -34,6 +34,13 @@ export function nowTimeInBrussels(now = new Date()): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now)
 }
 
+/** HH:MM rounded up to the next half hour (room bookings go by 30 minutes), plus `addMinutes`; capped at 23:30. */
+export function nextHalfHour(addMinutes = 0, now = new Date()): string {
+  const [h, m] = nowTimeInBrussels(now).split(":").map(Number)
+  const t = Math.min(Math.ceil((h * 60 + m) / 30) * 30 + addMinutes, 23 * 60 + 30)
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`
+}
+
 /** "Mon 26 Oct, 14:30–16:00" (Brussels). */
 export function whenText(start: string, end: string): string {
   const s = new Date(start), e = new Date(end)

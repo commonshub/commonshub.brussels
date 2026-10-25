@@ -1,4 +1,4 @@
-import { brusselsIso, icsFor, nowTimeInBrussels, todayInBrussels, whenText } from "@/lib/hub-booking"
+import { brusselsIso, icsFor, nextHalfHour, nowTimeInBrussels, todayInBrussels, whenText } from "@/lib/hub-booking"
 import { pickFields } from "@/lib/token-bot"
 
 describe("booking from the dashboard", () => {
@@ -13,6 +13,13 @@ describe("booking from the dashboard", () => {
     expect(todayInBrussels(0, late)).toBe("2026-10-27")
     expect(todayInBrussels(7, late)).toBe("2026-11-03")
     expect(nowTimeInBrussels(late)).toBe("00:30")
+  })
+
+  test("rooms start on the next half hour", () => {
+    expect(nextHalfHour(0, new Date("2026-10-26T13:10:00Z"))).toBe("14:30")
+    expect(nextHalfHour(0, new Date("2026-10-26T13:30:00Z"))).toBe("14:30")
+    expect(nextHalfHour(60, new Date("2026-10-26T13:31:00Z"))).toBe("16:00")
+    expect(nextHalfHour(60, new Date("2026-10-26T22:50:00Z"))).toBe("23:30")
   })
 
   test("when, in words", () => {

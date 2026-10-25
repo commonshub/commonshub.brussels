@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { brusselsIso, icsFor, todayInBrussels, nowTimeInBrussels, whenText } from "@/lib/hub-booking"
+import { brusselsIso, icsFor, nextHalfHour, todayInBrussels, nowTimeInBrussels, whenText } from "@/lib/hub-booking"
 
 /**
  * The dashboard's Cowork and Book a room, for the member or a guest: the
@@ -76,8 +76,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   // The form
   const [length, setLength] = useState<"half-day" | "day">("half-day")
   const [date, setDate] = useState(todayInBrussels())
-  const [time, setTime] = useState(nowTimeInBrussels())
-  const [endTime, setEndTime] = useState("")
+  const [time, setTime] = useState(() => (mode.startsWith("room") ? nextHalfHour() : nowTimeInBrussels()))
+  const [endTime, setEndTime] = useState(() => (mode.startsWith("room") ? nextHalfHour(60) : ""))
   const [room, setRoom] = useState("")
   const [title, setTitle] = useState("")
   const [guestName, setGuestName] = useState("")
@@ -104,6 +104,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   async function checkRoom() {
     setError(null)
     if (!endTime || endTime <= time) return setError("The end must be after the start.")
+    if (!/:(00|30)$/.test(time) || !/:(00|30)$/.test(endTime)) return setError("Rooms are booked by half hours: start and end on :00 or :30.")
     if (isGuest && !guestName.trim()) return setError("What's your guest's name?")
     setBusy(true)
     try {
@@ -119,6 +120,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
 
   async function pay() {
     setError(null)
+    if (isGuest && !guestName.trim()) return setError("What's your guest's name?")
     setBusy(true)
     try {
       if (mode === "cowork-me") {
@@ -223,12 +225,12 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="start">{isRoom ? "From" : "Starts at"}</Label>
-                <Input id="start" type="time" step={isRoom ? 900 : 60} value={time} onChange={(e) => (setTime(e.target.value), roomTimesChanged())} />
+                <Input id="start" type="time" step={isRoom ? 1800 : 60} value={time} onChange={(e) => (setTime(e.target.value), roomTimesChanged())} />
               </div>
               {isRoom && (
                 <div className="space-y-1.5">
                   <Label htmlFor="end">To</Label>
-                  <Input id="end" type="time" step={900} value={endTime} onChange={(e) => (setEndTime(e.target.value), roomTimesChanged())} />
+                  <Input id="end" type="time" step={1800} value={endTime} onChange={(e) => (setEndTime(e.target.value), roomTimesChanged())} />
                 </div>
               )}
             </div>
@@ -244,7 +246,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
           {isGuest && (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor="guest-name">Guest&apos;s name{mode === "cowork-guest" ? " (optional)" : ""}</Label>
+                <Label htmlFor="guest-name">Guest&apos;s name</Label>
                 <Input id="guest-name" value={guestName} maxLength={80} autoComplete="off" onChange={(e) => setGuestName(e.target.value)} />
               </div>
               <div className="space-y-1.5">
