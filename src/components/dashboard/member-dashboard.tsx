@@ -1,8 +1,9 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { CalendarDays, DoorOpen, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
+import { ArrowRight, CalendarDays, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
 
 import { Logo } from "@/components/logo"
+import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
@@ -17,7 +18,7 @@ type User = { discordId: string; username: string; email?: string | null; avatar
 
 /**
  * What a member sees at /, instead of the homepage (still at /homepage):
- * open the door, ask Elinor, cowork or book a room (for themselves or a
+ * open the door (without leaving the page), ask Elinor, cowork or book a room (for themselves or a
  * guest), vouch for applicants, what's coming up, and their membership plan.
  * Their token balance is in the header.
  */
@@ -29,15 +30,7 @@ export function MemberDashboard({ user }: { user: User }) {
       <p className="mt-1 text-muted-foreground">Welcome home.</p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <form action="/api/door/open" method="post" className="contents">
-          <button type="submit" className="flex items-center gap-4 rounded-2xl bg-primary p-5 text-left text-primary-foreground shadow-sm transition hover:opacity-90">
-            <DoorOpen className="h-8 w-8 shrink-0" />
-            <span>
-              <span className="block text-lg font-bold">Open the door</span>
-              <span className="block text-sm opacity-90">Rue de la Madeleine 51</span>
-            </span>
-          </button>
-        </form>
+        <DoorOpener name={user.username} />
         <a href={ELINOR} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border-2 border-primary p-5 text-foreground transition hover:bg-primary/5">
           <MessageCircle className="h-8 w-8 shrink-0 text-primary" />
           <span>
@@ -103,6 +96,14 @@ export function MemberDashboard({ user }: { user: User }) {
           <MembershipPlanCard plan={plan} />
         </div>
       </section>
+
+      <Link href="/homepage" className="mt-10 flex items-center justify-between gap-4 rounded-2xl bg-muted p-5 transition hover:bg-muted/70">
+        <span>
+          <span className="block font-bold text-foreground">See the homepage</span>
+          <span className="block text-sm text-muted-foreground">The Commons Hub as everyone else sees it</span>
+        </span>
+        <ArrowRight className="h-5 w-5 shrink-0 text-primary" />
+      </Link>
 
       <DashboardFooter />
     </div>

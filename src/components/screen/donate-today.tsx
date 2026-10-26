@@ -11,8 +11,9 @@ import { ScreenQr } from "./screen-qr"
 /**
  * /donate/screen: today's money in big, the payments under it as they
  * arrive, and a bar as long as a month of the hub's fixed costs, one segment
- * per cost (cheapest first, as the jar on /contribute/screen fills). Earlier
- * this month fills it in each cost's colour, today in white on top.
+ * per cost (cheapest first, as the jar on /contribute/screen fills). Today's
+ * money alone fills it, in each cost's colour, against the monthly burn; a
+ * tick marks one day of it, so a small day still reads as something.
  * Polls every 30 seconds; a new payment slides in and the number flashes,
  * once. Nothing loops: the TV's browser is an old Chromium.
  */
@@ -58,10 +59,11 @@ export function DonateToday({ initial, costs, qrSvg, url }: { initial: Data; cos
   const ordered = [...costs].sort((a, b) => a.amount - b.amount)
   const slots = slotsFor(costs)
   const colour = (slug: string) => COST_COLORS_DARK[(slots.get(slug) ?? 1) - 1]
-  const covered = data.monthBefore + data.todayTotal
+  const covered = data.todayTotal
   const pct = (n: number) => (goal > 0 ? Math.min(100, (n / goal) * 100) : 0)
-  const beforePct = pct(data.monthBefore)
-  const todayPct = Math.min(100 - beforePct, pct(data.todayTotal))
+  const todayPct = pct(covered)
+  const day = goal / data.daysInMonth
+  const ofDay = day > 0 ? Math.round((covered / day) * 100) : 0
   const count = data.today.length
 
   // Where each cost starts on the bar.
@@ -99,7 +101,7 @@ export function DonateToday({ initial, costs, qrSvg, url }: { initial: Data; cos
             raised today{count > 0 && <span style={{ color: MUTED, fontWeight: 500 }}> · {count === 1 ? "1 payment" : `${count} payments`}</span>}
           </div>
           <div style={{ fontSize: s(1.7), marginTop: s(0.6), color: MUTED }}>
-            {eur(Math.round(covered * 100) / 100)} this month, of the {eur(goal)} the hub needs
+            {ofDay >= 100 ? `${(covered / day).toLocaleString("en-GB", { maximumFractionDigits: 1 })} days` : `${ofDay}% of a day`} of the hub · it costs {eur(goal)} a month, {eur(Math.round(day))} a day
           </div>
         </div>
 
@@ -135,28 +137,28 @@ export function DonateToday({ initial, costs, qrSvg, url }: { initial: Data; cos
         </div>
       </div>
 
-      {/* The month's bar */}
+      {/* Today against the month's burn */}
       <div className="shrink-0">
-        <div className="relative w-full overflow-hidden rounded-[0.3em]" style={{ height: s(4.2) }} role="img" aria-label={`${eur(covered)} of ${eur(goal)} this month, ${eur(data.todayTotal)} of it today`}>
-          {track(0.2)}
-          <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${beforePct}%`, transition: "width 1.2s ease-out" }}>
-            <div className="relative h-full" style={{ width: beforePct > 0 ? `${(100 / beforePct) * 100}%` : "0" }}>
-              {track(1)}
+        <div className="relative" style={{ height: s(4.2) }}>
+          <div className="absolute inset-0 overflow-hidden rounded-[0.3em]" role="img" aria-label={`${eur(covered)} raised today, of ${eur(goal)} a month`}>
+            {track(0.2)}
+            <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${todayPct}%`, minWidth: covered > 0 ? s(0.6) : 0, transition: "width 1.2s ease-out" }}>
+              <div className="relative h-full" style={{ width: todayPct > 0 ? `${(100 / todayPct) * 100}%` : "0" }}>
+                {track(1)}
+              </div>
             </div>
+            {covered > 0 && covered < goal && (
+              <div className="absolute inset-y-0" style={{ left: `${todayPct}%`, width: s(0.35), marginLeft: todayPct > 0.5 ? `calc(${s(0.35)} * -1)` : s(0.25), background: "#fff", boxShadow: `0 0 ${s(1.2)} ${ACCENT}`, transition: "left 1.2s ease-out" }} />
+            )}
           </div>
-          {data.todayTotal > 0 && (
-            <div
-              className="absolute inset-y-0"
-              style={{ left: `${beforePct}%`, width: `${todayPct}%`, minWidth: s(0.6), background: "#fff", boxShadow: `0 0 ${s(1.2)} ${ACCENT}`, transition: "width 1.2s ease-out" }}
-            />
-          )}
+          {/* One day of the hub */}
+          <div className="absolute" style={{ left: `${pct(day)}%`, top: `calc(${s(0.6)} * -1)`, bottom: `calc(${s(0.6)} * -1)`, width: 2, background: "rgba(255,255,255,0.75)" }} />
         </div>
-        <div className="flex justify-between" style={{ fontSize: s(1.4), color: MUTED, marginTop: s(0.5) }}>
+        <div className="relative flex justify-between" style={{ fontSize: s(1.4), color: MUTED, marginTop: s(0.8) }}>
           <span>
-            <span style={{ display: "inline-block", width: s(1.1), height: s(1.1), background: "#fff", borderRadius: "0.15em", marginRight: s(0.4), verticalAlign: "-0.1em" }} />
-            today · coloured: earlier this month
+            <span style={{ color: "#fff", fontWeight: 600 }}>1 day</span> = {eur(Math.round(day))}
           </span>
-          <span>{covered >= goal ? "🎉 This month's costs are covered" : `${Math.round(pct(covered))}% of the month`}</span>
+          <span>{covered >= goal ? "🎉 Today covered the whole month" : `${eur(goal)} · a month of the hub`}</span>
         </div>
       </div>
 
