@@ -3,7 +3,7 @@ import Image from "@/components/optimized-image"
 import Link from "next/link"
 import { Presentation } from "lucide-react"
 
-import { ElinorChat, MarketChat } from "@/components/token/elinor-chat"
+import { ElinorChat, MarketChat, MintChat } from "@/components/token/elinor-chat"
 import { TokenTerms } from "@/components/token-terms"
 import { PASS_DISCLAIMER } from "@/lib/guest-pass"
 import { EARN, GUEST_PASS_SCREENS, ROLES, ROOM_TOKENS, tokens } from "@/lib/token-story"
@@ -67,6 +67,12 @@ export default function TokenPage() {
                 <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">{way.amount}</span>
                 <h3 className="mt-3 text-2xl font-bold text-foreground">{way.title}</h3>
                 <p className="mt-2 text-muted-foreground">{way.text}</p>
+                {way.mint && (
+                  <figure className="mt-6">
+                    <MintChat />
+                    <figcaption className="mt-2 text-sm text-muted-foreground">After the meeting, a steward just asks Elinor, and confirms.</figcaption>
+                  </figure>
+                )}
                 {way.id === "roles" && (
                   <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                     {ROLES.map((r) => (

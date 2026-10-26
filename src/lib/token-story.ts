@@ -18,6 +18,8 @@ export interface EarnWay {
   photo?: string
   photoAlt?: string
   visual?: "market"
+  /** Show how it's minted: asking Elinor (MintChat). */
+  mint?: boolean
   caption?: string
   /** Extra photos, shown smaller. */
   more?: Array<{ src: string; alt: string }>
@@ -31,16 +33,17 @@ export const EARN: EarnWay[] = [
     text: "Every Monday from 13:00 to 14:00, members meet around the big table: what happened this week, who did what, what we decide together. Everyone who comes gets a token, and the contributions shared during the week are rewarded there too.",
     photo: "/images/token/heartbeat.jpg",
     photoAlt: "Members around the table at a Heartbeat meeting, one of them holding up a laptop showing the website",
+    mint: true,
   },
   {
     id: "park",
     title: "Clean the park",
     amount: "1 token",
     text: "Grab a bucket and a litter picker, and clean the park and the street around the hub with other members. It's the commons right outside our door.",
-    photo: "/images/token/park-cleaning.jpg",
-    photoAlt: "Members with buckets and litter pickers, smiling, during a park cleaning",
+    photo: "/images/token/park-cleaning-group.jpg",
+    photoAlt: "Seven members under a tree in the park, with buckets and litter pickers held up",
     more: [
-      { src: "/images/token/park-cleaning-2.jpg", alt: "A group of members in the park with their buckets" },
+      { src: "/images/token/park-cleaning.jpg", alt: "Members with buckets and litter pickers, smiling, during a park cleaning" },
       { src: "/images/token/park-cleaning-bucket.jpg", alt: "A bucket full of litter picked up in the park" },
     ],
   },
@@ -52,8 +55,10 @@ export const EARN: EarnWay[] = [
     photo: "/images/token/plants.jpg",
     photoAlt: "Members holding the big fig plants they are taking care of",
     more: [
+      { src: "/images/token/carpet-steward.jpg", alt: "The carpet steward vacuuming the coworking space, barefoot" },
+      { src: "/images/token/surfaces-steward.jpg", alt: "A member in a big scarf holding up a yellow cleaning cloth, smiling" },
+      { src: "/images/token/kitchen-trash.jpg", alt: "Two members in the kitchen, one changing the trash bag" },
       { src: "/images/token/plant-steward.jpg", alt: "The plant steward with a watering can" },
-      { src: "/images/token/trash.jpg", alt: "A member taking the trash out" },
     ],
   },
   {
