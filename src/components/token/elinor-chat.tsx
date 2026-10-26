@@ -46,7 +46,7 @@ export function ElinorChat({ className = "" }: { className?: string }) {
       <div className="py-2">
         <Message who="Xavier" color="#f0b232" letter="X" time="Today at 10:02">
           <p>
-            <Mention>@Elinor</Mention> can you book the Mush Room tomorrow from 14:00 to 16:00 for our reading circle?
+            <Mention>@Elinor</Mention>{" "}can you book the Mush Room tomorrow from 14:00 to 16:00 for our reading circle?
           </p>
         </Message>
         <Message who="Elinor" bot color="#FF4C02" letter="E" time="Today at 10:02">
@@ -105,6 +105,61 @@ export function MarketChat({ className = "" }: { className?: string }) {
             ✅ Sent <strong className="text-white">2 tokens</strong> to <Mention>@Tom</Mention>
           </p>
           <p className="text-xs text-[#949ba4]">For: fixing my bike&apos;s brakes</p>
+        </Message>
+      </div>
+    </div>
+  )
+}
+
+const HEARTBEAT = ["Ana", "Tom", "Leen", "Alain", "Mia", "Sam", "Noor", "Xavier"]
+
+/**
+ * How tokens are minted: a steward asks Elinor to issue a token to everyone
+ * at today's Heartbeat, Elinor proposes the mint (the bot's own wording),
+ * the steward confirms, and the tokens are minted.
+ */
+export function MintChat({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`overflow-hidden rounded-2xl bg-[#313338] font-sans shadow-lg ${className}`}
+      role="img"
+      aria-label="Example: a steward asks Elinor on Discord to issue a token to everyone who attended today's Heartbeat; Elinor proposes minting 1 token each for the 8 people there, the steward confirms, and the tokens are minted."
+    >
+      <div className="flex items-center gap-2 border-b border-black/30 px-4 py-3 text-[15px] font-semibold text-white">
+        <span className="text-xl text-[#80848e]">#</span> heartbeat
+      </div>
+      <div className="py-2">
+        <Message who="Xavier" color="#f0b232" letter="X" time="Today at 14:02">
+          <p>
+            <Mention>@Elinor</Mention>{" "}issue a token to everyone who attended today&apos;s heartbeat meeting 💓
+          </p>
+        </Message>
+        <Message who="Elinor" bot color="#FF4C02" letter="E" time="Today at 14:02">
+          <p>
+            🤖 <strong className="text-white">Elinor proposes a mint</strong> for <Mention>@Xavier</Mention> to confirm
+          </p>
+          <p>
+            Mint <strong className="text-white">1 token</strong> each for{" "}
+            {HEARTBEAT.map((n, i) => (
+              <span key={n}>
+                <Mention>@{n}</Mention>
+                {i < HEARTBEAT.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </p>
+          <p>📝 Heartbeat, Monday 26 October</p>
+          <Small>Asked by Xavier · only @Xavier can confirm · expires in 24 hours</Small>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button kind="green">Confirm</Button>
+            <Button kind="grey">Cancel</Button>
+          </div>
+        </Message>
+        <Message who="Elinor" bot color="#FF4C02" letter="E" time="Today at 14:03">
+          <p>
+            ✅ Minted <strong className="text-white">1 token</strong> for {HEARTBEAT.map((n) => `@${n}`).join(", ")}
+          </p>
+          <p>📝 Heartbeat, Monday 26 October</p>
+          <p className="text-[#00a8fc]">View the 8 transactions</p>
         </Message>
       </div>
     </div>

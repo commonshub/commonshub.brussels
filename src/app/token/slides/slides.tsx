@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ChevronLeft, ChevronRight, Maximize, X } from "lucide-react"
 
 import Image from "@/components/optimized-image"
-import { ElinorChat, MarketChat } from "@/components/token/elinor-chat"
+import { ElinorChat, MarketChat, MintChat } from "@/components/token/elinor-chat"
 import { EARN, GUEST_PASS_SCREENS, ROLES, ROOM_TOKENS, tokens } from "@/lib/token-story"
 
 const way = (id: string) => EARN.find((w) => w.id === id)!
@@ -36,7 +36,7 @@ function EarnSlide({ id, children }: { id: string; children?: React.ReactNode })
           <Photo src={w.photo!} alt={w.photoAlt ?? ""} className="min-h-[30vh] flex-1" position={id === "shifts" ? "object-left-top" : "object-center"} />
         )}
         {w.more && (
-          <div className="hidden h-[22vh] grid-cols-2 gap-3 md:grid">
+          <div className="hidden h-[22vh] gap-3 md:grid" style={{ gridTemplateColumns: `repeat(${w.more.length}, minmax(0, 1fr))` }}>
             {w.more.map((m) => (
               <Photo key={m.src} src={m.src} alt={m.alt} className="h-full" />
             ))}
@@ -89,6 +89,23 @@ const SLIDES: Array<{ title: string; render: () => React.ReactNode }> = [
     ),
   },
   { title: "Come to the Heartbeat", render: () => <EarnSlide id="heartbeat" /> },
+  {
+    title: "Minted by asking Elinor",
+    render: () => (
+      <div className="grid h-full items-center gap-[4vmin] md:grid-cols-[1fr_1.1fr]">
+        <div>
+          <Amount>1 token each</Amount>
+          <h2 className="mt-4 text-[clamp(30px,4.6vw,70px)] font-extrabold leading-[1.05] text-foreground">Minted by asking Elinor</h2>
+          <p className="mt-4 text-[clamp(16px,1.7vw,24px)] leading-relaxed text-muted-foreground">
+            After the Heartbeat, a steward asks Elinor to issue a token to everyone who came. She proposes the mint, the steward confirms, and the tokens land in everyone&apos;s wallet.
+          </p>
+        </div>
+        <div className="max-h-[62vh] overflow-hidden md:max-h-[80vh]">
+          <MintChat className="origin-top md:scale-[0.92]" />
+        </div>
+      </div>
+    ),
+  },
   { title: "Clean the park", render: () => <EarnSlide id="park" /> },
   {
     title: "Pick up a role",
