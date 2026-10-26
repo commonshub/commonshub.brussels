@@ -6,6 +6,7 @@ import { Logo } from "@/components/logo"
 import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
+import { NextShiftCard, SignUpForShift } from "@/components/dashboard/next-shift"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { planFor } from "@/lib/member-plan"
@@ -20,7 +21,7 @@ type User = { discordId: string; username: string; email?: string | null; avatar
 /**
  * What a member sees at /, instead of the homepage (still at /homepage):
  * open the door (without leaving the page), ask Elinor, cowork or book a room (for themselves or a
- * guest), vouch for applicants, what's coming up, and their membership plan.
+ * guest), their next shift (or sign up for one), vouch for applicants, what's coming up, and their membership plan.
  * Their token balance is in the header.
  */
 export function MemberDashboard({ user }: { user: User }) {
@@ -63,6 +64,10 @@ export function MemberDashboard({ user }: { user: User }) {
           </HubBookingButton>
         </ActionToggle>
       </div>
+
+      <Suspense fallback={<SignUpForShift />}>
+        <NextShiftCard user={user} />
+      </Suspense>
 
       {/* id="events": the header's "Events" (/#events) lands here for members. */}
       <section id="events" className="mt-10 scroll-mt-20">
