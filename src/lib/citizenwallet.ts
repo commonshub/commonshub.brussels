@@ -49,3 +49,14 @@ export const getAccountAddressFromDiscordUserId = async (userId: string): Promis
   console.log("[v0] citizenwallet getAccountAddressFromDiscordUserId cardAddress:", cardAddress)
   return cardAddress
 }
+
+const erc20BalanceAbi = [
+  { type: "function", name: "balanceOf", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
+] as const
+
+/** A token balance read straight from Celo, in whole units (not Etherscan, whose free daily quota runs out). */
+export const getTokenBalance = async (token: `0x${string}`, account: `0x${string}`, decimals: number): Promise<number> => {
+  const client = createPublicClient({ chain: celo, transport: http(process.env.CELO_RPC_URL || "https://forno.celo.org") })
+  const raw = await client.readContract({ address: token, abi: erc20BalanceAbi, functionName: "balanceOf", args: [account] })
+  return Number(raw) / 10 ** decimals
+}

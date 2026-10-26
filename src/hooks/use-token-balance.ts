@@ -12,9 +12,9 @@ interface CacheEntry {
 const balanceCache = new Map<string, CacheEntry>();
 
 /**
- * Hook to fetch user's CHT (Commons Hub Token) balance
- * Calls the same API endpoint used by the profile page
- * Caches results for 1 minute to reduce API calls
+ * The member's token balance, in whole tokens (rounded), for the header.
+ * Asks only for the balance (read from the chain), cached for a minute.
+ * When it can't be read, null: the header hides it rather than showing 0.
  */
 export function useTokenBalance() {
   const { data: session } = useSession();
@@ -43,13 +43,13 @@ export function useTokenBalance() {
     // Fetch fresh data
     const fetchBalance = async () => {
       try {
-        const res = await fetch(`/api/member/${discordId}/tokens`);
+        const res = await fetch(`/api/member/${discordId}/tokens?balance=1`);
         if (!res.ok) {
           throw new Error("Failed to fetch token balance");
         }
 
         const data = await res.json();
-        const newBalance = data.balance || 0;
+        const newBalance = Math.round(Number(data.balance) || 0);
 
         // Update cache
         balanceCache.set(cacheKey, {
@@ -62,11 +62,7 @@ export function useTokenBalance() {
       } catch (error) {
         console.error("[useTokenBalance] Error fetching balance:", error);
         // On error, use cached value if available
-        if (cached) {
-          setBalance(cached.balance);
-        } else {
-          setBalance(0);
-        }
+        setBalance(cached ? cached.balance : null);
         setLoading(false);
       }
     };
