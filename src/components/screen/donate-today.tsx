@@ -65,6 +65,9 @@ export function DonateToday({ initial, costs, qrSvg, url }: { initial: Data; cos
   const day = goal / data.daysInMonth
   const ofDay = day > 0 ? Math.round((covered / day) * 100) : 0
   const count = data.today.length
+  // Whole euros, on one line: the font shrinks for a big day rather than wrap (the column is ~50 units wide).
+  const total = eur(Math.round(data.todayTotal))
+  const totalSize = Math.min(13, 46 / (total.length * 0.62))
 
   // Where each cost starts on the bar.
   let below = 0
@@ -94,8 +97,8 @@ export function DonateToday({ initial, costs, qrSvg, url }: { initial: Data; cos
       <div className="flex min-h-0 flex-1" style={{ gap: s(3) }}>
         {/* Today, in big */}
         <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <div key={flash} className={flash ? "dt-flash" : ""} style={{ fontSize: s(13), fontWeight: 800, lineHeight: 0.95, letterSpacing: "-0.04em", color: ACCENT }}>
-            {eur(data.todayTotal)}
+          <div key={flash} className={flash ? "dt-flash" : ""} style={{ fontSize: s(totalSize), fontWeight: 800, lineHeight: 0.95, letterSpacing: "-0.04em", whiteSpace: "nowrap", color: ACCENT }}>
+            {total}
           </div>
           <div style={{ fontSize: s(2.4), marginTop: s(1), fontWeight: 600 }}>
             raised today{count > 0 && <span style={{ color: MUTED, fontWeight: 500 }}> · {count === 1 ? "1 payment" : `${count} payments`}</span>}
