@@ -76,11 +76,11 @@ describe("useTokenBalance", () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(mockFetch).toHaveBeenCalledWith(`/api/member/${mockDiscordId}/tokens`)
+    expect(mockFetch).toHaveBeenCalledWith(`/api/member/${mockDiscordId}/tokens?balance=1`)
     expect(result.current.balance).toBe(mockBalance)
   })
 
-  test("returns 0 balance when API returns error", async () => {
+  test("hides the balance (null) when the API returns an error, rather than showing 0", async () => {
     const errorTestDiscordId = "error-test-123"
     mockUseSession.mockReturnValue({
       data: {
@@ -111,7 +111,7 @@ describe("useTokenBalance", () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(result.current.balance).toBe(0)
+    expect(result.current.balance).toBeNull()
   })
 
   test("caches balance and doesn't refetch within cache duration", async () => {

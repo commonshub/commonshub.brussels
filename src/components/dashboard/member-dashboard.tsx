@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { ArrowRight, CalendarDays, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
 
 import { Logo } from "@/components/logo"
+import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
@@ -44,23 +45,23 @@ export function MemberDashboard({ user }: { user: User }) {
         <VouchCard />
       </Suspense>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <ActionCard icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Contributor coworking with your tokens, or a guest pass for half a day or a day.">
+      <div className="mt-4 grid items-start gap-4 sm:grid-cols-2">
+        <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Contributor coworking with your tokens, or a guest pass for half a day or a day.">
           <HubBookingButton mode="cowork-me" className={ACTION}>
             For me, today
           </HubBookingButton>
           <HubBookingButton mode="cowork-guest" className={ACTION}>
             For a guest
           </HubBookingButton>
-        </ActionCard>
-        <ActionCard icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="With your tokens, for a meeting, a workshop or an event.">
+        </ActionToggle>
+        <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="With your tokens, for a meeting, a workshop or an event.">
           <HubBookingButton mode="room-me" className={ACTION}>
             For me
           </HubBookingButton>
           <HubBookingButton mode="room-guest" className={ACTION}>
             For a guest
           </HubBookingButton>
-        </ActionCard>
+        </ActionToggle>
       </div>
 
       {/* id="events": the header's "Events" (/#events) lands here for members. */}
@@ -106,18 +107,6 @@ export function MemberDashboard({ user }: { user: User }) {
       </Link>
 
       <DashboardFooter />
-    </div>
-  )
-}
-
-function ActionCard({ icon, title, text, children }: { icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
-        {icon} {title}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-      <div className="mt-4 flex flex-wrap gap-2">{children}</div>
     </div>
   )
 }

@@ -3,11 +3,9 @@ import { isMember } from "@/lib/admin-check"
 import { NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
-import { getAccountAddressFromDiscordUserId } from "@/lib/citizenwallet"
+import { getAccountAddressFromDiscordUserId, getTokenBalance } from "@/lib/citizenwallet"
 import {
-  fetchTokenBalance,
   fetchTokenTransfers,
-  parseTokenBalance,
   parseTokenValue,
   getMonthKey,
 } from "@/lib/etherscan"
@@ -127,13 +125,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     const token = settings.contributionToken
     const apiKey = process.env.ETHERSCAN_API_KEY || ""
 
-    // Fetch token balance and transfers
-    const [balanceData, transfersData] = await Promise.all([
-      fetchTokenBalance(token.chainId, token.address, walletAddress, apiKey),
-      fetchTokenTransfers(token.chainId, token.address, walletAddress, apiKey),
+    // The balance from the chain itself; ?balance=1 (the header) wants nothing else.
+    const balancePromise = getTokenBalance(token.address as `0x${string}`, walletAddress as `0x${string}`, token.decimals)
+    if (new URL(request.url).searchParams.get("balance") === "1") {
+      return NextResponse.json({ walletAddress, balance: await balancePromise })
+    }
+    // The history from Etherscan: when its quota runs out, the balance still shows.
+    const [balance, transfersData] = await Promise.all([
+      balancePromise,
+      fetchTokenTransfers(token.chainId, token.address, walletAddress, apiKey).catch((error) => {
+        console.error("[tokens] transfers unavailable:", error instanceof Error ? error.message : error)
+        return { result: [] }
+      }),
     ])
-
-    const balance = balanceData.status === "1" ? parseTokenBalance(balanceData.result, token.decimals) : 0
     const transfers = Array.isArray(transfersData.result) ? transfersData.result : []
     console.log(`[v0] tokens API: balance=${balance} transfers count=${transfers.length}`)
 

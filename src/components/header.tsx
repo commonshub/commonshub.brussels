@@ -231,7 +231,7 @@ function TokenPill({ balance }: { balance: number | null }) {
       title="Your tokens"
     >
       <Coins className="w-4 h-4" />
-      {balance.toLocaleString("en-GB", { maximumFractionDigits: 2 })}
+      {balance.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
       <span className="sr-only sm:not-sr-only font-normal">tokens</span>
     </Link>
   );
