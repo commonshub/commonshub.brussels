@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 
 const HOUR = 3600_000
 const SAMPLE: DoorVisitor[] = [
-  { name: "Ana", arrivedAt: Date.now() - 3 * HOUR, avatar: null, guest: false, lastContribution: { text: "Watered all the plants and repotted the big fig", at: Date.now() - 2 * 86_400_000 } },
-  { name: "Tom", arrivedAt: Date.now() - 2 * HOUR, avatar: null, guest: false, lastContribution: { text: "Fixed the wifi in the Ostrom Room", at: Date.now() - 6 * 86_400_000 } },
+  { name: "Ana", arrivedAt: Date.now() - 3 * HOUR, avatar: null, guest: false },
+  { name: "Tom", arrivedAt: Date.now() - 2 * HOUR, avatar: null, guest: false },
   { name: "Leo", arrivedAt: Date.now() - HOUR, avatar: null, guest: true },
 ]
 
