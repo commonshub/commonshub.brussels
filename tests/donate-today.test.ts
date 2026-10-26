@@ -75,14 +75,16 @@ describe("moneriumReceived", () => {
 
 describe("summarise", () => {
   const r = (iso: string, amount: number): Received => ({ at: Date.parse(iso), amount, via: "card", kind: "payment", name: null })
-  test("today since midnight in Brussels, newest first; the rest of the month apart; totals add up to the cent", () => {
+  test("today since midnight in Brussels, newest first; the total adds up to the cent", () => {
     const out = summarise(
       [r("2026-09-30T21:59:00Z", 999), r("2026-10-01T08:00:00Z", 100.1), r("2026-10-24T21:59:00Z", 50.2), r("2026-10-24T22:01:00Z", 0.1), r("2026-10-25T14:00:00Z", 0.2), r("2026-10-25T16:00:00Z", 7)],
       new Date("2026-10-25T15:00:00Z"),
     )
     expect(out.today.map((t) => t.amount)).toEqual([0.2, 0.1])
     expect(out.todayTotal).toBe(0.3)
-    expect(out.monthBefore).toBe(150.3)
+    expect(out.daysInMonth).toBe(31)
+    expect(summarise([], new Date("2026-11-15T12:00:00Z")).daysInMonth).toBe(30)
+    expect(summarise([], new Date("2027-02-15T12:00:00Z")).daysInMonth).toBe(28)
   })
 })
 

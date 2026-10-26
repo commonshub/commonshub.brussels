@@ -40,8 +40,8 @@ export interface DonateToday {
   today: Received[]
   /** Euros received today. */
   todayTotal: number
-  /** Euros received earlier this month, before today. */
-  monthBefore: number
+  /** Days in this month (Brussels): a day of the hub is a month's costs divided by it. */
+  daysInMonth: number
   /** When this was read (ms). */
   at: number
 }
@@ -116,16 +116,15 @@ export function nameDonors(received: Received[], thanks: StripeThanks[] | null):
   })
 }
 
-/** Today's payments and the month's, from everything received since the first of the month. */
+/** Today's payments, from everything received lately. */
 export function summarise(received: Received[], now: Date): DonateToday {
   const dayStart = brusselsStart(now, "day")
-  const monthStart = brusselsStart(now, "month")
   const cents = (rs: Received[]) => Math.round(rs.reduce((sum, r) => sum + r.amount * 100, 0)) / 100
   const today = received.filter((r) => r.at >= dayStart && r.at <= now.getTime()).sort((a, b) => b.at - a.at)
   return {
     today,
     todayTotal: cents(today),
-    monthBefore: cents(received.filter((r) => r.at >= monthStart && r.at < dayStart)),
+    daysInMonth: Math.round((brusselsStart(new Date(brusselsStart(now, "month") + 32 * 86_400_000), "month") - brusselsStart(now, "month")) / 86_400_000),
     at: now.getTime(),
   }
 }
@@ -167,7 +166,7 @@ export async function loadDonateToday(now = new Date()): Promise<DonateToday> {
   if (cache && now.getTime() - cache.at < TTL_MS) return cache.value
   pending ??= (async () => {
     const [card, transfers, thanks] = await Promise.all([
-      stripeSince(brusselsStart(now, "month")).catch((error) => {
+      stripeSince(brusselsStart(now, "day")).catch((error) => {
         console.error("[donate-today] stripe:", error)
         return last.card
       }),
