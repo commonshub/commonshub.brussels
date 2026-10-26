@@ -108,12 +108,12 @@ export function PassView() {
 
       <h2 className="mt-8 text-lg font-bold text-foreground">A community space</h2>
       <p className="mt-2 text-[15px] text-muted-foreground">
-        The Commons Hub is a community space, not a rental venue. Please treat it as if it were your own house (unless you are messy at home 🙂).
-        If you like the place, become a member: members call this place home, book rooms, and steward it together with us.
+        The Commons Hub is a community space, not a rental venue. Please treat it as if it were your own house (unless you are messy at home, in which case treat it like somebody else&apos;s house 🙂).
+        If you like the place, apply to become a member: members call this place home, book rooms, and steward it together.
       </p>
       <p className="mt-4 text-center">
         <Link href="/apply" className="inline-flex rounded-lg border-2 border-primary px-5 py-2 font-semibold text-primary hover:bg-primary/5">
-          Become a member
+          Apply to become a member
         </Link>
       </p>
 
