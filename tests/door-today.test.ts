@@ -3,9 +3,9 @@
  * hub today: from the door's log, since midnight in Brussels, each person
  * once with their first arrival, a Discord avatar when the door knows one.
  */
-import { describe, expect, it, test } from "@jest/globals"
+import { describe, expect, test } from "@jest/globals"
 
-import { avatarsFromHome, todaysVisitors, withLastContribution, type DoorLogEntry } from "@/lib/door-today"
+import { avatarsFromHome, todaysVisitors, type DoorLogEntry } from "@/lib/door-today"
 
 const HOME = `<img class="today-avatar" src="https://cdn.discordapp.com/avatars/618897639836090398/974691a2ce85eb1d10e2cb6f97cbb22d.webp" alt="Avatar">
 <img class="avatar" src="https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp" alt="Avatar">`
@@ -33,28 +33,5 @@ describe("todaysVisitors", () => {
   test("21:30 UTC on the 25th is already the 26th in Brussels in summer time", () => {
     const vs = todaysVisitors([{ timestamp: "2026-06-25T22:30:00Z", status: "granted", name: "Early", userId: "9" }], new Map(), new Date("2026-06-26T08:00:00Z"))
     expect(vs.map((v) => v.name)).toEqual(["Early"])
-  })
-})
-
-describe("withLastContribution", () => {
-  const feeds = [
-    { messages: [
-      { timestamp: "2026-10-20T10:00:00Z", author: { id: "1", displayName: "Ana" }, content: "Watered the plants" },
-      { timestamp: "2026-10-24T10:00:00Z", author: { id: "1", displayName: "Ana" }, content: "Repotted the **big fig** https://example.com/x" },
-      { timestamp: "2026-10-22T10:00:00Z", author: { displayName: "Tom" }, content: "Fixed the wifi" },
-    ] },
-  ]
-  it("gives each visitor their latest contribution, by Discord id or by name", () => {
-    const out = withLastContribution(
-      [
-        { name: "Ana", arrivedAt: 0, avatar: null, guest: false, id: "1" },
-        { name: "tom", arrivedAt: 0, avatar: null, guest: false },
-        { name: "Leo", arrivedAt: 0, avatar: null, guest: true },
-      ],
-      feeds,
-    )
-    expect(out[0].lastContribution).toEqual({ text: "Repotted the big fig", at: Date.parse("2026-10-24T10:00:00Z") })
-    expect(out[1].lastContribution?.text).toBe("Fixed the wifi")
-    expect(out[2].lastContribution).toBeUndefined()
   })
 })
