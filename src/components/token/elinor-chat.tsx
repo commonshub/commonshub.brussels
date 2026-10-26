@@ -4,7 +4,12 @@
  * price in tokens, the member pays with tokens, and the room is booked.
  */
 
-function Avatar({ letter, bg }: { letter: string; bg: string }) {
+/** Elinor's Discord avatar (Elinor Ostrom), kept here so it doesn't depend on Discord's CDN. */
+const ELINOR_AVATAR = "/images/token/elinor.png"
+
+function Avatar({ letter, bg, src }: { letter: string; bg: string; src?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  if (src) return <img src={src} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-full object-cover" aria-hidden />
   return (
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold text-white" style={{ background: bg }} aria-hidden>
       {letter}
@@ -15,7 +20,7 @@ function Avatar({ letter, bg }: { letter: string; bg: string }) {
 function Message({ who, bot, color, letter, time, children }: { who: string; bot?: boolean; color: string; letter: string; time: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3 px-4 py-2">
-      <Avatar letter={letter} bg={color} />
+      <Avatar letter={letter} bg={color} src={who === "Elinor" ? ELINOR_AVATAR : undefined} />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-1.5 text-[15px]">
           <span className="font-semibold" style={{ color: bot ? "#fff" : color }}>
