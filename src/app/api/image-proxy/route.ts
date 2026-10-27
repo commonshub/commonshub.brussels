@@ -9,6 +9,8 @@ import {
   fetchAndProcessExternalImage,
   readCachedResize,
   resizeAndCacheImage,
+  isCrop,
+  type Crop,
   type ImageSize,
   SIZE_CONFIG,
   CACHE_DURATION,
@@ -44,6 +46,7 @@ const IMAGE_TYPES: Record<string, string> = {
  * Query parameters:
  * - url: Image URL or local path (e.g., /data/2026/09/public/events/images/evt.png or /images/foo.jpg) (required)
  * - size: Optional size parameter (xs|sm|md|lg) for resizing
+ * - crop: Optional fixed shape for a local photo with a size: l (4:3) or p (tall), see CROPS
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -64,7 +67,8 @@ export async function GET(request: NextRequest) {
     if (!isServableDataPath(relativePath)) {
       return NextResponse.json({ error: "Not a served file" }, { status: 403 });
     }
-    return handleLocalPath(request, relativePath, sizeParam, DATA_DIR);
+    const crop = searchParams.get("crop");
+    return handleLocalPath(request, relativePath, sizeParam, DATA_DIR, isCrop(crop) ? crop : undefined);
   }
 
   if (url.startsWith("/images/")) {
@@ -82,7 +86,7 @@ export async function GET(request: NextRequest) {
 }
 
 /** Serve one image from under `rootDir`; the path must stay inside it. */
-async function handleLocalPath(request: NextRequest, relativePath: string, sizeParam: ImageSize | null, rootDir: string): Promise<NextResponse> {
+async function handleLocalPath(request: NextRequest, relativePath: string, sizeParam: ImageSize | null, rootDir: string, crop?: Crop): Promise<NextResponse> {
   try {
     const resolvedRootDir = path.resolve(rootDir);
     const resolvedPath = path.resolve(rootDir, relativePath);
@@ -101,9 +105,9 @@ async function handleLocalPath(request: NextRequest, relativePath: string, sizeP
     if (sizeParam && SIZE_CONFIG[sizeParam]) {
       // Keyed on the path: a basename alone could collide across folders.
       const imageId = crypto.createHash("md5").update(`${rootDir}:${relativePath}`).digest("hex");
-      const cached = readCachedResize(imageId, sizeParam);
+      const cached = readCachedResize(imageId, sizeParam, crop);
       if (cached) return new NextResponse(new Uint8Array(cached), { headers: headers("image/jpeg") });
-      const resized = await resizeAndCacheImage(fs.readFileSync(resolvedPath), imageId, sizeParam);
+      const resized = await resizeAndCacheImage(fs.readFileSync(resolvedPath), imageId, sizeParam, crop);
       return new NextResponse(new Uint8Array(resized), { headers: headers("image/jpeg") }); // resized images are JPEG
     }
 

@@ -7,7 +7,7 @@
  */
 
 import { HUB } from "./shift-email"
-import { SITE, lineText, periodName, periodPath, shortDate, tokens, type Recap } from "./monthly-recap"
+import { SITE, lineText, mosaicRows, periodName, periodPath, shortDate, tokens, type MosaicTile, type Recap } from "./monthly-recap"
 import { settingsUrl } from "./notification-links"
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
@@ -16,7 +16,7 @@ const eventWhen = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" }).replace(",", "")
 
 /** An absolute, resized photo URL the email can load. */
-const photoUrl = (src: string, origin: string) => `${origin}/api/image-proxy?${new URLSearchParams({ url: src, size: "sm" })}`
+const photoUrl = (src: string, origin: string, crop?: MosaicTile["crop"]) => `${origin}/api/image-proxy?${new URLSearchParams({ url: src, size: "sm", ...(crop ? { crop } : {}) })}`
 
 export const recapUrl = (r: Pick<Recap, "member" | "period">, origin = SITE) => `${origin}/${encodeURIComponent(r.member.username)}/${periodPath(r.period)}`
 
@@ -47,16 +47,14 @@ export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settin
       )
       .join("")}</table>`
 
-  const photos = r.photos.slice(0, 12)
-  const rows: string[] = []
-  for (let i = 0; i < photos.length; i += 3) {
-    const cells = photos.slice(i, i + 3).map(
-      (p) =>
-        `<td width="33%" style="padding:3px;vertical-align:top"><img src="${esc(photoUrl(p.src, origin))}" alt="${esc(p.text || `Shared by ${p.by}`)}" width="176" style="display:block;width:100%;height:auto;border-radius:8px;border:0"></td>`,
-    )
+  // Columns of one portrait or two stacked landscapes, cropped by the image proxy to shapes that line up.
+  const img = (t: MosaicTile) =>
+    `<img src="${esc(photoUrl(t.photo.src, origin, t.crop))}" alt="${esc(t.photo.text || `Shared by ${t.photo.by}`)}" width="175" style="display:block;width:100%;height:auto;border-radius:8px;border:0">`
+  const rows = mosaicRows(r.photos.slice(0, 12)).map((cols) => {
+    const cells = cols.map((tiles) => `<td width="33%" style="padding:3px;vertical-align:top">${tiles.map(img).join(`<div style="height:6px;line-height:6px;font-size:0">&nbsp;</div>`)}</td>`)
     while (cells.length < 3) cells.push(`<td width="33%"></td>`)
-    rows.push(`<tr>${cells.join("")}</tr>`)
-  }
+    return `<tr>${cells.join("")}</tr>`
+  })
 
   const quiet = r.days === 0 && !r.received.length && !r.spent.length && !r.praise.length
 

@@ -64,6 +64,42 @@ export interface RecapPhoto {
   src: string
   by: string
   text: string
+  /** Taller than wide (once rotated as the camera meant); unknown counts as landscape. */
+  portrait?: boolean
+}
+
+/** One tile of the mosaic: `l` 4:3, `p` as tall as two `l` (the image proxy's crops). */
+export interface MosaicTile {
+  photo: RecapPhoto
+  crop: "l" | "p"
+}
+
+/**
+ * Photos as columns of a mosaic, in order: a portrait fills a column, two
+ * landscapes stack in one, so every column is the same height. A landscape
+ * left alone is shown tall.
+ */
+export function mosaicColumns(photos: RecapPhoto[]): MosaicTile[][] {
+  const columns: MosaicTile[][] = []
+  let open: MosaicTile[] | null = null
+  for (const photo of photos) {
+    if (photo.portrait) columns.push([{ photo, crop: "p" }])
+    else if (open) {
+      open.push({ photo, crop: "l" })
+      open = null
+    } else {
+      open = [{ photo, crop: "l" }]
+      columns.push(open)
+    }
+  }
+  if (open) open[0].crop = "p"
+  return columns
+}
+
+/** Columns in rows of `n`. */
+export const mosaicRows = (photos: RecapPhoto[], n = 3) => {
+  const cols = mosaicColumns(photos)
+  return Array.from({ length: Math.ceil(cols.length / n) }, (_, i) => cols.slice(i * n, i * n + n))
 }
 
 export interface RecapEvent {
@@ -424,5 +460,20 @@ export async function loadRecap(who: string | { id: string }, period: Period, no
   for (const [id, address] of accounts) if (id !== member.id) names.set(address, people.get(id)!)
   const hasTransfers = months.some((m) => (m.transactions?.transactions ?? []).some((t) => t.type === "DEBIT"))
   const notes = hasTransfers ? await transferNotes(period).catch(() => []) : []
-  return buildRecap(member, period, months, readTierJson<EventsFile>("public", "events.json"), accounts.get(member.id) ?? null, { names, notes, now })
+  const recap = buildRecap(member, period, months, readTierJson<EventsFile>("public", "events.json"), accounts.get(member.id) ?? null, { names, notes, now })
+  recap.photos = await Promise.all(recap.photos.map(async (p) => ({ ...p, portrait: await isPortrait(p.src) })))
+  return recap
+}
+
+/** Whether a photo of the dataset is taller than wide, from its header (EXIF orientations 5–8 turn it a quarter). */
+async function isPortrait(src: string): Promise<boolean> {
+  try {
+    const [{ default: sharp }, path, { DATA_DIR }] = await Promise.all([import("sharp"), import("path"), import("./data-paths")])
+    const file = path.join(DATA_DIR, src.replace(/^\/data\//, ""))
+    if (!file.startsWith(DATA_DIR + path.sep)) return false
+    const { width = 0, height = 0, orientation = 1 } = await sharp(file).metadata()
+    return orientation >= 5 ? width > height : height > width
+  } catch {
+    return false
+  }
 }

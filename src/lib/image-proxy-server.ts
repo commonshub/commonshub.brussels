@@ -94,10 +94,22 @@ export function getImageCacheDir(): string | null {
  * @param size - Target size (xs, sm, md, lg)
  * @returns Buffer of resized image
  */
+/**
+ * Fixed shapes for photo mosaics (the recap emails): `l` is 4:3, `p` is as
+ * tall as two `l` stacked with a 6px gap in a 175px-wide column, so a
+ * portrait lines up with two landscapes beside it. Cropped around what
+ * draws the eye (sharp's "attention").
+ */
+export const CROPS = { l: 3 / 4, p: 268 / 175 } as const;
+export type Crop = keyof typeof CROPS;
+export const isCrop = (c: string | null): c is Crop => c === "l" || c === "p";
+
+const cacheName = (imageId: string, size: ImageSize, crop?: Crop) => `${imageId}-${size}${crop ? `-${crop}` : ""}.jpg`;
+
 /** A resized copy already in the cache, or null. */
-export function readCachedResize(imageId: string, size: ImageSize): Buffer | null {
+export function readCachedResize(imageId: string, size: ImageSize, crop?: Crop): Buffer | null {
   const cacheDir = getImageCacheDir();
-  const cachedPath = cacheDir ? path.join(cacheDir, `${imageId}-${size}.jpg`) : null;
+  const cachedPath = cacheDir ? path.join(cacheDir, cacheName(imageId, size, crop)) : null;
   try {
     return cachedPath && fs.existsSync(cachedPath) ? fs.readFileSync(cachedPath) : null;
   } catch {
@@ -108,10 +120,11 @@ export function readCachedResize(imageId: string, size: ImageSize): Buffer | nul
 export async function resizeAndCacheImage(
   sourceBuffer: Buffer,
   imageId: string,
-  size: ImageSize
+  size: ImageSize,
+  crop?: Crop
 ): Promise<Buffer> {
   const cacheDir = getImageCacheDir();
-  const cachedPath = cacheDir ? path.join(cacheDir, `${imageId}-${size}.jpg`) : null;
+  const cachedPath = cacheDir ? path.join(cacheDir, cacheName(imageId, size, crop)) : null;
 
   // Check if cached version exists
   if (cachedPath && fs.existsSync(cachedPath)) {
@@ -125,11 +138,11 @@ export async function resizeAndCacheImage(
 
   const resizedBuffer = await sharp(sourceBuffer)
     .rotate()
-    .resize(maxWidth, undefined, {
-      width: maxWidth,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
+    .resize(
+      crop
+        ? { width: maxWidth, height: Math.round(maxWidth * CROPS[crop]), fit: "cover", position: sharp.strategy.attention }
+        : { width: maxWidth, fit: "inside", withoutEnlargement: true }
+    )
     .jpeg({ quality: 85 })
     .toBuffer();
 
