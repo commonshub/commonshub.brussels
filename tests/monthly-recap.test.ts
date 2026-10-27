@@ -1,4 +1,4 @@
-import { buildRecap, doorDays, lineText, parsePeriod, periodName, shiftPeriod, tokenReason } from "@/lib/monthly-recap"
+import { buildRecap, doorDays, lineText, mosaicColumns, parsePeriod, periodName, shiftPeriod, tokenReason } from "@/lib/monthly-recap"
 import { buildRecapEmail } from "@/lib/monthly-recap-email"
 
 const me = { id: "42", username: "xavier", name: "Xavier" }
@@ -101,5 +101,16 @@ describe("periods", () => {
     expect(parsePeriod("xavier", "10")).toBeNull()
     expect(shiftPeriod(parsePeriod("2026", "01")!, -1)).toMatchObject({ year: "2025", part: "12" })
     expect(shiftPeriod(parsePeriod("2026", "q1")!, -1)).toMatchObject({ year: "2025", part: "Q4" })
+  })
+})
+
+describe("mosaicColumns", () => {
+  const ph = (id: string, portrait = false) => ({ src: `/data/2026/10/public/images/${id}.jpg`, by: "Ana", text: "", portrait })
+  it("puts a portrait alone and stacks two landscapes", () => {
+    const cols = mosaicColumns([ph("a"), ph("b", true), ph("c"), ph("d"), ph("e", true)])
+    expect(cols.map((c) => c.map((t) => `${t.photo.src.slice(-5, -4)}${t.crop}`))).toEqual([["al", "cl"], ["bp"], ["dp"], ["ep"]])
+  })
+  it("shows a landscape left alone tall", () => {
+    expect(mosaicColumns([ph("a")])[0][0].crop).toBe("p")
   })
 })

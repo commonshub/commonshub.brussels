@@ -5,7 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, DoorOpen, HeartHandshake } fro
 import { SignInPrompt } from "@/components/day/sign-in-prompt"
 import { isMember } from "@/lib/admin-check"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
-import { lineText, loadRecap, periodName, periodPath, shiftPeriod, shortDate, tokens, type Period, type TokenLine } from "@/lib/monthly-recap"
+import { lineText, loadRecap, mosaicRows, periodName, periodPath, shiftPeriod, shortDate, tokens, type Period, type TokenLine } from "@/lib/monthly-recap"
 
 /**
  * /<username>/<year>/<month>, /<username>/<year>/Q<n> and /<username>/<year>:
@@ -132,10 +132,26 @@ export async function MemberRecap({ username, period }: { username: string; peri
       {r.photos.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-2 text-lg font-bold text-foreground">Shared in #contributions</h2>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-            {r.photos.map((p, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={getProxiedImageUrl(p.src, "sm", { relative: true })} alt={p.text || `Shared by ${p.by}`} title={p.text ? `${p.by}: ${p.text}` : p.by} loading="lazy" className="aspect-square w-full rounded-lg object-cover" />
+          {/* Columns of one portrait or two stacked landscapes, as in the email. */}
+          <div className="space-y-1.5">
+            {mosaicRows(r.photos).map((cols, i) => (
+              <div key={i} className="grid grid-cols-3 gap-1.5">
+                {cols.map((tiles, j) => (
+                  <div key={j} className="flex flex-col gap-1.5">
+                    {tiles.map((t, k) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={k}
+                        src={`${getProxiedImageUrl(t.photo.src, "sm", { relative: true })}&crop=${t.crop}`}
+                        alt={t.photo.text || `Shared by ${t.photo.by}`}
+                        title={t.photo.text ? `${t.photo.by}: ${t.photo.text}` : t.photo.by}
+                        loading="lazy"
+                        className={`w-full rounded-lg object-cover ${t.crop === "l" ? "aspect-[4/3]" : "h-full min-h-0 flex-1"}`}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
             ))}
           </div>
         </section>
