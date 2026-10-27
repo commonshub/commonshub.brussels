@@ -50,6 +50,16 @@ export const getAccountAddressFromDiscordUserId = async (userId: string): Promis
   return cardAddress
 }
 
+/** The token accounts of many Discord users at once (one multicall); null where the read failed. */
+export const getCardAddresses = async (userIds: string[]): Promise<Map<string, string | null>> => {
+  const client = createPublicClient({ chain: celo, transport: http(process.env.CELO_RPC_URL || "https://forno.celo.org") })
+  const instance = keccak256(toHex("cw-discord-1"))
+  const results = await client.multicall({
+    contracts: userIds.map((id) => ({ address: CARD_MANAGER_ADDRESS, abi: cardManagerModuleAbi, functionName: "getCardAddress", args: [instance, keccak256(toHex(id))] }) as const),
+  })
+  return new Map(userIds.map((id, i) => [id, results[i].status === "success" ? (results[i].result as string) : null]))
+}
+
 const erc20BalanceAbi = [
   { type: "function", name: "balanceOf", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
 ] as const
