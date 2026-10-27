@@ -109,6 +109,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
+      // A member seen logged in: record which membership id (the hash of their Discord email) is theirs, for chb (lib/discord-links.ts).
+      if (token.discordId && token.email && ((token.roles as string[]) ?? []).includes(settings.discord.roles.member)) {
+        const discordId = token.discordId as string
+        const email = token.email as string
+        void Promise.all([import("@/lib/discord-links"), import("@/lib/membership")])
+          .then(([{ recordLoginLink }, { memberIdForEmail }]) => recordLoginLink(discordId, memberIdForEmail(email)))
+          .catch(() => {})
+      }
+
       // Token refresh logic - check if token is expired or about to expire
       const now = Math.floor(Date.now() / 1000)
       const expiresAt = token.expiresAt as number | undefined
