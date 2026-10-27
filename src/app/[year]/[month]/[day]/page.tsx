@@ -25,6 +25,8 @@ import { RELAYS } from "@/lib/nostr-server"
 import { MAX_SIGNUPS_PER_SLOT, SHIFTS_DESCRIPTION, SHIFT_SLOTS, loadDoorOpenings, loadPublicEventsForDay, loadShiftSignups } from "@/lib/day-data"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
 import { fetchRoomEventsForRange } from "@/lib/room-calendar"
+import { MemberRecap } from "@/components/recap/member-recap"
+import { isRecapPath, monthName } from "@/lib/monthly-recap"
 
 // Reads the dataset and live calendars: never prerender.
 export const dynamic = "force-dynamic"
@@ -37,6 +39,8 @@ const longDate = (day: string, opts: Intl.DateTimeFormatOptions) => new Date(`${
 
 export async function generateMetadata({ params }: PageProps) {
   const { year, month, day } = await params
+  // /<username>/<year>/<month>: a member's month (the segments shift by one).
+  if (!/^\d{4}$/.test(year) && isRecapPath(month, day)) return { title: `${monthName(month, day)} at the Commons Hub`, robots: { index: false } }
   const date = `${year}-${month}-${day}`
   if (!DAY_RE.test(date)) return {}
   return { title: `${longDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} at the Commons Hub` }
@@ -73,6 +77,10 @@ function Item({ item }: { item: ScheduleItem }) {
 
 export default async function DayPage({ params }: PageProps) {
   const { year, month, day } = await params
+  if (!/^\d{4}$/.test(year)) {
+    if (!isRecapPath(month, day)) notFound()
+    return <MemberRecap username={year} year={month} month={day} />
+  }
   const date = `${year}-${month}-${day}`
   if (!DAY_RE.test(date)) notFound()
 
