@@ -1,10 +1,12 @@
-import { buildRecap, doorDays, tokenReason } from "@/lib/monthly-recap"
+import { buildRecap, doorDays, lineText, parsePeriod, periodName, shiftPeriod, tokenReason } from "@/lib/monthly-recap"
 import { buildRecapEmail } from "@/lib/monthly-recap-email"
 
 const me = { id: "42", username: "xavier", name: "Xavier" }
 const ADDR = "0xAbC0000000000000000000000000000000000001"
+const DEAN = "0x00000000000000000000000000000000000000de"
 const tx = (type: string, amount: number, description = "", t?: string) => ({
   accountId: `ethereum:42220:address:${ADDR.toLowerCase()}`,
+  counterparty: DEAN,
   currency: "CHT",
   type,
   amount,
@@ -18,7 +20,7 @@ describe("tokenReason", () => {
     expect(tokenReason({ type: "MINT", metadata: { description: "Heartbeat 107 attendance on 2026-10-12: Miriam, Xavier, Ben" } })).toBe("Heartbeat 107 attendance on 2026-10-12")
     expect(tokenReason({ type: "BURN", metadata: { description: "Guest pass, half day for Xavier: for a guest, today, 16:51–21:51" } })).toBe("Guest pass, half day")
     expect(tokenReason({ type: "BURN", metadata: { note: "Booking Ostrom Room room for 3h" } })).toBe("Booking Ostrom Room for 3h")
-    expect(tokenReason({ type: "DEBIT", metadata: {} })).toBe("Sent to another member")
+    expect(tokenReason({ type: "DEBIT", metadata: {} })).toBe("")
     expect(tokenReason({ type: "MINT", metadata: { t: "shift" } })).toBe("Caretaking shift")
   })
 })
@@ -40,6 +42,7 @@ describe("buildRecap", () => {
         tx("MINT", 1.5, "Heartbeat 1 attendance on 2026-10-12: Ana"),
         tx("BURN", -2, "Booking Mush Room room for 2h"),
         tx("DEBIT", -1),
+        { ...tx("DEBIT", -7, "Thanks for the soup"), accountId: `ethereum:42220:address:${DEAN}`, counterparty: ADDR.toLowerCase() },
         { ...tx("MINT", 9, "someone else's"), accountId: "ethereum:42220:address:0xdead" },
         { ...tx("MINT", 4, "euros"), currency: "EURe" },
       ],
@@ -59,12 +62,16 @@ describe("buildRecap", () => {
     },
     events: { events: [{ name: "Past", startAt: "2026-10-01T18:00:00Z", url: "https://lu.ma/past" }, { name: "Potluck", startAt: "2026-11-05T18:00:00Z", url: "https://lu.ma/potluck" }] },
   }
-  const r = buildRecap(me, "2026", "10", files, ADDR, new Date("2026-10-27T12:00:00Z"))
+  const { events, ...month } = files
+  const notes = [{ at: 1791000000 - 1 + 60, amount: 1, text: "chinese lesson" }]
+  const names = new Map([[DEAN, "Dean"]])
+  const r = buildRecap(me, parsePeriod("2026", "10")!, [month], events, ADDR, { names, notes, now: new Date("2026-10-27T12:00:00Z") })
 
   it("counts only their own token movements, and the totals add up", () => {
-    expect(r.received.map((l) => l.amount)).toEqual([1.5, 3])
-    expect(r.spent.map((l) => l.what)).toEqual(["Booking Mush Room for 2h", "Sent to another member"])
-    expect(r.receivedTotal).toBe(4.5)
+    expect(r.received.map((l) => l.amount)).toEqual([7, 1.5, 3])
+    expect(lineText(r.received[0])).toBe("Thanks for the soup, from Dean")
+    expect(r.spent.map(lineText)).toEqual(["Booking Mush Room for 2h", "Chinese lesson, to Dean"])
+    expect(r.receivedTotal).toBe(11.5)
     expect(r.spentTotal).toBe(3)
   })
   it("has the thank-yous others gave them, the month's photos (theirs first) and upcoming events", () => {
@@ -79,7 +86,20 @@ describe("buildRecap", () => {
     expect(html).toContain("https://commonshub.brussels/shifts")
     expect(html).toContain("https://commonshub.brussels/xavier/2026/10")
     expect(html).toContain("for fixing the door!")
-    expect(text).toContain("+4.5 tokens received")
+    expect(text).toContain("+11.5 tokens received")
+    expect(html).toContain("https://commonshub.brussels/notifications")
     expect(html).not.toContain("CHT")
+  })
+})
+
+describe("periods", () => {
+  it("reads months, quarters and years", () => {
+    expect(parsePeriod("2026", "Q4")!.months).toEqual(["10", "11", "12"])
+    expect(periodName(parsePeriod("2026", "Q4")!)).toBe("October–December 2026")
+    expect(periodName(parsePeriod("2026")!)).toBe("2026")
+    expect(parsePeriod("2026", "13")).toBeNull()
+    expect(parsePeriod("xavier", "10")).toBeNull()
+    expect(shiftPeriod(parsePeriod("2026", "01")!, -1)).toMatchObject({ year: "2025", part: "12" })
+    expect(shiftPeriod(parsePeriod("2026", "q1")!, -1)).toMatchObject({ year: "2025", part: "Q4" })
   })
 })

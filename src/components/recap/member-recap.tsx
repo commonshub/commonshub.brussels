@@ -5,21 +5,17 @@ import { CalendarDays, ChevronLeft, ChevronRight, DoorOpen, HeartHandshake } fro
 import { SignInPrompt } from "@/components/day/sign-in-prompt"
 import { isMember } from "@/lib/admin-check"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
-import { loadRecap, monthName, shortDate, tokens, type TokenLine } from "@/lib/monthly-recap"
+import { lineText, loadRecap, periodName, periodPath, shiftPeriod, shortDate, tokens, type Period, type TokenLine } from "@/lib/monthly-recap"
 
 /**
- * /<username>/<year>/<month>: a member's month at the hub, the online
- * version of the monthly email (lib/monthly-recap-email.ts). Members only:
- * it says on which days someone came.
+ * /<username>/<year>/<month>, /<username>/<year>/Q<n> and /<username>/<year>:
+ * a member's month, quarter or year at the hub, the online version of the
+ * recap email (lib/monthly-recap-email.ts). Members only: it says how often
+ * someone came.
  */
 
 const eventWhen = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Brussels" })
-
-function shift(year: string, month: string, by: number): { year: string; month: string } {
-  const d = new Date(Date.UTC(Number(year), Number(month) - 1 + by, 1))
-  return { year: String(d.getUTCFullYear()), month: String(d.getUTCMonth() + 1).padStart(2, "0") }
-}
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -39,7 +35,7 @@ function Lines({ title, lines }: { title: string; lines: TokenLine[] }) {
         {lines.map((l, i) => (
           <li key={i} className="flex items-baseline gap-3 px-4 py-2.5 text-[15px]">
             <span className="w-14 shrink-0 text-sm text-muted-foreground">{shortDate(l.at)}</span>
-            <span className="min-w-0 flex-1">{l.what}</span>
+            <span className="min-w-0 flex-1">{lineText(l)}</span>
             <span className="shrink-0 font-semibold">{tokens(l.amount)}</span>
           </li>
         ))}
@@ -48,22 +44,29 @@ function Lines({ title, lines }: { title: string; lines: TokenLine[] }) {
   )
 }
 
-export async function MemberRecap({ username, year, month }: { username: string; year: string; month: string }) {
+const SPAN = { month: "month", quarter: "quarter", year: "year" }
+
+export async function MemberRecap({ username, period }: { username: string; period: Period }) {
   if (!(await isMember())) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <h1 className="mb-4 text-2xl font-bold text-foreground">{monthName(year, month)} at the Commons Hub</h1>
-        <SignInPrompt>Members only: log in to see this month.</SignInPrompt>
+        <h1 className="mb-4 text-2xl font-bold text-foreground">{periodName(period)} at the Commons Hub</h1>
+        <SignInPrompt>Members only: log in to see this {SPAN[period.kind]}.</SignInPrompt>
       </main>
     )
   }
-  const r = await loadRecap(decodeURIComponent(username), year, month)
+  const r = await loadRecap(decodeURIComponent(username), period)
   if (!r) notFound()
-  const prev = shift(year, month, -1)
-  const next = shift(year, month, 1)
+  const prev = shiftPeriod(period, -1)
+  const next = shiftPeriod(period, 1)
   const now = new Date()
-  const hasNext = Number(next.year) * 12 + Number(next.month) <= now.getFullYear() * 12 + now.getMonth() + 1
+  const hasNext = Number(next.year) * 12 + Number(next.months[0]) <= now.getFullYear() * 12 + now.getMonth() + 1
   const base = `/${encodeURIComponent(r.member.username)}`
+  const other = (["month", "quarter", "year"] as const).filter((k) => k !== period.kind)
+  const sameTime = (k: Period["kind"]) => {
+    const m = Number(period.months[0])
+    return k === "year" ? period.year : k === "quarter" ? `${period.year}/Q${Math.floor((m - 1) / 3) + 1}` : `${period.year}/${period.months[0]}`
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-14 pt-10 sm:px-6">
@@ -74,17 +77,25 @@ export async function MemberRecap({ username, year, month }: { username: string;
         ) : null}
         <div className="min-w-0">
           <h1 className="text-2xl font-extrabold text-foreground sm:text-3xl">
-            {r.member.name}’s {monthName(year, month)}
+            {r.member.name}’s {periodName(period)}
           </h1>
           <nav className="mt-1 flex gap-4 text-sm">
-            <Link href={`${base}/${prev.year}/${prev.month}`} className="inline-flex items-center text-primary hover:underline">
-              <ChevronLeft className="h-4 w-4" /> {monthName(prev.year, prev.month, false)}
+            <Link href={`${base}/${periodPath(prev)}`} className="inline-flex items-center text-primary hover:underline">
+              <ChevronLeft className="h-4 w-4" /> {periodName(prev, prev.year !== period.year || period.kind === "year")}
             </Link>
             {hasNext && (
-              <Link href={`${base}/${next.year}/${next.month}`} className="inline-flex items-center text-primary hover:underline">
-                {monthName(next.year, next.month, false)} <ChevronRight className="h-4 w-4" />
+              <Link href={`${base}/${periodPath(next)}`} className="inline-flex items-center text-primary hover:underline">
+                {periodName(next, next.year !== period.year || period.kind === "year")} <ChevronRight className="h-4 w-4" />
               </Link>
             )}
+          </nav>
+          <nav className="mt-1 flex gap-3 text-sm text-muted-foreground">
+            See the{" "}
+            {other.map((k) => (
+              <Link key={k} href={`${base}/${sameTime(k)}`} className="underline hover:text-foreground">
+                {SPAN[k]}
+              </Link>
+            ))}
           </nav>
         </div>
       </div>
@@ -160,7 +171,7 @@ export async function MemberRecap({ username, year, month }: { username: string;
 
       {r.days === 0 && r.received.length === 0 && (
         <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
-          <DoorOpen className="h-4 w-4" /> No visits recorded at the door this month.
+          <DoorOpen className="h-4 w-4" /> No visits recorded at the door this {SPAN[period.kind]}.
         </p>
       )}
     </main>
