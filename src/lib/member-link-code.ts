@@ -58,9 +58,9 @@ function codeForWindow(secret: string, accountIdentifier: string, emailIdentifie
 export function issueLinkCode(
   accountIdentifier: string,
   emailIdentifier: string,
-  now: number = Date.now()
+  now: number = Date.now(),
+  secret: string | null = linkSecret()
 ): string | null {
-  const secret = linkSecret();
   if (secret === null) return null;
   return codeForWindow(secret, accountIdentifier, emailIdentifier, Math.floor(now / WINDOW_MS));
 }
@@ -77,9 +77,9 @@ export function verifyLinkCode(
   accountIdentifier: string,
   emailIdentifier: string,
   submitted: string,
-  now: number = Date.now()
+  now: number = Date.now(),
+  secret: string | null = linkSecret()
 ): boolean {
-  const secret = linkSecret();
   if (secret === null) return false;
 
   const candidate = (submitted || "").trim();

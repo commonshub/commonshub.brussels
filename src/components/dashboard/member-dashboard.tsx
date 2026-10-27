@@ -4,12 +4,14 @@ import { ArrowRight, CalendarDays, Hand, Laptop, MapPin, MessageCircle, Presenta
 
 import { Logo } from "@/components/logo"
 import { ActionToggle } from "@/components/dashboard/action-toggle"
+import { AddEmailCard } from "@/components/dashboard/add-email"
 import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { NextShiftCard, SignUpForShift } from "@/components/dashboard/next-shift"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { planFor } from "@/lib/member-plan"
+import { chbPubkey, needsEmail } from "@/lib/partner-email"
 import { isApplicationsConfigured, listApplications } from "@/lib/membership-applications-store"
 import settings from "@/settings/settings.json"
 
@@ -22,6 +24,7 @@ type User = { discordId: string; username: string; email?: string | null; avatar
  * What a member sees at /, instead of the homepage (still at /homepage):
  * open the door (without leaving the page), ask Elinor, cowork or book a room (for themselves or a
  * guest), their next shift (or sign up for one), vouch for applicants, what's coming up, and their membership plan.
+ * When chb has no email for their membership, a card asks for one (lib/partner-email.ts).
  * Their token balance is in the header.
  */
 export function MemberDashboard({ user }: { user: User }) {
@@ -41,6 +44,8 @@ export function MemberDashboard({ user }: { user: User }) {
           </span>
         </a>
       </div>
+
+      {chbPubkey() && needsEmail(user.discordId) && <AddEmailCard />}
 
       <Suspense fallback={null}>
         <VouchCard />
