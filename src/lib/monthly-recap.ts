@@ -308,15 +308,25 @@ export function upcomingEvents(file: EventsFile | null, now = new Date(), limit 
 
 // ── loading ─────────────────────────────────────────────────────────────────
 
-/** A member by their Discord username (the community's contributors list). */
-export function findMember(username: string): RecapMember | null {
+/** A member by Discord username or id: the community's contributors list, else Discord itself. */
+export async function findMember(who: { username: string } | { id: string }): Promise<RecapMember | null> {
   const file = readTierJson<ContributorsFile>("public", "contributors.json")
-  const wanted = username.toLowerCase()
+  const wanted = "username" in who ? who.username.toLowerCase() : who.id
   for (const raw of file?.contributors ?? []) {
     const c = normalizeContributor(raw)
-    if (c.username?.toLowerCase() === wanted) return { id: String(c.id), username: c.username, name: c.displayName || c.username, avatar: c.avatar }
+    if (("username" in who ? c.username?.toLowerCase() : String(c.id)) === wanted) return { id: String(c.id), username: c.username, name: c.displayName || c.username, avatar: c.avatar }
   }
-  return null
+  const { isDiscordConfigured, searchGuildMembers } = await import("./discord")
+  if (!isDiscordConfigured()) return null
+  if ("id" in who) {
+    const { lookupMember } = await import("./day-data")
+    const m = await lookupMember(who.id)
+    return m?.username ? { id: m.id, username: m.username, name: m.name, avatar: m.avatar ?? null } : null
+  }
+  if (!/^[\w.]{2,32}$/.test(wanted)) return null
+  const { default: settings } = await import("@/settings/settings.json")
+  const match = (await searchGuildMembers(settings.discord.guildId, wanted, 10).catch(() => [])).find((m) => m.username.toLowerCase() === wanted)
+  return match ? { id: match.id, username: match.username, name: match.displayName, avatar: match.avatar } : null
 }
 
 /** One month's files. */
@@ -394,8 +404,8 @@ async function transferNotes(period: Period): Promise<TransferNote[]> {
     .filter((n) => Number.isFinite(n.amount) && n.text)
 }
 
-export async function loadRecap(username: string, period: Period, now = new Date()): Promise<Recap | null> {
-  const member = findMember(username)
+export async function loadRecap(who: string | { id: string }, period: Period, now = new Date()): Promise<Recap | null> {
+  const member = await findMember(typeof who === "string" ? { username: who } : who)
   if (!member) return null
   const read = <T,>(month: string, file: string) => readTierJson<T>("members", file, period.year, month)
   const months: MonthFiles[] = period.months.map((m) => ({

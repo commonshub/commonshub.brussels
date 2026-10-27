@@ -8,7 +8,7 @@
 import * as fs from "fs"
 import * as path from "path"
 
-import { findMember, loadRecap, parsePeriod } from "../src/lib/monthly-recap"
+import { loadRecap, parsePeriod } from "../src/lib/monthly-recap"
 import { buildRecapEmail } from "../src/lib/monthly-recap-email"
 import { settingsUrl, signSettingsLink } from "../src/lib/notification-links"
 
@@ -27,7 +27,7 @@ async function main() {
   const origin = "https://commonshub.brussels"
   let token: string | undefined
   try {
-    token = signSettingsLink(findMember(username)!.id)
+    token = signSettingsLink(recap.member.id)
   } catch {}
   const { subject, html, text } = buildRecapEmail(recap, { origin, settingsLink: settingsUrl(origin, token) })
   const base = path.join(out, `${username}-${period.year}${period.part ? `-${period.part}` : ""}`)
