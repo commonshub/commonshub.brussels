@@ -96,8 +96,13 @@ function StartMembership() {
 
   return (
     <>
+      <p className="mt-2 text-foreground">You are not a member of the Commons Hub yet.</p>
       <p className="mt-2 text-sm text-muted-foreground">
-        We can&apos;t find your plan (new payments show up within a day). If you don&apos;t have one, start it here. Questions?{" "}
+        You may have access as part of your organisation, but we encourage you to also become a member as an individual, to build your own relationship with the commons in
+        Brussels. The commons needs your organisation. But it also needs you.
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Just paid? It shows up here within a day. Questions?{" "}
         <a href="mailto:hello@commonshub.brussels" className="text-primary underline">
           hello@commonshub.brussels
         </a>
