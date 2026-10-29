@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { CreditCard, Loader2 } from "lucide-react"
 
-import { MONTHLY_PRICES } from "@/lib/membership-application"
+import { DEFAULT_MONTHLY, MONTHLY_PRICES, PAYMENT_LINKS, YEARLY_PRICES } from "@/lib/membership-application"
 import type { MemberPlan } from "@/lib/member-plan"
 
 const longDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -11,7 +11,9 @@ const longDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("e
 /**
  * The member's plan. Individuals paying monthly by card choose €10, €15 or
  * €20 from their own income and situation, and can change it anytime (from
- * their next payment); a yearly plan changes when it renews.
+ * their next payment); a yearly plan changes when it renews. Without a plan
+ * they can start one: monthly by card (the membership's Stripe payment
+ * link) or a year by bank transfer (/membership/pay/<amount>).
  */
 export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
   const [amount, setAmount] = useState(plan?.amount ?? null)
@@ -40,12 +42,7 @@ export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
         <CreditCard className="h-5 w-5 text-primary" /> Membership
       </h3>
       {!plan ? (
-        <p className="mt-2 text-sm text-muted-foreground">
-          We can&apos;t find your plan yet (new payments show up within a day). Questions?{" "}
-          <a href="mailto:hello@commonshub.brussels" className="text-primary underline">
-            hello@commonshub.brussels
-          </a>
-        </p>
+        <StartMembership />
       ) : (
         <>
           <p className="mt-2 text-foreground">
@@ -86,5 +83,68 @@ export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
         </>
       )}
     </div>
+  )
+}
+
+/** No plan found: start one, monthly by card or yearly by bank transfer. */
+function StartMembership() {
+  const [interval, setPeriod] = useState<"month" | "year">("month")
+  const [monthly, setMonthly] = useState<number>(DEFAULT_MONTHLY)
+  const prices = interval === "month" ? MONTHLY_PRICES : YEARLY_PRICES
+  const chosen = interval === "month" ? monthly : monthly * 10
+  const href = interval === "month" ? PAYMENT_LINKS[`individual${monthly}` as "individual10" | "individual15" | "individual20"].url : `/membership/pay/${chosen}`
+
+  return (
+    <>
+      <p className="mt-2 text-sm text-muted-foreground">
+        We can&apos;t find your plan (new payments show up within a day). If you don&apos;t have one, start it here. Questions?{" "}
+        <a href="mailto:hello@commonshub.brussels" className="text-primary underline">
+          hello@commonshub.brussels
+        </a>
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label="How often you pay">
+        {(
+          [
+            ["month", "Monthly, by card"],
+            ["year", "Yearly, by transfer"],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={interval === k}
+            onClick={() => setPeriod(k)}
+            className={`rounded-lg px-2 py-1.5 text-sm transition ${interval === k ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">
+        Pay what fits your income and situation.{interval === "year" ? " A year is ten months: two months free." : " You can change it anytime."}
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label={interval === "month" ? "Monthly amount" : "Yearly amount"}>
+        {prices.map((p, i) => {
+          const m = MONTHLY_PRICES[i].amount
+          return (
+            <button
+              key={p.amount}
+              type="button"
+              role="radio"
+              aria-checked={monthly === m}
+              onClick={() => setMonthly(m)}
+              className={`rounded-xl border-2 px-2 py-2 text-center text-sm transition ${monthly === m ? "border-primary bg-primary/10 font-bold text-foreground" : "border-border text-muted-foreground hover:border-primary/60"}`}
+            >
+              <span className="block text-base font-semibold text-foreground">€{p.amount}</span>
+              <span className="block text-xs">{p.label}</span>
+            </button>
+          )
+        })}
+      </div>
+      <a href={href} className="mt-4 flex h-11 w-full items-center justify-center rounded-lg bg-primary px-5 font-semibold text-primary-foreground transition hover:bg-primary/90">
+        {interval === "month" ? `Pay €${chosen} a month by card` : `Pay €${chosen} for a year by transfer`}
+      </a>
+    </>
   )
 }
