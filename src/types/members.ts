@@ -16,6 +16,8 @@ export interface Amount {
 export interface MemberAccounts {
   emailHash: string;
   discord?: string | null;
+  /** Salted fingerprints of the words of the member's name (lib/membership.ts nameTokenHash), from chb: matched with a Discord name, the name itself never leaves chb. */
+  nameTokens?: string[];
   // Future: nostr?: string | null;
 }
 

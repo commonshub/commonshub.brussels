@@ -28,7 +28,7 @@ type User = { discordId: string; username: string; email?: string | null; avatar
  * Their token balance is in the header.
  */
 export async function MemberDashboard({ user }: { user: User }) {
-  const plan = await findPlan(user)
+  const { plan, candidate } = await findPlan(user)
   return (
     <div className="mx-auto max-w-5xl px-4 pb-10 pt-10 sm:px-6">
       <h1 className="text-3xl font-extrabold text-foreground sm:text-4xl">Hi {user.username}</h1>
@@ -104,7 +104,7 @@ export async function MemberDashboard({ user }: { user: User }) {
               <span className="block text-sm text-muted-foreground">Your profile and contributions</span>
             </span>
           </Link>
-          <MembershipPlanCard plan={plan} />
+          <MembershipPlanCard plan={plan} candidate={candidate} />
         </div>
       </section>
 

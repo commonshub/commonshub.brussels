@@ -8,6 +8,8 @@
  *   - a member logs in with Discord: the email of their Discord account;
  *   - a member confirms another address with a code (the one they pay
  *     with, when it isn't their Discord one: /api/members/email);
+ *   - a member says yes to the membership whose name matches theirs
+ *     (/api/membership/claim-name; lib/member-plan.ts nameCandidate);
  *   - a membership application, once its applicant logged in after paying.
  * The first two are recorded as one addressable event per member and
  * address on the community relays (kind 30078), signed by the site and
@@ -26,7 +28,8 @@ import { publishAsSite, queryRelays, siteIdentity } from "./nostr-server"
 export interface DiscordLink {
   discordId: string
   emailHash: string
-  source: "login" | "email" | "application"
+  /** "name": the member said a membership whose name matches theirs is theirs (weaker: a Discord name can be changed). */
+  source: "login" | "email" | "name" | "application"
   /** When it was recorded (ISO). */
   at: string
   applicationId?: string
@@ -53,7 +56,7 @@ export async function listLoginLinks(): Promise<DiscordLink[]> {
   for (const e of latestAddressable(events)) {
     try {
       const link = JSON.parse(decrypt(e.content, k.conversation)) as DiscordLink
-      if (link.discordId && /^[0-9a-f]{64}$/.test(link.emailHash)) out.set(`${link.discordId}:${link.emailHash}`, { ...link, source: link.source === "email" ? "email" : "login" })
+      if (link.discordId && /^[0-9a-f]{64}$/.test(link.emailHash)) out.set(`${link.discordId}:${link.emailHash}`, { ...link, source: link.source === "email" || link.source === "name" ? link.source : "login" })
     } catch {
       /* not ours, or damaged */
     }
@@ -63,27 +66,27 @@ export async function listLoginLinks(): Promise<DiscordLink[]> {
 
 let cache: { at: number; links: Promise<DiscordLink[]> } | null = null
 
-/** The membership ids linked to a Discord account (listLoginLinks, cached a minute). */
-export async function linkedEmailHashes(discordId: string): Promise<string[]> {
+/** Every link from logins, confirmed addresses and names (listLoginLinks, cached a minute). */
+export async function cachedLinks(): Promise<DiscordLink[]> {
   if (!siteIdentity()) return []
   if (!cache || Date.now() - cache.at > 60_000) cache = { at: Date.now(), links: listLoginLinks().catch(() => []) }
-  return (await cache.links).filter((l) => l.discordId === discordId).map((l) => l.emailHash)
+  return cache.links
 }
 
 /** What this process already knows is on the relays: one lookup per member and address. */
 const known = new Set<string>()
 
 /** Record that this Discord account goes with this membership id (logged in with it, or confirmed it), unless it already does. Never throws. */
-export async function recordLoginLink(discordId: string, emailHash: string | null, now = new Date(), source: "login" | "email" = "login"): Promise<void> {
+export async function recordLoginLink(discordId: string, emailHash: string | null, now = new Date(), source: "login" | "email" | "name" = "login"): Promise<void> {
   if (!emailHash || !/^\d{5,25}$/.test(discordId) || !siteIdentity()) return
-  const seen = `${discordId}:${emailHash}`
+  const seen = `${discordId}:${emailHash}:${source}`
   if (known.has(seen)) return
   known.add(seen)
   try {
     const k = key()
     const d = dTag(discordId, emailHash, k)
     const existing = await queryRelays({ kinds: [KIND_APP_DATA], authors: [k.pubkey], "#d": [d], limit: 1 }, 4000)
-    if (existing.length && source === "login") return
+    if (existing.length && source !== "email") return
     const link: DiscordLink = { discordId, emailHash, source, at: now.toISOString() }
     const result = await publishAsSite({
       kind: KIND_APP_DATA,

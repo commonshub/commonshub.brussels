@@ -2,8 +2,8 @@ import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
 
-import { memberIdForEmail } from "@/lib/membership"
-import { MONTHLY_PRICE_IDS, memberEntry, planFor, planOf } from "@/lib/member-plan"
+import { memberIdForEmail, nameTokenHash, nameTokens } from "@/lib/membership"
+import { MONTHLY_PRICE_IDS, memberEntry, nameCandidate, planFor, planOf } from "@/lib/member-plan"
 import type { Member } from "@/types/members"
 
 const member = (over: Partial<Member>): Member => ({
@@ -63,5 +63,47 @@ describe("a member's plan on the dashboard", () => {
 
   test("a price for each monthly amount", () => {
     expect(Object.keys(MONTHLY_PRICE_IDS)).toEqual(["10", "15", "20"])
+  })
+})
+
+describe("a membership matched by name", () => {
+  const salt = process.env.EMAIL_HASH_SALT
+  beforeAll(() => {
+    process.env.EMAIL_HASH_SALT = "test-salt"
+  })
+  afterAll(() => {
+    process.env.EMAIL_HASH_SALT = salt
+  })
+  const named = (name: string, over: Partial<Member> = {}) =>
+    member({ firstName: name.split(" ")[0], accounts: { emailHash: memberIdForEmail(`${name}@x.example`)!, nameTokens: nameTokens(name).map((t) => nameTokenHash(t)!).sort() }, ...over })
+
+  test("words of a name ignore case, accents, punctuation and order", () => {
+    expect(nameTokens("Dean Miriam")).toEqual(["dean", "miriam"])
+    expect(nameTokens("  MIRIAM  dean ")).toEqual(["dean", "miriam"])
+    expect(nameTokens("Clément Lefèvre-Dupont")).toEqual(["clement", "dupont", "lefevre"])
+    expect(nameTokens("J. Doe")).toEqual(["doe"])
+  })
+
+  test("a Discord name matches the one membership whose name has all its words", () => {
+    const miriam = named("Dean Miriam", { amount: { value: 10, decimals: 2, currency: "EUR" } })
+    const members = [miriam, named("Tom Smith"), named("Tom Jones")]
+    expect(nameCandidate("Miriam", members, new Set())).toBe(miriam)
+    expect(nameCandidate("miriam DEAN", members, new Set())).toBe(miriam)
+    expect(nameCandidate("Tom", members, new Set())).toBeNull()
+    expect(nameCandidate("Tom Jones", members, new Set())?.firstName).toBe("Tom")
+    expect(nameCandidate("Bob", members, new Set())).toBeNull()
+  })
+
+  test("the same words exactly win over a longer name", () => {
+    const ann = named("Ann Lee")
+    expect(nameCandidate("Ann Lee", [ann, named("Ann Lee Smith")], new Set())).toBe(ann)
+  })
+
+  test("never a membership already linked to a Discord account, a lapsed one, or one without fingerprints", () => {
+    const miriam = named("Dean Miriam")
+    expect(nameCandidate("Miriam", [miriam], new Set([miriam.accounts.emailHash]))).toBeNull()
+    expect(nameCandidate("Miriam", [named("Dean Miriam", { accounts: { ...miriam.accounts, discord: "123456" } })], new Set())).toBeNull()
+    expect(nameCandidate("Miriam", [named("Dean Miriam", { status: "lapsed" as Member["status"] })], new Set())).toBeNull()
+    expect(nameCandidate("Miriam", [member({ firstName: "Miriam" })], new Set())).toBeNull()
   })
 })
