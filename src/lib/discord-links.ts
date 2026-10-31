@@ -6,13 +6,15 @@
  * sha256(lowercase(email) + EMAIL_HASH_SALT) (lib/membership.ts). The site
  * learns it two ways, and keeps the hash only, never the address:
  *   - a member logs in with Discord: the email of their Discord account;
+ *   - a member confirms another address with a code (the one they pay
+ *     with, when it isn't their Discord one: /api/members/email);
  *   - a membership application, once its applicant logged in after paying.
- * The first kind is recorded when it is seen (a member with the member
- * role and a session), as one addressable event per member on the
- * community relays (kind 30078), signed by the site and encrypted to its own
- * key (NIP-44), with an opaque `d`, like the notification settings. chb
- * reads them all at /api/members/discord-links and matches the hashes with
- * its members' emails.
+ * The first two are recorded as one addressable event per member and
+ * address on the community relays (kind 30078), signed by the site and
+ * encrypted to its own key (NIP-44), with an opaque `d`, like the
+ * notification settings. chb reads them all at /api/members/discord-links
+ * and matches the hashes with its members' emails; the dashboard finds a
+ * member's plan through them (lib/member-plan.ts).
  */
 
 import { createHmac } from "crypto"
@@ -24,7 +26,7 @@ import { publishAsSite, queryRelays, siteIdentity } from "./nostr-server"
 export interface DiscordLink {
   discordId: string
   emailHash: string
-  source: "login" | "application"
+  source: "login" | "email" | "application"
   /** When it was recorded (ISO). */
   at: string
   applicationId?: string
@@ -39,43 +41,50 @@ function key(): { secretKey: Uint8Array; pubkey: string; conversation: Uint8Arra
   return { ...id, conversation: getConversationKey(id.secretKey, id.pubkey) }
 }
 
-const dTag = (discordId: string, k = key()) => `${T_TAG}:${createHmac("sha256", Buffer.from(k.secretKey)).update(`discord-link:${discordId}`).digest("base64url").slice(0, 32)}`
+/** One event per member and address, so a confirmed address and the Discord one don't replace each other. (Events from before carried one per member.) */
+const dTag = (discordId: string, emailHash: string, k = key()) =>
+  `${T_TAG}:${createHmac("sha256", Buffer.from(k.secretKey)).update(`discord-link:${discordId}:${emailHash}`).digest("base64url").slice(0, 32)}`
 
-/** Links recorded by login, newest per member. */
+/** Links recorded by login or a confirmed address, one per member and address. */
 export async function listLoginLinks(): Promise<DiscordLink[]> {
   const k = key()
   const events = await queryRelays({ kinds: [KIND_APP_DATA], authors: [k.pubkey], "#t": [T_TAG], limit: 2000 }, 4000)
-  const out: DiscordLink[] = []
+  const out = new Map<string, DiscordLink>()
   for (const e of latestAddressable(events)) {
     try {
       const link = JSON.parse(decrypt(e.content, k.conversation)) as DiscordLink
-      if (link.discordId && /^[0-9a-f]{64}$/.test(link.emailHash)) out.push({ ...link, source: "login" })
+      if (link.discordId && /^[0-9a-f]{64}$/.test(link.emailHash)) out.set(`${link.discordId}:${link.emailHash}`, { ...link, source: link.source === "email" ? "email" : "login" })
     } catch {
       /* not ours, or damaged */
     }
   }
-  return out
+  return [...out.values()]
+}
+
+let cache: { at: number; links: Promise<DiscordLink[]> } | null = null
+
+/** The membership ids linked to a Discord account (listLoginLinks, cached a minute). */
+export async function linkedEmailHashes(discordId: string): Promise<string[]> {
+  if (!siteIdentity()) return []
+  if (!cache || Date.now() - cache.at > 60_000) cache = { at: Date.now(), links: listLoginLinks().catch(() => []) }
+  return (await cache.links).filter((l) => l.discordId === discordId).map((l) => l.emailHash)
 }
 
 /** What this process already knows is on the relays: one lookup per member and address. */
 const known = new Set<string>()
 
-/** Record that this Discord account logged in with this membership id, unless it already is. Never throws. */
-export async function recordLoginLink(discordId: string, emailHash: string | null, now = new Date()): Promise<void> {
+/** Record that this Discord account goes with this membership id (logged in with it, or confirmed it), unless it already does. Never throws. */
+export async function recordLoginLink(discordId: string, emailHash: string | null, now = new Date(), source: "login" | "email" = "login"): Promise<void> {
   if (!emailHash || !/^\d{5,25}$/.test(discordId) || !siteIdentity()) return
   const seen = `${discordId}:${emailHash}`
   if (known.has(seen)) return
   known.add(seen)
   try {
     const k = key()
-    const d = dTag(discordId, k)
-    const latest = latestAddressable(await queryRelays({ kinds: [KIND_APP_DATA], authors: [k.pubkey], "#d": [d], limit: 5 }, 4000))[0]
-    if (latest) {
-      try {
-        if ((JSON.parse(decrypt(latest.content, k.conversation)) as DiscordLink).emailHash === emailHash) return
-      } catch {}
-    }
-    const link: DiscordLink = { discordId, emailHash, source: "login", at: now.toISOString() }
+    const d = dTag(discordId, emailHash, k)
+    const existing = await queryRelays({ kinds: [KIND_APP_DATA], authors: [k.pubkey], "#d": [d], limit: 1 }, 4000)
+    if (existing.length && source === "login") return
+    const link: DiscordLink = { discordId, emailHash, source, at: now.toISOString() }
     const result = await publishAsSite({
       kind: KIND_APP_DATA,
       created_at: Math.floor(now.getTime() / 1000),
@@ -86,6 +95,7 @@ export async function recordLoginLink(discordId: string, emailHash: string | nul
       content: encrypt(JSON.stringify(link), k.conversation),
     })
     if (!result.accepted.length) known.delete(seen)
+    else cache = null
   } catch (error) {
     known.delete(seen)
     console.error("[discord-links] could not record a link:", error)

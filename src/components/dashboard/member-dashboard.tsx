@@ -10,7 +10,7 @@ import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { NextShiftCard, SignUpForShift } from "@/components/dashboard/next-shift"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
-import { planFor } from "@/lib/member-plan"
+import { findPlan } from "@/lib/member-plan"
 import { chbPubkey, needsEmail } from "@/lib/partner-email"
 import { isApplicationsConfigured, listApplications } from "@/lib/membership-applications-store"
 import settings from "@/settings/settings.json"
@@ -27,8 +27,8 @@ type User = { discordId: string; username: string; email?: string | null; avatar
  * When chb has no email for their membership, a card asks for one (lib/partner-email.ts).
  * Their token balance is in the header.
  */
-export function MemberDashboard({ user }: { user: User }) {
-  const plan = planFor(user)
+export async function MemberDashboard({ user }: { user: User }) {
+  const plan = await findPlan(user)
   return (
     <div className="mx-auto max-w-5xl px-4 pb-10 pt-10 sm:px-6">
       <h1 className="text-3xl font-extrabold text-foreground sm:text-4xl">Hi {user.username}</h1>
