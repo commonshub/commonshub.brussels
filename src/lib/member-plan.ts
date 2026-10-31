@@ -73,12 +73,32 @@ export function planOf(m: Member): MemberPlan {
   }
 }
 
-/** The session user's plan, or null when we can't find them among the members. */
-export function planFor(user: { discordId?: string | null; email?: string | null }, dir?: string): MemberPlan | null {
-  const id = memberIdOf(user)
-  const members = id ? readMembers(dir) : null
-  const entry = id && members ? memberEntry(id, members) : null
+/**
+ * The session user's plan, or null when we can't find them among the members.
+ * `linked`: other membership ids of theirs, from addresses they confirmed
+ * (lib/discord-links.ts): someone who pays with another email than their
+ * Discord one.
+ */
+export function planFor(user: { discordId?: string | null; email?: string | null }, dir?: string, linked: string[] = []): MemberPlan | null {
+  const entry = entryFor(user, linked, dir)
   return entry ? planOf(entry) : null
+}
+
+function entryFor(user: { discordId?: string | null; email?: string | null }, linked: string[], dir?: string): Member | null {
+  const ids = [memberIdOf(user), ...linked].filter((id): id is string => !!id)
+  const members = ids.length ? readMembers(dir) : null
+  if (!members) return null
+  const entries = ids.map((id) => memberEntry(id, members)).filter((m): m is Member => !!m)
+  return entries.find((m) => m.status === "active" || m.status === "trialing") ?? entries[0] ?? null
+}
+
+/** The membership ids of the addresses a member confirmed (imported on demand: it reads the relays). */
+const linkedOf = async (discordId?: string | null): Promise<string[]> =>
+  discordId ? import("./discord-links").then((m) => m.linkedEmailHashes(discordId)).catch(() => []) : []
+
+/** planFor, with the addresses the member confirmed. */
+export async function findPlan(user: { discordId?: string | null; email?: string | null }): Promise<MemberPlan | null> {
+  return planFor(user, undefined, await linkedOf(user.discordId))
 }
 
 /**
@@ -90,9 +110,7 @@ export function planFor(user: { discordId?: string | null; email?: string | null
 export async function changeMonthlyAmount(user: { discordId?: string | null; email?: string | null }, amount: number): Promise<{ ok: true; amount: MonthlyPrice; from: number } | { ok: false; error: string; status: number }> {
   const target = MONTHLY_PRICES.find((p) => p.amount === amount)?.amount
   if (!target) return { ok: false, error: "Choose €10, €15 or €20 a month", status: 400 }
-  const id = memberIdOf(user)
-  const members = id ? readMembers() : null
-  const entry = id && members ? memberEntry(id, members) : null
+  const entry = entryFor(user, await linkedOf(user.discordId))
   if (!entry) return { ok: false, error: "We can't find your membership. Write to hello@commonshub.brussels and we'll sort it out.", status: 404 }
   if (!planOf(entry).canChange) return { ok: false, error: "Your plan can only be changed when it renews.", status: 409 }
   const key = process.env.STRIPE_SECRET_KEY

@@ -38,6 +38,15 @@ describe("a member's plan on the dashboard", () => {
     expect(planFor({}, dir)).toBeNull()
   })
 
+  test("found through an address the member confirmed, when they pay with another one than their Discord email", () => {
+    process.env.EMAIL_HASH_SALT = "test-salt"
+    const paying = memberIdForEmail("miriam@work.example")!
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan-"))
+    fs.writeFileSync(path.join(dir, "members.json"), JSON.stringify({ members: [member({ accounts: { emailHash: paying }, amount: { value: 10, decimals: 2, currency: "EUR" } })] }))
+    expect(planFor({ email: "miriam@discord.example" }, dir)).toBeNull()
+    expect(planFor({ email: "miriam@discord.example" }, dir, [paying])?.amount).toBe(10)
+  })
+
   test("only a monthly card plan of an individual changes here; yearly ones at renewal", () => {
     expect(planOf(member({})).canChange).toBe(true)
     expect(planOf(member({ interval: "year", plan: "yearly", amount: { value: 100, decimals: 2, currency: "EUR" } })).canChange).toBe(false)

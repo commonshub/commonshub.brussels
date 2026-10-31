@@ -8,6 +8,7 @@ import { fromSite } from "@/lib/email-address"
 import { issueLinkCode, verifyLinkCode } from "@/lib/member-link-code"
 import { isEmail } from "@/lib/membership-application"
 import { memberIdForEmail } from "@/lib/membership"
+import { planFor } from "@/lib/member-plan"
 import { chbPubkey, codeSecret, normalizeEmail, sendToChb } from "@/lib/partner-email"
 
 export const dynamic = "force-dynamic"
@@ -15,7 +16,9 @@ export const dynamic = "force-dynamic"
 /**
  * POST /api/members/email { email } mails a code to the address;
  * POST /api/members/email { email, code } checks it and hands the address to
- * chb for the member's Odoo partner (lib/partner-email.ts). Signed-in
+ * chb for the member's Odoo partner (lib/partner-email.ts), and links it to
+ * their Discord account (lib/discord-links.ts): someone who pays with
+ * another address than their Discord one finds their plan. Signed-in
  * members only; who they are comes from the session.
  */
 
@@ -68,6 +71,8 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Could not save" }, { status: 502 })
   }
-  await recordLoginLink(discordId, memberIdForEmail(email))
-  return NextResponse.json({ ok: true, saved: true })
+  const emailHash = memberIdForEmail(email)
+  await recordLoginLink(discordId, emailHash, new Date(), "email")
+  // Whether it's the address of a membership: the dashboard then shows their plan.
+  return NextResponse.json({ ok: true, saved: true, member: !!planFor({}, undefined, emailHash ? [emailHash] : []) })
 }

@@ -5,6 +5,7 @@ import { CreditCard, Loader2 } from "lucide-react"
 
 import { DEFAULT_MONTHLY, MONTHLY_PRICES, PAYMENT_LINKS, YEARLY_PRICES } from "@/lib/membership-application"
 import type { MemberPlan } from "@/lib/member-plan"
+import { AddEmailCard } from "./add-email"
 
 const longDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
 
@@ -90,6 +91,7 @@ export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
 function StartMembership() {
   const [interval, setPeriod] = useState<"month" | "year">("month")
   const [monthly, setMonthly] = useState<number>(DEFAULT_MONTHLY)
+  const [linking, setLinking] = useState(false)
   const prices = interval === "month" ? MONTHLY_PRICES : YEARLY_PRICES
   const chosen = interval === "month" ? monthly : monthly * 10
   const href = interval === "month" ? PAYMENT_LINKS[`individual${monthly}` as "individual10" | "individual15" | "individual20"].url : `/membership/pay/${chosen}`
@@ -102,11 +104,16 @@ function StartMembership() {
         Brussels. The commons needs your organisation. But it also needs you.
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        Just paid? It shows up here within a day. Questions?{" "}
+        Just paid? It shows up here within a day. Already a member with another email?{" "}
+        <button type="button" onClick={() => setLinking(!linking)} className="text-primary underline">
+          Confirm it
+        </button>
+        . Questions?{" "}
         <a href="mailto:hello@commonshub.brussels" className="text-primary underline">
           hello@commonshub.brussels
         </a>
       </p>
+      {linking && <AddEmailCard variant="membership" />}
       <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label="How often you pay">
         {(
           [
