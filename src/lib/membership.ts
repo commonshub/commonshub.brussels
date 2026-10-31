@@ -103,6 +103,22 @@ export function memberIdForEmail(email: string | null | undefined): string | nul
 }
 
 /**
+ * The words of a name, for matching a Discord name with a membership's
+ * (ignoring case, accents and order): "Dean Miriam" → ["dean", "miriam"].
+ * Must stay in lockstep with chb's accounts.nameTokens.
+ */
+export function nameTokens(name: string | null | undefined): string[] {
+  const words = (name || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().split(/[^a-z0-9]+/);
+  return [...new Set(words.filter((w) => w.length >= 2))].sort();
+}
+
+/** A name word's fingerprint, as chb writes it in accounts.nameTokens; null without the salt. */
+export function nameTokenHash(token: string): string | null {
+  const salt = membershipSalt();
+  return salt === null ? null : createHash("sha256").update(`name:${token}${salt}`).digest("hex").slice(0, 16);
+}
+
+/**
  * Absolute path of a member's history file, or null when the id is not a
  * well-formed digest. The id reaches this function from a hash we computed
  * ourselves, but it is validated regardless: it becomes a filename, and a

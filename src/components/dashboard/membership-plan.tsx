@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { CreditCard, Loader2 } from "lucide-react"
 
 import { DEFAULT_MONTHLY, MONTHLY_PRICES, PAYMENT_LINKS, YEARLY_PRICES } from "@/lib/membership-application"
-import type { MemberPlan } from "@/lib/member-plan"
+import type { MemberPlan, PlanCandidate } from "@/lib/member-plan"
 import { AddEmailCard } from "./add-email"
 
 const longDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -16,7 +17,7 @@ const longDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("e
  * they can start one: monthly by card (the membership's Stripe payment
  * link) or a year by bank transfer (/membership/pay/<amount>).
  */
-export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
+export function MembershipPlanCard({ plan, candidate }: { plan: MemberPlan | null; candidate?: PlanCandidate | null }) {
   const [amount, setAmount] = useState(plan?.amount ?? null)
   const [busy, setBusy] = useState<number | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
@@ -43,7 +44,11 @@ export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
         <CreditCard className="h-5 w-5 text-primary" /> Membership
       </h3>
       {!plan ? (
-        <StartMembership />
+        candidate ? (
+          <IsThisYours candidate={candidate} />
+        ) : (
+          <StartMembership />
+        )
       ) : (
         <>
           <p className="mt-2 text-foreground">
@@ -75,6 +80,11 @@ export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
                 ))}
               </div>
             </>
+          ) : plan.byName ? (
+            <>
+              <p className="mt-3 text-sm text-muted-foreground">To change it here, confirm the email you pay with.</p>
+              <AddEmailCard variant="membership" />
+            </>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">
               {plan.interval === "year" ? "You paid for the year: you can change your plan when it renews." : "To change your plan, write to hello@commonshub.brussels."}
@@ -84,6 +94,49 @@ export function MembershipPlanCard({ plan }: { plan: MemberPlan | null }) {
         </>
       )}
     </div>
+  )
+}
+
+const monthYear = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+
+/** No plan found by their addresses, but one matches their name: ask them. "No" lets them start one. */
+function IsThisYours({ candidate }: { candidate: PlanCandidate }) {
+  const router = useRouter()
+  const [answer, setAnswer] = useState<"no" | "busy" | null>(null)
+  const [error, setError] = useState("")
+
+  async function yes() {
+    setAnswer("busy")
+    setError("")
+    try {
+      const res = await fetch("/api/membership/claim-name", { method: "POST" })
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!body.ok) throw new Error(body.error || "Something went wrong")
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
+      setAnswer(null)
+    }
+  }
+
+  if (answer === "no") return <StartMembership />
+  return (
+    <>
+      <p className="mt-2 text-foreground">We found a membership with your name. Is it yours?</p>
+      <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-foreground">
+        <span className="text-2xl font-bold">€{candidate.amount}</span> a {candidate.interval}
+        <span className="block text-sm text-muted-foreground">since {monthYear(candidate.since)}</span>
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" onClick={yes} disabled={answer === "busy"} className="h-11 rounded-lg bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-60">
+          {answer === "busy" ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Yes, that's me"}
+        </button>
+        <button type="button" onClick={() => setAnswer("no")} disabled={answer === "busy"} className="h-11 rounded-lg border-2 border-border px-4 font-semibold text-foreground">
+          No, it&apos;s not
+        </button>
+      </div>
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+    </>
   )
 }
 
