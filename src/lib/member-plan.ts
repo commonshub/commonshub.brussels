@@ -7,7 +7,8 @@
  * id the browser sends. Their plan is their entry in the members tier's
  * members.json, which carries no email address. A monthly card subscription
  * is changed on Stripe: the new amount applies from the next payment.
- * Yearly plans (and Odoo or bank-transfer ones) change at renewal.
+ * Yearly plans (and Odoo or bank-transfer ones) change at renewal. A monthly
+ * card membership can also be cancelled: it runs until the period paid for ends.
  */
 
 import * as fs from "fs"
@@ -15,6 +16,7 @@ import * as path from "path"
 import Stripe from "stripe"
 
 import { tierDir } from "./data-paths"
+import { ensureDirFor, runtimePath } from "./runtime-paths"
 import { discordIdentifier, emailIdentifier, memberIdForEmail, membershipSalt, nameTokenHash, nameTokens, resolveMemberId } from "./membership"
 import { MONTHLY_PRICES, type MonthlyPrice } from "./membership-application"
 import settings from "@/settings/settings.json"
@@ -41,6 +43,8 @@ export interface MemberPlan {
   byName?: boolean
   /** Just paid from the dashboard: not in chb's members list yet. */
   pending?: boolean
+  /** YYYY-MM-DD: they cancelled; still a member until then, with no further payment. */
+  endsOn?: string | null
 }
 
 /** The members tier's latest members.json, or null. */
@@ -74,7 +78,51 @@ export function planOf(m: Member): MemberPlan {
     renewsOn: m.currentPeriodEnd ? m.currentPeriodEnd.slice(0, 10) : null,
     organisation: !!(m.isOrganization || m.organizationName),
     canChange: monthly && m.source === "stripe" && !(m.isOrganization || m.organizationName),
+    ...(m.cancelsOn ? { endsOn: m.cancelsOn.slice(0, 10) } : {}),
   }
+}
+
+/**
+ * Changes made here that chb's members list doesn't show yet (it's pulled
+ * hourly; a cancellation shows only once chb publishes cancelsOn), by
+ * membership id. Kept under RUNTIME_DIR, so a restart forgets them.
+ */
+type PlanChange = { amount?: number; endsOn?: string | null; at: string }
+const CHANGES_FILE = runtimePath("plan-changes.json")
+let changes: Record<string, PlanChange> | null = null
+
+function readChanges(): Record<string, PlanChange> {
+  if (!changes) {
+    try {
+      changes = JSON.parse(fs.readFileSync(CHANGES_FILE, "utf-8")) as Record<string, PlanChange>
+    } catch {
+      changes = {}
+    }
+  }
+  return changes
+}
+
+function saveChange(id: string, change: Omit<PlanChange, "at">) {
+  const all = readChanges()
+  all[id] = { ...all[id], ...change, at: new Date().toISOString() }
+  if (!ensureDirFor(CHANGES_FILE)) return
+  try {
+    fs.writeFileSync(CHANGES_FILE, JSON.stringify(all), "utf-8")
+  } catch (error) {
+    console.error("[membership] Cannot save plan change:", error)
+  }
+}
+
+/** Their plan with what they changed here since chb last pulled it: an amount or a taken-back cancellation for 3 days, a cancellation until it ends. */
+export function withChanges(plan: MemberPlan, id: string, all = readChanges(), now = new Date()): MemberPlan {
+  const c = all[id]
+  if (!c) return plan
+  const out = { ...plan }
+  const recent = now.getTime() - Date.parse(c.at) < 3 * 86_400_000
+  if (c.amount && recent) out.amount = c.amount
+  if (c.endsOn && c.endsOn >= now.toISOString().slice(0, 10)) out.endsOn = c.endsOn
+  if (c.endsOn === null && recent) out.endsOn = null
+  return out
 }
 
 /**
@@ -177,21 +225,16 @@ export async function findPlan(user: { discordId?: string | null; email?: string
   const { confirmed, byName, paid } = linksOf(user.discordId, links)
   const entry = entryFor(user, confirmed, undefined, paid.map((p) => p.subscription))
   const named = byName.length ? planFor({}, undefined, byName) : null
-  const plan = (entry && planOf(entry)) ?? (named && { ...named, canChange: false, byName: true }) ?? justPaid(paid)
+  const plan = (entry && withChanges(planOf(entry), entry.id)) ?? (named && { ...named, canChange: false, byName: true }) ?? justPaid(paid)
   if (plan || !user.discordId) return { plan, candidate: null }
   const c = await candidateFor(user.discordId, links)
   return { plan: null, candidate: c ? { amount: c.amount.value, interval: c.interval, since: c.createdAt.slice(0, 10), ...(c.accounts.emailHint ? { emailHint: c.accounts.emailHint } : {}) } : null }
 }
 
-/**
- * Change a member's monthly amount. Their Stripe subscription is found from
- * the (truncated) id in members.json, among the membership's monthly
- * subscriptions; the price is swapped without proration, so the new amount
- * is what they pay from their next payment on.
- */
-export async function changeMonthlyAmount(user: { discordId?: string | null; email?: string | null }, amount: number): Promise<{ ok: true; amount: MonthlyPrice; from: number } | { ok: false; error: string; status: number }> {
-  const target = MONTHLY_PRICES.find((p) => p.amount === amount)?.amount
-  if (!target) return { ok: false, error: "Choose €10, €15 or €20 a month", status: 400 }
+type Failure = { ok: false; error: string; status: number }
+
+/** The signed-in member's monthly card subscription on Stripe, found from the (truncated) id in members.json. */
+async function myCardSubscription(user: { discordId?: string | null; email?: string | null }): Promise<{ ok: true; entry: Member; stripe: Stripe; sub: Stripe.Subscription } | Failure> {
   const mine = linksOf(user.discordId, user.discordId ? await allLinks() : [])
   const entry = entryFor(user, mine.confirmed, undefined, mine.paid.map((p) => p.subscription))
   if (!entry) return { ok: false, error: "We can't find your membership. Write to hello@commonshub.brussels and we'll sort it out.", status: 404 }
@@ -201,12 +244,45 @@ export async function changeMonthlyAmount(user: { discordId?: string | null; ema
   const stripe = new Stripe(key)
   const sub = await findSubscription(stripe, subPrefix(entry.id))
   if (!sub) return { ok: false, error: "We can't find your card subscription. Write to hello@commonshub.brussels and we'll sort it out.", status: 404 }
+  return { ok: true, entry, stripe, sub }
+}
+
+/**
+ * Change a member's monthly amount. Their Stripe subscription is found from
+ * the (truncated) id in members.json, among the membership's monthly
+ * subscriptions; the price is swapped without proration, so the new amount
+ * is what they pay from their next payment on.
+ */
+export async function changeMonthlyAmount(user: { discordId?: string | null; email?: string | null }, amount: number): Promise<{ ok: true; amount: MonthlyPrice; from: number } | Failure> {
+  const target = MONTHLY_PRICES.find((p) => p.amount === amount)?.amount
+  if (!target) return { ok: false, error: "Choose €10, €15 or €20 a month", status: 400 }
+  const found = await myCardSubscription(user)
+  if (!found.ok) return found
+  const { entry, stripe, sub } = found
   const item = sub.items.data.find((i) => i.price.product === settings.membership.stripe.productId) ?? sub.items.data[0]
   const from = (item.price.unit_amount ?? 0) / 100
   if (item.price.id !== MONTHLY_PRICE_IDS[target]) {
     await stripe.subscriptions.update(sub.id, { items: [{ id: item.id, price: MONTHLY_PRICE_IDS[target] }], proration_behavior: "none", metadata: { ...sub.metadata, changedFrom: String(from), changedVia: "website" } })
   }
+  saveChange(entry.id, { amount: target })
   return { ok: true, amount: target, from }
+}
+
+/**
+ * Cancel a member's monthly card membership at the end of the period they
+ * paid for (no refund, no further payment), or take that back while it
+ * hasn't ended. Returns the day it ends, or null when it goes on.
+ */
+export async function cancelMembership(user: { discordId?: string | null; email?: string | null }, cancel: boolean): Promise<{ ok: true; endsOn: string | null; changed: boolean } | Failure> {
+  const found = await myCardSubscription(user)
+  if (!found.ok) return found
+  const { entry, stripe, sub } = found
+  const changed = sub.cancel_at_period_end !== cancel
+  const updated = changed ? await stripe.subscriptions.update(sub.id, { cancel_at_period_end: cancel, metadata: { ...sub.metadata, ...(cancel ? { cancelledVia: "website" } : { resumedVia: "website" }) } }) : sub
+  const at = updated.cancel_at ?? (cancel ? Date.parse(entry.currentPeriodEnd) / 1000 : null)
+  const endsOn = cancel && at ? new Date(at * 1000).toISOString().slice(0, 10) : null
+  saveChange(entry.id, { endsOn })
+  return { ok: true, endsOn, changed }
 }
 
 /** The monthly membership subscription whose id starts with `prefix` (members.json truncates it). */
