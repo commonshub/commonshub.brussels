@@ -127,6 +127,7 @@ function IsThisYours({ candidate, discordId }: { candidate: PlanCandidate; disco
       <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-foreground">
         <span className="text-2xl font-bold">€{candidate.amount}</span> a {candidate.interval}
         <span className="block text-sm text-muted-foreground">since {monthYear(candidate.since)}</span>
+        {candidate.emailHint && <span className="block text-sm text-muted-foreground">paid with {candidate.emailHint}</span>}
       </p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button type="button" onClick={yes} disabled={answer === "busy"} className="h-11 rounded-lg bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-60">
