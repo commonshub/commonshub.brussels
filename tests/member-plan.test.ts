@@ -3,7 +3,7 @@ import * as os from "os"
 import * as path from "path"
 
 import { memberIdForEmail, nameTokenHash, nameTokens } from "@/lib/membership"
-import { MONTHLY_PRICE_IDS, memberEntry, nameCandidate, planFor, planOf } from "@/lib/member-plan"
+import { MONTHLY_PRICE_IDS, memberEntry, nameCandidate, planFor, planOf, subPrefix } from "@/lib/member-plan"
 import type { Member } from "@/types/members"
 
 const member = (over: Partial<Member>): Member => ({
@@ -106,4 +106,11 @@ describe("a membership matched by name", () => {
     expect(nameCandidate("Miriam", [named("Dean Miriam", { status: "lapsed" as Member["status"] })], new Set())).toBeNull()
     expect(nameCandidate("Miriam", [member({ firstName: "Miriam" })], new Set())).toBeNull()
   })
+})
+
+test("a shortened subscription id in members.json is the beginning of the full one", () => {
+  expect(subPrefix("sub_1PkX3bFAha...")).toBe("sub_1PkX3bFAha")
+  expect(subPrefix("sub_1PkX3bFAha…")).toBe("sub_1PkX3bFAha")
+  expect(subPrefix("sub_1PkX3bFAhaWeDyow")).toBe("sub_1PkX3bFAhaWeDyow")
+  expect("sub_1PkX3bFAhaWeDyowXYZ".startsWith(subPrefix("sub_1PkX3bFAha..."))).toBe(true)
 })

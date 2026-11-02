@@ -88,6 +88,9 @@ export function planFor(user: { discordId?: string | null; email?: string | null
   return entry ? planOf(entry) : null
 }
 
+/** members.json shortens Stripe ids, ending them with "..." ("sub_1PkX3bFAha..."): the beginning of the full id. */
+export const subPrefix = (id: string) => id.replace(/(\.{3}|…)$/, "")
+
 /** `subscriptions`: Stripe subscriptions they paid from the dashboard (members.json ids are their beginnings). */
 function entryFor(user: { discordId?: string | null; email?: string | null }, linked: string[], dir?: string, subscriptions: string[] = []): Member | null {
   const ids = [memberIdOf(user), ...linked].filter((id): id is string => !!id)
@@ -95,7 +98,7 @@ function entryFor(user: { discordId?: string | null; email?: string | null }, li
   if (!members) return null
   const entries = [
     ...ids.map((id) => memberEntry(id, members)),
-    ...members.filter((m) => m.source === "stripe" && m.id.length >= 10 && subscriptions.some((sub) => sub.startsWith(m.id))),
+    ...members.filter((m) => m.source === "stripe" && subPrefix(m.id).length >= 10 && subscriptions.some((sub) => sub.startsWith(subPrefix(m.id)))),
   ].filter((m): m is Member => !!m)
   return entries.find((m) => m.status === "active" || m.status === "trialing") ?? entries[0] ?? null
 }
@@ -194,7 +197,7 @@ export async function changeMonthlyAmount(user: { discordId?: string | null; ema
   const key = process.env.STRIPE_SECRET_KEY
   if (!key) return { ok: false, error: "Card payments are not available right now, please try again later.", status: 503 }
   const stripe = new Stripe(key)
-  const sub = await findSubscription(stripe, entry.id)
+  const sub = await findSubscription(stripe, subPrefix(entry.id))
   if (!sub) return { ok: false, error: "We can't find your card subscription. Write to hello@commonshub.brussels and we'll sort it out.", status: 404 }
   const item = sub.items.data.find((i) => i.price.product === settings.membership.stripe.productId) ?? sub.items.data[0]
   const from = (item.price.unit_amount ?? 0) / 100
