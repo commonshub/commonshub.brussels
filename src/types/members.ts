@@ -18,6 +18,8 @@ export interface MemberAccounts {
   discord?: string | null;
   /** Salted fingerprints of the words of the member's name (lib/membership.ts nameTokenHash), from chb: matched with a Discord name, the name itself never leaves chb. */
   nameTokens?: string[];
+  /** The member's email, masked by chb ("x…@gmail.com"): enough for them to recognise it, not to learn it. */
+  emailHint?: string;
   // Future: nostr?: string | null;
 }
 

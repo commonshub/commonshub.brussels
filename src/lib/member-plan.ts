@@ -148,6 +148,8 @@ export interface PlanCandidate {
   interval: "month" | "year"
   /** YYYY-MM-DD, when the membership started. */
   since: string
+  /** Its email, masked ("x…@gmail.com"), when chb gives one. */
+  emailHint?: string
 }
 
 /** The membership a signed-in member's Discord name matches, if any (nameCandidate). */
@@ -178,7 +180,7 @@ export async function findPlan(user: { discordId?: string | null; email?: string
   const plan = (entry && planOf(entry)) ?? (named && { ...named, canChange: false, byName: true }) ?? justPaid(paid)
   if (plan || !user.discordId) return { plan, candidate: null }
   const c = await candidateFor(user.discordId, links)
-  return { plan: null, candidate: c ? { amount: c.amount.value, interval: c.interval, since: c.createdAt.slice(0, 10) } : null }
+  return { plan: null, candidate: c ? { amount: c.amount.value, interval: c.interval, since: c.createdAt.slice(0, 10), ...(c.accounts.emailHint ? { emailHint: c.accounts.emailHint } : {}) } : null }
 }
 
 /**
