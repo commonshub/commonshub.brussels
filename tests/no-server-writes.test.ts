@@ -22,6 +22,7 @@ const CACHE_MODULES = [
   "lib/discord-cache.ts", // Discord messages fetched at runtime
   "lib/wallet-address-cache.ts", // resolved wallet addresses
   "lib/image-proxy-server.ts", // resized images
+  "lib/plan-changes-cache.ts", // plan changes made on Stripe, until chb's members list has them
 ].sort();
 
 /**

@@ -3,7 +3,7 @@ import * as os from "os"
 import * as path from "path"
 
 import { memberIdForEmail, nameTokenHash, nameTokens } from "@/lib/membership"
-import { MONTHLY_PRICE_IDS, memberEntry, nameCandidate, planFor, planOf, subPrefix } from "@/lib/member-plan"
+import { MONTHLY_PRICE_IDS, memberEntry, nameCandidate, planFor, planOf, subPrefix, withChanges } from "@/lib/member-plan"
 import type { Member } from "@/types/members"
 
 const member = (over: Partial<Member>): Member => ({
@@ -113,4 +113,26 @@ test("a shortened subscription id in members.json is the beginning of the full o
   expect(subPrefix("sub_1PkX3bFAha…")).toBe("sub_1PkX3bFAha")
   expect(subPrefix("sub_1PkX3bFAhaWeDyow")).toBe("sub_1PkX3bFAhaWeDyow")
   expect("sub_1PkX3bFAhaWeDyowXYZ".startsWith(subPrefix("sub_1PkX3bFAha..."))).toBe(true)
+})
+
+describe("changes made on the dashboard before chb pulls them", () => {
+  const plan = planOf(member({}))
+  const now = new Date("2026-11-02T12:00:00Z")
+  const at = "2026-11-02T10:00:00Z"
+
+  it("shows a new amount for three days", () => {
+    expect(withChanges(plan, "sub_x", { sub_x: { amount: 20, at } }, now).amount).toBe(20)
+    expect(withChanges(plan, "sub_x", { sub_x: { amount: 20, at } }, new Date("2026-11-06T12:00:00Z")).amount).toBe(plan.amount)
+  })
+
+  it("shows a cancellation until it ends, and its taking back", () => {
+    expect(withChanges(plan, "sub_x", { sub_x: { endsOn: "2026-12-02", at } }, now).endsOn).toBe("2026-12-02")
+    expect(withChanges(plan, "sub_x", { sub_x: { endsOn: "2026-12-02", at } }, new Date("2026-12-03T12:00:00Z")).endsOn).toBeUndefined()
+    expect(withChanges({ ...plan, endsOn: "2026-12-02" }, "sub_x", { sub_x: { endsOn: null, at } }, now).endsOn).toBeNull()
+    expect(withChanges(plan, "sub_y", { sub_x: { endsOn: "2026-12-02", at } }, now)).toEqual(plan)
+  })
+
+  it("reads chb's cancelsOn", () => {
+    expect(planOf(member({ cancelsOn: "2026-12-02" })).endsOn).toBe("2026-12-02")
+  })
 })

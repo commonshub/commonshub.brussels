@@ -57,6 +57,8 @@ export interface Member {
   organizationName?: string;
   currentPeriodStart: string;
   currentPeriodEnd: string;
+  /** YYYY-MM-DD: a cancelled Stripe subscription that runs until then (cancel_at_period_end). */
+  cancelsOn?: string | null;
   latestPayment: MemberPayment | null;
   subscriptionUrl?: string; // Link to subscription on Stripe or Odoo
   createdAt: string;
