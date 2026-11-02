@@ -39,6 +39,8 @@ export interface MemberPlan {
   canChange: boolean
   /** Found by their name (they said it's theirs), not by an address of theirs: not changed here until they confirm one. */
   byName?: boolean
+  /** Just paid from the dashboard: not in chb's members list yet. */
+  pending?: boolean
 }
 
 /** The members tier's latest members.json, or null. */
@@ -86,23 +88,31 @@ export function planFor(user: { discordId?: string | null; email?: string | null
   return entry ? planOf(entry) : null
 }
 
-function entryFor(user: { discordId?: string | null; email?: string | null }, linked: string[], dir?: string): Member | null {
+/** `subscriptions`: Stripe subscriptions they paid from the dashboard (members.json ids are their beginnings). */
+function entryFor(user: { discordId?: string | null; email?: string | null }, linked: string[], dir?: string, subscriptions: string[] = []): Member | null {
   const ids = [memberIdOf(user), ...linked].filter((id): id is string => !!id)
-  const members = ids.length ? readMembers(dir) : null
+  const members = ids.length || subscriptions.length ? readMembers(dir) : null
   if (!members) return null
-  const entries = ids.map((id) => memberEntry(id, members)).filter((m): m is Member => !!m)
+  const entries = [
+    ...ids.map((id) => memberEntry(id, members)),
+    ...members.filter((m) => m.source === "stripe" && m.id.length >= 10 && subscriptions.some((sub) => sub.startsWith(m.id))),
+  ].filter((m): m is Member => !!m)
   return entries.find((m) => m.status === "active" || m.status === "trialing") ?? entries[0] ?? null
 }
 
-type Link = { discordId: string; emailHash: string; source: string }
+type Link = { discordId: string; emailHash: string; source: string; paid?: { subscription: string; amount: number; interval: "month" | "year"; at: string } }
 
 /** Every Discord ↔ membership link from logins, confirmed addresses and names (imported on demand: it reads the relays). */
 const allLinks = (): Promise<Link[]> => import("./discord-links").then((m) => m.cachedLinks()).catch(() => [])
 
-/** A member's own links: confirmed (login or a code) and name-matched. */
+/** A member's own links: confirmed (login or a code), name-matched, and payments from the dashboard (which stand for that subscription only). */
 function linksOf(discordId: string | null | undefined, links: Link[]) {
   const mine = links.filter((l) => l.discordId === discordId)
-  return { confirmed: mine.filter((l) => l.source !== "name").map((l) => l.emailHash), byName: mine.filter((l) => l.source === "name").map((l) => l.emailHash) }
+  return {
+    confirmed: mine.filter((l) => l.source !== "name" && l.source !== "checkout").map((l) => l.emailHash),
+    byName: mine.filter((l) => l.source === "name").map((l) => l.emailHash),
+    paid: mine.flatMap((l) => (l.source === "checkout" && l.paid ? [l.paid] : [])),
+  }
 }
 
 /**
@@ -146,16 +156,23 @@ export async function candidateFor(discordId: string, links?: Link[]): Promise<M
   return nameCandidate(who.name, members, new Set((links ?? (await allLinks())).map((l) => l.emailHash)))
 }
 
+/** A payment from the dashboard that chb's members list doesn't have yet (it's pulled hourly): shown as is, changed once it's there. */
+function justPaid(paid: NonNullable<Link["paid"]>[], now = Date.now()): MemberPlan | null {
+  const p = paid.filter((x) => now - Date.parse(x.at) < 3 * 86_400_000).sort((a, b) => b.at.localeCompare(a.at))[0]
+  return p ? { amount: p.amount, interval: p.interval, source: "stripe", status: "active", renewsOn: null, organisation: false, canChange: false, pending: true } : null
+}
+
 /**
- * The member's plan, with the addresses they confirmed; else one they said
+ * The member's plan, with the addresses they confirmed (or a payment they made from the dashboard); else one they said
  * is theirs by name (shown, but only changed once they confirm the address
  * they pay with); else a membership whose name matches theirs, to ask them.
  */
 export async function findPlan(user: { discordId?: string | null; email?: string | null }): Promise<{ plan: MemberPlan | null; candidate: PlanCandidate | null }> {
   const links = user.discordId ? await allLinks() : []
-  const { confirmed, byName } = linksOf(user.discordId, links)
+  const { confirmed, byName, paid } = linksOf(user.discordId, links)
+  const entry = entryFor(user, confirmed, undefined, paid.map((p) => p.subscription))
   const named = byName.length ? planFor({}, undefined, byName) : null
-  const plan = planFor(user, undefined, confirmed) ?? (named && { ...named, canChange: false, byName: true })
+  const plan = (entry && planOf(entry)) ?? (named && { ...named, canChange: false, byName: true }) ?? justPaid(paid)
   if (plan || !user.discordId) return { plan, candidate: null }
   const c = await candidateFor(user.discordId, links)
   return { plan: null, candidate: c ? { amount: c.amount.value, interval: c.interval, since: c.createdAt.slice(0, 10) } : null }
@@ -170,7 +187,8 @@ export async function findPlan(user: { discordId?: string | null; email?: string
 export async function changeMonthlyAmount(user: { discordId?: string | null; email?: string | null }, amount: number): Promise<{ ok: true; amount: MonthlyPrice; from: number } | { ok: false; error: string; status: number }> {
   const target = MONTHLY_PRICES.find((p) => p.amount === amount)?.amount
   if (!target) return { ok: false, error: "Choose €10, €15 or €20 a month", status: 400 }
-  const entry = entryFor(user, linksOf(user.discordId, user.discordId ? await allLinks() : []).confirmed)
+  const mine = linksOf(user.discordId, user.discordId ? await allLinks() : [])
+  const entry = entryFor(user, mine.confirmed, undefined, mine.paid.map((p) => p.subscription))
   if (!entry) return { ok: false, error: "We can't find your membership. Write to hello@commonshub.brussels and we'll sort it out.", status: 404 }
   if (!planOf(entry).canChange) return { ok: false, error: "Your plan can only be changed when it renews.", status: 409 }
   const key = process.env.STRIPE_SECRET_KEY
