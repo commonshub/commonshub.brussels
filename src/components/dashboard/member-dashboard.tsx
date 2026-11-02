@@ -104,7 +104,7 @@ export async function MemberDashboard({ user }: { user: User }) {
               <span className="block text-sm text-muted-foreground">Your profile and contributions</span>
             </span>
           </Link>
-          <MembershipPlanCard plan={plan} candidate={candidate} />
+          <MembershipPlanCard plan={plan} candidate={candidate} discordId={user.discordId} />
         </div>
       </section>
 

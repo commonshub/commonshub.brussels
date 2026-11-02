@@ -354,4 +354,6 @@ export const paymentUrlFor = (a: Pick<Application, "id" | "email" | "type" | "mo
   `${paymentLinkFor(a)}?client_reference_id=${encodeURIComponent(`application_${a.id}`)}&prefilled_email=${encodeURIComponent(a.email)}`
 
 /** The application a Stripe checkout pays for, from its client_reference_id. */
+/** A checkout started from a member's dashboard: client_reference_id discord_<id> (components/dashboard/membership-plan.tsx). */
+export const discordIdFromReference = (ref: string | null | undefined) => ref?.match(/^discord_(\d{5,25})$/)?.[1] ?? null
 export const applicationIdFromReference = (ref: string | null | undefined) => ref?.match(/^application_([\w-]{6,40})$/)?.[1] ?? null

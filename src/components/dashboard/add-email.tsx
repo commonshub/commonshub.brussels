@@ -57,7 +57,7 @@ export function AddEmailCard({ variant = "partner" }: { variant?: keyof typeof C
           ? "Thanks! Your email is on its way to your membership."
           : found
             ? "Found it: your plan is on its way."
-            : "Thanks! We don't see a membership with this address yet. Write to hello@commonshub.brussels and we'll sort it out."}
+            : "Thanks, it's linked. If you just paid, your plan shows here within the hour; otherwise write to hello@commonshub.brussels."}
       </div>
     )
 

@@ -17,7 +17,7 @@ const longDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("e
  * they can start one: monthly by card (the membership's Stripe payment
  * link) or a year by bank transfer (/membership/pay/<amount>).
  */
-export function MembershipPlanCard({ plan, candidate }: { plan: MemberPlan | null; candidate?: PlanCandidate | null }) {
+export function MembershipPlanCard({ plan, candidate, discordId }: { plan: MemberPlan | null; candidate?: PlanCandidate | null; discordId?: string }) {
   const [amount, setAmount] = useState(plan?.amount ?? null)
   const [busy, setBusy] = useState<number | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
@@ -45,9 +45,9 @@ export function MembershipPlanCard({ plan, candidate }: { plan: MemberPlan | nul
       </h3>
       {!plan ? (
         candidate ? (
-          <IsThisYours candidate={candidate} />
+          <IsThisYours candidate={candidate} discordId={discordId} />
         ) : (
-          <StartMembership />
+          <StartMembership discordId={discordId} />
         )
       ) : (
         <>
@@ -55,6 +55,7 @@ export function MembershipPlanCard({ plan, candidate }: { plan: MemberPlan | nul
             <span className="text-2xl font-bold">€{amount}</span> a {plan.interval}
             {plan.status !== "active" && <span className="ml-2 rounded bg-destructive/10 px-1.5 py-0.5 text-xs text-destructive">{plan.status}</span>}
           </p>
+          {plan.pending && <p className="text-sm text-muted-foreground">Thank you! Your payment is in. Its details show here within the hour.</p>}
           {plan.renewsOn && (
             <p className="text-sm text-muted-foreground">
               {plan.interval === "year" ? "Renews" : "Next payment"} on {longDate(plan.renewsOn)}
@@ -80,7 +81,7 @@ export function MembershipPlanCard({ plan, candidate }: { plan: MemberPlan | nul
                 ))}
               </div>
             </>
-          ) : plan.byName ? (
+          ) : plan.pending ? null : plan.byName ? (
             <>
               <p className="mt-3 text-sm text-muted-foreground">To change it here, confirm the email you pay with.</p>
               <AddEmailCard variant="membership" />
@@ -100,7 +101,7 @@ export function MembershipPlanCard({ plan, candidate }: { plan: MemberPlan | nul
 const monthYear = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
 
 /** No plan found by their addresses, but one matches their name: ask them. "No" lets them start one. */
-function IsThisYours({ candidate }: { candidate: PlanCandidate }) {
+function IsThisYours({ candidate, discordId }: { candidate: PlanCandidate; discordId?: string }) {
   const router = useRouter()
   const [answer, setAnswer] = useState<"no" | "busy" | null>(null)
   const [error, setError] = useState("")
@@ -119,7 +120,7 @@ function IsThisYours({ candidate }: { candidate: PlanCandidate }) {
     }
   }
 
-  if (answer === "no") return <StartMembership />
+  if (answer === "no") return <StartMembership discordId={discordId} />
   return (
     <>
       <p className="mt-2 text-foreground">We found a membership with your name. Is it yours?</p>
@@ -140,14 +141,18 @@ function IsThisYours({ candidate }: { candidate: PlanCandidate }) {
   )
 }
 
-/** No plan found: start one, monthly by card or yearly by bank transfer. */
-function StartMembership() {
+/**
+ * No plan found: start one, monthly by card or yearly by bank transfer. The
+ * card checkout carries their Discord id (client_reference_id), so the Stripe
+ * webhook links the payment to them and it shows here at once.
+ */
+function StartMembership({ discordId }: { discordId?: string }) {
   const [interval, setPeriod] = useState<"month" | "year">("month")
   const [monthly, setMonthly] = useState<number>(DEFAULT_MONTHLY)
   const [linking, setLinking] = useState(false)
   const prices = interval === "month" ? MONTHLY_PRICES : YEARLY_PRICES
   const chosen = interval === "month" ? monthly : monthly * 10
-  const href = interval === "month" ? PAYMENT_LINKS[`individual${monthly}` as "individual10" | "individual15" | "individual20"].url : `/membership/pay/${chosen}`
+  const href = interval === "month" ? `${PAYMENT_LINKS[`individual${monthly}` as "individual10" | "individual15" | "individual20"].url}${discordId ? `?client_reference_id=discord_${discordId}` : ""}` : `/membership/pay/${chosen}`
 
   return (
     <>

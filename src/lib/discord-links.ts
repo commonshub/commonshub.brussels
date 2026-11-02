@@ -8,6 +8,7 @@
  *   - a member logs in with Discord: the email of their Discord account;
  *   - a member confirms another address with a code (the one they pay
  *     with, when it isn't their Discord one: /api/members/email);
+ *   - a member pays from the dashboard (the Stripe webhook);
  *   - a member says yes to the membership whose name matches theirs
  *     (/api/membership/claim-name; lib/member-plan.ts nameCandidate);
  *   - a membership application, once its applicant logged in after paying.
@@ -28,8 +29,13 @@ import { publishAsSite, queryRelays, siteIdentity } from "./nostr-server"
 export interface DiscordLink {
   discordId: string
   emailHash: string
-  /** "name": the member said a membership whose name matches theirs is theirs (weaker: a Discord name can be changed). */
-  source: "login" | "email" | "name" | "application"
+  /**
+   * "name": the member said a membership whose name matches theirs is theirs (weaker: a Discord name can be changed).
+   * "checkout": they paid from the dashboard (Stripe's client_reference_id): the address is as typed at Stripe, so the link only stands for that subscription.
+   */
+  source: "login" | "email" | "name" | "checkout" | "application"
+  /** "checkout": what they paid for, so the dashboard shows it before chb's next members pull. */
+  paid?: { subscription: string; amount: number; interval: "month" | "year"; at: string }
   /** When it was recorded (ISO). */
   at: string
   applicationId?: string
@@ -48,7 +54,7 @@ function key(): { secretKey: Uint8Array; pubkey: string; conversation: Uint8Arra
 const dTag = (discordId: string, emailHash: string, k = key()) =>
   `${T_TAG}:${createHmac("sha256", Buffer.from(k.secretKey)).update(`discord-link:${discordId}:${emailHash}`).digest("base64url").slice(0, 32)}`
 
-/** Links recorded by login or a confirmed address, one per member and address. */
+/** Links recorded by login, a confirmed address, a name or a payment, one per member and address (and subscription, for a payment). */
 export async function listLoginLinks(): Promise<DiscordLink[]> {
   const k = key()
   const events = await queryRelays({ kinds: [KIND_APP_DATA], authors: [k.pubkey], "#t": [T_TAG], limit: 2000 }, 4000)
@@ -56,7 +62,7 @@ export async function listLoginLinks(): Promise<DiscordLink[]> {
   for (const e of latestAddressable(events)) {
     try {
       const link = JSON.parse(decrypt(e.content, k.conversation)) as DiscordLink
-      if (link.discordId && /^[0-9a-f]{64}$/.test(link.emailHash)) out.set(`${link.discordId}:${link.emailHash}`, { ...link, source: link.source === "email" || link.source === "name" ? link.source : "login" })
+      if (link.discordId && /^[0-9a-f]{64}$/.test(link.emailHash)) out.set(`${link.discordId}:${link.emailHash}:${link.paid?.subscription ?? ""}`, { ...link, source: link.source === "email" || link.source === "name" || link.source === "checkout" ? link.source : "login" })
     } catch {
       /* not ours, or damaged */
     }
@@ -76,18 +82,30 @@ export async function cachedLinks(): Promise<DiscordLink[]> {
 /** What this process already knows is on the relays: one lookup per member and address. */
 const known = new Set<string>()
 
-/** Record that this Discord account goes with this membership id (logged in with it, or confirmed it), unless it already does. Never throws. */
-export async function recordLoginLink(discordId: string, emailHash: string | null, now = new Date(), source: "login" | "email" | "name" = "login"): Promise<void> {
-  if (!emailHash || !/^\d{5,25}$/.test(discordId) || !siteIdentity()) return
-  const seen = `${discordId}:${emailHash}:${source}`
-  if (known.has(seen)) return
+/**
+ * Record that this Discord account goes with this membership id (logged in
+ * with it, confirmed it, or paid with it), unless it already does. Never
+ * throws: false when it couldn't be saved.
+ */
+export async function recordLoginLink(
+  discordId: string,
+  emailHash: string | null,
+  now = new Date(),
+  source: "login" | "email" | "name" | "checkout" = "login",
+  paid?: DiscordLink["paid"],
+): Promise<boolean> {
+  if (!emailHash || !/^\d{5,25}$/.test(discordId) || !siteIdentity()) return false
+  // A payment gets its own event: it mustn't replace the login link of the same address (which stands for any of its plans).
+  const pair = paid ? `${emailHash}:${paid.subscription}` : emailHash
+  const seen = `${discordId}:${pair}:${source}`
+  if (known.has(seen)) return true
   known.add(seen)
   try {
     const k = key()
-    const d = dTag(discordId, emailHash, k)
+    const d = dTag(discordId, pair, k)
     const existing = await queryRelays({ kinds: [KIND_APP_DATA], authors: [k.pubkey], "#d": [d], limit: 1 }, 4000)
-    if (existing.length && source !== "email") return
-    const link: DiscordLink = { discordId, emailHash, source, at: now.toISOString() }
+    if (existing.length && source !== "email") return true
+    const link: DiscordLink = { discordId, emailHash, source, at: now.toISOString(), ...(paid ? { paid } : {}) }
     const result = await publishAsSite({
       kind: KIND_APP_DATA,
       created_at: Math.floor(now.getTime() / 1000),
@@ -97,10 +115,15 @@ export async function recordLoginLink(discordId: string, emailHash: string | nul
       ],
       content: encrypt(JSON.stringify(link), k.conversation),
     })
-    if (!result.accepted.length) known.delete(seen)
-    else cache = null
+    if (!result.accepted.length) {
+      known.delete(seen)
+      return false
+    }
+    cache = null
+    return true
   } catch (error) {
     known.delete(seen)
     console.error("[discord-links] could not record a link:", error)
+    return false
   }
 }
