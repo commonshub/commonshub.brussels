@@ -16,7 +16,7 @@ import * as path from "path"
 import Stripe from "stripe"
 
 import { tierDir } from "./data-paths"
-import { ensureDirFor, runtimePath } from "./runtime-paths"
+import { readChanges, saveChange } from "./plan-changes-cache"
 import { discordIdentifier, emailIdentifier, memberIdForEmail, membershipSalt, nameTokenHash, nameTokens, resolveMemberId } from "./membership"
 import { MONTHLY_PRICES, type MonthlyPrice } from "./membership-application"
 import settings from "@/settings/settings.json"
@@ -79,37 +79,6 @@ export function planOf(m: Member): MemberPlan {
     organisation: !!(m.isOrganization || m.organizationName),
     canChange: monthly && m.source === "stripe" && !(m.isOrganization || m.organizationName),
     ...(m.cancelsOn ? { endsOn: m.cancelsOn.slice(0, 10) } : {}),
-  }
-}
-
-/**
- * Changes made here that chb's members list doesn't show yet (it's pulled
- * hourly; a cancellation shows only once chb publishes cancelsOn), by
- * membership id. Kept under RUNTIME_DIR, so a restart forgets them.
- */
-type PlanChange = { amount?: number; endsOn?: string | null; at: string }
-const CHANGES_FILE = runtimePath("plan-changes.json")
-let changes: Record<string, PlanChange> | null = null
-
-function readChanges(): Record<string, PlanChange> {
-  if (!changes) {
-    try {
-      changes = JSON.parse(fs.readFileSync(CHANGES_FILE, "utf-8")) as Record<string, PlanChange>
-    } catch {
-      changes = {}
-    }
-  }
-  return changes
-}
-
-function saveChange(id: string, change: Omit<PlanChange, "at">) {
-  const all = readChanges()
-  all[id] = { ...all[id], ...change, at: new Date().toISOString() }
-  if (!ensureDirFor(CHANGES_FILE)) return
-  try {
-    fs.writeFileSync(CHANGES_FILE, JSON.stringify(all), "utf-8")
-  } catch (error) {
-    console.error("[membership] Cannot save plan change:", error)
   }
 }
 
