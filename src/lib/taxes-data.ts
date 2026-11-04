@@ -13,6 +13,7 @@ export interface PassThrough {
   cadastralIncome: { ours: number; building: number; officeTaxBase: number }
   propertyTax: { building: number; ours: number }
   officeTax: { building: number; ours: number }
+  nonResidentialTax?: { building: number; ours: number }
 }
 
 const CONFIG = (settings as unknown as { taxes: { rules: TaxRule[]; pending?: PendingTax[]; passThrough: PassThrough } }).taxes

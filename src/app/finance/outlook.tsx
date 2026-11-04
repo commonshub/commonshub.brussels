@@ -104,15 +104,15 @@ function FlowChart({ outlook }: { outlook: FinanceOutlook }) {
 
 /** One plain sentence on where we stand. */
 function verdict(o: FinanceOutlook): string {
-  const afterBills = o.cash - (o.unpaidBills?.amount ?? 0)
-  if (afterBills < 0) return `The unpaid bills add up to more than what is in the accounts: ${eur(-afterBills)} short, before next month's rent.`
-  if (o.runwayMonths === null) return `Over the last ${months(o.window)}, income covered spending. After the unpaid bills, ${eur(afterBills)} is left: ${months(o.fixedCostsCovered)} of fixed costs.`
+  const afterBills = o.cash - o.stillToPay
+  if (afterBills < 0) return `The unpaid bills and taxes add up to more than what is in the accounts: ${eur(-afterBills)} short, before next month's rent.`
+  if (o.runwayMonths === null) return `Over the last ${months(o.window)}, income covered spending. After the unpaid bills and taxes, ${eur(afterBills)} is left: ${months(o.fixedCostsCovered)} of fixed costs.`
   return `At the pace of the last ${months(o.window)}, what is left after the unpaid bills lasts about ${months(o.runwayMonths)}.`
 }
 
 export function FinanceOutlookSection({ outlook }: { outlook: FinanceOutlook }) {
   const o = outlook
-  const afterBills = o.cash - (o.unpaidBills?.amount ?? 0)
+  const afterBills = o.cash - o.stillToPay
   const monthlyCosts = o.fixedCosts.filter((c) => !c.annual)
   const yearlyCosts = o.fixedCosts.filter((c) => c.annual)
   const exceptional = o.months.filter((m) => m.exceptional)
@@ -131,10 +131,10 @@ export function FinanceOutlookSection({ outlook }: { outlook: FinanceOutlook }) 
           <p>Bank, Stripe and on-chain accounts together (see each one below).</p>
         </Tile>
 
-        <Tile icon={CalendarClock} label="Still to pay" value={o.unpaidBills ? eur(o.unpaidBills.amount) : "–"}>
+        <Tile icon={CalendarClock} label="Still to pay" value={o.unpaidBills || o.unpaidTaxes.amount > 0 ? eur(o.stillToPay) : "–"}>
           {o.unpaidBills ? (
             <p>
-              {o.unpaidBills.count} unpaid bills in our books
+              {eur(o.unpaidBills.amount)} in {o.unpaidBills.count} unpaid bills in our books
               {o.unpaidBills.overdue > 0 ? `, ${eur(o.unpaidBills.overdue)} of it past due` : ""}.{" "}
               <Link href="/contribute" className="underline underline-offset-2">
                 Cover one
@@ -142,6 +142,15 @@ export function FinanceOutlookSection({ outlook }: { outlook: FinanceOutlook }) 
             </p>
           ) : (
             <p>The list of unpaid bills is not published yet.</p>
+          )}
+          {o.unpaidTaxes.amount > 0 && (
+            <p>
+              {eur(o.unpaidTaxes.amount)} of{" "}
+              <Link href="/taxes" className="underline underline-offset-2">
+                the building&apos;s taxes
+              </Link>
+              {o.unpaidTaxes.overdue > 0 ? `, ${eur(o.unpaidTaxes.overdue)} of it past due` : ""}.
+            </p>
           )}
           <p>
             Then {eur(o.nextMonthFixed)} every month for {monthlyCosts.map((c) => c.label.replace(/ \(.*\)$/, "").toLowerCase()).join(", ")}.
@@ -154,7 +163,7 @@ export function FinanceOutlookSection({ outlook }: { outlook: FinanceOutlook }) 
           </p>
           <p>
             Fixed costs alone: {eur(o.fixedMonthly)} a month
-            {yearlyCosts.length > 0 ? `, the yearly ${yearlyCosts.map((c) => c.label.replace(/ \(.*\)$/, "").toLowerCase()).join(" and ")} counted as a twelfth` : ""}.
+            {yearlyCosts.length > 0 ? `, the yearly ${new Intl.ListFormat("en", { type: "conjunction" }).format(yearlyCosts.map((c) => c.label.replace(/ \(.*\)$/, "").toLowerCase()))} counted as a twelfth` : ""}.
           </p>
         </Tile>
 
@@ -165,8 +174,8 @@ export function FinanceOutlookSection({ outlook }: { outlook: FinanceOutlook }) 
         >
           <p>
             {afterBills < 0
-              ? `The unpaid bills are ${eur(-afterBills)} more than the cash.`
-              : `${eur(afterBills)} is left once the unpaid bills are paid.`}
+              ? `The unpaid bills and taxes are ${eur(-afterBills)} more than the cash.`
+              : `${eur(afterBills)} is left once the unpaid bills and taxes are paid.`}
           </p>
           <p>With no income at all, that covers {months(o.fixedCostsCovered)} of fixed costs.</p>
         </Tile>

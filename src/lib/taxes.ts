@@ -3,22 +3,23 @@
  *
  * Three levels of government:
  *   - local     the office tax (taxe sur les bureaux) of the City of Brussels,
- *   - regional  the property tax (précompte immobilier) of the Brussels Region,
- *               both levied on the building's owner and passed through to us
+ *   - regional  the property tax (précompte immobilier) and the tax on
+ *               non-residential surfaces of the Brussels Region,
+ *               all levied on the building's owner and passed through to us
  *               for our share of the building,
  *   - federal   VAT, settled every quarter with the FPS Finance: a payment
  *               when we collected more VAT than we paid, a refund otherwise.
  *
  * Payments are recognised by their description in the public transactions
  * (settings.taxes.rules), so a new payment shows as soon as chb has it.
- * Taxes billed but not paid yet are listed in settings.taxes.pending and
- * drop off once a payment for the same tax and year appears. The VAT
+ * Taxes billed to us are listed in settings.taxes.pending; payments for the
+ * same tax and year count against them, and a bill drops off once paid. The VAT
  * returns themselves (what each quarter came to) are chb's vat.json.
  * Pure: the loader is in taxes-data.ts.
  */
 
 export type TaxLevel = "local" | "regional" | "federal"
-export type TaxKind = "property-tax" | "office-tax" | "vat"
+export type TaxKind = "property-tax" | "office-tax" | "non-residential-tax" | "vat"
 
 export interface TaxRule {
   kind: TaxKind
@@ -89,16 +90,25 @@ export function classifyTaxPayment(tx: TaxTransactionLike, rules: TaxRule[]): Ta
   }
 }
 
-/** A tax billed to us and not paid yet. */
+/** A tax billed to us. */
 export interface PendingTax {
   kind: TaxKind
   taxYear: number
   amount: number
+  /** YYYY-MM-DD: when each equal part is due (the office taxes: a quarter each). */
+  installments?: string[]
 }
 
+/** What is left to pay of a bill. */
 export interface PendingItem extends PendingTax {
   level: TaxLevel
   label: string
+  /** Left to pay. */
+  amount: number
+  /** The bill in full. */
+  billed: number
+  /** Of what is left, the part past its due date. */
+  overdue: number
 }
 
 export interface LevelTotal {
@@ -123,14 +133,22 @@ export interface TaxSummary {
 const round = (n: number) => Math.round(n * 100) / 100
 export const LEVELS: TaxLevel[] = ["local", "regional", "federal"]
 
-/** Pending bills still open: none of the payments settles the same tax for the same year. */
-export function openPending(pending: PendingTax[], payments: TaxPayment[], rules: TaxRule[]): PendingItem[] {
-  return pending
-    .filter((bill) => !payments.some((p) => p.kind === bill.kind && p.taxYear === bill.taxYear))
-    .flatMap((bill) => {
-      const rule = rules.find((r) => r.kind === bill.kind)
-      return rule ? [{ ...bill, level: rule.level, label: rule.label }] : []
-    })
+/**
+ * The bills still open, with what is left to pay: the payments for the same
+ * tax and year count against each (they come in parts), and a bill paid to
+ * the euro drops off. `today` (YYYY-MM-DD) tells which installments are past due.
+ */
+export function openPending(pending: PendingTax[], payments: TaxPayment[], rules: TaxRule[], today = brusselsDate(Date.now() / 1000)): PendingItem[] {
+  return pending.flatMap((bill) => {
+    const rule = rules.find((r) => r.kind === bill.kind)
+    if (!rule) return []
+    const paid = payments.filter((p) => p.kind === bill.kind && p.taxYear === bill.taxYear).reduce((s, p) => s + p.amount, 0)
+    const left = round(bill.amount - paid)
+    if (left <= 1) return []
+    const parts = bill.installments ?? []
+    const due = parts.length ? (bill.amount * parts.filter((d) => d <= today).length) / parts.length : 0
+    return [{ ...bill, level: rule.level, label: rule.label, amount: left, billed: bill.amount, overdue: round(Math.max(0, Math.min(left, due - paid))) }]
+  })
 }
 
 export function summarizeTaxes(payments: TaxPayment[], pending: PendingItem[] = []): TaxSummary {

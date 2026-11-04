@@ -29,7 +29,7 @@ const LEVEL_INFO: Record<TaxLevel, { title: string; who: string; what: string; i
   regional: {
     title: "Regional",
     who: "Brussels-Capital Region",
-    what: "Property tax (précompte immobilier), levied on the building's owner and passed through to us for our share of the building.",
+    what: "Property tax (précompte immobilier) and the tax on non-residential surfaces, levied on the building's owner and passed through to us for our share of the building.",
     icon: Building2,
   },
   federal: {
@@ -94,7 +94,10 @@ function PaymentList({ payments, pending }: { payments: TaxPayment[]; pending: P
             <div className="text-foreground">
               {bill.label} {bill.taxYear}
             </div>
-            <div className="text-xs text-amber-700 dark:text-amber-400">Billed, not paid yet</div>
+            <div className="text-xs text-amber-700 dark:text-amber-400">
+              {bill.amount < bill.billed ? `${eur.format(bill.billed - bill.amount)} of ${eur.format(bill.billed)} paid` : "Billed, not paid yet"}
+              {bill.overdue > 0 ? `, ${eur.format(bill.overdue)} past due` : ""}
+            </div>
           </div>
           <span className="tabular-nums text-amber-700 dark:text-amber-400">{eur.format(bill.amount)}</span>
         </li>
@@ -137,7 +140,7 @@ export default function TaxesPage() {
   const pt = PASS_THROUGH
   const propertyShare = pt.cadastralIncome.ours / pt.cadastralIncome.building
   const officeShare = pt.cadastralIncome.ours / pt.cadastralIncome.officeTaxBase
-  const passThroughTotal = pt.propertyTax.ours + pt.officeTax.ours
+  const passThroughTotal = pt.propertyTax.ours + pt.officeTax.ours + (pt.nonResidentialTax?.ours ?? 0)
 
   return (
     <main className="min-h-screen">
@@ -285,7 +288,7 @@ export default function TaxesPage() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">How the building&apos;s taxes are shared</h2>
             <p className="mt-2 max-w-3xl text-muted-foreground">
-              The property tax and the office tax are levied on the owner of the building, who passes our share on to us. The share follows the cadastral income (revenu cadastral) of the floors we occupy: {eur0.format(pt.cadastralIncome.ours)} of the building&apos;s {eur0.format(pt.cadastralIncome.building)}. The office tax leaves out the ground-floor shop and the basement, so our share of it is larger.
+              The property tax, the office tax and the tax on non-residential surfaces are levied on the owner of the building, who passes our share on to us. The share follows the cadastral income (revenu cadastral) of the floors we occupy: {eur0.format(pt.cadastralIncome.ours)} of the building&apos;s {eur0.format(pt.cadastralIncome.building)}. The office tax leaves out the ground-floor shop and the basement, so our share of it is larger; the tax on non-residential surfaces has its own base.
             </p>
             <div className="mt-6 overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm">
@@ -310,6 +313,14 @@ export default function TaxesPage() {
                     <td className="px-4 py-2 text-right tabular-nums">{pct(officeShare)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{eur.format(pt.officeTax.ours)}</td>
                   </tr>
+                  {pt.nonResidentialTax && (
+                    <tr>
+                      <td className="px-4 py-2 text-foreground">Non-residential surfaces tax (regional)</td>
+                      <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{eur.format(pt.nonResidentialTax.building)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{pct(pt.nonResidentialTax.ours / pt.nonResidentialTax.building)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{eur.format(pt.nonResidentialTax.ours)}</td>
+                    </tr>
+                  )}
                   <tr className="font-semibold">
                     <td className="px-4 py-2 text-foreground">Total</td>
                     <td className="hidden px-4 py-2 sm:table-cell" />

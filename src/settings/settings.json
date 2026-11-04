@@ -374,14 +374,21 @@
         "label": "Property tax (regional)",
         "short": "property tax",
         "description": "Our share of the building's property tax (précompte immobilier), which the owner pays to the Brussels Region and passes on to us.",
-        "annualAmount": 15195.19
+        "annualAmount": 15191.69
       },
       {
         "slug": "office-tax",
         "label": "Office tax (local)",
         "short": "office tax",
         "description": "Our share of the building's office tax (taxe sur les bureaux), which the owner pays to the City of Brussels and passes on to us.",
-        "annualAmount": 12918.95
+        "annualAmount": 12917.78
+      },
+      {
+        "slug": "non-residential-tax",
+        "label": "Non-residential surfaces tax (regional)",
+        "short": "non-residential surfaces tax",
+        "description": "Our share of the building's regional tax on non-residential surfaces (taxe régionale sur les surfaces non résidentielles), which the owner pays to the Brussels Region and passes on to us.",
+        "annualAmount": 2653.48
       }
     ],
     "exclude": {
@@ -465,7 +472,7 @@
     "chbPubkey": "f41dba36eefd728c4a4da627f50dd83e442c2e1cb4775ded98818b7f2b43cd0f"
   },
   "taxes": {
-    "_comment": "Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists taxes billed to us but not paid yet; an entry disappears on its own once a payment of the same kind and tax year shows up. `passThrough` is the owner's split of the building's property tax and office tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
+    "_comment": "Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists the taxes billed to us (the owner's letter of 27 September 2026); payments of the same kind and tax year count against them, and an entry disappears once paid in full. `installments`: the dates by which each equal part is due, for what is past due. `passThrough` is the owner's split of the building's property tax, office tax and non-residential surfaces tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
     "rules": [
       {
         "kind": "property-tax",
@@ -479,7 +486,14 @@
         "level": "local",
         "label": "Office tax",
         "localName": "taxe sur les bureaux",
-        "match": "office space tax|office tax|taxe (sur les )?bureaux"
+        "match": "office space tax|office tax|taxe (sur les )?bureaux|taxe communale"
+      },
+      {
+        "kind": "non-residential-tax",
+        "level": "regional",
+        "label": "Non-residential surfaces tax",
+        "localName": "taxe régionale sur les surfaces non résidentielles",
+        "match": "non[- ]r[eé]sid|surfaces? non|taxe r[eé]gionale"
       },
       {
         "kind": "vat",
@@ -493,17 +507,24 @@
       {
         "kind": "office-tax",
         "taxYear": 2025,
-        "amount": 12603.85
+        "amount": 12603.84,
+        "installments": ["2026-10-02", "2026-11-02", "2026-12-02", "2027-01-02"]
       },
       {
         "kind": "office-tax",
         "taxYear": 2026,
-        "amount": 12918.95
+        "amount": 12917.78,
+        "installments": ["2026-10-02", "2026-11-02", "2026-12-02", "2027-01-02"]
       },
       {
         "kind": "property-tax",
         "taxYear": 2026,
-        "amount": 15195.19
+        "amount": 15191.69
+      },
+      {
+        "kind": "non-residential-tax",
+        "taxYear": 2026,
+        "amount": 2653.48
       }
     ],
     "passThrough": {
@@ -514,12 +535,16 @@
         "officeTaxBase": 21033
       },
       "propertyTax": {
-        "building": 34931.46,
-        "ours": 15194.86
+        "building": 34924.48,
+        "ours": 15191.69
       },
       "officeTax": {
         "building": 23370.0,
         "ours": 12917.78
+      },
+      "nonResidentialTax": {
+        "building": 7398.8,
+        "ours": 2653.48
       }
     }
   },

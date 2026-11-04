@@ -90,6 +90,14 @@ describe("computeOutlook", () => {
     expect(o.window).toBe(3)
   })
 
+  test("the taxes still to pay count with the bills", () => {
+    const o = computeOutlook({ cash: 20000, unpaid: [{ amountDue: 4000 }], taxes: [{ amount: 6000, overdue: 3000 }, { amount: 2000, overdue: 0 }], fixedCosts: fixed, months, window: 3 })
+    expect(o.unpaidTaxes).toEqual({ amount: 8000, count: 2, overdue: 3000 })
+    expect(o.stillToPay).toBe(12000)
+    // (20000 - 12000) / 4000
+    expect(o.runwayMonths).toBe(2)
+  })
+
   test("no runway end when income covers spending", () => {
     const o = computeOutlook({
       cash: 5000,

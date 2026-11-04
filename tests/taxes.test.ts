@@ -71,29 +71,51 @@ describe("tax payments", () => {
 
 describe("pending bills", () => {
   const payments = PRODUCTION.map((t) => classifyTaxPayment(t, RULES)!)
+  const today = "2026-11-04"
 
   test("the bills in settings are listed with their level, and summed apart from what is paid", () => {
-    const open = openPending(TAXES.pending, payments, RULES)
+    const open = openPending(TAXES.pending, payments, RULES, today)
     expect(open.map((b) => [b.level, b.label, b.taxYear, b.amount])).toEqual([
-      ["local", "Office tax", 2025, 12603.85],
-      ["local", "Office tax", 2026, 12918.95],
-      ["regional", "Property tax", 2026, 15195.19],
+      ["local", "Office tax", 2025, 12603.84],
+      ["local", "Office tax", 2026, 12917.78],
+      ["regional", "Property tax", 2026, 15191.69],
+      ["regional", "Non-residential surfaces tax", 2026, 2653.48],
     ])
+    // The owner's letter of 27 September 2026, our column: 43,366.79. Its
+    // non-residential line reads 3,653.48, but only 2,653.48 adds up, to the
+    // line's total (7,398.80 with the other tenant's 4,745.32) and to the column's.
     const summary = summarizeTaxes(payments, open)
-    expect(summary.pendingTotal).toBe(40717.99)
+    expect(summary.pendingTotal).toBe(43366.79)
     expect(summary.total).toBe(32561.41) // pending never counts as paid
     // The headline on /taxes: what was paid plus the claims still to pay.
-    expect(summary.totalWithPending).toBe(73279.4)
-    expect(summary.levels.find((l) => l.level === "local")!.pendingTotal).toBe(25522.8)
+    expect(summary.totalWithPending).toBe(75928.2)
+    expect(summary.levels.find((l) => l.level === "local")!.pendingTotal).toBe(25521.62)
   })
 
-  test("a bill drops off once a payment for the same tax and year shows up", () => {
-    const paid = classifyTaxPayment(tx("j", "2026-10-01T10:00:00Z", -12603.85, "CHB Office space tax 2025 Expense 300001"), RULES)!
-    expect(paid.taxYear).toBe(2025)
-    const open = openPending(TAXES.pending, [...payments, paid], RULES)
-    expect(open.map((b) => `${b.kind} ${b.taxYear}`)).toEqual(["office-tax 2026", "property-tax 2026"])
+  test("the office taxes are due in quarters: two of them by 4 November", () => {
+    const office2026 = openPending(TAXES.pending, payments, RULES, today).find((b) => b.kind === "office-tax" && b.taxYear === 2026)!
+    expect(office2026.overdue).toBe(6458.89)
+    expect(openPending(TAXES.pending, payments, RULES, "2026-09-30").every((b) => b.overdue === 0)).toBe(true)
+  })
+
+  test("the 2025 office tax, paid in September 2026 as \"Taxe communale 2025\", is settled", () => {
+    const paid = classifyTaxPayment(tx("j", "2026-09-25T10:00:00Z", -12603.84, "Taxe communale 2025 CHB"), RULES)!
+    expect([paid.kind, paid.taxYear]).toEqual(["office-tax", 2025])
+    const open = openPending(TAXES.pending, [...payments, paid], RULES, today)
+    expect(open.map((b) => `${b.kind} ${b.taxYear}`)).toEqual(["office-tax 2026", "property-tax 2026", "non-residential-tax 2026"])
+    expect(summarizeTaxes([...payments, paid], open).pendingTotal).toBe(30762.95)
     // The 2025 property tax payment already on the books settles nothing pending.
-    expect(openPending([{ kind: "property-tax", taxYear: 2025, amount: 1 }], payments, RULES)).toEqual([])
+    expect(openPending([{ kind: "property-tax", taxYear: 2025, amount: 1 }], payments, RULES, today)).toEqual([])
+  })
+
+  test("a part payment leaves the rest to pay", () => {
+    const quarter = classifyTaxPayment(tx("q", "2026-10-02T10:00:00Z", -3229.45, "Taxe communale 2026 1/4"), RULES)!
+    const office2026 = openPending(TAXES.pending, [...payments, quarter], RULES, today).find((b) => b.kind === "office-tax" && b.taxYear === 2026)!
+    expect([office2026.billed, office2026.amount, office2026.overdue]).toEqual([12917.78, 9688.33, 3229.44])
+  })
+
+  test("the non-residential surfaces tax is regional", () => {
+    expect(classifyTaxPayment(tx("n", "2026-12-01T10:00:00Z", -2653.48, "Taxe régionale surfaces non résidentielles 2026"), RULES)).toMatchObject({ kind: "non-residential-tax", level: "regional", taxYear: 2026 })
   })
 })
 
