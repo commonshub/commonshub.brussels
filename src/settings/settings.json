@@ -159,7 +159,8 @@
           "name": "EURb",
           "symbol": "EURb",
           "decimals": 6
-        }
+        },
+        "archivedAt": "2026-11-04"
       },
       {
         "name": "☕️ Coffee",
@@ -173,7 +174,8 @@
           "name": "EURb",
           "symbol": "EURb",
           "decimals": 6
-        }
+        },
+        "archivedAt": "2026-11-04"
       },
       {
         "name": "🏦 KBC",
