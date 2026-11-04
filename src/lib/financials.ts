@@ -10,6 +10,19 @@ export interface MonthlyBreakdown {
   inflow: number;
   outflow: number;
   net: number;
+  /**
+   * The overview's view of an account's month: without the moves between our
+   * own accounts (INTERNAL), and their net (`internal`), which only cancels
+   * across all accounts.
+   */
+  external?: { inflow: number; outflow: number; net: number };
+  internal?: number;
+  /**
+   * Aggregated months only: the net of moves with accounts outside the active
+   * set (archived ones, like the hacked savings), which don't cancel. Counted
+   * in inflow or outflow, so Net still equals the change in balance.
+   */
+  archived?: number;
 }
 
 export interface FinanceRecentTransaction {
@@ -237,26 +250,38 @@ function loadNormalizedTransactions(account: any): Transaction[] {
 function calculateAggregatedMonthlyBreakdown(
   accountsData: AccountData[]
 ): MonthlyBreakdown[] {
-  const monthlyMap = new Map<string, { inflow: number; outflow: number }>();
+  // Inflow and outflow leave out moves between our own accounts: a Stripe
+  // payout to savings is not income. Those moves cancel across the active
+  // accounts, except with archived ones, whose net is kept (as `archived`) so
+  // that Net is still the sum of every transaction, i.e. the balance change.
+  const monthlyMap = new Map<string, { inflow: number; outflow: number; internal: number }>();
 
   accountsData.forEach((accountData) => {
     accountData.monthlyBreakdown.forEach((month) => {
       if (!monthlyMap.has(month.month)) {
-        monthlyMap.set(month.month, { inflow: 0, outflow: 0 });
+        monthlyMap.set(month.month, { inflow: 0, outflow: 0, internal: 0 });
       }
       const monthData = monthlyMap.get(month.month)!;
-      monthData.inflow += month.inflow;
-      monthData.outflow += month.outflow;
+      monthData.inflow += month.external?.inflow ?? month.inflow;
+      monthData.outflow += month.external?.outflow ?? month.outflow;
+      monthData.internal += month.internal ?? 0;
     });
   });
 
+  const cents = (n: number) => Math.round(n * 100) / 100;
   return Array.from(monthlyMap.entries())
-    .map(([month, data]) => ({
-      month,
-      inflow: Math.round(data.inflow * 100) / 100,
-      outflow: Math.round(data.outflow * 100) / 100,
-      net: Math.round((data.inflow - data.outflow) * 100) / 100,
-    }))
+    .map(([month, data]) => {
+      const archived = cents(data.internal);
+      const inflow = data.inflow + Math.max(archived, 0);
+      const outflow = data.outflow + Math.max(-archived, 0);
+      return {
+        month,
+        inflow: cents(inflow),
+        outflow: cents(outflow),
+        net: cents(inflow - outflow),
+        ...(archived !== 0 ? { archived } : {}),
+      };
+    })
     .sort((a, b) => b.month.localeCompare(a.month));
 }
 
@@ -290,7 +315,7 @@ function fetchAccountData(
     const balance = liveBalance !== null ? liveBalance : derivedBalance;
 
     // Calculate monthly breakdown
-    const monthlyMap = new Map<string, { inflow: number; outflow: number }>();
+    const monthlyMap = new Map<string, { inflow: number; outflow: number; extIn: number; extOut: number; internal: number }>();
 
     allTransactions.forEach((tx: any) => {
       const date = new Date(tx.timestamp * 1000);
@@ -302,7 +327,7 @@ function fetchAccountData(
       const signed = tx.normalizedAmount ?? tx.amount ?? 0;
 
       if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, { inflow: 0, outflow: 0 });
+        monthlyMap.set(monthKey, { inflow: 0, outflow: 0, extIn: 0, extOut: 0, internal: 0 });
       }
 
       const monthData = monthlyMap.get(monthKey)!;
@@ -310,6 +335,13 @@ function fetchAccountData(
         monthData.inflow += signed;
       } else {
         monthData.outflow += -signed;
+      }
+      if (isInternalTransfer(tx)) {
+        monthData.internal += signed;
+      } else if (signed >= 0) {
+        monthData.extIn += signed;
+      } else {
+        monthData.extOut += -signed;
       }
     });
 
@@ -319,6 +351,12 @@ function fetchAccountData(
         inflow: Math.round(data.inflow * 100) / 100,
         outflow: Math.round(data.outflow * 100) / 100,
         net: Math.round((data.inflow - data.outflow) * 100) / 100,
+        external: {
+          inflow: Math.round(data.extIn * 100) / 100,
+          outflow: Math.round(data.extOut * 100) / 100,
+          net: Math.round((data.extIn - data.extOut) * 100) / 100,
+        },
+        internal: Math.round(data.internal * 100) / 100,
       }))
       .sort((a, b) => b.month.localeCompare(a.month));
 
@@ -418,7 +456,7 @@ export function getAccountFinancials(slug: string): AccountData | null {
 
 /**
  * Aggregated financial data across all configured accounts (overview).
- * Internal transfers are excluded from the aggregated monthly breakdown.
+ * Moves between our own accounts are left out of the aggregated inflow and outflow.
  */
 export function getFinancialsOverview(): FinancialsOverview {
   const lastModified = getCurrentMonthLastModified();
@@ -431,10 +469,10 @@ export function getFinancialsOverview(): FinancialsOverview {
     (account) => !("archivedAt" in account && (account as any).archivedAt)
   );
 
-  // Count every transaction (including inter-account transfers) so the
-  // aggregated inflow/outflow and Net reconcile to the change in total balance:
-  // Net is the sum of every signed transaction, which equals the balance by
-  // identity, and inter-account transfers cancel across the set.
+  // Count every transaction so the aggregated Net reconciles to the change in
+  // total balance (Net is the sum of every signed transaction, the balance by
+  // identity). Inflow and outflow leave out the moves between our accounts,
+  // which cancel across the set (calculateAggregatedMonthlyBreakdown).
   const accountsData = activeAccounts.map((account) =>
     fetchAccountData(account, false)
   );

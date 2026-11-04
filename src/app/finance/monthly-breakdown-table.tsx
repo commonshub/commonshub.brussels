@@ -20,6 +20,9 @@ import {
 import Link from "next/link";
 import type { AccountData, MonthlyBreakdown } from "@/lib/financials";
 
+const euros = (n: number) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function formatMonth(month: string) {
   const [year, m] = month.split("-");
   const date = new Date(Number.parseInt(year), Number.parseInt(m) - 1);
@@ -46,16 +49,18 @@ export function MonthlyBreakdownTable({
         const monthData = account.monthlyBreakdown?.find(
           (m) => m.month === monthKey
         );
-        if (!monthData || (monthData.inflow === 0 && monthData.outflow === 0)) {
+        // What the month's row adds up: without the moves between our accounts.
+        const flow = monthData?.external ?? monthData;
+        if (!monthData || !flow || (flow.inflow === 0 && flow.outflow === 0)) {
           return null;
         }
         return {
           account,
           monthData: {
             ...monthData,
-            inflow: Math.round(monthData.inflow),
-            outflow: Math.round(monthData.outflow),
-            net: Math.round(monthData.net),
+            inflow: Math.round(flow.inflow),
+            outflow: Math.round(flow.outflow),
+            net: Math.round(flow.net),
           },
         };
       })
@@ -86,8 +91,9 @@ export function MonthlyBreakdownTable({
       <CardHeader>
         <CardTitle>Monthly Breakdown</CardTitle>
         <CardDescription>
-          Total income and expenses across all accounts per month. Click on a
-          row to see breakdown by account.
+          Money in and out of the Commons Hub per month, across all accounts;
+          moves between our own accounts are not counted. Click on a row to see
+          the breakdown by account.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -137,15 +143,15 @@ export function MonthlyBreakdownTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-right text-green-600 whitespace-nowrap w-[140px]">
-                      €{month.inflow.toLocaleString()}
+                      €{euros(month.inflow)}
                     </TableCell>
                     <TableCell className="text-right text-red-600 whitespace-nowrap w-[140px]">
-                      €{month.outflow.toLocaleString()}
+                      €{euros(month.outflow)}
                     </TableCell>
                     <TableCell
                       className={`text-right font-medium whitespace-nowrap w-[140px] ${month.net >= 0 ? "text-green-600" : "text-red-600"}`}
                     >
-                      {month.net < 0 ? "−" : ""}€{Math.abs(month.net).toLocaleString()}
+                      {month.net < 0 ? "−" : ""}€{euros(Math.abs(month.net))}
                     </TableCell>
                   </TableRow>
                   {expandedMonth === month.month &&
@@ -176,6 +182,24 @@ export function MonthlyBreakdownTable({
                         </TableCell>
                       </TableRow>
                     ))}
+                  {expandedMonth === month.month && month.archived && Math.round(month.archived) !== 0 ? (
+                    <TableRow className="bg-muted/30">
+                      <TableCell className="pl-8 py-2 text-muted-foreground">
+                        {month.archived > 0 ? "From" : "To"} archived accounts
+                      </TableCell>
+                      <TableCell className="text-right text-green-600 py-2 whitespace-nowrap w-[140px]">
+                        €{Math.round(Math.max(month.archived, 0)).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-red-600 py-2 whitespace-nowrap w-[140px]">
+                        €{Math.round(Math.max(-month.archived, 0)).toLocaleString()}
+                      </TableCell>
+                      <TableCell
+                        className={`text-right font-medium py-2 whitespace-nowrap w-[140px] ${month.archived >= 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {month.archived < 0 ? "−" : ""}€{Math.abs(Math.round(month.archived)).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                 </React.Fragment>
               );
             })}
