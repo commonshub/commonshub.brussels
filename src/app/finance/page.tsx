@@ -138,9 +138,7 @@ export default async function FinanceOverviewPage() {
               <p>
                 We use <strong>EURe</strong> (Monerium Euro) for our main
                 accounts - a regulated Euro stablecoin that can be converted 1:1
-                to regular bank transfers. For internal community tokens, we use{" "}
-                <strong>EURb</strong> (Brussels Euro) which powers our fridge
-                and coffee systems.
+                to regular bank transfers.
               </p>
             </CardContent>
           </Card>
