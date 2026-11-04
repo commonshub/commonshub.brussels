@@ -282,6 +282,7 @@ describe("the fixed costs configured in settings", () => {
     const cost = (slug: string) => all.contribute.recurring.find((r) => r.slug === slug)!.annualAmount
     expect(cost("property-tax")).toBe(bill("property-tax"))
     expect(cost("office-tax")).toBe(bill("office-tax"))
+    expect(cost("non-residential-tax")).toBe(bill("non-residential-tax"))
   })
 
   // chb does not publish a bills projection in the public tier yet, so on
@@ -295,17 +296,18 @@ describe("the fixed costs configured in settings", () => {
       // Largest first, taxes included as a twelfth of the yearly bill.
       expect(recurring.map((e) => [e.slug, e.amountEur, e.message])).toEqual([
         ["rent", 6546.76, "Contribution rent"],
-        ["property-tax", 1266.27, "Contribution property tax"],
-        ["office-tax", 1076.58, "Contribution office tax"],
+        ["property-tax", 1265.97, "Contribution property tax"],
+        ["office-tax", 1076.48, "Contribution office tax"],
         // Relieve's furniture and WeNap's phone booth, one cost: 504.57 + 133.10.
         ["furniture", 637.67, "Contribution furniture"],
         ["electricity", 238.5, "Contribution electricity"],
+        ["non-residential-tax", 221.12, "Contribution non-residential surfaces tax"],
         ["internet", 54.45, "Contribution internet"],
       ])
       expect(recurring.find((e) => e.slug === "furniture")!.vendor).toBe("Relieve and WeNap")
-      expect(recurring.find((e) => e.slug === "property-tax")!.annualAmount).toBe(15195.19)
+      expect(recurring.find((e) => e.slug === "property-tax")!.annualAmount).toBe(15191.69)
       const total = recurring.reduce((sum, e) => sum + e.amountEur, 0)
-      expect(Math.round(total * 100) / 100).toBe(9820.23)
+      expect(Math.round(total * 100) / 100).toBe(10040.95)
     } finally {
       fs.rmSync(empty, { recursive: true, force: true })
     }

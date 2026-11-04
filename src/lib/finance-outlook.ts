@@ -5,8 +5,9 @@
  *
  * - Cash: the live balances of the active accounts, as /finance totals them.
  * - Still to pay: the unpaid bills in the books (chb's pending-bills.json,
- *   as /contribute lists them) and the next month of the costs that come
- *   back every month (rent, furniture, internet, electricity; /contribute).
+ *   as /contribute lists them), the building's taxes billed to us and not
+ *   paid yet (/taxes), and the next month of the costs that come back every
+ *   month (rent, furniture, internet, electricity; /contribute).
  * - Burn rate: what the Hub itself received and spent per month, averaged
  *   over the last complete months. Transfers between our own accounts are
  *   left out, and so is the money of the projects we host (a transaction
@@ -15,13 +16,15 @@
  *   count until the day they were archived: that is where most income
  *   landed before. What the books call exceptional (the hack itself) is
  *   not spending: it is shown apart and kept out of the averages.
- * - Runway: cash left after the unpaid bills, divided by the net burn
+ * - Runway: cash left after the unpaid bills and taxes, divided by the net burn
  *   (spending minus income). With no net burn there is no end in sight.
  */
 
 import settings from "@/settings/settings.json"
 
 import { loadContributeExpenses, type ContributableExpense } from "./contribute-expenses"
+import { openPending } from "./taxes"
+import { PENDING_TAXES, TAX_RULES, loadTaxPayments } from "./taxes-data"
 import { readMonthlyTransactions } from "./transactions"
 import type { Transaction } from "@/types/transactions"
 
@@ -47,6 +50,10 @@ export interface FinanceOutlook {
   cash: number
   /** Unpaid EUR bills in the books; null when chb has not published the list. */
   unpaidBills: { amount: number; count: number; overdue: number; overdueCount: number } | null
+  /** The building's taxes billed to us, what is left to pay of them (/taxes). */
+  unpaidTaxes: { amount: number; count: number; overdue: number }
+  /** Unpaid bills and taxes together. */
+  stillToPay: number
   fixedCosts: FixedCost[]
   /** A month of every fixed cost, the yearly taxes as a twelfth. */
   fixedMonthly: number
@@ -129,6 +136,8 @@ export function fixedCostsOf(recurring: ContributableExpense[]): FixedCost[] {
 export function computeOutlook(input: {
   cash: number
   unpaid: Array<{ amountDue: number; overdue?: boolean }> | null
+  /** What is left to pay of each tax bill, and how much of it is past due. */
+  taxes?: Array<{ amount: number; overdue: number }>
   fixedCosts: FixedCost[]
   /** Oldest first; the last one is the current, partial month. */
   months: MonthFlow[]
@@ -154,11 +163,20 @@ export function computeOutlook(input: {
   const fixedMonthly = round2(input.fixedCosts.reduce((s, c) => s + c.monthly, 0))
   const nextMonthFixed = round2(input.fixedCosts.filter((c) => !c.annual).reduce((s, c) => s + c.monthly, 0))
   const cash = round2(input.cash)
-  const afterBills = round2(cash - (unpaidBills?.amount ?? 0))
+  const taxes = input.taxes ?? []
+  const unpaidTaxes = {
+    amount: round2(taxes.reduce((s, t) => s + t.amount, 0)),
+    count: taxes.length,
+    overdue: round2(taxes.reduce((s, t) => s + t.overdue, 0)),
+  }
+  const stillToPay = round2((unpaidBills?.amount ?? 0) + unpaidTaxes.amount)
+  const afterBills = round2(cash - stillToPay)
 
   return {
     cash,
     unpaidBills,
+    unpaidTaxes,
+    stillToPay,
     fixedCosts: input.fixedCosts,
     fixedMonthly,
     nextMonthFixed,
@@ -173,7 +191,7 @@ export function computeOutlook(input: {
   }
 }
 
-/** Reads the dataset: the last 12 complete months of transactions, the unpaid bills and the fixed costs. */
+/** Reads the dataset: the last 12 complete months of transactions, the unpaid bills and taxes, and the fixed costs. */
 export function loadFinanceOutlook(cash: number, now: Date = new Date()): FinanceOutlook {
   const accounts = accountWindows(settings.finance.accounts as Array<{ slug: string; accountId?: string; archivedAt?: string | null }>)
   const months = outlookMonths(now, 12).map((month) => {
@@ -184,6 +202,7 @@ export function loadFinanceOutlook(cash: number, now: Date = new Date()): Financ
   return computeOutlook({
     cash,
     unpaid: expenses.pending ? expenses.oneTime.map((b) => ({ amountDue: b.amountEur, overdue: b.overdue })) : null,
+    taxes: openPending(PENDING_TAXES, loadTaxPayments(), TAX_RULES, now.toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })),
     fixedCosts: fixedCostsOf(expenses.recurring),
     months,
   })
