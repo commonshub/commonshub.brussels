@@ -1,8 +1,12 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { getFinancialsOverview } from "@/lib/financials";
+import { loadFinanceOutlook } from "@/lib/finance-outlook";
 
 export const runtime = "nodejs";
+// The figures are read from the dataset at request time, like the page's.
+export const dynamic = "force-dynamic";
 export const alt = "Commons Hub Brussels - Transparent Finances";
 export const size = {
   width: 1200,
@@ -11,28 +15,32 @@ export const size = {
 export const contentType = "image/png";
 
 export default async function Image() {
-  // Data will be fetched from API in the future - for now hardcoded
-  const balance = "€84,494";
-  const income = "+€49,824";
-  const expenses = "-€71,727";
+  // The same figures as the top of /finance: the balance, and the last
+  // complete month's income and spending.
+  const { accounts } = getFinancialsOverview();
+  const cash = Math.round(accounts.reduce((sum, acc) => sum + (acc.balance ?? 0), 0));
+  const outlook = loadFinanceOutlook(cash);
+  const last = outlook.months.filter((m) => !m.partial).at(-1);
 
-  const date = new Date("2025-12-04");
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const asOfDate = `As of ${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  const eur = (n: number) => `€${Math.round(Math.abs(n)).toLocaleString("en-US")}`;
+  const balance = `${cash < 0 ? "-" : ""}${eur(cash)}`;
+  const income = last ? `+${eur(last.income)}` : "–";
+  const expenses = last ? `-${eur(last.spending)}` : "–";
+  const monthLabel = last
+    ? new Date(`${last.month}-01T12:00:00Z`).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "";
+  const stillToPay =
+    outlook.stillToPay > 0 ? `${eur(outlook.stillToPay)} still to pay in bills and taxes · ` : "";
+  const asOfDate = `${stillToPay}As of ${new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Europe/Brussels",
+  })}`;
 
   // Read background image
   const backgroundPath = join(
@@ -168,7 +176,7 @@ export default async function Image() {
                   marginBottom: "10px",
                 }}
               >
-                Current Balance
+                Balance
               </div>
               <div
                 style={{
@@ -201,7 +209,7 @@ export default async function Image() {
                   marginBottom: "10px",
                 }}
               >
-                Nov 2024 Income
+                {`${monthLabel} income`}
               </div>
               <div
                 style={{
@@ -233,7 +241,7 @@ export default async function Image() {
                   marginBottom: "10px",
                 }}
               >
-                Nov 2024 Expenses
+                {`${monthLabel} spending`}
               </div>
               <div
                 style={{
@@ -251,8 +259,8 @@ export default async function Image() {
           <div
             style={{
               marginTop: "30px",
-              fontSize: "16px",
-              color: "#999999",
+              fontSize: "20px",
+              color: "#ffffff",
             }}
           >
             {asOfDate}
