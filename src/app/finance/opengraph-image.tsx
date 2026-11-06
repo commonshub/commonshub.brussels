@@ -23,9 +23,9 @@ export default async function Image() {
   const last = outlook.months.filter((m) => !m.partial).at(-1);
 
   const eur = (n: number) => `€${Math.round(Math.abs(n)).toLocaleString("en-US")}`;
-  const balance = `${cash < 0 ? "-" : ""}${eur(cash)}`;
+  const balance = `${cash < 0 ? "−" : ""}${eur(cash)}`;
   const income = last ? `+${eur(last.income)}` : "–";
-  const expenses = last ? `-${eur(last.spending)}` : "–";
+  const expenses = last ? `−${eur(last.spending)}` : "–";
   const monthLabel = last
     ? new Date(`${last.month}-01T12:00:00Z`).toLocaleDateString("en-US", {
         month: "short",
@@ -80,7 +80,7 @@ export default async function Image() {
           }}
         />
 
-        {/* Dark overlay for readability */}
+        {/* Dark overlay, so the white figures read on any part of the photo */}
         <div
           style={{
             position: "absolute",
@@ -88,181 +88,77 @@ export default async function Image() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.25)",
+            backgroundColor: "rgba(0, 0, 0, 0.45)",
           }}
         />
 
-        {/* Content wrapper */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 5,
           }}
         >
-          {/* Logo */}
-          <svg
-            width="80"
-            height="80"
-            viewBox="0 0 500 500"
-            style={{
-              marginBottom: "20px",
-            }}
-          >
-            <g clipPath="url(#clip0_48_36)">
-              <rect width="500" height="500" fill="#FF4C02" />
-              <path
-                d="M213.528 91L126.722 141.505L201.691 225.154L92 201.48V302.49L201.691 280.394L126.722 359.308L213.528 409.813L250.223 303.632L286.918 409.813L373.723 359.308L298.755 280.394L408.446 302.49V201.48L298.755 225.154L373.723 141.505L286.918 91L250.223 190.155L213.528 91Z"
-                fill="#FBF4F2"
-              />
-            </g>
-            <defs>
-              <clipPath id="clip0_48_36">
-                <rect width="500" height="500" rx="250" fill="white" />
-              </clipPath>
-            </defs>
-          </svg>
-
-          {/* Title */}
-          <div
-            style={{
-              fontSize: "48px",
-              fontWeight: "bold",
-              color: "#ffffff",
-              marginBottom: "12px",
-            }}
-          >
-            Commons Hub Brussels
-          </div>
-
-          {/* Subtitle */}
-          <div
-            style={{
-              fontSize: "28px",
-              color: "#d0d0d0",
-              marginBottom: "40px",
-            }}
-          >
-            Transparent Finances
+          {/* Logo and title on one line */}
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "44px" }}>
+            <svg width="72" height="72" viewBox="0 0 500 500" style={{ marginRight: "22px" }}>
+              <g clipPath="url(#clip0_48_36)">
+                <rect width="500" height="500" fill="#FF4C02" />
+                <path
+                  d="M213.528 91L126.722 141.505L201.691 225.154L92 201.48V302.49L201.691 280.394L126.722 359.308L213.528 409.813L250.223 303.632L286.918 409.813L373.723 359.308L298.755 280.394L408.446 302.49V201.48L298.755 225.154L373.723 141.505L286.918 91L250.223 190.155L213.528 91Z"
+                  fill="#FBF4F2"
+                />
+              </g>
+              <defs>
+                <clipPath id="clip0_48_36">
+                  <rect width="500" height="500" rx="250" fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: "50px", fontWeight: "bold", color: "#ffffff", lineHeight: 1.1 }}>
+                Commons Hub Brussels
+              </div>
+              <div style={{ fontSize: "32px", color: "#ffd2bd", lineHeight: 1.2 }}>
+                Transparent finances
+              </div>
+            </div>
           </div>
 
           {/* Stats */}
-          <div
-            style={{
-              display: "flex",
-              width: "100%",
-              justifyContent: "center",
-            }}
-          >
-            {/* Balance */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                borderRadius: "20px",
-                padding: "30px",
-                backgroundColor: "rgba(255, 76, 2, 0.85)",
-                marginRight: "15px",
-                minWidth: "260px",
-              }}
-            >
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            {[
+              { label: "Balance", value: balance },
+              { label: `${monthLabel} income`, value: income },
+              { label: `${monthLabel} spending`, value: expenses },
+            ].map((stat, i) => (
               <div
+                key={stat.label}
                 style={{
-                  fontSize: "18px",
-                  color: "#ffffff",
-                  marginBottom: "10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  width: "350px",
+                  padding: "26px 0 30px",
+                  marginLeft: i === 0 ? "0" : "20px",
+                  borderRadius: "24px",
+                  backgroundColor: "rgba(20, 8, 2, 0.6)",
+                  borderTop: "8px solid #FF4C02",
                 }}
               >
-                Balance
+                <div style={{ fontSize: "30px", color: "#ffd2bd", marginBottom: "6px" }}>
+                  {stat.label}
+                </div>
+                <div style={{ fontSize: "72px", fontWeight: "bold", color: "#ffffff", lineHeight: 1.1 }}>
+                  {stat.value}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: "44px",
-                  fontWeight: 900,
-                  color: "#000000",
-                }}
-              >
-                {balance}
-              </div>
-            </div>
-
-            {/* Income */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                borderRadius: "20px",
-                padding: "30px",
-                backgroundColor: "rgba(255, 76, 2, 0.85)",
-                marginRight: "15px",
-                minWidth: "260px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "18px",
-                  color: "#ffffff",
-                  marginBottom: "10px",
-                }}
-              >
-                {`${monthLabel} income`}
-              </div>
-              <div
-                style={{
-                  fontSize: "44px",
-                  fontWeight: "bold",
-                  color: "#000000",
-                }}
-              >
-                {income}
-              </div>
-            </div>
-
-            {/* Expenses */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                borderRadius: "20px",
-                padding: "30px",
-                backgroundColor: "rgba(255, 76, 2, 0.85)",
-                minWidth: "260px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "18px",
-                  color: "#ffffff",
-                  marginBottom: "10px",
-                }}
-              >
-                {`${monthLabel} spending`}
-              </div>
-              <div
-                style={{
-                  fontSize: "44px",
-                  fontWeight: "bold",
-                  color: "#000000",
-                }}
-              >
-                {expenses}
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Timestamp */}
-          <div
-            style={{
-              marginTop: "30px",
-              fontSize: "20px",
-              color: "#ffffff",
-            }}
-          >
+          {/* Still to pay and date */}
+          <div style={{ display: "flex", marginTop: "40px", fontSize: "30px", color: "#ffffff" }}>
             {asOfDate}
           </div>
         </div>
