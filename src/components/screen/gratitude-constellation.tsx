@@ -10,15 +10,17 @@ import { ScreenQr } from "./screen-qr"
 
 /**
  * /contributions/screen/1: who thanked whom. Everyone thanked or thanking in
- * 💝praise lately is a dot, every thank-you a line from giver to receiver
- * (older lines fainter). The latest thank-yous take turns: their lines light
- * up, a heart travels from the giver to the receiver and the words show
- * underneath. On the right, the latest thank-yous, the one on show
- * highlighted. Which one comes next is picked at random, so a screen that
+ * the last 100 thank-yous in 💝praise is a dot, every thank-you a line
+ * from giver to receiver (older lines fainter). The latest ten take turns:
+ * their lines light up, a heart travels from the giver to the receiver
+ * and the words show underneath. On the right, the latest ten, the one on
+ * show highlighted. Which one comes next is picked at random, so a screen that
  * reloads doesn't always start with the same.
  */
 
 const TURN_MS = 6500
+/** How many of the newest thank-yous take turns (gratitudeGraph's `spotlight`, which keeps their people on the drawing). */
+const SPOTLIGHT = 10
 
 /** The control point of the curve between two dots: bowed to one side, the same way every time. */
 function control(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -182,8 +184,8 @@ function PraiseList({ items, current }: { items: Praise[]; current?: Praise }) {
             <li
               key={p.id}
               style={{
-                padding: `${s(0.6)} ${s(0.8)}`,
-                marginTop: s(0.35),
+                padding: `${s(0.25)} ${s(0.8)}`,
+                marginTop: s(0.15),
                 borderRadius: s(0.7),
                 background: on ? "rgba(255,76,2,0.16)" : "transparent",
                 boxShadow: on ? `inset ${s(0.25)} 0 0 ${ACCENT}` : "none",
@@ -191,10 +193,11 @@ function PraiseList({ items, current }: { items: Praise[]; current?: Praise }) {
                 transition: "background 600ms, opacity 600ms, box-shadow 600ms",
               }}
             >
-              <div style={{ fontSize: s(1.05), color: on ? "#fff" : MUTED, fontWeight: 600 }}>
+              <div className="truncate" style={{ fontSize: s(1), lineHeight: 1.3, color: on ? "#fff" : MUTED, fontWeight: 600 }}>
                 {p.from.name} → {recipients(p.to).join(", ")} · <RelativeTime ms={p.at} />
               </div>
-              <div className="line-clamp-2" style={{ fontSize: s(1.3), lineHeight: 1.25, marginTop: s(0.15) }}>
+              {/* One line each, so all ten fit: the one on show has its words in full under the drawing. */}
+              <div className="truncate" style={{ fontSize: s(1.15), lineHeight: 1.3 }}>
                 {p.text}
               </div>
             </li>
@@ -224,7 +227,7 @@ export function GratitudeConstellation({
 }) {
   // The latest thank-yous take turns in the spotlight, in a random order:
   // a random first one (after hydration), then any other.
-  const turns = praises.slice(0, 6)
+  const turns = praises.slice(0, SPOTLIGHT)
   const [turn, setTurn] = useState(0)
   useEffect(() => {
     if (turns.length < 2) return
@@ -245,7 +248,7 @@ export function GratitudeConstellation({
           <Graph nodes={nodes} edges={edges} current={current} />
         ) : (
           <p className="flex-1" style={{ fontSize: s(1.6), color: MUTED }}>
-            No thank-yous in the last two weeks yet. Be the first!
+            No thank-yous yet. Be the first!
           </p>
         )}
         {current && <Quote key={current.id} praise={current} />}

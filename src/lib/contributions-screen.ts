@@ -147,8 +147,8 @@ function avatarsById(): Map<string, string> {
   return out
 }
 
-/** Thank-yous that name someone, newest first, within `days`. */
-export function recentPraises(feeds: ChannelFeed[], { now = Date.now(), days = 14, limit = 24, avatars = new Map<string, string>() } = {}): Praise[] {
+/** The latest `limit` thank-yous that name someone, newest first (within `days`, if given). */
+export function recentPraises(feeds: ChannelFeed[], { now = Date.now(), days = Infinity, limit = 100, avatars = new Map<string, string>() } = {}): Praise[] {
   const since = now - days * 86_400_000
   const seen = new Set<string>()
   const out: Praise[] = []
@@ -227,9 +227,10 @@ export interface GraphEdge {
 /**
  * People and the thank-yous between them, laid out by a small force
  * simulation (deterministic: same data, same picture). The most thanked
- * and thanking people are kept, up to `maxNodes`.
+ * and thanking people are kept, up to `maxNodes`, always with the people of
+ * the `spotlight` newest thank-yous (the ones the screen takes turns on).
  */
-export function gratitudeGraph(praises: Praise[], { maxNodes = 16, iterations = 400 } = {}): { nodes: GraphNode[]; edges: GraphEdge[] } {
+export function gratitudeGraph(praises: Praise[], { maxNodes = 24, spotlight = 10, iterations = 400 } = {}): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const people = new Map<string, ScreenPerson & { weight: number }>()
   const bump = (p: ScreenPerson) => {
     const cur = people.get(p.id)
@@ -242,7 +243,7 @@ export function gratitudeGraph(praises: Praise[], { maxNodes = 16, iterations = 
   }
   // Keep the busiest, but always the people of the newest thank-yous.
   const keep = new Set<string>()
-  for (const p of praises.slice(0, 4)) [p.from, ...p.to.slice(0, 3)].forEach((x) => keep.size < maxNodes && keep.add(x.id))
+  for (const p of praises.slice(0, spotlight)) [p.from, ...p.to.slice(0, 3)].forEach((x) => keep.size < maxNodes && keep.add(x.id))
   for (const p of [...people.values()].sort((a, b) => b.weight - a.weight)) if (keep.size < maxNodes) keep.add(p.id)
 
   const edges = new Map<string, GraphEdge>()
@@ -304,7 +305,8 @@ export interface ContributionsScreenData {
 }
 
 export function loadContributionsScreen(now = new Date()): ContributionsScreenData {
-  const months = lastMonths(now, 2)
+  // The last 100 thank-yous: some months have only a handful, so look back up to two years.
+  const months = lastMonths(now, 24)
   const read = (file: string) => months.map(([y, m]) => readTierJson<ChannelFeed>(TIER, file, y, m)).filter((f): f is ChannelFeed => !!f)
   const avatars = avatarsById()
   return {
