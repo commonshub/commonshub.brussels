@@ -53,7 +53,7 @@ describe("recent thank-yous", () => {
   })
 
   test("the constellation: one dot per person, one line per giver → receiver, laid out inside the frame", () => {
-    const praises = recentPraises([feed], { now: NOW })
+    const praises = recentPraises([feed], { now: NOW, days: 14 })
     const { nodes, edges } = gratitudeGraph(praises)
     expect(nodes.map((n) => n.name).sort()).toEqual(["Dean", "Leen", "Marijke"])
     expect(edges).toEqual(expect.arrayContaining([expect.objectContaining({ from: "1", to: "2" }), expect.objectContaining({ from: "3", to: "1" })]))
@@ -66,6 +66,25 @@ describe("recent thank-yous", () => {
     expect(nodes.find((n) => n.name === "Leen")!.weight).toBe(2)
     // Deterministic: the same data draws the same picture.
     expect(gratitudeGraph(praises)).toEqual(gratitudeGraph(praises))
+  })
+
+  test("by default the last 100, however old, and the people of the newest ten always drawn", () => {
+    expect(recentPraises([feed], { now: NOW }).map((p) => p.id)).toEqual(["b", "a", "e"])
+
+    const people = Array.from({ length: 40 }, (_, i) => ({ id: String(100 + i), displayName: `P${i}` }))
+    const many = {
+      messages: Array.from({ length: 120 }, (_, i) => ({
+        id: `m${i}`,
+        timestamp: new Date(Date.parse("2026-10-06T12:00:00Z") - i * 86_400_000).toISOString(),
+        author: people[i % 40],
+        content: `@P${(i + 1) % 40} thanks`,
+        mentions: [people[(i + 1) % 40]],
+      })),
+    }
+    const praises = recentPraises([many], { now: NOW })
+    expect(praises).toHaveLength(100)
+    const drawn = new Set(gratitudeGraph(praises, { iterations: 1 }).nodes.map((n) => n.id))
+    for (const p of praises.slice(0, 10)) [p.from, ...p.to].forEach((x) => expect(drawn.has(x.id)).toBe(true))
   })
 })
 
