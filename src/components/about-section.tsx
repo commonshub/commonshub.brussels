@@ -45,6 +45,7 @@ export function AboutSection() {
                         fill
                         className="object-contain"
                         sizes="40px"
+                        unoptimized
                       />
                     </Link>
                   ),
