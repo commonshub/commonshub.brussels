@@ -48,7 +48,7 @@ export interface MemberPlan {
 }
 
 /** The members tier's latest members.json, or null. */
-function readMembers(dir = tierDir("members")): Member[] | null {
+export function readMembers(dir = tierDir("members")): Member[] | null {
   try {
     return (JSON.parse(fs.readFileSync(path.join(dir, "members.json"), "utf-8")) as MembersFile).members ?? []
   } catch {

@@ -13,12 +13,17 @@ const COPY = {
     title: "Which email do you pay with?",
     intro: "If your membership is under another address than your Discord one, confirm it and we'll find your plan.",
   },
+  activate: {
+    title: "Which email do you pay with?",
+    intro: "We didn't find a membership under your Discord email. Confirm the address you pay with and you're in.",
+  },
 }
 
 /**
  * On the dashboard when chb has no email for the member's partner: add one,
  * proved with a code. Or (`membership`), when we can't find their plan: the
- * address they pay with, which then finds it.
+ * address they pay with, which then finds it. Or (`activate`), signed in
+ * without the member role: the address they pay with gives them the role.
  */
 export function AddEmailCard({ variant = "partner" }: { variant?: keyof typeof COPY }) {
   const router = useRouter()
@@ -39,7 +44,7 @@ export function AddEmailCard({ variant = "partner" }: { variant?: keyof typeof C
       if (!body.ok) throw new Error(body.error || "Something went wrong")
       if (step === "code") {
         setFound(!!body.member)
-        if (body.member && variant === "membership") router.refresh()
+        if (body.member && variant !== "partner") router.refresh()
       }
       setStep(step === "email" ? "code" : "done")
     } catch (err) {
@@ -55,9 +60,11 @@ export function AddEmailCard({ variant = "partner" }: { variant?: keyof typeof C
         <Check className="h-6 w-6 shrink-0 text-primary" />{" "}
         {variant === "partner"
           ? "Thanks! Your email is on its way to your membership."
-          : found
-            ? "Found it: your plan is on its way."
-            : "Thanks, it's linked. If you just paid, your plan shows here within the hour; otherwise write to hello@commonshub.brussels."}
+          : variant === "activate"
+            ? "Found your membership: welcome in!"
+            : found
+              ? "Found it: your plan is on its way."
+              : "Thanks, it's linked. If you just paid, your plan shows here within the hour; otherwise write to hello@commonshub.brussels."}
       </div>
     )
 
@@ -68,7 +75,11 @@ export function AddEmailCard({ variant = "partner" }: { variant?: keyof typeof C
         <div className="min-w-0 flex-1">
           <p className="font-bold text-foreground">{step === "email" ? COPY[variant].title : `Enter the code we sent to ${email}`}</p>
           <p className="text-sm text-muted-foreground">
-            {step === "email" ? COPY[variant].intro : "Check your inbox (and spam). The code is valid for about fifteen minutes."}
+            {step === "email"
+              ? COPY[variant].intro
+              : variant === "activate"
+                ? "If a membership is paid with that address, the code is in its inbox (or spam), valid for about fifteen minutes. Nothing there? Write to hello@commonshub.brussels."
+                : "Check your inbox (and spam). The code is valid for about fifteen minutes."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {step === "email" ? (
