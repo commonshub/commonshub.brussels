@@ -14,6 +14,7 @@ export function BankTransferDetails({
   message = BANK.message,
   amountEur,
   frequency,
+  structured,
 }: {
   /** Transfer message; a page for one expense passes its own reference. */
   message?: string
@@ -21,6 +22,8 @@ export function BankTransferDetails({
   amountEur?: number
   /** For a standing order: how often, shown as its own row. */
   frequency?: string
+  /** A Belgian structured communication ("+++123/4567/89012+++"), instead of the message. */
+  structured?: string
 } = {}) {
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -32,8 +35,8 @@ export function BankTransferDetails({
       ? [{ label: "Amount", value: `€${amountEur.toFixed(2)}`, copyValue: amountEur.toFixed(2) }]
       : []),
     ...(frequency ? [{ label: "Frequency", value: frequency }] : []),
-    { label: "Message", value: message },
-  ]
+    structured ? { label: "Structured communication", value: structured } : { label: "Message", value: message },
+  ].filter((row) => row.value)
 
   const copy = async (key: string, text: string) => {
     try {
@@ -50,7 +53,7 @@ export function BankTransferDetails({
 
   // Same EPC069-12 payload as the QR code, for apps that read it from the
   // clipboard
-  const epcPayload = epcQrPayload(amountEur, message)
+  const epcPayload = epcQrPayload(amountEur, message, structured)
 
   return (
     <div className="w-full max-w-md flex flex-col gap-2 text-left">

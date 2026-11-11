@@ -17,8 +17,13 @@ export function formatIban(iban: string): string {
  * Amount is left empty so the donor chooses it in their banking app; the
  * message defaults to the general donation one but a page for a specific
  * expense passes its own so the transfer can be matched to it.
+ *
+ * `structured`: a Belgian structured communication ("+++123/4567/89012+++")
+ * goes in the structured remittance field instead of the message, as
+ * Febelfin's "QR on invoice" guideline has it (where the EPC's own asks
+ * for an ISO 11649 reference), so the banking app files it as structured.
  */
-export function epcQrPayload(amountEur?: number, message: string = BANK_DETAILS.message): string {
+export function epcQrPayload(amountEur?: number, message: string = BANK_DETAILS.message, structured?: string): string {
   return [
     "BCD",
     "002",
@@ -29,8 +34,8 @@ export function epcQrPayload(amountEur?: number, message: string = BANK_DETAILS.
     BANK_DETAILS.iban,
     amountEur ? `EUR${amountEur.toFixed(2)}` : "",
     "CHAR",
-    "",
-    // The unstructured remittance field is capped at 140 characters.
-    message.slice(0, 140),
+    structured ?? "",
+    // The unstructured remittance field is capped at 140 characters (and it is one or the other).
+    structured ? "" : message.slice(0, 140),
   ].join("\n")
 }
