@@ -35,6 +35,8 @@ import type {
 interface QuarterlyReportViewProps {
   data: QuarterlyData;
   showPii: boolean;
+  /** Server-rendered sections at the end of the report (the quarter's VAT return). */
+  children?: React.ReactNode;
 }
 
 function formatEur(value: number, maxFractionDigits = 0): string {
@@ -259,7 +261,7 @@ function PartnerList({
   );
 }
 
-export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps) {
+export function QuarterlyReportView({ data, showPii, children }: QuarterlyReportViewProps) {
   const [selectedPartnerKey, setSelectedPartnerKey] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_VALUE);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
@@ -628,6 +630,7 @@ export function QuarterlyReportView({ data, showPii }: QuarterlyReportViewProps)
             </CardContent>
           </Card>
         </section>
+        {children}
       </div>
     </main>
   );

@@ -7,6 +7,7 @@ interface ReportNotAvailableProps {
   message?: string;
   backHref: string;
   backLabel: string;
+  children?: React.ReactNode;
 }
 
 export function ReportNotAvailable({
@@ -14,6 +15,7 @@ export function ReportNotAvailable({
   message,
   backHref,
   backLabel,
+  children,
 }: ReportNotAvailableProps) {
   return (
     <main className="min-h-screen bg-background flex items-center justify-center">
@@ -31,6 +33,7 @@ export function ReportNotAvailable({
             {backLabel}
           </Link>
         </Button>
+        {children && <div className="mt-12 text-left">{children}</div>}
       </div>
     </main>
   );

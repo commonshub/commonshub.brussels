@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AnnualAccountsSection } from "@/components/annual-accounts";
+import { VatBox } from "@/components/vat-box";
 import { readAnnualAccounts } from "@/lib/annual-accounts";
 import { YearlyReportClient } from "./yearly-report-client";
 import { resolveAlias } from "@/lib/member-pages";
@@ -33,7 +34,10 @@ export default async function YearPage({ params }: PageProps) {
   }
   return (
     <YearlyReportClient>
-      <AnnualAccountsSection fiscalYears={readAnnualAccounts(year)} />
+      <div className="space-y-6">
+        <VatBox year={Number(year)} />
+        <AnnualAccountsSection fiscalYears={readAnnualAccounts(year)} />
+      </div>
     </YearlyReportClient>
   );
 }
