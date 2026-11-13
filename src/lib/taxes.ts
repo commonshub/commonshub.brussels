@@ -73,8 +73,13 @@ export function vatQuarterOf(description: string): string | null {
 export function classifyTaxPayment(tx: TaxTransactionLike, rules: TaxRule[]): TaxPayment | null {
   const description = (tx.metadata?.description ?? "").trim()
   // Stripe's "Automatic Taxes" lines are Stripe's fee for its tax service, not a tax.
-  if (!description || tx.metadata?.category === "stripe_fee") return null
-  const rule = rules.find((r) => new RegExp(r.match, "i").test(description))
+  if (tx.metadata?.category === "stripe_fee") return null
+  // The public tier drops bank (KBC) descriptions: there, the category chb gave it is all we have.
+  const rule = description
+    ? rules.find((r) => new RegExp(r.match, "i").test(description)) ?? (tx.metadata?.category === "vat" ? rules.find((r) => r.kind === "vat") : undefined)
+    : tx.metadata?.category === "vat"
+      ? rules.find((r) => r.kind === "vat")
+      : undefined
   if (!rule) return null
   const date = brusselsDate(tx.timestamp)
   const year = description.match(/\b(20\d{2})\b/)
@@ -268,6 +273,23 @@ export function matchVatPayments(periods: VatPeriod[], payments: TaxPayment[]): 
     if (matched.has(period.period) || period.totals.net === 0) continue
     const p = vat.find((x) => !used.has(x.id) && sameSign(period.totals.net, x) && Math.abs(Math.abs(x.amount) - Math.abs(period.totals.net)) <= 1 && x.date > quarterEnd(period))
     if (p) take(period, p)
+  }
+  // 2b. One refund for several returns in a row: credits carried forward, then refunded together.
+  for (const p of vat) {
+    if (used.has(p.id) || p.amount >= 0) continue
+    const open = periods.filter((x) => !matched.has(x.period) && x.totals.net < 0 && quarterEnd(x) < p.date).sort((a, b) => a.to.localeCompare(b.to))
+    for (let end = open.length - 1; end > 0 && !used.has(p.id); end--) {
+      let total = 0
+      for (let start = end; start >= 0; start--) {
+        total += open[start].totals.net
+        if (start < end && Math.abs(total - p.amount) <= 1) {
+          // Each return gets its own share of the refund, so each reads as settled.
+          for (const x of open.slice(start, end + 1)) take(x, { ...p, amount: x.totals.net, description: `${p.description} (one refund of ${-p.amount} for ${end - start + 1} quarters)`.trim() })
+          used.add(p.id)
+          break
+        }
+      }
+    }
   }
   // 3. A part payment within two months of the quarter's end.
   for (const period of periods) {
