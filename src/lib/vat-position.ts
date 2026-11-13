@@ -90,7 +90,9 @@ const EUR = new Set(["EUR", "EURe", "EURb"])
 
 /** Money that came in from outside: not a move between our own accounts. */
 export function isIncome(tx: Transaction): boolean {
-  return tx.amount > 0 && tx.type !== "INTERNAL" && EUR.has(tx.currency) && tx.metadata?.category !== "internal_transfer"
+  const category = tx.metadata?.category
+  // A VAT refund is our own money coming back, not income.
+  return tx.amount > 0 && tx.type !== "INTERNAL" && EUR.has(tx.currency) && category !== "internal_transfer" && category !== "vat"
 }
 
 /** VAT included in a gross amount at a rate. */

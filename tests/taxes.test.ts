@@ -195,6 +195,26 @@ describe("which payment settled which VAT return", () => {
     expect(unmatched.map((p) => [p.id, p.amount])).toEqual([["h", 1]])
   })
 
+  test("the public tier hides bank descriptions: the category still says it is VAT", () => {
+    const p = classifyTaxPayment(tx("k", "2025-03-12T10:00:00Z", 11712.49, "", "vat"), RULES)!
+    expect([p.kind, p.amount, p.quarter]).toEqual(["vat", -11712.49, undefined])
+    expect(classifyTaxPayment(tx("l", "2025-03-12T10:00:00Z", 50, "", "rental"), RULES)).toBeNull()
+    const { byPeriod } = matchVatPayments(periods, [p])
+    expect(byPeriod.get("2024-Q4")?.status).toBe("settled") // same amount, after the quarter
+  })
+
+  test("one refund for two credits in a row settles both", () => {
+    const refund = classifyTaxPayment(tx("r", "2024-12-10T10:00:00Z", 7786.19, "", "vat"), RULES)!
+    const { byPeriod, unmatched } = matchVatPayments(periods, [refund, ...payments])
+    expect(unmatched.map((p) => p.id)).toEqual(["h"])
+    for (const [q, share] of [["2024-Q2", -472.58], ["2024-Q3", -7313.61]] as const) {
+      const s = byPeriod.get(q)!
+      expect(s.status).toBe("settled")
+      expect(s.payments.map((x) => [x.id, x.amount])).toEqual([["r", share]])
+    }
+    expect(byPeriod.get("2024-Q4")!.payments.map((x) => x.id)).toEqual(["c"])
+  })
+
   test("on-chain payments link to the explorer, bank transfers do not", () => {
     expect(explorerTxUrl("ethereum:100:tx:0x4b1b760f0428b3c4634b9ef669bc5dccdd6abebb5e")).toBe(
       "https://gnosisscan.io/tx/0x4b1b760f0428b3c4634b9ef669bc5dccdd6abebb5e",

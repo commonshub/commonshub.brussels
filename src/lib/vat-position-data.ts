@@ -32,3 +32,20 @@ export function vatXmlExists(year: number, quarter: number, statementId: string)
   const file = vatXmlFile(year, quarter, statementId)
   return !!file && fs.existsSync(file)
 }
+
+/**
+ * The first month with a transaction for each account: an account whose
+ * history starts after a period has its income for that period missing.
+ */
+export function firstMonthByAccount(years: number[]): Map<string, string> {
+  const first = new Map<string, string>()
+  for (const y of years) {
+    for (const m of listMonths(String(y), "public")) {
+      for (const tx of readMonthlyTransactions(String(y), m, "public")) {
+        const key = `${y}-${m}`
+        if (!first.has(tx.accountSlug) || key < first.get(tx.accountSlug)!) first.set(tx.accountSlug, key)
+      }
+    }
+  }
+  return first
+}

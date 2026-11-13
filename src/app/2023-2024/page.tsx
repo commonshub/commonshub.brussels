@@ -17,7 +17,7 @@ import {
   returnOverdue,
   vatIncluded,
 } from "@/lib/vat-position"
-import { loadTransactions, quarterHasData } from "@/lib/vat-position-data"
+import { firstMonthByAccount, loadTransactions, quarterHasData } from "@/lib/vat-position-data"
 
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic"
@@ -28,6 +28,8 @@ export const metadata = {
 }
 
 const YEARS = [2023, 2024]
+const BANK_ACCOUNT = "kbc"
+const monthName = (ym: string) => new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
 const eur = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" })
 const signed = (n: number) => (n < 0 ? `−${eur.format(-n)}` : eur.format(n))
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
@@ -37,7 +39,12 @@ const sum = (xs: number[]) => round(xs.reduce((s, x) => s + x, 0))
 export default function Vat20232024Page() {
   const now = new Date()
   const vat = loadVatReturns()
-  const income = incomeByQuarter(loadTransactions(YEARS))
+  const txs = loadTransactions(YEARS)
+  const income = incomeByQuarter(txs)
+  // Our main bank account: when its statements start after these years, what came in there is missing.
+  const bankFrom = firstMonthByAccount([...YEARS, YEARS[YEARS.length - 1] + 1]).get(BANK_ACCOUNT)
+  const bankMissing = !bankFrom || bankFrom > `${YEARS[YEARS.length - 1]}-12`
+  const yearsWithoutData = YEARS.filter((y) => !txs.some((t) => new Date(t.timestamp * 1000).getUTCFullYear() === y))
   const { byPeriod } = matchVatPayments(vat?.periods ?? [], loadTaxPayments())
 
   // The quarters we report on: those with a return, or with data in the dataset.
@@ -122,6 +129,23 @@ export default function Vat20232024Page() {
 
       <section className="py-12 bg-background">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-14">
+          {(bankMissing || yearsWithoutData.length > 0) && (
+            <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+              <p className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="h-4 w-4 shrink-0" /> Some of our accounts are not in the dataset for these years
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {bankMissing && (
+                  <li>
+                    Our KBC bank account&apos;s transactions start {bankFrom ? `in ${monthName(bankFrom)}` : "later"}. What came in there in these years (income, and VAT refunds) is not counted on this page yet.
+                  </li>
+                )}
+                {yearsWithoutData.length > 0 && <li>No transactions at all for {yearsWithoutData.join(" and ")} yet.</li>}
+              </ul>
+              <p className="mt-1">The figures below will move once those statements are imported.</p>
+            </div>
+          )}
+
           {missing.length > 0 && (
             <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
               <p className="flex items-center gap-2 font-semibold">
