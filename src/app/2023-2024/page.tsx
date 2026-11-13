@@ -1,21 +1,18 @@
 import Link from "next/link"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, ChevronDown } from "lucide-react"
 
 import { VatBox } from "@/components/vat-box"
 import { matchVatPayments } from "@/lib/taxes"
 import { loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
 import {
-  BUCKETS,
-  BUCKET_ORDER,
-  OTHER_LABELS,
-  type QuarterIncome,
+  RATE_CLASSES,
+  type Side,
+  declaredInputVat,
   declaredSalesVat,
-  expectedSalesVat,
   findPeriod,
-  incomeByQuarter,
   quarterKey,
   returnOverdue,
-  vatIncluded,
+  vatPosition,
 } from "@/lib/vat-position"
 import { firstMonthByAccount, loadTransactions, quarterHasData } from "@/lib/vat-position-data"
 
@@ -24,76 +21,116 @@ export const dynamic = "force-dynamic"
 
 export const metadata = {
   title: "VAT 2023–2024 | Commons Hub Brussels",
-  description: "Our VAT position for 2023 and 2024: what we declared and paid each quarter, what our income says we should have charged, and the difference.",
+  description: "Our VAT position for 2023 and 2024: the VAT in what came in and went out, by rate and why, and the balance with the State.",
 }
 
 const YEARS = [2023, 2024]
 const BANK_ACCOUNT = "kbc"
-const monthName = (ym: string) => new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
 const eur = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" })
 const signed = (n: number) => (n < 0 ? `−${eur.format(-n)}` : eur.format(n))
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+const monthName = (ym: string) => new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
 const round = (n: number) => Math.round(n * 100) / 100
 const sum = (xs: number[]) => round(xs.reduce((s, x) => s + x, 0))
+
+function Figure({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "warn" | "good" }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className={`mt-0.5 text-2xl font-bold tabular-nums sm:text-3xl ${tone === "warn" ? "text-amber-700 dark:text-amber-400" : tone === "good" ? "text-green-700 dark:text-green-400" : "text-foreground"}`}>
+        {value}
+      </div>
+      {note && <div className="text-xs text-muted-foreground">{note}</div>}
+    </div>
+  )
+}
+
+/** One side (income or expenses): a row per VAT rate, opening onto its categories and why that rate. */
+function RateBreakdown({ side }: { side: Side }) {
+  return (
+    <div className="mt-6 divide-y divide-border rounded-lg border border-border">
+      {side.groups.map((g) => (
+        <details key={g.rate} className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-muted/40">
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+            <span className="min-w-0 flex-1 font-medium text-foreground">{RATE_CLASSES[g.rate].label}</span>
+            <span className="text-right tabular-nums">
+              {eur.format(g.amount)}
+              <span className="block text-xs text-muted-foreground">{g.vat === null ? "VAT not estimated" : `${eur.format(g.vat)} VAT`}</span>
+            </span>
+          </summary>
+          <ul className="divide-y divide-border bg-muted/20 text-sm">
+            {g.lines.map((l) => (
+              <li key={l.category || "none"} className="flex gap-3 px-4 py-3 pl-11">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-foreground">{l.label}</div>
+                  <div className="text-xs text-muted-foreground">{l.why}</div>
+                </div>
+                <div className="text-right tabular-nums">
+                  {eur.format(l.amount)}
+                  <span className="block text-xs text-muted-foreground">
+                    {l.vat === null ? `${l.count} ${l.count === 1 ? "payment" : "payments"}` : `${eur.format(l.vat)} VAT`}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </div>
+  )
+}
+
+function Row({ label, value, strong, tone }: { label: string; value: string; strong?: boolean; tone?: "good" }) {
+  return (
+    <div className={`flex justify-between gap-3 ${strong ? "border-t border-border pt-1 font-semibold" : ""}`}>
+      <dt className={strong ? "" : "text-muted-foreground"}>{label}</dt>
+      <dd className={`tabular-nums ${tone === "good" ? "text-green-700 dark:text-green-400" : ""}`}>{value}</dd>
+    </div>
+  )
+}
 
 export default function Vat20232024Page() {
   const now = new Date()
   const vat = loadVatReturns()
-  const txs = loadTransactions(YEARS)
-  const income = incomeByQuarter(txs)
-  // Our main bank account: when its statements start after these years, what came in there is missing.
-  const bankFrom = firstMonthByAccount([...YEARS, YEARS[YEARS.length - 1] + 1]).get(BANK_ACCOUNT)
-  const bankMissing = !bankFrom || bankFrom > `${YEARS[YEARS.length - 1]}-12`
-  const yearsWithoutData = YEARS.filter((y) => !txs.some((t) => new Date(t.timestamp * 1000).getUTCFullYear() === y))
+  const lastYear = YEARS[YEARS.length - 1]
+  const txs = loadTransactions([...YEARS, lastYear + 1])
+  const position = vatPosition(txs, YEARS)
   const { byPeriod } = matchVatPayments(vat?.periods ?? [], loadTaxPayments())
 
-  // The quarters we report on: those with a return, or with data in the dataset.
+  // An account whose history starts after these years: what came in or went out there is missing.
+  const bankFrom = firstMonthByAccount([...YEARS, lastYear + 1]).get(BANK_ACCOUNT)
+  const bankMissing = !bankFrom || bankFrom > `${lastYear}-12`
+  const yearsWithoutData = YEARS.filter((y) => !txs.some((t) => new Date(t.timestamp * 1000).getUTCFullYear() === y))
+
   const quarters = YEARS.flatMap((y) => [1, 2, 3, 4].map((q) => ({ y, q })))
     .filter(({ y, q }) => findPeriod(vat, y, q) || quarterHasData(y, q))
     .map(({ y, q }) => {
       const key = quarterKey(y, q)
       const period = findPeriod(vat, y, q)
-      const inc: QuarterIncome | undefined = income.get(key)
-      const expected = expectedSalesVat(inc)
-      const declared = period ? declaredSalesVat(period) : 0
       const settlement = period ? byPeriod.get(period.period) : undefined
-      const settledAmount = settlement && settlement.status !== "none" ? sum(settlement.payments.map((p) => p.amount)) : 0
       return {
         key,
         label: `${y} Q${q}`,
         period,
         missing: !period && returnOverdue(y, q, now),
-        income: inc?.total ?? 0,
-        expected,
-        declared,
-        delta: round(expected - declared),
+        est: position.quarters.get(key) ?? { collected: 0, paid: 0 },
         net: period?.totals.net ?? 0,
-        settlement,
-        settledAmount,
+        settled: settlement && settlement.status !== "none" ? settlement.payments : [],
       }
     })
-
-  const all = [...income.values()].filter((i) => YEARS.includes(Number(i.quarter.slice(0, 4))))
-  const byBucket = BUCKET_ORDER.map((b) => {
-    const amount = sum(all.map((i) => i.byBucket[b]))
-    const rate = BUCKETS[b].rate
-    return { bucket: b, ...BUCKETS[b], amount, expected: rate ? vatIncluded(amount, rate) : rate === 0 ? 0 : null }
-  })
-  const other = Object.entries(
-    all.reduce<Record<string, number>>((acc, i) => {
-      for (const [cat, v] of Object.entries(i.other)) acc[cat] = round((acc[cat] ?? 0) + v)
-      return acc
-    }, {}),
-  ).sort((a, b) => b[1] - a[1])
-  const uncategorised = other.find(([c]) => c === "")?.[1] ?? 0
-
-  const totalIncome = sum(byBucket.map((b) => b.amount))
-  const totalExpected = sum(quarters.map((q) => q.expected))
-  const totalDeclared = sum(quarters.map((q) => q.declared))
-  const totalDelta = round(totalExpected - totalDeclared)
-  const totalNet = sum(quarters.map((q) => q.net))
-  const totalSettled = sum(quarters.map((q) => q.settledAmount))
+  const filed = quarters.filter((q) => q.period)
   const missing = quarters.filter((q) => q.missing)
+
+  const declaredSales = sum(filed.map((q) => declaredSalesVat(q.period!)))
+  const declaredInput = sum(filed.map((q) => declaredInputVat(q.period!)))
+  const estBalance = round(position.income.vat - position.expense.vat)
+  const owed = sum(filed.filter((q) => q.net > 0).map((q) => q.net))
+  const owedToUs = sum(filed.filter((q) => q.net < 0).map((q) => -q.net))
+  const net = round(owed - owedToUs)
+  const paid = sum(quarters.flatMap((q) => q.settled.filter((p) => p.amount > 0).map((p) => p.amount)))
+  const refunded = sum(quarters.flatMap((q) => q.settled.filter((p) => p.amount < 0).map((p) => -p.amount)))
+  const open = round(net - paid + refunded)
 
   return (
     <main className="min-h-screen">
@@ -102,195 +139,144 @@ export default function Vat20232024Page() {
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">Taxes</p>
           <h1 className="mt-2 text-4xl sm:text-5xl font-bold text-foreground">VAT 2023–2024</h1>
           <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-            Our VAT position for 2023 and 2024: what we declared and paid each quarter, what the income in our accounts says we should have charged, and the difference.
-          </p>
-
-          <dl className="mt-10 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card p-5">
-              <dt className="text-sm text-muted-foreground">VAT we should have charged on sales</dt>
-              <dd className="mt-1 text-3xl font-bold tabular-nums">{eur.format(totalExpected)}</dd>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-5">
-              <dt className="text-sm text-muted-foreground">VAT on sales we declared</dt>
-              <dd className="mt-1 text-3xl font-bold tabular-nums">{eur.format(totalDeclared)}</dd>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-5">
-              <dt className="text-sm text-muted-foreground">Difference</dt>
-              <dd className={`mt-1 text-3xl font-bold tabular-nums ${totalDelta > 0 ? "text-amber-700 dark:text-amber-400" : ""}`}>{signed(totalDelta)}</dd>
-              <dd className="text-xs text-muted-foreground">{totalDelta > 0 ? "declared less than our income suggests" : "declared at least what our income suggests"}</dd>
-            </div>
-          </dl>
-          <p className="mt-4 text-sm text-muted-foreground">
-            After deducting the VAT we paid on purchases, the returns for these years come to <span className="font-semibold text-foreground tabular-nums">{signed(totalNet)}</span>{" "}
-            ({totalNet < 0 ? "owed to us" : "due to the State"}); {totalSettled === 0 ? "nothing has been paid or refunded on them" : `${signed(totalSettled)} was ${totalSettled < 0 ? "refunded" : "paid"} on them`}.
+            The VAT in everything that came in and went out in 2023 and 2024, by rate and why, and where that leaves us with the State. Open a rate to see what is in it.
           </p>
         </div>
       </section>
 
       <section className="py-12 bg-background">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-14">
-          {(bankMissing || yearsWithoutData.length > 0) && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-12">
+          {(bankMissing || yearsWithoutData.length > 0 || missing.length > 0) && (
             <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
               <p className="flex items-center gap-2 font-semibold">
-                <AlertTriangle className="h-4 w-4 shrink-0" /> Some of our accounts are not in the dataset for these years
+                <AlertTriangle className="h-4 w-4 shrink-0" /> Incomplete: these figures will move
               </p>
               <ul className="mt-1 list-disc space-y-1 pl-5">
                 {bankMissing && (
                   <li>
-                    Our KBC bank account&apos;s transactions start {bankFrom ? `in ${monthName(bankFrom)}` : "later"}. What came in there in these years (income, and VAT refunds) is not counted on this page yet.
+                    Our KBC bank account&apos;s transactions start {bankFrom ? `in ${monthName(bankFrom)}` : "later"}: what came in or went out there in these years, VAT refunds included, is not counted yet.
                   </li>
                 )}
                 {yearsWithoutData.length > 0 && <li>No transactions at all for {yearsWithoutData.join(" and ")} yet.</li>}
+                <li>Grant money that reached us on other blockchains (Celo, Arbitrum: Celo grant tranches, Gitcoin matching) is not imported yet, so it is missing from the income.</li>
+                <li>The fridge and coffee wallets, where the EURb tokens for drinks were spent, are only in the dataset from 2025.</li>
+                {missing.length > 0 && <li>No VAT return on file for {missing.map((q) => q.label).join(" and ")}: either not filed, or not imported yet.</li>}
               </ul>
-              <p className="mt-1">The figures below will move once those statements are imported.</p>
-            </div>
-          )}
-
-          {missing.length > 0 && (
-            <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
-              <p className="flex items-center gap-2 font-semibold">
-                <AlertTriangle className="h-4 w-4 shrink-0" /> No VAT return on file for {missing.map((q) => q.label).join(" and ")}
-              </p>
-              <p className="mt-1">
-                Either it was not filed, or it has not been imported yet. The VAT expected on those quarters&apos; income counts in full in the difference above.
-              </p>
             </div>
           )}
 
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Quarter by quarter</h2>
-            <p className="mt-2 max-w-3xl text-muted-foreground">
-              &quot;Should have charged&quot; applies the rates below to the money we received that quarter. &quot;Declared&quot; is the VAT on sales in the return (grid 54, less grid 64).
-            </p>
-            <div className="mt-6 overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Quarter</th>
-                    <th className="hidden px-3 py-2 text-right font-medium md:table-cell">Income</th>
-                    <th className="px-3 py-2 text-right font-medium">Should have charged</th>
-                    <th className="px-3 py-2 text-right font-medium">Declared</th>
-                    <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Difference</th>
-                    <th className="hidden px-3 py-2 text-right font-medium lg:table-cell">Return result</th>
-                    <th className="hidden px-3 py-2 font-medium lg:table-cell">Paid / refunded</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {quarters.map((q) => (
-                    <tr key={q.key} className="align-top">
-                      <td className="px-3 py-2 font-medium whitespace-nowrap">
-                        <Link href={`/${q.key.replace("-", "/")}`} className="hover:underline">
-                          {q.label}
-                        </Link>
-                        {q.missing && <div className="text-xs font-normal text-amber-700 dark:text-amber-400">no return on file</div>}
-                      </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{eur.format(q.income)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{eur.format(q.expected)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{q.period ? eur.format(q.declared) : "—"}</td>
-                      <td className={`hidden px-3 py-2 text-right tabular-nums sm:table-cell ${q.delta > 0 ? "text-amber-700 dark:text-amber-400" : ""}`}>{signed(q.delta)}</td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums lg:table-cell">
-                        {q.period ? (
-                          <span className={q.net < 0 ? "text-green-700 dark:text-green-400" : ""}>{signed(q.net)}</span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="hidden px-3 py-2 text-muted-foreground lg:table-cell">
-                        {!q.settlement || q.settlement.status === "nothing-due"
-                          ? "—"
-                          : q.settlement.status === "none"
-                            ? q.net < 0
-                              ? "Not refunded: carried forward"
-                              : "No payment found"
-                            : q.settlement.payments.map((p) => `${signed(p.amount)} on ${shortDate(p.date)}`).join(", ")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t-2 border-border bg-muted/30 font-semibold">
-                  <tr>
-                    <td className="px-3 py-2">Total</td>
-                    <td className="hidden px-3 py-2 text-right tabular-nums md:table-cell">{eur.format(totalIncome)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{eur.format(totalExpected)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{eur.format(totalDeclared)}</td>
-                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{signed(totalDelta)}</td>
-                    <td className="hidden px-3 py-2 text-right tabular-nums lg:table-cell">{signed(totalNet)}</td>
-                    <td className="hidden px-3 py-2 tabular-nums lg:table-cell">{signed(totalSettled)}</td>
-                  </tr>
-                </tfoot>
-              </table>
+            <h2 className="text-2xl font-bold text-foreground">1. Income</h2>
+            <div className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-3">
+              <Figure label="Received" value={eur.format(position.income.amount)} note="VAT included" />
+              <Figure label="VAT in it" value={eur.format(position.income.vat)} note="what we should have charged" />
+              <Figure label="Declared in the returns" value={eur.format(declaredSales)} note="VAT on sales (grids 54 − 64)" tone={declaredSales < position.income.vat - 1 ? "warn" : undefined} />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground sm:hidden">Turn your phone sideways for the difference and how each return was settled.</p>
+            <RateBreakdown side={position.income} />
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Income by category</h2>
-            <p className="mt-2 max-w-3xl text-muted-foreground">
-              Everything that came into our accounts in 2023 and 2024 from outside (moves between our own accounts left out), and the VAT it should carry. Amounts received include the VAT.
-            </p>
-            <div className="mt-6 overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Category</th>
-                    <th className="px-3 py-2 text-right font-medium">Received</th>
-                    <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Rate</th>
-                    <th className="px-3 py-2 text-right font-medium">VAT in it</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {byBucket.map((b) => (
-                    <tr key={b.bucket} className="align-top">
-                      <td className="px-3 py-2">
-                        <div className="font-medium text-foreground">{b.label}</div>
-                        <div className="text-xs text-muted-foreground">{b.why}</div>
-                        {b.bucket === "other" && other.length > 0 && (
-                          <ul className="mt-1 text-xs text-muted-foreground">
-                            {other.map(([cat, v]) => (
-                              <li key={cat || "none"} className="flex justify-between gap-3">
-                                <span>{OTHER_LABELS[cat] ?? cat}</span>
-                                <span className="tabular-nums">{eur.format(v)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{eur.format(b.amount)}</td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{b.rate === null ? "—" : `${Math.round(b.rate * 100)}%`}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{b.expected === null ? "—" : eur.format(b.expected)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t-2 border-border bg-muted/30 font-semibold">
-                  <tr>
-                    <td className="px-3 py-2">Total</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{eur.format(totalIncome)}</td>
-                    <td className="hidden px-3 py-2 sm:table-cell" />
-                    <td className="px-3 py-2 text-right tabular-nums">{eur.format(totalExpected)}</td>
-                  </tr>
-                </tfoot>
-              </table>
+            <h2 className="text-2xl font-bold text-foreground">2. Expenses</h2>
+            <div className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-3">
+              <Figure label="Paid" value={eur.format(position.expense.amount)} note="VAT included" />
+              <Figure label="VAT in it" value={eur.format(position.expense.vat)} note="what our suppliers charged us" />
+              <Figure label="Deducted in the returns" value={eur.format(declaredInput)} note="VAT on purchases (grid 59)" />
             </div>
+            <RateBreakdown side={position.expense} />
+            <p className="mt-3 text-sm text-muted-foreground">
+              VAT on purchases can only be deducted for what serves our taxable activities. Part of what we do (donations, membership) is outside VAT, so in principle only a share of it is deductible.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">3. VAT balance</h2>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-border bg-card p-5">
+                <h3 className="font-semibold text-foreground">From our income and expenses</h3>
+                <dl className="mt-3 space-y-1 text-sm">
+                  <Row label="VAT in our income" value={eur.format(position.income.vat)} />
+                  <Row label="VAT in our expenses" value={`−${eur.format(position.expense.vat)}`} />
+                  <Row label={estBalance < 0 ? "Balance: owed to us" : "Balance: owed to the State"} value={signed(estBalance)} strong tone={estBalance < 0 ? "good" : undefined} />
+                </dl>
+                <p className="mt-2 text-xs text-muted-foreground">An estimate, before limiting deductions to our taxable share.</p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-5">
+                <h3 className="font-semibold text-foreground">From the returns we filed</h3>
+                <dl className="mt-3 space-y-1 text-sm">
+                  <Row label={`Owed to the State (${filed.filter((q) => q.net > 0).length} quarters)`} value={eur.format(owed)} />
+                  <Row label={`Owed to us (${filed.filter((q) => q.net < 0).length} quarters)`} value={owedToUs ? `−${eur.format(owedToUs)}` : eur.format(0)} tone="good" />
+                  <Row label="Balance" value={signed(net)} strong tone={net < 0 ? "good" : undefined} />
+                  <Row label="Paid by us" value={paid ? `−${eur.format(paid)}` : eur.format(0)} />
+                  <Row label="Refunded to us" value={refunded ? `+${eur.format(refunded)}` : eur.format(0)} />
+                  <Row label={open < 0 ? "Still owed to us" : open > 0 ? "Still owed to the State" : "Still open"} value={signed(open)} strong tone={open < 0 ? "good" : undefined} />
+                </dl>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {open < 0 ? "Not refunded in the accounts we have: carried forward on our VAT account, or refunded to an account not imported yet." : open > 0 ? "Not paid from the accounts we have." : "Settled."}
+                </p>
+              </div>
+            </div>
+
+            <details className="group mt-4 rounded-lg border border-border">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 font-medium hover:bg-muted/40">
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" /> Quarter by quarter
+              </summary>
+              <div className="overflow-x-auto border-t border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-left text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Quarter</th>
+                      <th className="px-3 py-2 text-right font-medium">VAT on sales<span className="block text-xs font-normal">ours / declared</span></th>
+                      <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">VAT on purchases<span className="block text-xs font-normal">ours / deducted</span></th>
+                      <th className="px-3 py-2 text-right font-medium">Return</th>
+                      <th className="hidden px-3 py-2 font-medium md:table-cell">Paid / refunded</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {quarters.map((q) => (
+                      <tr key={q.key} className="align-top">
+                        <td className="px-3 py-2 font-medium whitespace-nowrap">
+                          <Link href={`/${q.key.replace("-", "/")}`} className="hover:underline">{q.label}</Link>
+                          {q.missing && <div className="text-xs font-normal text-amber-700 dark:text-amber-400">no return on file</div>}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {eur.format(q.est.collected)}
+                          <span className="block text-xs text-muted-foreground">{q.period ? eur.format(declaredSalesVat(q.period)) : "—"}</span>
+                        </td>
+                        <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
+                          {eur.format(q.est.paid)}
+                          <span className="block text-xs text-muted-foreground">{q.period ? eur.format(declaredInputVat(q.period)) : "—"}</span>
+                        </td>
+                        <td className={`px-3 py-2 text-right tabular-nums ${q.net < 0 ? "text-green-700 dark:text-green-400" : ""}`}>
+                          {q.period ? signed(q.net) : "—"}
+                          {q.period && q.net !== 0 && <span className="block text-xs text-muted-foreground">{q.net < 0 ? "owed to us" : "owed to the State"}</span>}
+                        </td>
+                        <td className="hidden px-3 py-2 text-muted-foreground md:table-cell">
+                          {!q.period || q.net === 0
+                            ? "—"
+                            : q.settled.length === 0
+                              ? q.net < 0
+                                ? "Not refunded: carried forward"
+                                : "No payment found"
+                              : q.settled.map((p) => `${p.amount < 0 ? "Refunded" : "Paid"} ${eur.format(Math.abs(p.amount))} on ${shortDate(p.date)}`).join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           </div>
 
           <div className="max-w-3xl space-y-3 text-sm text-muted-foreground">
             <h2 className="text-lg font-semibold text-foreground">How to read this</h2>
             <p>
-              This is an estimate from the money received, not from our invoices. A return counts an invoice when it is issued, so income can fall in the quarter after the one that declared it: compare the totals rather than single quarters.
+              &quot;Ours&quot; applies each category&apos;s rate to the money that actually moved, so it is an estimate. A return counts an invoice when it is issued, so an amount can fall in the quarter before or after the one that declared it: compare totals rather than single quarters.
             </p>
-            <p>
-              &quot;Other income&quot; is left out of the estimate. {uncategorised > 0 && `${eur.format(uncategorised)} of it is not categorised yet: it includes loans and capital contributions (no VAT) as well as paid invoices for room rentals (VAT due). Were all of it taxable at 21%, ${eur.format(vatIncluded(uncategorised, 0.21))} more VAT would be due. `}
-              Token top-ups are prepaid credit: the VAT is due on what the tokens buy, not on the top-up.
-            </p>
-            <p>
-              The returns also declare sales without Belgian VAT: services to customers in other EU countries (grid 44) and operations outside its scope (grid 47). Grants invoiced to foreign funders fall there.
-            </p>
+            <p>The returns also declare sales without Belgian VAT: services to customers in other EU countries (grid 44) and operations outside its scope (grid 47).</p>
             <p>
               Every amount comes from the{" "}
-              <Link href="/integrity" className="underline underline-offset-2">
-                public dataset
-              </Link>{" "}
-              and the returns from Intervat; see also <Link href="/taxes" className="underline underline-offset-2">all our taxes</Link>.
+              <Link href="/integrity" className="underline underline-offset-2">public dataset</Link>, the returns from Intervat; see also{" "}
+              <Link href="/taxes" className="underline underline-offset-2">all our taxes</Link>.
             </p>
           </div>
 
