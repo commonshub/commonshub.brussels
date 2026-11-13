@@ -281,7 +281,8 @@ export default function TaxesPage() {
               transactions.
               {strayVat.length > 0 &&
                 ` ${strayVat.map((p) => `${eur.format(Math.abs(p.amount))} ${p.amount < 0 ? "refunded" : "paid"} on ${longDate(p.date)}`).join(" and ")} ${strayVat.length === 1 ? "matches" : "match"} no return.`}{" "}
-              A return is filed in the month after its quarter ends, so the latest quarter can take a few weeks to appear.
+              A return is filed in the month after its quarter ends, so the latest quarter can take a few weeks to appear.{" "}
+              See also <Link href="/2023-2024" className="underline underline-offset-2">our VAT position for 2023–2024</Link>.
             </p>
           </div>
 

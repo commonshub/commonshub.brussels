@@ -7,6 +7,7 @@ import {
 } from "@/lib/odoo-quarter";
 import { QuarterlyReportView } from "./quarterly-report-view";
 import { ReportNotAvailable } from "./report-not-available";
+import { VatBox } from "./vat-box";
 
 interface QuarterlyReportProps {
   year: string;
@@ -45,15 +46,23 @@ export async function QuarterlyReport({ year, quarter }: QuarterlyReportProps) {
     showPii: perms.isMember,
   });
 
+  const vat = <VatBox year={Number(year)} quarter={quarter} />;
+
   if (data.rows.length === 0) {
     return (
       <ReportNotAvailable
         message={`The ${year} Q${quarter} report isn't available yet. See how ${year} is going so far in the yearly report.`}
         backHref={`/${year}`}
         backLabel={`Go to ${year} yearly report`}
-      />
+      >
+        {vat}
+      </ReportNotAvailable>
     );
   }
 
-  return <QuarterlyReportView data={data} showPii={perms.isMember} />;
+  return (
+    <QuarterlyReportView data={data} showPii={perms.isMember}>
+      {vat}
+    </QuarterlyReportView>
+  );
 }

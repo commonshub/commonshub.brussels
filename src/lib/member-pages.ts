@@ -255,7 +255,7 @@ export function deletePage(username: string, slug: string): boolean {
  * src/app (a test keeps this list complete) and a few words kept for later.
  */
 export const RESERVED = new Set([
-  "api", "book", "brand", "calendar", "calendar.ics", "collectives", "community", "community.md", "contact", "contribute",
+  "2023-2024", "api", "book", "brand", "calendar", "calendar.ics", "collectives", "community", "community.md", "contact", "contribute",
   "contributions", "coworking", "data", "debt", "docs", "donate", "door", "economy", "economy.md", "events", "events.md", "expenses",
   "finance", "finance.md", "fiscal-sponsorship", "fridge", "handbook", "homepage", "integrity", "llms.txt", "mcp", "members", "membership",
   "newsletter", "notifications", "opendata", "opendata.md", "pass", "pay", "posters", "potluck", "reports", "robots.txt", "rooms", "rooms.md", "sandbox",
