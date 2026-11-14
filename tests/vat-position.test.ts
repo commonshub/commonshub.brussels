@@ -1,4 +1,4 @@
-import { itemsLabel, subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
+import { regimeFromNote, itemsLabel, subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
 import type { VatPeriod } from "@/lib/taxes"
 import type { Transaction } from "@/types/transactions"
 
@@ -141,6 +141,29 @@ describe("vat-position", () => {
     )
     const line = p.expense.groups[0].lines[0]
     expect(line.projects).toEqual({ brusselspay: { amount: 4130, count: 2 }, regensunite: { amount: 4400, count: 1 } })
+  })
+
+  it("files each payment under the VAT regime its note states", () => {
+    expect(regimeFromNote("income", "Kolektivo Labs B.V. (Netherlands, VAT NL…: EU B2B, reverse charge, grid 44)")).toBe("reverse_eu")
+    expect(regimeFromNote("income", "Plural Everything Inc. (United States: outside the EU, no Belgian VAT, grid 47)")).toBe("export")
+    expect(regimeFromNote("expense", "RIA BEL (Sri Lanka): service from outside the EU, reverse charge, grid 87")).toBe("reverse_noneu")
+    expect(regimeFromNote("expense", "Alice Appel (Germany): service from another EU country, grids 88 and 55")).toBe("reverse_eu")
+    expect(regimeFromNote("income", "City of Brussels subsidy for Regen Village 2024")).toBeNull()
+    const n = (note: string) => ({ category: "sponsoring", note }) as Transaction["metadata"]
+    const p = vatPosition(
+      [
+        { ...tx("a", 5000, "2024-06-26", "sponsoring"), metadata: n("Kolektivo (Netherlands: EU B2B, reverse charge, grid 44)") },
+        { ...tx("b", 2512, "2024-07-27", "sponsoring"), metadata: n("Plural (United States: outside the EU, grid 47)") },
+        tx("c", 100, "2024-08-01", "sponsoring"),
+        tx("d", 1, "2024-07-02", "sponsoring"), // a €1 test transfer: left out
+      ],
+      [2024],
+    )
+    expect(p.income.groups.map((g) => [g.rate, g.amount])).toEqual([
+      ["reverse_eu", 5000],
+      ["export", 2512],
+      ["unknown", 100],
+    ])
   })
 
   it("reads the VAT declared on sales from grids 54 and 64", () => {

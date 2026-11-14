@@ -5,7 +5,7 @@ import { AlertTriangle, ChevronDown, FileText, ReceiptText } from "lucide-react"
 import { LangSwitch } from "@/components/lang-switch"
 import { countryFlag } from "@/lib/country-flag"
 import { VatBox } from "@/components/vat-box"
-import { type Lang, LOCALE, RATE_LABELS, TEXT, type PageText, pickLang, ruleText } from "@/lib/vat-i18n"
+import { type Lang, LOCALE, RATE_LABELS, REGIME_WHY_FR, SELF_ASSESSED, TEXT, type PageText, pickLang, ruleText } from "@/lib/vat-i18n"
 import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
 import { loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
 import {
@@ -13,6 +13,9 @@ import {
   type Direction,
   type Item,
   LARGE,
+  REGIME_WHY,
+  type RateClass,
+  SELF_ASSESSED_RATE,
   type Side,
   declaredInputVat,
   declaredSalesVat,
@@ -88,12 +91,18 @@ function RateBreakdown({ side, dir, lang, f }: { side: Side; dir: Direction; lan
             <span className="min-w-0 flex-1 font-medium text-foreground">{RATE_LABELS[lang][g.rate]}</span>
             <span className="text-right tabular-nums">
               {f.eur(g.amount)}
-              <span className="block text-xs text-muted-foreground">{g.vat === null ? t.vatNotEstimated : `${f.eur(g.vat)} ${t.vat}`}</span>
+              <span className="block text-xs text-muted-foreground">
+                {g.vat === null
+                  ? t.vatNotEstimated
+                  : dir === "expense" && (g.rate === "reverse_eu" || g.rate === "reverse_noneu")
+                    ? SELF_ASSESSED[lang](f.eur(round(g.amount * SELF_ASSESSED_RATE)))
+                    : `${f.eur(g.vat)} ${t.vat}`}
+              </span>
             </span>
           </summary>
           <ul className="divide-y divide-border bg-muted/20 text-sm">
             {g.lines.map((l) => {
-              const text = lineText(l, g.rate === "before", dir, lang, f)
+              const text = lineText(l, g.rate, dir, lang, f)
               return (
                 <li key={l.category || "none"} className="px-4 py-3 sm:pl-11">
                   <div className="flex gap-3">
@@ -118,8 +127,12 @@ function RateBreakdown({ side, dir, lang, f }: { side: Side; dir: Direction; lan
 }
 
 /** A category line's label and reason in the page's language (the "smaller amounts" name what they hold). */
-function lineText(l: CategoryLine, before: boolean, dir: Direction, lang: Lang, f: F): { label: string; why: string } {
+function lineText(l: CategoryLine, rate: RateClass, dir: Direction, lang: Lang, f: F): { label: string; why: string } {
+  const before = rate === "before"
   const base = ruleText(lang, dir, l.category, { label: l.label, why: l.why })
+  // Under a cross-border regime, the regime is the reason, whatever the category.
+  const regimeWhy = (lang === "fr" ? REGIME_WHY_FR : REGIME_WHY)[dir][rate]
+  if (regimeWhy && !l.parts) return { label: base.label, why: regimeWhy }
   if (l.parts) {
     const label = lang === "fr" ? "Montants plus petits" : "Smaller amounts"
     return { label, why: l.parts.map((p) => `${ruleText(lang, dir, p.category, { label: p.label, why: "" }).label} (${f.eur0(p.amount)})`).join(", ") }

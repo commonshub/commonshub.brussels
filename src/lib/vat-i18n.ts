@@ -25,6 +25,9 @@ export const RATE_LABELS: Record<Lang, Record<RateClass, string>> = {
     "21": "21%",
     "12": "12%",
     "6": "6%",
+    reverse_eu: "Reverse charge: a business in another EU country",
+    export: "0%: customers outside the EU",
+    reverse_noneu: "Reverse charge: suppliers outside the EU",
     receipt: "VAT paid, not deductible",
     exempt: "Exempt (0%)",
     outside: "Outside the scope of VAT",
@@ -35,6 +38,9 @@ export const RATE_LABELS: Record<Lang, Record<RateClass, string>> = {
     "21": "21 %",
     "12": "12 %",
     "6": "6 %",
+    reverse_eu: "Autoliquidation : une entreprise d'un autre pays de l'UE",
+    export: "0 % : clients hors de l'UE",
+    reverse_noneu: "Autoliquidation : fournisseurs hors de l'UE",
     receipt: "TVA payée, non déductible",
     exempt: "Exonéré (0 %)",
     outside: "Hors du champ de la TVA",
@@ -381,4 +387,22 @@ export const TEXT: Record<Lang, PageText> = {
     openFirst: "Ouvrir le premier paiement",
     beforeWhy: (since) => `Avant le ${since}, date de notre assujettissement à la TVA : aucune TVA facturée ni déduite.`,
   },
+}
+
+/** Why a payment falls under a cross-border regime, in French (English in vat-position.ts). */
+export const REGIME_WHY_FR: Record<Direction, Partial<Record<RateClass, string>>> = {
+  income: {
+    reverse_eu: "Services à une entreprise d'un autre pays de l'UE : pas de TVA belge sur la facture, le client l'autoliquide (grille 44).",
+    export: "Services à des clients hors de l'UE : pas de TVA belge (grille 47).",
+  },
+  expense: {
+    reverse_eu: "Services d'un fournisseur d'un autre pays de l'UE, facturés sans TVA : nous déclarons la TVA belge nous-mêmes (grilles 88 et 55) et la déduisons dans la même déclaration (grille 59), ce qui revient à zéro.",
+    reverse_noneu: "Services d'un fournisseur hors de l'UE, facturés sans TVA : nous déclarons la TVA belge nous-mêmes (grilles 87 et 56) et la déduisons dans la même déclaration (grille 59), ce qui revient à zéro.",
+  },
+}
+
+/** "€X declared and deducted by us (net €0)" for reverse-charge purchases. */
+export const SELF_ASSESSED: Record<Lang, (vat: string) => string> = {
+  en: (vat) => `${vat} VAT declared and deducted by us (net 0)`,
+  fr: (vat) => `${vat} de TVA autoliquidée et déduite (net 0)`,
 }
