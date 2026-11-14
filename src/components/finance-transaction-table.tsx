@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { InlineDescriptionEditor } from "@/components/inline-description-editor";
 import { WalletAddress } from "@/components/wallet-address";
-import { addressFromUri, chainFromUri, txHashFromUri } from "@/lib/nip73";
+import { addressFromUri, chainFromUri, isPartyId, txHashFromUri } from "@/lib/nip73";
 import settings from "@/settings/settings.json";
 import {
   counterpartyLabel,
@@ -359,7 +359,7 @@ const TransactionRow = memo(function TransactionRow({
   const cpName = counterpartyLabel(cpMeta);
   const cpAddr = addressFromUri(tx.counterpartyId);
   const cpExplorer = counterpartExplorerUrl(tx, chain);
-  const cpEditable = canEditRows && !!tx.counterpartyId;
+  const cpEditable = canEditRows && isPartyId(tx.counterpartyId, tx.accountId);
 
   const hasGross = typeof tx.grossAmount === "number";
   const hasNet = typeof tx.netAmount === "number";
@@ -1015,7 +1015,7 @@ export function FinanceTransactionTable({
   useEffect(() => {
     for (const tx of transactions) {
       if (tx.transactionUri) watch(tx.transactionUri);
-      if (tx.counterpartyId) watch(tx.counterpartyId);
+      if (isPartyId(tx.counterpartyId, tx.accountId)) watch(tx.counterpartyId);
     }
   }, [transactions, watch]);
 
@@ -1049,7 +1049,8 @@ export function FinanceTransactionTable({
     for (const tx of transactions) {
       if (!tx.counterpartyId) continue;
       const baseline = tx.counterpartyMetadata;
-      const ann = getAnnotation(tx.counterpartyId);
+      // A name given to a masked or shared id would label every row that shares it.
+      const ann = isPartyId(tx.counterpartyId, tx.accountId) ? getAnnotation(tx.counterpartyId) : undefined;
       if (!ann && !baseline) continue;
       map.set(
         tx.counterpartyId,

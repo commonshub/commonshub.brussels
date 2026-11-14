@@ -2,7 +2,10 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { ArrowLeft, ExternalLink, History } from "lucide-react"
 
+import { DeleteAnnotation } from "@/components/delete-annotation"
 import { TransactionAnnotator } from "@/components/transaction-annotator"
+import { isPartyId } from "@/lib/nip73"
+import { RELAYS } from "@/lib/nostr-server"
 import { isAdmin, isMember } from "@/lib/admin-check"
 import { type AnnotationVersion, loadAnnotationHistory } from "@/lib/annotation-history"
 import { tierFor } from "@/lib/data-paths"
@@ -39,6 +42,7 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 function Versions({ versions }: { versions: AnnotationVersion[] }) {
+  const relays = RELAYS
   if (versions.length === 0) return <p className="text-sm text-muted-foreground">No annotation yet.</p>
   return (
     <ol className="flex flex-col gap-3">
@@ -49,7 +53,10 @@ function Versions({ versions }: { versions: AnnotationVersion[] }) {
               {v.name}
               {i === 0 && <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-normal text-primary">current</span>}
             </span>
-            <span className="text-xs text-muted-foreground">{whenIso(v.at)}</span>
+            <span className="flex items-center gap-3 text-xs text-muted-foreground">
+              {whenIso(v.at)}
+              <DeleteAnnotation eventId={v.id} author={v.pubkey} relays={relays} />
+            </span>
           </div>
           {v.content && <p className="mt-1 whitespace-pre-line break-words text-foreground">{v.content}</p>}
           {v.tags.length > 0 && (
@@ -97,16 +104,19 @@ export default async function TransactionPage({ params }: PageProps) {
   const rows = transfers.map((t) => augmentTransaction(t, cpMeta))
   const uri = transfers[0].id
   const external = externalUrl(uri)
-  const cpUris = [...new Set(rows.map((r) => r.counterpartyId).filter((c): c is string => !!c))]
-  const history = await loadAnnotationHistory([uri, ...cpUris]).catch(() => ({}) as Record<string, AnnotationVersion[]>)
-
+  // Only a real party can be named: not a masked id shared by many payments, nor a token contract, nor us.
   const first = transfers[0]
+  const cpUris = [...new Set(rows.map((r) => r.counterpartyId).filter((c): c is string => isPartyId(c, first.accountId)))]
+  // Names wrongly given to a shared id, so their authors can delete them.
+  const sharedUris = [...new Set(rows.map((r) => r.counterpartyId).filter((c): c is string => !!c && !isPartyId(c, first.accountId)))]
+  const history = await loadAnnotationHistory([uri, ...cpUris, ...sharedUris]).catch(() => ({}) as Record<string, AnnotationVersion[]>)
+
   const total = transfers.reduce((s, t) => s + t.amount, 0)
   const categories = [...new Set([...settings.finance.categories.credit, ...settings.finance.categories.debit, ...Object.keys(INCOME_RULES), ...Object.keys(EXPENSE_RULES)].filter((c) => !c.includes(":")))].sort()
   const collectivesObj = (settings.finance as { collectives?: Record<string, { name: string }> }).collectives ?? {}
   const collectives = Object.entries(collectivesObj).map(([value, c]) => ({ value, label: c.name }))
   const meta = first.metadata ?? {}
-  const counterparty = rows[0].counterpartyId ? { uri: rows[0].counterpartyId, name: rows[0].counterpartyMetadata?.name ?? "" } : null
+  const counterparty = isPartyId(rows[0].counterpartyId, first.accountId) ? { uri: rows[0].counterpartyId, name: rows[0].counterpartyMetadata?.name ?? "" } : null
 
   return (
     <main className="container mx-auto max-w-4xl px-4 py-24">
@@ -157,7 +167,10 @@ export default async function TransactionPage({ params }: PageProps) {
               <dt className="text-muted-foreground">Type</dt>
               <dd>{r.rawType}</dd>
               <dt className="text-muted-foreground">Counterparty</dt>
-              <dd className="break-all">{r.counterpartyMetadata?.name ? `${r.counterpartyMetadata.name} · ` : ""}<span className="text-muted-foreground">{r.counterpartyId ?? "—"}</span></dd>
+              <dd className="break-all">
+                {[r.counterpartyMetadata?.name, transfers[i].counterparty].find(Boolean) ?? (isPartyId(r.counterpartyId, first.accountId) ? "" : "—")}
+                {isPartyId(r.counterpartyId, first.accountId) && <span className="text-muted-foreground"> {r.counterpartyId}</span>}
+              </dd>
               {transfers[i].metadata?.note ? (
                 <>
                   <dt className="text-muted-foreground">Note</dt>
@@ -179,6 +192,19 @@ export default async function TransactionPage({ params }: PageProps) {
         <div className="mt-4">
           <Versions versions={history[uri] ?? []} />
         </div>
+        {sharedUris.map((c) =>
+          (history[c] ?? []).length > 0 ? (
+            <div key={c} className="mt-6">
+              <h3 className="text-sm font-semibold text-foreground">Names given to “{c}”</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This id is shared by many payments (a masked bank account or a token contract), so a name given to it is not used. Delete it if it is yours.
+              </p>
+              <div className="mt-2">
+                <Versions versions={history[c]} />
+              </div>
+            </div>
+          ) : null,
+        )}
         {cpUris.map((c) =>
           (history[c] ?? []).length > 0 ? (
             <div key={c} className="mt-6">

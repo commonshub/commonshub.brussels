@@ -111,3 +111,15 @@ export function chainFromUri(uri: string | null | undefined): string | null {
   if (!chainId) return null;
   return chainNameFor(chainId);
 }
+
+/**
+ * Whether a counterparty id names one party, so a name given to it labels
+ * that party only. Not when chb masked it ("iban:[IBAN]" is shared by every
+ * bank counterparty) nor for a token contract (every Monerium payment has
+ * the EURe contract as its counterparty), nor when it is our own account.
+ */
+export function isPartyId(uri: string | null | undefined, ownAccountId?: string | null): uri is string {
+  if (!uri) return false
+  if (/[[\]]/.test(uri) || uri.includes(":token:")) return false
+  return uri !== ownAccountId
+}
