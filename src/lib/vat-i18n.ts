@@ -178,6 +178,7 @@ export interface PageText {
   wiseCard: string
   grids4447: string
   sources: [string, string, string, string]
+  winbooks: [string, string]
   vatNotEstimated: string
   vat: string
   payments: (n: number) => string
@@ -269,6 +270,7 @@ export const TEXT: Record<Lang, PageText> = {
     wiseCard: "Our Wise card balance ended 2024 with €4,191.77. Where it went in 2025 is not traced yet: it was not part of Wise's final refund in April 2025.",
     grids4447: "The returns also declare sales without Belgian VAT: services to customers in other EU countries (grid 44) and operations outside its scope (grid 47).",
     sources: ["Every amount comes from the ", "public dataset", ", the returns from Intervat; see also ", "all our taxes"],
+    winbooks: ["How these figures compare with our books, line by line: ", "WinBooks and the money"],
     vatNotEstimated: "VAT not estimated",
     vat: "VAT",
     payments: (n) => `${n} ${n === 1 ? "payment" : "payments"}`,
@@ -362,6 +364,7 @@ export const TEXT: Record<Lang, PageText> = {
     wiseCard: "Le solde de notre carte Wise finissait 2024 à 4 191,77 €. Où il est parti en 2025 n'est pas encore retracé : il ne faisait pas partie du remboursement final de Wise en avril 2025.",
     grids4447: "Les déclarations reprennent aussi des ventes sans TVA belge : services à des clients d'autres pays de l'UE (grille 44) et opérations hors de son champ (grille 47).",
     sources: ["Chaque montant vient des ", "données publiques", ", les déclarations d'Intervat ; voir aussi ", "toutes nos taxes"],
+    winbooks: ["Comment ces chiffres se comparent à notre comptabilité, ligne par ligne : ", "WinBooks et l'argent (en anglais)"],
     vatNotEstimated: "TVA non estimée",
     vat: "TVA",
     payments: (n) => `${n} paiement${n === 1 ? "" : "s"}`,
