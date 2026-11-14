@@ -73,10 +73,6 @@ export interface ComparisonLine {
   rest?: string
 }
 
-/** A payment the page lists among a category's large items. */
-const itemIn = (p: Position, dir: Direction, category: string, date: string, amount: number) =>
-  (p.byCategory[dir].get(category)?.items ?? []).some((i) => i.date === date && Math.abs(i.amount - amount) < 0.01)
-
 const amountOf = (p: Position, dir: Direction, categories: string[], withoutVat = false) =>
   round(categories.reduce((s, c) => {
     const t = p.byCategory[dir].get(c)
@@ -148,12 +144,6 @@ export const LINES: ComparisonLine[] = [
       },
       {
         theme: "category",
-        title: "City of Brussels subsidy: not categorised on the page yet",
-        detail: "The €3,000 subsidy of 6 August 2024 is in WinBooks (744000) but has no category on the page yet.",
-        amount: (p) => (itemIn(p, "income", "", "2024-08-06", 3000) ? 3000 : 0),
-      },
-      {
-        theme: "category",
         title: "Solifin: a campaign loan in WinBooks, a gift on the page",
         detail: "WinBooks books the €2,500 of 13 June 2024 (“Don Be Impact”) on 489308 with the campaign loans. We decided on 13 November 2026 that it is a gift.",
         amount: -2_500,
@@ -167,10 +157,24 @@ export const LINES: ComparisonLine[] = [
       },
       {
         theme: "category",
-        title: "Small gifts and test payments",
+        title: "Brussels Pay demos and test payments: donations in WinBooks, not categorised on the page",
         detail:
-          "WinBooks has €788.54 of small receipts on 743000 that the page counts elsewhere (Wise test payments and Brussels Pay demos, an Open Collective payment in USD, small Stripe payments, two invoices to collectives, a credit note). The page has €972.00 of small Stripe and bank donations that WinBooks books elsewhere.",
-        amount: -183.46,
+          "21 small Wise receipts of September to December 2024 (€498.50, mostly Brussels Pay demos) are booked on 743000. The page has not categorised them yet (see Not categorised yet); €3 of them are €1 payments, which it leaves out.",
+        amount: 498.5,
+      },
+      {
+        theme: "category",
+        title: "Other small receipts WinBooks books as donations",
+        detail:
+          "An Open Collective payment in dollars (€277.05; the page counts only euros), two December 2023 invoices to the DAO Brussels and Regens Unite Berlin collectives paid on their behalf by All for Climate (€111.36; not on the page), a Zinne top-up (€47.03) and two small Stripe sponsor payments (€39.10) that the page counts elsewhere, and a €1 test. Less a €50 credit note to Agenor.",
+        amount: 425.54,
+      },
+      {
+        theme: "category",
+        title: "Small payments the page counts as donations, booked elsewhere in WinBooks",
+        detail:
+          "Two €220 Stripe coworking payments (coworking in WinBooks), a €100 Stripe membership, the €100 Citizen Wallet contribution of 5 June 2024 (with the hosting fees in WinBooks, see Sponsoring), two Revolut payments of €9 and €3 for Zinne tokens (booked as tickets) and BitSafe's €5 test payment (with its sponsoring).",
+        amount: -657,
       },
     ],
   },
@@ -189,16 +193,29 @@ export const LINES: ComparisonLine[] = [
         amount: 2_500,
       },
       {
-        theme: "stripe",
-        title: "Citizen Wallet sponsor contributions through Stripe",
-        detail: "WinBooks accrues €909.09 (without VAT) of monthly €100 sponsor contributions. The page has €224.60 of Stripe sponsoring and counts the rest of those payments in other categories.",
-        amount: 684.49,
+        theme: "category",
+        title: "Citizen Wallet server hosting: sponsoring in WinBooks, web services on the page",
+        detail:
+          "WinBooks accrues eleven Stripe payments of €100 to Citizen Wallet (February to December 2024) as sponsoring, €909.09 after taking out 21% VAT (part of the Stripe “SERVICE” accrual). The page counts ten of them as server hosting for The Blockchain Socialist cooperative, a service to a business in another EU country without Belgian VAT (see Other sales), and the eleventh, of 5 June 2024, as a donation.",
+        amount: 909.09,
       },
       {
         theme: "noncash",
         title: "Bank fees and exchange on foreign sponsors",
         detail: "Stellar (€2,500 invoiced, €2,480 received), Proof of Vibes (€2,304.60 invoiced, €2,288.74 received) and GLO (€500 invoiced, €490 received).",
         amount: 45.86,
+      },
+      {
+        theme: "category",
+        title: "Test payments before the sponsorship",
+        detail: "BitSafe paid €5 before its €5,995 (the page counts it as a donation) and Proof of Vibes €1 (the page leaves out payments of €1 or less).",
+        amount: 6,
+      },
+      {
+        theme: "category",
+        title: "Small Stripe sponsor payments booked as donations",
+        detail: "Two Stripe payments (€23 on 14 July and €16.10 on 29 August 2024) are sponsoring on the page and donations in WinBooks.",
+        amount: -39.1,
       },
       {
         theme: "category",
@@ -225,8 +242,20 @@ export const LINES: ComparisonLine[] = [
       {
         theme: "debt",
         title: "Zinne token purchases booked as tickets",
-        detail: "€611 received through Monerium and KBC in 2023 and January 2024 for Zinne tokens. The page counts them as token top-ups.",
-        amount: 611,
+        detail: "€399 received through Monerium in October 2023 to January 2024 for Zinne tokens. The page counts them as token top-ups.",
+        amount: 399,
+      },
+      {
+        theme: "category",
+        title: "Regens Unite ticket paid by bank: not categorised on the page yet",
+        detail: "€200 received on KBC on 12 October 2023 (“payment from Felix for RGN”). WinBooks books it as a ticket; the page has no category for it yet.",
+        amount: 200,
+      },
+      {
+        theme: "category",
+        title: "Booked as tickets, counted elsewhere on the page",
+        detail: "A €27.50 day pass sold through Stripe in September 2024 (coworking on the page), two Revolut payments of €9 and €3 in November 2023 (donations on the page), and €0.72 of payments of €1 or less, which the page leaves out.",
+        amount: 40.22,
       },
     ],
   },
@@ -241,20 +270,50 @@ export const LINES: ComparisonLine[] = [
       {
         theme: "timing",
         title: "Invoiced in 2024, paid in 2025",
-        detail: "Declic (€350, and a €150 accrual), Agenor (€200), Climate for All (€50) and one €12.40 invoice have no payment in 2024.",
-        amount: 762.4,
+        detail: "Declic (€350), Agenor (€200), Climate for All (€50) and one €12.40 invoice have no payment in 2024.",
+        amount: 612.4,
       },
       {
         theme: "category",
-        title: "All for Climate invoice",
-        detail: "Invoice VEN 14 to All for Climate ASBL (€466.39) was settled against the money we held for them, not paid.",
+        title: "All for Climate invoice: not categorised on the page yet",
+        detail: "All for Climate ASBL paid invoice VEN 14 (€466.39) through Wise on 2 August 2024. The page has not categorised the payment yet (see Not categorised yet).",
         amount: 466.39,
+      },
+      {
+        theme: "vat",
+        title: "Two room hires booked without VAT",
+        detail: "WinBooks books ADDMA's €500 room hire (paid on 17 July 2024) and the €526.35 deposit of 19 December 2024 (Sociale Innovatiefabriek) without VAT. The page takes 21% out of both.",
+        amount: 178.13,
+      },
+      {
+        theme: "category",
+        title: "Rise for Climate paid in other pieces",
+        detail: "Three invoices, €428.50 without VAT. Rise for Climate paid €333.73 on 8 October and €181.50 on 22 November 2024; the page counts €15.50 of the first payment as drinks and €413.00 (without VAT) as room hire.",
+        amount: 15.5,
       },
       {
         theme: "stripe",
         title: "Stripe coworking never booked",
-        detail: "€1,117.50 of Stripe coworking receipts (€923.55 without VAT) sits on a customer account with no invoice or accrual against it.",
-        amount: -923.55,
+        detail: "Stripe received €3,345.50 for coworking in 2024 (after €363 of refunds). WinBooks books €2,677 of it (invoices paid through Stripe and the year-end accrual); €668.50 (€552.49 without VAT) has no invoice or accrual against it.",
+        amount: -552.49,
+      },
+      {
+        theme: "category",
+        title: "Coworking in WinBooks, donations on the page",
+        detail: "Two €220 Stripe coworking payments (2 September and 19 November 2024) are donations on the page.",
+        amount: 363.64,
+      },
+      {
+        theme: "stripe",
+        title: "Refunded coworking subscriptions",
+        detail: "WinBooks takes the €363 refunded to three coworkers off the coworking it books. The page counts the refunds with the money paid out.",
+        amount: -300,
+      },
+      {
+        theme: "category",
+        title: "A day pass booked as a ticket",
+        detail: "The €27.50 day pass of 4 September 2024 is a ticket in WinBooks and coworking on the page.",
+        amount: -22.73,
       },
       {
         theme: "timing",
@@ -271,8 +330,26 @@ export const LINES: ComparisonLine[] = [
     winbooks: { amount: 1_850, accounts: "749000 (Stripe invoice A60E2C44-0001)" },
     categories: ["other_income", "consulting", "equipment", "webservice", "drinks", "catering"],
     withoutVat: true,
-    reasons: [],
-    rest: "Drinks and small sales, which WinBooks has inside the room-hire invoices",
+    reasons: [
+      {
+        theme: "category",
+        title: "Citizen Wallet server hosting: web services on the page, sponsoring in WinBooks",
+        detail: "Ten monthly €100 Stripe payments from The Blockchain Socialist cooperative, without Belgian VAT (reverse charge). WinBooks books them with the sponsoring (see Sponsoring).",
+        amount: -1000,
+      },
+      {
+        theme: "category",
+        title: "Wise cashback: other sales on the page, financial income in WinBooks",
+        detail: "€81.51 of Wise balance cashback (€67.36 once the page takes VAT out). WinBooks books it on 754000 (see Recoveries, corrections and interest).",
+        amount: -67.36,
+      },
+      {
+        theme: "category",
+        title: "An Amazon refund and Rise for Climate's drinks",
+        detail: "The page counts a €48.09 Amazon card refund of 8 July 2024 as equipment sold (WinBooks takes it off the supplier's invoice) and €15.50 of Rise for Climate's payment of 8 October 2024 as drinks (WinBooks has it against their room-hire invoice).",
+        amount: -52.55,
+      },
+    ],
   },
   {
     key: "membership",
@@ -285,8 +362,20 @@ export const LINES: ComparisonLine[] = [
       {
         theme: "debt",
         title: "Token top-ups inside the Stripe membership total",
-        detail: "Stripe names the product: €2,574.50 of what WinBooks books as membership are Brussels Pay, EURb and Zinne top-ups.",
-        amount: 2_574.5,
+        detail: "Stripe names the product: €2,644.50 of what WinBooks books as membership are Brussels Pay, EURb and Zinne top-ups.",
+        amount: 2_644.5,
+      },
+      {
+        theme: "category",
+        title: "A membership the page counts as a donation",
+        detail: "A €100 Stripe subscription of 22 October 2024.",
+        amount: 100,
+      },
+      {
+        theme: "stripe",
+        title: "Refunded memberships",
+        detail: "WinBooks takes the €110 refunded to members off the membership it books. The page counts the refunds with the money paid out.",
+        amount: -110,
       },
     ],
   },
@@ -316,9 +405,40 @@ export const LINES: ComparisonLine[] = [
     reasons: [
       {
         theme: "category",
-        title: "City of Brussels subsidy",
-        detail: "In WinBooks with the subsidies (see Donations, grants and subsidies).",
-        amount: (p) => (itemIn(p, "income", "", "2024-08-06", 3000) ? -3000 : 0),
+        title: "Card refunds and money paid back",
+        detail:
+          "€1,021.27 received in 2024, mostly on Wise: card purchases refunded (Eustore €338, Juma €287.50, bol.com €70.50, three €50 Banxa test purchases), a deposit paid back by JLO Concept (€170.92) and two small refunds. WinBooks takes €869.27 of them off the costs (see Expenses) and books the Banxa refunds and a €2 refund on a suspense account.",
+        amount: -1_021.27,
+      },
+      {
+        theme: "category",
+        title: "Money for All for Climate",
+        detail: "€699.96 received from All for Climate on 17 June 2024. WinBooks books it as money held for them (489301), not income.",
+        amount: -699.96,
+      },
+      {
+        theme: "category",
+        title: "Brussels Pay demos and test payments",
+        detail: "€495.50 of small Wise receipts, booked as donations in WinBooks (see Donations, grants and subsidies).",
+        amount: -495.5,
+      },
+      {
+        theme: "category",
+        title: "All for Climate invoice",
+        detail: "Payment of invoice VEN 14 on 2 August 2024, room hire in WinBooks (see Room rentals and coworking).",
+        amount: -466.39,
+      },
+      {
+        theme: "category",
+        title: "Regens Unite ticket",
+        detail: "€200 received on KBC on 12 October 2023, a ticket in WinBooks (see Event tickets).",
+        amount: -200,
+      },
+      {
+        theme: "debt",
+        title: "Blockchain for Europe: a Brussels Pay top-up",
+        detail: "€174.50 received on 4 December 2024, booked in WinBooks as Brussels Pay token debt (489306).",
+        amount: -174.5,
       },
     ],
     rest: "Receipts the page has not categorised yet",
@@ -334,7 +454,7 @@ export const LINES: ComparisonLine[] = [
       {
         theme: "noncash",
         title: "Not money received from outside",
-        detail: "Payroll recoveries (€62.97), an expense correction (€339.21), interest and exchange gains (€51.33).",
+        detail: "Payroll recoveries (€62.97), an expense correction (€339.21), interest, Wise cashback and exchange gains (€51.33; the page counts the cashback as other sales).",
         amount: 453.51,
       },
     ],
@@ -400,8 +520,15 @@ export const LINES: ComparisonLine[] = [
       {
         theme: "timing",
         title: "Refunds we received",
-        detail: "The page subtracts refunds we received from expenses (€3,377.20, including a €1,600 payment that came back, which WinBooks still books as a cost).",
-        amount: 3_377.2,
+        detail:
+          "Refunds the two count differently (€2,459.84), including a €1,600 payment that came back, which WinBooks still books as a cost. Card refunds of 2024 (€869.27, and a €48.09 Amazon refund) are taken off the costs in WinBooks, while the page counts them as receipts (see Not categorised yet and Other sales).",
+        amount: 2_459.84,
+      },
+      {
+        theme: "category",
+        title: "A transfer from the Brussels Pay multisig",
+        detail: "€1,000 sent from the Brussels Pay multisig on 18 September 2024. WinBooks books it as a transfer between our own accounts (580003); the page counts it as an expense.",
+        amount: -1_000,
       },
       {
         theme: "vat",

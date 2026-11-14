@@ -143,7 +143,7 @@ export default function Winbooks20232024Page() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">Summary</h2>
             <p className="mt-3 max-w-3xl text-muted-foreground">
-              WinBooks shows {eur.format(Math.abs(c.income.difference))} {c.income.difference >= 0 ? "more" : "less"} income than the money that came in, mostly because it counts some crypto grant money twice. It shows{" "}
+              WinBooks shows {eur.format(Math.abs(c.income.difference))} {c.income.difference >= 0 ? "more" : "less"} income than the money that came in. The two largest reasons pull in opposite directions: WinBooks books the campaign loans and token top-ups as debts, not income, and it counts some crypto grant money twice. It shows{" "}
               {eur.format(Math.abs(c.expense.difference))} {c.expense.difference >= 0 ? "more" : "less"} costs than what was paid, mostly because it books invoices for 2024 that were paid in 2025.
             </p>
             <div className="mt-6 grid gap-6 sm:grid-cols-2">
