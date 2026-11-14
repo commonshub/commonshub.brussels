@@ -118,6 +118,11 @@ export const EXPENSE_RULES: Record<string, Rule> = {
     label: "Expenses reimbursed",
     why: "What volunteers and the team bought for the Hub (groceries, consumables…) and we paid back. They paid the VAT, but on a receipt, not an invoice in our name, so we cannot deduct it.",
   },
+  expense: {
+    rate: "receipt",
+    label: "Expenses reimbursed",
+    why: "What volunteers and the team bought for the Hub (groceries, consumables…) and we paid back. They paid the VAT, but on a receipt, not an invoice in our name, so we cannot deduct it.",
+  },
   expense_reimbursement: {
     rate: "receipt",
     label: "Expenses reimbursed",
