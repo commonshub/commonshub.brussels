@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic"
 export const metadata = {
   title: "WinBooks and the money, 2023–2024 | Commons Hub Brussels",
   description: "Our books (WinBooks) for July 2023 to December 2024 next to the money that actually moved, line by line, with the reason for every difference.",
+  robots: { index: false, follow: false },
 }
 
 const YEARS = [2023, 2024]

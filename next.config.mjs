@@ -37,6 +37,28 @@ const gitInfo = getGitInfo();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  // Pages that list transactions (counterparty names, companies, lenders) stay
+  // out of search engines: nobody should land here by searching for a name.
+  // robots.txt keeps allowing the crawl so the crawler sees this header.
+  async headers() {
+    const noindex = [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }];
+    return [
+      '/2023-2024',
+      '/2023-2024/:path*',
+      '/:year(\\d{4})/transactions',
+      '/:year(\\d{4})/transactions/:path*',
+      '/:year(\\d{4})/:month(\\d{2})/transactions',
+      '/:year(\\d{4})/:month(\\d{2})/transactions/:path*',
+      '/:year(\\d{4})/finance',
+      '/:year(\\d{4})/finance/:path*',
+      '/:year(\\d{4})/:month(\\d{2})/finance',
+      '/:year(\\d{4})/:month(\\d{2})/finance/:path*',
+      '/:year(\\d{4})/events/:path*',
+      '/collectives/:path+',
+      '/debt',
+      '/finance/stripe',
+    ].map((source) => ({ source, headers: noindex }));
+  },
   async redirects() {
     return [
       // The old data docs pointed agents at /data and /api, which are not public.
