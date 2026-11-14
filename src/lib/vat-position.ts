@@ -200,7 +200,10 @@ export interface PaymentGroup {
   label: string
   /** One line of context: "48,000 cUSD paid in tranches". */
   detail?: string
-  document?: { label: string; url: string }
+  document?: { label: string; url: string; labelFr?: string }
+  /** French, for the page in French. */
+  labelFr?: string
+  detailFr?: string
   /** The transactions it is made of (every transfer of each). */
   txs: string[]
 }
@@ -213,7 +216,7 @@ export interface Item {
   /** How many transactions it stands for (more than one for a group). */
   count?: number
   /** Set when the item is a group: its name, context, document, and the last date. */
-  group?: { label: string; detail?: string; document?: { label: string; url: string }; until: string }
+  group?: { label: string; detail?: string; labelFr?: string; detailFr?: string; document?: { label: string; url: string; labelFr?: string }; until: string }
   description: string
   note: string
   collective: string
@@ -232,6 +235,8 @@ export interface CategoryLine {
   count: number
   /** Payments of at least LARGE, biggest first. */
   items: Item[]
+  /** For "smaller amounts": the categories put together. */
+  parts?: Array<{ category: string; label: string; amount: number }>
 }
 
 /** A payment from this amount up is listed one by one. */
@@ -342,7 +347,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
           ...itemOf(tx, date, explorer),
           amount: round(Math.abs(tx.amount)),
           count: 1,
-          group: { label: group.label, detail: group.detail, document: group.document, until: iso },
+          group: { label: group.label, detail: group.detail, labelFr: group.labelFr, detailFr: group.detailFr, document: group.document, until: iso },
         })
       } else {
         g.amount = round(g.amount + Math.abs(tx.amount))
@@ -388,6 +393,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
                 vat: RATE_CLASSES[rate].rate === null ? null : round(small.reduce((s, l) => s + (l.vat ?? 0), 0)),
                 count: small.reduce((s, l) => s + l.count, 0),
                 items: small.flatMap((l) => l.items),
+                parts: small.map((l) => ({ category: l.category, label: l.label, amount: l.amount })),
               },
             ]
           : small

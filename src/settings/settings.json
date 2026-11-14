@@ -479,8 +479,10 @@
       {
         "id": "celo-prezenti",
         "label": "Celo Foundation grant for Citizen Wallet",
+        "labelFr": "Subvention de la Celo Foundation pour Citizen Wallet",
+        "detailFr": "Subvention de 50 000 $ (convention du 9 octobre 2023) : 48 000 cUSD versés en 7 tranches, du 20 novembre 2023 au 14 mai 2024, convertis en euros",
         "detail": "$50,000 grant (agreement of 9 October 2023): 48,000 cUSD paid in 7 tranches, 20 November 2023 – 14 May 2024, converted to euros",
-        "document": { "label": "Grant agreement", "url": "https://drive.google.com/file/d/1JY8hTXMBi5S8c9OKycufUNO15EtQYGbe/view?usp=sharing" },
+        "document": { "label": "Grant agreement", "labelFr": "Convention de subvention", "url": "https://drive.google.com/file/d/1JY8hTXMBi5S8c9OKycufUNO15EtQYGbe/view?usp=sharing" },
         "txs": [
           "ethereum:137:tx:0xb44f56b2e1ae164929190ace91fb0a8eaf71b85786c342314aafa3b25fb93f8d",
           "ethereum:137:tx:0x4f0b195c2e58c15c463ee7d5db6270b810d791454dbe5cf9174cc43bf5c2300d",
@@ -497,8 +499,10 @@
       {
         "id": "gitcoin",
         "label": "Gitcoin Grants matching for Citizen Wallet",
+        "labelFr": "Fonds de matching Gitcoin Grants pour Citizen Wallet",
+        "detailFr": "Fonds de matching des rounds Gitcoin Grants, reçus en USDC et transférés vers Gnosis (novembre et décembre 2024)",
         "detail": "Matching funds from Gitcoin Grants rounds, received in USDC and bridged to Gnosis (November and December 2024)",
-        "document": { "label": "Gitcoin grant", "url": "https://docs.google.com/document/d/1v-5KORvTlFzjc1urDsWzWvGs8rKopjdBl-0axQCIZ1A/edit?usp=sharing" },
+        "document": { "label": "Gitcoin grant", "labelFr": "Subvention Gitcoin", "url": "https://docs.google.com/document/d/1v-5KORvTlFzjc1urDsWzWvGs8rKopjdBl-0axQCIZ1A/edit?usp=sharing" },
         "txs": [
           "ethereum:100:tx:0x206be6bc86c221b50c690e5881b1e61ce273dff6fa0fe474923dd791b63ebcfa",
           "ethereum:100:tx:0x735185ce163cac4fb88c95625501378f8dc7ed75694c4b9be958e0c0a6600850"
@@ -507,6 +511,8 @@
       {
         "id": "other-chains",
         "label": "Crypto donations to Citizen Wallet received on other chains",
+        "labelFr": "Dons en crypto à Citizen Wallet reçus sur d'autres blockchains",
+        "detailFr": "Transférés depuis Celo (mai–juin 2024) ou convertis depuis de l'USDC (octobre 2024) ; leur origine n'est pas encore identifiée",
         "detail": "Bridged from Celo (May–June 2024) or swapped from USDC (October 2024); where they first came from is not identified yet",
         "txs": [
           "ethereum:137:tx:0xf8610d261915e6034c64951de6c6fb34dcd02f5fc22d39ec36f1f7fa4ace2647",
