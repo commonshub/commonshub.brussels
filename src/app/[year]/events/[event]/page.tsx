@@ -59,7 +59,8 @@ export default async function EventMoneyPage({ params }: PageProps) {
   if (!e || String(e.year) !== year) notFound()
 
   const seen = new Set<string>()
-  const rows = loadTransactions([e.year])
+  // Invoices for an event are often paid months later: the next year counts too.
+  const rows = loadTransactions([e.year, e.year + 1])
     .filter((tx) => tx.metadata?.collective === e.collective && ["EUR", "EURe", "EURb"].includes(tx.currency))
     .filter((tx) => (seen.has(txKey(tx)) ? false : (seen.add(txKey(tx)), true)))
     .sort((a, b) => a.timestamp - b.timestamp)
