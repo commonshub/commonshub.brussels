@@ -35,6 +35,8 @@ describe("vat-position", () => {
       [
         tx("a", 121, "2024-04-02", "rental"),
         tx("a", 121, "2024-04-02", "rental"), // the same transaction filed twice
+        { ...tx("m", 100, "2024-05-20", "grant"), counterpartyId: "x" }, // one swap paying out two amounts
+        { ...tx("m", 200, "2024-05-20", "grant"), counterpartyId: "y" },
         tx("b", 1000, "2024-05-01", "donation"),
         tx("c", 50, "2024-06-01"),
         { ...tx("d", 242, "2024-12-31", "ticket"), timestamp: Date.parse("2024-12-31T23:30:00Z") / 1000 }, // 1 Jan 2025 in Brussels
@@ -47,11 +49,11 @@ describe("vat-position", () => {
       ],
       [2023, 2024],
     )
-    expect(p.income.amount).toBe(1171)
+    expect(p.income.amount).toBe(1471)
     expect(p.income.vat).toBe(21)
     expect(p.income.groups.map((g) => [g.rate, g.amount, g.vat])).toEqual([
       ["21", 121, 21],
-      ["outside", 1000, 0],
+      ["outside", 1300, 0],
       ["unknown", 50, null],
     ])
     expect(p.expense.amount).toBe(1100)

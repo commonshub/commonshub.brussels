@@ -127,6 +127,13 @@ export function ruleFor(direction: Direction, category: string | undefined, coll
 
 const EUR = new Set(["EUR", "EURe", "EURb"])
 
+/**
+ * One movement of money. A blockchain transaction can carry several
+ * transfers (a swap paying out three amounts) under the same id, so the id
+ * alone would merge them; the same row read twice still counts once.
+ */
+export const txKey = (tx: Pick<Transaction, "id" | "accountSlug" | "counterpartyId" | "amount">) => `${tx.id}|${tx.accountSlug}|${tx.counterpartyId ?? ""}|${tx.amount}`
+
 /** Money in or out with the outside world: not a move between our own accounts, nor a VAT payment or refund. */
 export function directionOf(tx: Transaction): Direction | null {
   const category = normalise(tx.metadata?.category)
@@ -188,8 +195,9 @@ export function vatPosition(txs: Transaction[], years: number[]): Position {
   const lines = { income: new Map<string, CategoryLine & { rate: RateClass }>(), expense: new Map<string, CategoryLine & { rate: RateClass }>() }
   const quarters = new Map<QuarterKey, { collected: number; paid: number }>()
   for (const tx of txs) {
-    if (seen.has(tx.id)) continue
-    seen.add(tx.id)
+    const key = txKey(tx)
+    if (seen.has(key)) continue
+    seen.add(key)
     const dir = directionOf(tx)
     const date = brusselsDate(tx.timestamp)
     if (!dir || !years.includes(date.getUTCFullYear())) continue

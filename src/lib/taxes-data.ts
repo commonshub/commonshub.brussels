@@ -6,6 +6,7 @@ import settings from "@/settings/settings.json"
 import { DATA_DIR } from "./data-paths"
 import { listMonths, listYears } from "./dataset"
 import { readMonthlyTransactions } from "./transactions"
+import { txKey } from "./vat-position"
 import { type PendingTax, type TaxPayment, type TaxRule, type VatFile, classifyTaxPayment } from "./taxes"
 
 export interface PassThrough {
@@ -41,10 +42,10 @@ export function loadTaxPayments(rules: TaxRule[] = TAX_RULES): TaxPayment[] {
   for (const year of listYears()) {
     for (const month of listMonths(year, "public")) {
       for (const tx of readMonthlyTransactions(year, month, "public")) {
-        if (seen.has(tx.id)) continue
+        if (seen.has(txKey(tx))) continue
         const payment = classifyTaxPayment(tx, rules)
         if (payment) {
-          seen.add(tx.id)
+          seen.add(txKey(tx))
           payments.push(payment)
         }
       }
