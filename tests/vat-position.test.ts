@@ -62,6 +62,31 @@ describe("vat-position", () => {
     expect(directionOf(tx("h", -5, "2024-01-01", "vat"))).toBeNull()
   })
 
+  it("puts small categories together and lists large payments with a link", () => {
+    const p = vatPosition(
+      [
+        tx("big", 3509, "2024-11-28", "rental", { accountSlug: "kbc" } as Partial<Transaction>),
+        tx("r2", 500, "2024-10-01", "rental"),
+        tx("d1", 15.5, "2024-12-01", "drinks"),
+        tx("w1", 50, "2024-12-01", "equipment"),
+        tx("ethereum:137:tx:0xabc", 2500, "2024-05-30", "grant", { accountSlug: "cw" } as Partial<Transaction>),
+      ],
+      [2024],
+      (id) => (id.startsWith("ethereum:") ? `https://polygonscan.com/tx/${id.split(":")[3]}` : null),
+    )
+    const g21 = p.income.groups.find((g) => g.rate === "21")!
+    expect(g21.lines.map((l) => [l.label, l.amount])).toEqual([
+      ["Room rentals", 4009],
+      ["Smaller amounts", 65.5],
+    ])
+    expect(g21.lines[1].why).toBe("Equipment sold (€50), Drinks (€16)")
+    expect(g21.lines[0].items).toEqual([
+      expect.objectContaining({ amount: 3509, date: "2024-11-28", explorer: null, href: "/2024/11/transactions?account=kbc&minAmount=3509&maxAmount=3509" }),
+    ])
+    const grant = p.income.groups.find((g) => g.rate === "outside")!.lines[0]
+    expect(grant.items[0]).toMatchObject({ explorer: "https://polygonscan.com/tx/0xabc", href: "/2024/05/transactions?account=cw&minAmount=2500&maxAmount=2500" })
+  })
+
   it("reads the VAT declared on sales from grids 54 and 64", () => {
     expect(declaredSalesVat({ grids: { "54": 1898.73, "64": 69.99 } } as unknown as VatPeriod)).toBe(1828.74)
     expect(declaredSalesVat({ grids: {} } as unknown as VatPeriod)).toBe(0)

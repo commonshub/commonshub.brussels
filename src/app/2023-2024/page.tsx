@@ -2,9 +2,11 @@ import Link from "next/link"
 import { AlertTriangle, ChevronDown } from "lucide-react"
 
 import { VatBox } from "@/components/vat-box"
-import { matchVatPayments } from "@/lib/taxes"
+import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
 import { loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
 import {
+  type CategoryLine,
+  LARGE,
   RATE_CLASSES,
   type Side,
   declaredInputVat,
@@ -27,6 +29,7 @@ export const metadata = {
 const YEARS = [2023, 2024]
 const BANK_ACCOUNT = "kbc"
 const eur = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" })
+const eur0 = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
 const signed = (n: number) => (n < 0 ? `−${eur.format(-n)}` : eur.format(n))
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 const monthName = (ym: string) => new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
@@ -61,23 +64,75 @@ function RateBreakdown({ side }: { side: Side }) {
           </summary>
           <ul className="divide-y divide-border bg-muted/20 text-sm">
             {g.lines.map((l) => (
-              <li key={l.category || "none"} className="flex gap-3 px-4 py-3 pl-11">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-foreground">{l.label}</div>
-                  <div className="text-xs text-muted-foreground">{l.why}</div>
+              <li key={l.category || "none"} className="px-4 py-3 pl-11">
+                <div className="flex gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-foreground">{l.label}</div>
+                    <div className="text-xs text-muted-foreground">{l.why}</div>
+                  </div>
+                  <div className="text-right tabular-nums">
+                    {eur.format(l.amount)}
+                    <span className="block text-xs text-muted-foreground">
+                      {l.vat === null ? `${l.count} ${l.count === 1 ? "payment" : "payments"}` : `${eur.format(l.vat)} VAT`}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right tabular-nums">
-                  {eur.format(l.amount)}
-                  <span className="block text-xs text-muted-foreground">
-                    {l.vat === null ? `${l.count} ${l.count === 1 ? "payment" : "payments"}` : `${eur.format(l.vat)} VAT`}
-                  </span>
-                </div>
+                <LargeItems line={l} />
               </li>
             ))}
           </ul>
         </details>
       ))}
     </div>
+  )
+}
+
+/** The payments of a category large enough to justify one by one, each linked to where it can be checked and annotated. */
+function LargeItems({ line }: { line: CategoryLine }) {
+  if (line.items.length === 0) return null
+  const listed = sum(line.items.map((i) => i.amount))
+  const rest = round(line.amount - listed)
+  const others = line.count - line.items.length
+  return (
+    <details className="group/items mt-2">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-primary">
+        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/items:rotate-180" />
+        {line.items.length} {line.items.length === 1 ? "payment" : "payments"} of {eur0.format(LARGE)} or more
+      </summary>
+      <ul className="mt-2 space-y-2 border-l-2 border-border pl-3 text-xs">
+        {line.items.map((i, n) => (
+          <li key={`${i.href}-${n}`} className="flex gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-foreground">
+                <Link href={i.href} className="underline decoration-dotted underline-offset-2 hover:text-primary" title="Open it in the month's transactions, to annotate it">
+                  {shortDate(i.date)}
+                </Link>
+                {i.collective ? <span className="text-muted-foreground"> · {i.collective}</span> : null}
+                {i.explorer && (
+                  <>
+                    {" · "}
+                    <a href={i.explorer} target="_blank" rel="noopener noreferrer" className="text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-primary">
+                      blockchain ↗
+                    </a>
+                  </>
+                )}
+              </div>
+              {(i.note || i.description) && <div className="break-words text-muted-foreground">{i.note || i.description}</div>}
+              {!i.note && !i.description && <div className="italic text-amber-700 dark:text-amber-400">No description: open it to annotate</div>}
+            </div>
+            <div className="tabular-nums text-foreground">{eur.format(i.amount)}</div>
+          </li>
+        ))}
+        {others > 0 && (
+          <li className="flex gap-3 text-muted-foreground">
+            <div className="flex-1">
+              and {others} smaller {others === 1 ? "payment" : "payments"}
+            </div>
+            <div className="tabular-nums">{eur.format(rest)}</div>
+          </li>
+        )}
+      </ul>
+    </details>
   )
 }
 
@@ -95,7 +150,7 @@ export default function Vat20232024Page() {
   const vat = loadVatReturns()
   const lastYear = YEARS[YEARS.length - 1]
   const txs = loadTransactions([...YEARS, lastYear + 1])
-  const position = vatPosition(txs, YEARS)
+  const position = vatPosition(txs, YEARS, explorerTxUrl)
   const { byPeriod } = matchVatPayments(vat?.periods ?? [], loadTaxPayments())
 
   // An account whose history starts after these years: what came in or went out there is missing.
@@ -131,6 +186,16 @@ export default function Vat20232024Page() {
   const paid = sum(quarters.flatMap((q) => q.settled.filter((p) => p.amount > 0).map((p) => p.amount)))
   const refunded = sum(quarters.flatMap((q) => q.settled.filter((p) => p.amount < 0).map((p) => -p.amount)))
   const open = round(net - paid + refunded)
+  // Each refund or payment once, with the quarters it settled (one refund can settle several).
+  const settlements = [...quarters.flatMap((q) => q.settled.map((p) => ({ p, q: q.label })))
+    .reduce((acc, { p, q }) => {
+      const key = `${p.id}|${p.date}`
+      const e = acc.get(key) ?? { id: p.id, date: p.date, amount: 0, quarters: [] as string[] }
+      e.amount = round(e.amount + p.amount)
+      e.quarters.push(q)
+      return acc.set(key, e)
+    }, new Map<string, { id: string; date: string; amount: number; quarters: string[] }>())
+    .values()].sort((a, b) => a.date.localeCompare(b.date))
 
   return (
     <main className="min-h-screen">
@@ -139,7 +204,7 @@ export default function Vat20232024Page() {
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">Taxes</p>
           <h1 className="mt-2 text-4xl sm:text-5xl font-bold text-foreground">VAT 2023–2024</h1>
           <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-            The VAT in everything that came in and went out in 2023 and 2024, by rate and why, and where that leaves us with the State. Open a rate to see what is in it.
+            Everything that came in and went out in 2023 and 2024, by VAT regime and why, and where that leaves us with the State. Open a rate to see its categories; open a category to see every payment of {eur0.format(LARGE)} or more, with a link to annotate it.
           </p>
         </div>
       </section>
@@ -209,6 +274,26 @@ export default function Vat20232024Page() {
                   <Row label="Refunded to us" value={refunded ? `+${eur.format(refunded)}` : eur.format(0)} />
                   <Row label={open < 0 ? "Still owed to us" : open > 0 ? "Still owed to the State" : "Still open"} value={signed(open)} strong tone={open < 0 ? "good" : undefined} />
                 </dl>
+                {settlements.length > 0 && (
+                  <ul className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
+                    {settlements.map((s) => {
+                      const onChain = explorerTxUrl(s.id)
+                      const [y, m] = s.date.split("-")
+                      return (
+                        <li key={`${s.id}${s.date}`} className="flex justify-between gap-3">
+                          <span>
+                            {s.amount < 0 ? "Refunded" : "Paid"} on{" "}
+                            <a href={onChain ?? `/${y}/${m}/transactions?category=vat`} className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+                              {shortDate(s.date)}
+                            </a>{" "}
+                            for {s.quarters.join(" + ")}
+                          </span>
+                          <span className="tabular-nums">{eur.format(Math.abs(s.amount))}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
                 <p className="mt-2 text-xs text-muted-foreground">
                   {open < 0 ? "Not refunded in the accounts we have: carried forward on our VAT account, or refunded to an account not imported yet." : open > 0 ? "Not paid from the accounts we have." : "Settled."}
                 </p>
