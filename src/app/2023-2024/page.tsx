@@ -222,7 +222,9 @@ export default function Vat20232024Page() {
                   </li>
                 )}
                 {yearsWithoutData.length > 0 && <li>No transactions at all for {yearsWithoutData.join(" and ")} yet.</li>}
-                <li>Our Wise card balance (card spending, the BeCentral rent) is only exported until 30 September 2024: its last quarter of 2024 is missing.</li>
+                <li>
+                  Our Wise card balance (card spending, the BeCentral rent) is only exported until 30 September 2024. It still held €5,319.99 on 17 September; that money left it in the last quarter of 2024 (spending, a transfer or a closure) in a way we cannot see, and it was not in Wise&apos;s final refund in April 2025. Only that balance&apos;s October–December 2024 statement can tell.
+                </li>
                 {missing.length > 0 && <li>No VAT return on file for {missing.map((q) => q.label).join(" and ")}: either not filed, or not imported yet.</li>}
               </ul>
             </div>
