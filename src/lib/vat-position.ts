@@ -7,6 +7,7 @@
 import type { Transaction } from "@/types/transactions"
 import type { VatFile, VatPeriod } from "./taxes"
 import { txPagePath } from "./tx-slug"
+import { driveDocs } from "./drive-docs"
 import settings from "@/settings/settings.json"
 
 /** The day we became subject to VAT (KBO/BCE). Nothing before it carried VAT, and no return was due. */
@@ -230,6 +231,8 @@ export interface Item {
   href: string
   /** Its page on a blockchain explorer, when it is on chain. */
   explorer: string | null
+  /** Its invoice or receipt in the Accounting Drive, when known. */
+  docs?: string[]
 }
 
 export interface CategoryLine {
@@ -282,6 +285,7 @@ export function itemOf(tx: Transaction, date: Date, explorer: (id: string) => st
     collective: String(meta.collective ?? ""),
     href: txPagePath(tx.id, monthOfFile(tx, iso)),
     explorer: onChain,
+    docs: driveDocs(tx.id, tx.amount),
   }
 }
 export interface RateGroup {
@@ -379,6 +383,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
       } else {
         g.amount = round(g.amount + Math.abs(tx.amount))
         g.count = (g.count ?? 1) + 1
+        g.docs = [...new Set([...(g.docs ?? []), ...driveDocs(tx.id, tx.amount)])]
         if (iso < g.date) Object.assign(g, { date: iso, href: itemOf(tx, date, explorer).href })
         if (iso > g.group!.until) g.group!.until = iso
       }
