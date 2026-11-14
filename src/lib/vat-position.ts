@@ -102,7 +102,7 @@ export const INCOME_RULES: Record<string, Rule> = {
 
 /** The VAT on each chb category of expense, and why. Amounts paid include the VAT. */
 export const EXPENSE_RULES: Record<string, Rule> = {
-  consulting: { rate: "21", label: "Consultants and freelancers", why: "Services at the standard rate. A freelancer under the €25,000 small-business threshold charges no VAT, so this is an upper bound." },
+  consulting: { rate: "21", label: "Consultants and freelancers", why: "Services at the standard rate. Freelancers based in another EU country invoice us without VAT: we then owe the Belgian VAT ourselves (reverse charge) and deduct it in the same return, so for them it comes to nothing." },
   events: { rate: "21", label: "Events", why: "Speakers, venues and services for events: standard rate." },
   services: { rate: "21", label: "Services", why: "Standard rate." },
   other_expense: { rate: "21", label: "Other expenses", why: "Taken at the standard rate." },

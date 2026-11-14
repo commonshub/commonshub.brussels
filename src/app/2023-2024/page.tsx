@@ -67,7 +67,7 @@ function RateBreakdown({ side }: { side: Side }) {
           </summary>
           <ul className="divide-y divide-border bg-muted/20 text-sm">
             {g.lines.map((l) => (
-              <li key={l.category || "none"} className="px-4 py-3 pl-11">
+              <li key={l.category || "none"} className="px-4 py-3 sm:pl-11">
                 <div className="flex gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground">{l.label}</div>
@@ -102,20 +102,20 @@ function LargeItems({ line }: { line: CategoryLine }) {
         <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/items:rotate-180" />
         {itemsLabel(line.items.map((i) => i.amount))}
       </summary>
-      <ul className="mt-2 space-y-2 border-l-2 border-border pl-3 text-xs">
+      <ul className="mt-2 space-y-2 border-l-2 border-border pl-2 text-xs">
         {line.items.map((i, n) => (
           <li key={`${i.href}-${n}`} className="flex gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-foreground">
-                <Link href={i.href} className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 hover:text-primary" title="Open the transaction: check it and annotate it">
+              <div className="flex flex-wrap items-center gap-x-1 leading-5 text-foreground">
+                <Link href={i.href} className="group/date inline-flex items-center gap-1 hover:text-primary" title="Open the transaction: check it and annotate it">
                   <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {shortDate(i.date)}
+                  <span className="underline decoration-dotted underline-offset-2">{shortDate(i.date)}</span>
                 </Link>
-                {i.collective ? <span className="text-muted-foreground"> · {i.collective}</span> : null}
+                {i.collective ? <span className="text-muted-foreground">· {i.collective}</span> : null}
               </div>
               {(i.note || i.description) && <div className="break-words text-muted-foreground">{i.note || i.description}</div>}
             </div>
-            <div className="tabular-nums text-foreground">{eur.format(i.amount)}</div>
+            <div className="leading-5 tabular-nums text-foreground">{eur.format(i.amount)}</div>
           </li>
         ))}
         {others > 0 && (
