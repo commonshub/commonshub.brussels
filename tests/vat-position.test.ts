@@ -48,17 +48,17 @@ describe("vat-position", () => {
         tx("e", -121, "2024-05-02", "services"),
         tx("f", -1000, "2024-05-02", "rent"),
         tx("g", 7786.19, "2024-12-10", "vat"), // a VAT refund is not income
-        tx("i", 5000, "2024-06-01", "loan"), // financing
+        tx("i", 5000, "2024-06-01", "loan"), // an interest-free loan: money received, outside VAT
         tx("j", 300, "2024-06-01", "third-party"), // held for someone else, hyphenated as in tags
         tx("k", 21, "2024-06-03", "refund"), // brings expenses down
       ],
       [2023, 2024],
     )
-    expect(p.income.amount).toBe(1471)
+    expect(p.income.amount).toBe(6471)
     expect(p.income.vat).toBe(21)
     expect(p.income.groups.map((g) => [g.rate, g.amount, g.vat])).toEqual([
       ["21", 121, 21],
-      ["outside", 1300, 0],
+      ["outside", 6300, 0],
       ["unknown", 50, null],
     ])
     expect(p.expense.amount).toBe(1100)

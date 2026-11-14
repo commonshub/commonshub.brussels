@@ -92,6 +92,11 @@ export const INCOME_RULES: Record<string, Rule> = {
   donation: { rate: "outside", label: "Donations", why: "Nothing is given in exchange: not a supply, so no VAT." },
   grant: { rate: "outside", label: "Grants", why: "Funding of our activities as a whole, with nothing given in exchange to the funder: no VAT." },
   subsidy: { rate: "outside", label: "Subsidies", why: "Public funding not linked to the price of a service: no VAT." },
+  loan: {
+    rate: "outside",
+    label: "Interest-free loans (debt tokens)",
+    why: "Members and supporters lent the Hub money to get started, without interest, and hold debt tokens they can redeem against the space (see /debt). A loan is financing, not a sale: outside the scope of VAT.",
+  },
   debt: { rate: "outside", label: "Token top-ups", why: "Prepaid tokens are vouchers usable with many merchants: the VAT is due on what they buy when they are spent, not on the top-up." },
   "debt:eurb": {
     rate: "unknown",
@@ -148,12 +153,13 @@ export const EXPENSE_RULES: Record<string, Rule> = {
   HR: { rate: "outside", label: "Social contributions", why: "Social security contributions paid through the social secretariat: not a supply." },
   salaries: { rate: "outside", label: "Salaries", why: "Wages are not a supply." },
   taxes: { rate: "outside", label: "Taxes", why: "Taxes are not a supply." },
+  loan: { rate: "outside", label: "Loans repaid", why: "Paying back a loan is not a purchase: outside the scope of VAT." },
   refund: { rate: "outside", label: "Refunds", why: "Money paid back by us, less refunds we received: not a purchase." },
   debt: { rate: "outside", label: "Tokens redeemed", why: "Paying out token balances, not a purchase." },
 }
 
-/** Not income or expenses at all: financing, and money held for someone else. */
-const NOT_INCOME_OR_EXPENSE = new Set(["internal_transfer", "vat", "loan", "third_party"])
+/** Not money of ours coming or going: moves between our accounts, VAT settlements, money held for someone else. */
+const NOT_INCOME_OR_EXPENSE = new Set(["internal_transfer", "vat", "third_party"])
 
 /** chb's tags spell categories with hyphens, its categories with underscores. */
 const normalise = (category: string | undefined) => (category ?? "").trim().replace(/-/g, "_")
