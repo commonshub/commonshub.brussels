@@ -475,7 +475,49 @@
   },
   "taxes": {
     "vatRegisteredSince": "2024-05-01",
-    "_comment": "vatRegisteredSince: the day we became subject to VAT (KBO/BCE record of 0804.505.132: 'Subject to VAT since May 1, 2024'); no return is due before it, nothing before it carried VAT. Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists the taxes billed to us (the owner's letter of 27 September 2026); payments of the same kind and tax year count against them, and an entry disappears once paid in full. `installments`: the dates by which each equal part is due, for what is past due. `passThrough` is the owner's split of the building's property tax, office tax and non-residential surfaces tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
+    "paymentGroups": [
+      {
+        "id": "celo-prezenti",
+        "label": "Celo Foundation grant for Citizen Wallet",
+        "detail": "$50,000 grant (agreement of 9 October 2023): 48,000 cUSD paid in 7 tranches, 20 November 2023 – 14 May 2024, converted to euros",
+        "document": { "label": "Grant agreement", "url": "https://drive.google.com/file/d/1JY8hTXMBi5S8c9OKycufUNO15EtQYGbe/view?usp=sharing" },
+        "txs": [
+          "ethereum:137:tx:0xb44f56b2e1ae164929190ace91fb0a8eaf71b85786c342314aafa3b25fb93f8d",
+          "ethereum:137:tx:0x4f0b195c2e58c15c463ee7d5db6270b810d791454dbe5cf9174cc43bf5c2300d",
+          "ethereum:137:tx:0xfc596162816f7417908e239272cbca51cd49323a14ef6bb75f3592cf3314f084",
+          "ethereum:137:tx:0x746d0b2db501e9a94a64c1aa355467271001918ab339beff556269c8cca5a376",
+          "ethereum:137:tx:0x462fc71525f02a563916e850c8b64c0f056766c4fc49d39c07d5ae31875ad5a0",
+          "ethereum:137:tx:0xc46eae0669898300309acbdf5d91b03f48b8d7eb71011d5e964f778f9f8d4bde",
+          "ethereum:137:tx:0x97ed4847ec6e62a6c15e41192576ebc3d755983ef3a24d3d24cc4efe5e4293e4",
+          "ethereum:137:tx:0x10fd217beca5c801a803c4dcc16fedfd6cfb5bea5e166efafd33cbfef0ca7a60",
+          "ethereum:137:tx:0xac7f38b8701cf687cd0744df8b8d7dd711c60331b04adbb58659792d1d94b695",
+          "ethereum:137:tx:0xefb89b2ef1e3dd4dc5ce8d8035a936b8ade0ae4f61998e2372da4b9e2d1b3640"
+        ]
+      },
+      {
+        "id": "gitcoin",
+        "label": "Gitcoin Grants matching for Citizen Wallet",
+        "detail": "Matching funds from Gitcoin Grants rounds, received in USDC and bridged to Gnosis (November and December 2024)",
+        "document": { "label": "Gitcoin grant", "url": "https://docs.google.com/document/d/1v-5KORvTlFzjc1urDsWzWvGs8rKopjdBl-0axQCIZ1A/edit?usp=sharing" },
+        "txs": [
+          "ethereum:100:tx:0x206be6bc86c221b50c690e5881b1e61ce273dff6fa0fe474923dd791b63ebcfa",
+          "ethereum:100:tx:0x735185ce163cac4fb88c95625501378f8dc7ed75694c4b9be958e0c0a6600850"
+        ]
+      },
+      {
+        "id": "other-chains",
+        "label": "Crypto donations to Citizen Wallet received on other chains",
+        "detail": "Bridged from Celo (May–June 2024) or swapped from USDC (October 2024); where they first came from is not identified yet",
+        "txs": [
+          "ethereum:137:tx:0xf8610d261915e6034c64951de6c6fb34dcd02f5fc22d39ec36f1f7fa4ace2647",
+          "ethereum:137:tx:0x3b172882dd0d309ac3afa56f0d87b83eb4cd66c925c248242264522261b63863",
+          "ethereum:137:tx:0x0d28d2ae9e74c425ff2a4c42c428759af33f5add7379b113bce3a7a0395a7228",
+          "ethereum:137:tx:0xd1de65d8fe56b6356a07ccc362558dd969310e8eb317571de07bf1e83225f8ef",
+          "ethereum:137:tx:0x92675d06196e2d3f4a2dbc6682b6f1fc411467d79c3128d58184a8fb326e2439"
+        ]
+      }
+    ],
+    "_comment": "paymentGroups: transactions that are one thing (a grant paid in tranches), shown on /2023-2024 as one line with their supporting document; txs are transaction ids (every transfer of each counts). vatRegisteredSince: the day we became subject to VAT (KBO/BCE record of 0804.505.132: 'Subject to VAT since May 1, 2024'); no return is due before it, nothing before it carried VAT. Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists the taxes billed to us (the owner's letter of 27 September 2026); payments of the same kind and tax year count against them, and an entry disappears once paid in full. `installments`: the dates by which each equal part is due, for what is past due. `passThrough` is the owner's split of the building's property tax, office tax and non-residential surfaces tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
     "rules": [
       {
         "kind": "property-tax",

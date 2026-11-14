@@ -194,9 +194,26 @@ export const isIncome = (tx: Transaction) => directionOf(tx) === "income"
 export const vatIncluded = (gross: number, rate: number) => round((gross * rate) / (1 + rate))
 
 /** A payment large enough to be justified one by one. */
+/** Several transactions that are one thing (a grant paid in tranches), shown as one line with its supporting document. */
+export interface PaymentGroup {
+  id: string
+  label: string
+  /** One line of context: "48,000 cUSD paid in tranches". */
+  detail?: string
+  document?: { label: string; url: string }
+  /** The transactions it is made of (every transfer of each). */
+  txs: string[]
+}
+
+export const PAYMENT_GROUPS: PaymentGroup[] = (settings as unknown as { taxes: { paymentGroups?: PaymentGroup[] } }).taxes.paymentGroups ?? []
+
 export interface Item {
   date: string
   amount: number
+  /** How many transactions it stands for (more than one for a group). */
+  count?: number
+  /** Set when the item is a group: its name, context, document, and the last date. */
+  group?: { label: string; detail?: string; document?: { label: string; url: string }; until: string }
   description: string
   note: string
   collective: string
@@ -287,8 +304,11 @@ function brusselsDate(timestamp: number): Date {
  * then category, with the VAT each amount carries. Each transaction counts
  * once, on its Brussels date.
  */
-export function vatPosition(txs: Transaction[], years: number[], explorer: (id: string) => string | null = () => null): Position {
+export function vatPosition(txs: Transaction[], years: number[], explorer: (id: string) => string | null = () => null, groups: PaymentGroup[] = PAYMENT_GROUPS): Position {
   const seen = new Set<string>()
+  const groupOf = new Map(groups.flatMap((g) => g.txs.map((id) => [id, g] as const)))
+  // Per category line, the group items being built.
+  const grouped = new Map<string, Map<string, Item>>()
   const lines = { income: new Map<string, CategoryLine & { rate: RateClass }>(), expense: new Map<string, CategoryLine & { rate: RateClass }>() }
   const quarters = new Map<QuarterKey, { collected: number; paid: number }>()
   for (const tx of txs) {
@@ -299,8 +319,10 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     const date = brusselsDate(tx.timestamp)
     if (!dir || !years.includes(date.getUTCFullYear())) continue
     const base = ruleFor(dir, tx.metadata?.category, tx.metadata?.collective)
-    // Before we were registered, nothing carried VAT and none could be deducted.
-    const rule = date.toISOString().slice(0, 10) < VAT_REGISTERED_SINCE
+    // Before we were registered, nothing carried VAT and none could be deducted. That only
+    // changes something for what would carry VAT: donations or rent are the same either way.
+    const taxable = ["21", "12", "6", "receipt"].includes(base.rate)
+    const rule = taxable && date.toISOString().slice(0, 10) < VAT_REGISTERED_SINCE
       ? { ...base, rate: "before" as RateClass, why: `Before ${longDay(VAT_REGISTERED_SINCE)}, when we became subject to VAT: no VAT charged, none deducted.` }
       : base
     // Expenses count positive; a refund received counts against them.
@@ -310,7 +332,26 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     const lineKey = `${rule.rate}|${rule.category}`
     const line = lines[dir].get(lineKey) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0, items: [] }
     line.amount = round(line.amount + amount)
-    if (Math.abs(tx.amount) >= LARGE) line.items.push(itemOf(tx, date, explorer))
+    const group = groupOf.get(tx.id)
+    if (group) {
+      const byGroup = grouped.get(`${dir}|${lineKey}`) ?? new Map<string, Item>()
+      const iso = date.toISOString().slice(0, 10)
+      const g = byGroup.get(group.id)
+      if (!g) {
+        byGroup.set(group.id, {
+          ...itemOf(tx, date, explorer),
+          amount: round(Math.abs(tx.amount)),
+          count: 1,
+          group: { label: group.label, detail: group.detail, document: group.document, until: iso },
+        })
+      } else {
+        g.amount = round(g.amount + Math.abs(tx.amount))
+        g.count = (g.count ?? 1) + 1
+        if (iso < g.date) Object.assign(g, { date: iso, href: itemOf(tx, date, explorer).href })
+        if (iso > g.group!.until) g.group!.until = iso
+      }
+      grouped.set(`${dir}|${lineKey}`, byGroup)
+    } else if (Math.abs(tx.amount) >= LARGE) line.items.push(itemOf(tx, date, explorer))
     if (vat !== null) line.vat = round((line.vat ?? 0) + vat)
     line.count++
     lines[dir].set(lineKey, line)
@@ -321,6 +362,10 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
       else row.paid = round(row.paid + vat)
       quarters.set(q, row)
     }
+  }
+  for (const [key, byGroup] of grouped) {
+    const [dir, lineKey] = [key.slice(0, key.indexOf("|")), key.slice(key.indexOf("|") + 1)] as [Direction, string]
+    lines[dir].get(lineKey)?.items.push(...byGroup.values())
   }
   const side = (m: Map<string, CategoryLine & { rate: RateClass }>): Side => {
     const groups = RATE_ORDER.map((rate) => {

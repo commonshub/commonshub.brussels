@@ -111,6 +111,25 @@ describe("vat-position", () => {
     expect(itemsLabel([])).toBe("")
   })
 
+  it("shows a grant paid in tranches as one line with its document", () => {
+    const groups = [{ id: "g", label: "Celo grant", document: { label: "Grant agreement", url: "https://x" }, txs: ["ethereum:137:tx:0xa", "ethereum:137:tx:0xb"] }]
+    const p = vatPosition(
+      [
+        { ...tx("ethereum:137:tx:0xa", 1000, "2023-11-24", "grant"), counterpartyId: "1" },
+        { ...tx("ethereum:137:tx:0xb", 500, "2024-05-30", "grant"), counterpartyId: "1" },
+        { ...tx("ethereum:137:tx:0xb", 700, "2024-05-30", "grant"), counterpartyId: "2" },
+        tx("c", 3000, "2024-06-01", "grant"),
+      ],
+      [2023, 2024],
+      () => null,
+      groups,
+    )
+    const items = p.income.groups.flatMap((g) => g.lines).flatMap((l) => l.items)
+    const g = items.find((i) => i.group)!
+    expect(g).toMatchObject({ amount: 2200, count: 3, date: "2023-11-24", group: { label: "Celo grant", until: "2024-05-30", document: { url: "https://x" } } })
+    expect(items.filter((i) => !i.group).map((i) => i.amount)).toEqual([3000])
+  })
+
   it("reads the VAT declared on sales from grids 54 and 64", () => {
     expect(declaredSalesVat({ grids: { "54": 1898.73, "64": 69.99 } } as unknown as VatPeriod)).toBe(1828.74)
     expect(declaredSalesVat({ grids: {} } as unknown as VatPeriod)).toBe(0)
