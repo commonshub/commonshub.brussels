@@ -55,18 +55,19 @@ export const declaredSalesVat = (period: VatPeriod) => round((period.grids["54"]
 // ── money in and out, sorted by the VAT rate it carries ───────────────────
 
 export type Direction = "income" | "expense"
-export type RateClass = "21" | "12" | "6" | "exempt" | "outside" | "unknown" | "before"
+export type RateClass = "21" | "12" | "6" | "receipt" | "exempt" | "outside" | "unknown" | "before"
 
 export const RATE_CLASSES: Record<RateClass, { label: string; rate: number | null }> = {
   "21": { label: "21%", rate: 0.21 },
   "12": { label: "12%", rate: 0.12 },
   "6": { label: "6%", rate: 0.06 },
+  receipt: { label: "VAT paid, not deductible", rate: 0 },
   exempt: { label: "Exempt (0%)", rate: 0 },
   outside: { label: "Outside the scope of VAT", rate: 0 },
   unknown: { label: "Not estimated", rate: null },
   before: { label: "Before our VAT registration", rate: 0 },
 }
-export const RATE_ORDER: RateClass[] = ["21", "12", "6", "exempt", "outside", "unknown", "before"]
+export const RATE_ORDER: RateClass[] = ["21", "12", "6", "receipt", "exempt", "outside", "unknown", "before"]
 
 interface Rule {
   rate: RateClass
@@ -112,6 +113,16 @@ export const EXPENSE_RULES: Record<string, Rule> = {
   fridge: { rate: "6", label: "Fridge stock", why: "Food and soft drinks bought for the fridge: 6% (beer and other alcohol would be 21%)." },
   donation: { rate: "outside", label: "Donations we made", why: "Nothing received in exchange: not a purchase." },
   drinks: { rate: "21", label: "Drinks bought", why: "Taken at the standard rate (soft drinks and water bought in a shop can be 6%)." },
+  reimbursement: {
+    rate: "receipt",
+    label: "Expenses reimbursed",
+    why: "What volunteers and the team bought for the Hub (groceries, consumables…) and we paid back. They paid the VAT, but on a receipt, not an invoice in our name, so we cannot deduct it.",
+  },
+  expense_reimbursement: {
+    rate: "receipt",
+    label: "Expenses reimbursed",
+    why: "What volunteers and the team bought for the Hub (groceries, consumables…) and we paid back. They paid the VAT, but on a receipt, not an invoice in our name, so we cannot deduct it.",
+  },
   rent: { rate: "exempt", label: "Rent", why: "Letting of a building is exempt (art. 44 §3 2°), unless the owner opted to charge VAT." },
   insurance: { rate: "exempt", label: "Insurance", why: "Insurance is exempt (art. 44 §3 4°); a separate insurance tax applies instead." },
   stripe_fee: { rate: "exempt", label: "Payment fees", why: "Payment processing is a financial service, exempt (art. 44 §3 5°)." },
