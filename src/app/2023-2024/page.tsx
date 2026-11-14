@@ -114,7 +114,6 @@ function LargeItems({ line }: { line: CategoryLine }) {
                 {i.collective ? <span className="text-muted-foreground"> · {i.collective}</span> : null}
               </div>
               {(i.note || i.description) && <div className="break-words text-muted-foreground">{i.note || i.description}</div>}
-              {!i.note && !i.description && <div className="italic text-amber-700 dark:text-amber-400">No description: open it to annotate</div>}
             </div>
             <div className="tabular-nums text-foreground">{eur.format(i.amount)}</div>
           </li>
