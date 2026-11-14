@@ -283,6 +283,7 @@ function LargeItems({ line, t, lang, f }: { line: CategoryLine; t: PageText; lan
               line.items.map((i) => i.amount),
               f.eur0,
               line.items.some((i) => i.group),
+              line.count - line.items.reduce((s, i) => s + (i.count ?? 1) - 1, 0),
             )}
       </summary>
       <ItemList items={line.items} amount={line.amount} count={line.count} t={t} lang={lang} f={f} showProject={false} />

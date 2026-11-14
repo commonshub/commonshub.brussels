@@ -192,7 +192,7 @@ export interface PageText {
   payments: (n: number) => string
   transfers: (n: number) => string
   smaller: (n: number) => string
-  items: (amounts: number[], fmt0: Fmt, groups: boolean) => string
+  items: (amounts: number[], fmt0: Fmt, groups: boolean, total?: number) => string
   openTx: string
   openFirst: string
   beforeWhy: (since: string) => string
@@ -284,9 +284,10 @@ export const TEXT: Record<Lang, PageText> = {
     payments: (n) => `${n} ${n === 1 ? "payment" : "payments"}`,
     transfers: (n) => `${n} ${n === 1 ? "transfer" : "transfers"}`,
     smaller: (n) => `and ${n} smaller ${n === 1 ? "payment" : "payments"}`,
-    items: (amounts, fmt0, groups) => {
+    items: (amounts, fmt0, groups, total) => {
       const noun = groups ? ["item", "items"] : ["payment", "payments"]
       if (amounts.length === 1) return `1 ${noun[0]} of ${fmt0(amounts[0])}`
+      if (total !== undefined && amounts.length >= total) return `${amounts.length} ${noun[1]}`
       const k = Math.floor(Math.min(...amounts) / 1000)
       return k < 1 ? `The ${amounts.length} largest ${noun[1]}` : `${amounts.length} ${noun[1]} of €${k}k or more`
     },
@@ -379,9 +380,10 @@ export const TEXT: Record<Lang, PageText> = {
     payments: (n) => `${n} paiement${n === 1 ? "" : "s"}`,
     transfers: (n) => `${n} virement${n === 1 ? "" : "s"}`,
     smaller: (n) => `et ${n} paiement${n === 1 ? "" : "s"} plus petit${n === 1 ? "" : "s"}`,
-    items: (amounts, fmt0, groups) => {
+    items: (amounts, fmt0, groups, total) => {
       const noun = groups ? ["élément", "éléments"] : ["paiement", "paiements"]
       if (amounts.length === 1) return `1 ${noun[0]} de ${fmt0(amounts[0])}`
+      if (total !== undefined && amounts.length >= total) return `${amounts.length} ${noun[1]}`
       const k = Math.floor(Math.min(...amounts) / 1000)
       return k < 1 ? `Les ${amounts.length} ${noun[1]} les plus importants` : `${amounts.length} ${noun[1]} de ${k} k€ ou plus`
     },
