@@ -1,0 +1,297 @@
+{
+ "_comment": "Supporting documents (invoices, receipts) of 2023–2024 transactions in the Accounting Google Drive (folder 1-Fe-2C286MfsW_03raiLhkx8OdPvWHKW), by transaction id and amount. Matched on Open Collective expense numbers, invoice references and, for file names carrying a date and an amount, the one payment that fits. Drive file ids only: the files open for people with access to that Drive.",
+ "links": {
+  "ethereum:100:tx:0x01682efcfae7847ba6595bd2bb0ad72dd87d1ff904e90358c1c509f1c819f677|-1600": [
+   "1F9CaIngiIHP-xwmQKDIT-Rls1srdyTlj"
+  ],
+  "ethereum:100:tx:0x1807d7adf69545a2755ea60365329ec26ee7fa315ffe8d85dc6a0028c8b41789|623.15": [
+   "1GbaCJeAj-iCuuZ-ASi6mSj4ZKfO8ifoj"
+  ],
+  "ethereum:100:tx:0x1898a337e236d2fe8bae4dc33c8f053497b199c5189af0458f8025900e67570b|157.3": [
+   "1GFjJs9CW0kuDgm0puG4viGBaBavKwpo6"
+  ],
+  "ethereum:100:tx:0x1976a78fd86587b6e09b735a848f9fd994739d6839736fa245c8f06b1cf6027a|-4840": [
+   "1JiNZvRqnV1Al3R2fidvtvvjAnRz-Qy94"
+  ],
+  "ethereum:100:tx:0x1b5ba687c4a3f60933ded97f51d005158b0377268827892d9a0aa8c561631dd6|5000": [
+   "1SLZTqIZbdcd7CdnWgNB0ohLIPxQNIPOG"
+  ],
+  "ethereum:100:tx:0x1d05118a65506e3e2b7d3f72397dcadfc56f96e8cfdf8161968f693b5c0f1259|1721.23": [
+   "1jngLd0ojETBt6aZzEPn5iQ7h-zZ3avKE"
+  ],
+  "ethereum:100:tx:0x1d24aa68f51b884b0e2aaf2a49a96e4df27b3739addc27a45c737c1de089396b|193.6": [
+   "1sVloWNEK0Bq8sVdIbZWaIVXSwAC6PRhz"
+  ],
+  "ethereum:100:tx:0x2032a1171768fc41ad325f8671b4eb145ca485ac10e5916825554e95136778d7|-1600": [
+   "1J8NZY1U5CiliplcnllIkulL61YZYHqB5"
+  ],
+  "ethereum:100:tx:0x22bd813648178dc0aabbf2ed0949e73629ead72112dbbb5da60184d21f54677a|-33.53": [
+   "1J7Wp9AEpopGJG0rBOTdGW6-74av14ZMX"
+  ],
+  "ethereum:100:tx:0x277960c26914b91534be8789e6473837016f04aaa5769dd266a05acc6a0076de|-2800": [
+   "1JdoDhQ9yEg1dm3OaXCxSDCHIzw73dYnu",
+   "1JlIQe6BNxu11PI0nQef9sxI6JjrvBjox"
+  ],
+  "ethereum:100:tx:0x2825ef82e0092fa9165b65c1915639df54e3bce1ae336210a4dac0e58383a6c3|484": [
+   "1ZyAWcrGHRltPdkGeMck_MJpKa_7m-A6-"
+  ],
+  "ethereum:100:tx:0x2ca9235a338783dba9d74e2d2200802862b5aac49a2d912ef31410a6349436b1|121": [
+   "1kw2FU4jru4Cqld1ywbUBTKUE3xXXsE09"
+  ],
+  "ethereum:100:tx:0x358763bf025f8fc7e29896b560a3ec7867f99593b32302523f141bf2b9c9e8b7|308.55": [
+   "113aFFDljiqI1TPDYMAXOBjgHW4oEr5lq"
+  ],
+  "ethereum:100:tx:0x4a6f446b1620e8919bd87fe8cacc7611879ce8c744f6aafe47fee12595f9a304|363": [
+   "15iatb5YLlzj6_gZJA1NtV9oYb5_yumVp"
+  ],
+  "ethereum:100:tx:0x4bbf6c317b10d41c385a46332df52d55cb8a02cb8e3ba260b01afbe476f11191|605": [
+   "1eqaF6TbdAL43i555UqIkgpTLjOp2Y1Mu"
+  ],
+  "ethereum:100:tx:0x4f456da3c75b22e16a199d549a3318b4460694be83c114e04a2340d136719488|871.2": [
+   "1vaodnUkIlRB1wI33fgDoknVnmHZYhhIT"
+  ],
+  "ethereum:100:tx:0x5d4e8aed54ecff9f72ce93ee166b9e390a86b27bb085f1a4c2746c63ae27e6ef|-1467.99": [
+   "1EVIwpqELsr4oEj1RT294QpzEgFRQTqni"
+  ],
+  "ethereum:100:tx:0x60ddbe50fa1668d8c9055a73db9bd00435d6243606d92bfd5115a9644ff792cb|-23.3": [
+   "1JlDuQocDDU1hPM3HHfzCiC5d33W0HPjY"
+  ],
+  "ethereum:100:tx:0x6810ce5f19482f2bb6dc824fbddddbb74d71c500e8ffbf7705ca35aa44c840f6|-4295.5": [
+   "1K3Ni6DZ1SWXSXOdPttrFuINbvJgT9KhQ"
+  ],
+  "ethereum:100:tx:0x6dee9b03cc9e90440044b7bafbc80c2f78898ccb589bae4cfda0c0e91a26b7b7|-613.23": [
+   "1JExXr7GmMjmUUyG3oy__h9PGFD9-pyB5"
+  ],
+  "ethereum:100:tx:0x78a1af697e68b8ab152cf5c74d8a70b648d8fe2c688f7428d5ec126b078bb586|605": [
+   "1b5yYsYOnua9i2NIpBJmsIcrUybZ3gtyy"
+  ],
+  "ethereum:100:tx:0x79c83fd4ee825d0e2a3b1d7864f6e7c50a0fd13f145d66df02870a516f665e28|-2541": [
+   "1Ji9062EYOHX80NazOCAcjHSJpaQ5KrR5"
+  ],
+  "ethereum:100:tx:0x8a4cecee3a48ecf82179681802a532fa47148de26448eb063e7f51905497c957|2480": [
+   "1Cn69kWTUDjZ2cPf0yJsN2CsrESS7726l"
+  ],
+  "ethereum:100:tx:0x902b266bfccb611ddedc45666335c9ad41b9221037c89a22a2780adcb1f136cd|-47.02": [
+   "1JdOHbNmkm7M1fk5OfpCLpR6qWgZgHarQ",
+   "1JyWx0fVIq8AA0aZeJd-Yi4ZaykFF2MZG"
+  ],
+  "ethereum:100:tx:0x92ebb560f7b86df86f7e67d46ae0415911067b802157ad49ae1de5751d2217d2|88.94": [
+   "1qPcnOC_W96I4BV9oKF70q9zlm7mgeuaq"
+  ],
+  "ethereum:100:tx:0x965b5b08e7f3319db39212da152d5cc94714309f862622c4117696f5697edacb|-4840": [
+   "1J1xZnkjyQajFWHuGXwsr9k2X-ft0H2QQ"
+  ],
+  "ethereum:100:tx:0x970e8569172336c3379050e0b9ce2d6e5f529a107afb25be62a879dcec0ad00b|302.5": [
+   "14ZIPE8s28opRq-97cEqGWWmbQmoxlHZe"
+  ],
+  "ethereum:100:tx:0x9e99436e60e862f1bd9201613e8f6aa3a9dab4d14c9cfad6fe8635fb765bd492|-4200": [
+   "1JfM5s99UpYaQ61uQ9Zrgcpg0QTYf6RzQ"
+  ],
+  "ethereum:100:tx:0x9f63071761a18f10376c9d72b399dd593520c8c38fa6c6fa09d4b71e6323ef12|-3630": [
+   "1D2WN6jDQDM4cB1S4d8z6Yj61XpOXHBVa"
+  ],
+  "ethereum:100:tx:0xa2396fa21488897247665146e1ebe58352545edce39cda9aee0d434823b928fb|96.8": [
+   "1JkpILgQOii5Mceygu7V9sCl1UCnNHgg-"
+  ],
+  "ethereum:100:tx:0xa75b4ed68a37b369eae4c255a7abf69beffabd7a9ec91247e61f9d796569e62a|5000": [
+   "18Np9_8rIGVKLo6sUen9kbz_aPgbJwVmL"
+  ],
+  "ethereum:100:tx:0xb4a81e46475cb36264f4dea0106a052b05d76b3ae597a4c3eb778b968ef5a527|423.5": [
+   "1KQokX12A1x4wZ4jio8-4mlWFAKsC12fv"
+  ],
+  "ethereum:100:tx:0xbf9805ee428750e310a65f914e9e8ade48b47a7be01bb310b171185f605455fc|-4400": [
+   "1Jj7Paak5kQJ394S9sRkH2oEUPmqIsZZ5",
+   "1JnP_g67jjDl429zDR9D0V2R7uoXoCoPD"
+  ],
+  "ethereum:100:tx:0xc9ec7305e01ea1422443dc43b63b5e5b51f109d432683cf6cfe1d269a1964532|5000": [
+   "15Cdla63RcEk-6v-tqO5dPQBEJLiJDUTp"
+  ],
+  "ethereum:100:tx:0xcc524fc8ad929ed03d8571eb014837ce56125b0897d6b3ed8e9f59d14f62b25b|635.25": [
+   "113aFFDljiqI1TPDYMAXOBjgHW4oEr5lq"
+  ],
+  "ethereum:100:tx:0xcfe6c2f94b56158c24a2ee070b7aee5f84e503a1fb43289a42fc1ec6425705f5|5000": [
+   "10VDdZ5oJupazrEe_0P4dQYgN7CKNdGJJ"
+  ],
+  "ethereum:100:tx:0xd2ff5a7bc328ac63445c37e3a13a34aeafa9a31c20faca95b137c1ad2cc334c3|88.94": [
+   "1G1zFY6BgI8QX6JK8bJL7fWZ6BOrXBwXh"
+  ],
+  "ethereum:100:tx:0xd4b41ee195ca9bf5f16a227fb3a74774f630fbcaea7552fb3677954addedb4b7|-1600": [
+   "1F9CaIngiIHP-xwmQKDIT-Rls1srdyTlj"
+  ],
+  "ethereum:100:tx:0xd51a458c2d1ee65725dfd6344b35e83a67a345af105f3e954e55a995fb720ab0|490": [
+   "1HyZjdQY7QRPWvgpawsr5A437PwKj0qdF"
+  ],
+  "ethereum:100:tx:0xecf19083e409b9abcb54215a092fe6375d5085f2f379952b2300a14e0e73be20|302.5": [
+   "1rXwG256Y0JNtCVLBsA7CODofnTaytiku"
+  ],
+  "ethereum:100:tx:0xedf795cc2cc95e23a90391cfa5deeab6cac75bf71e3f84367b326b23e9cad1a9|-220": [
+   "1JJD-h-QQVUnQVS2Wyxe5-eqDCr8uyq-i"
+  ],
+  "ethereum:100:tx:0xee44287b46fa1fd2e70969a4183cae45485f6ff7b42ca0a94cbd62e0caeda266|-4295.5": [
+   "1JgYk-74hFBFJW1RgG5JSu0xImL4DcE2o"
+  ],
+  "ethereum:100:tx:0xefd262880c4631500d22d3fa2a569471d4733cb13d9214332ed5c17a8fe0b5c1|121": [
+   "1yspOqlfsjefhHZK7-CpJMhGsI7CJKtHz"
+  ],
+  "ethereum:100:tx:0xf141c93d29b582080502925e80d46a145b942502c2d0ceea2cd900905613804b|-4981.24": [
+   "1FAS5Md5xkpVbsKfh-vcVpedKi0MGmik-"
+  ],
+  "ethereum:100:tx:0xf9698793d53451edfe3941219bdf51d635990aa6abc4092731766b20b26591ec|5000": [
+   "1_G8lphLzPb_willEzko5Es8ecBb-AWFf"
+  ],
+  "ethereum:100:tx:0xfaf6d717fd7ba810067cb95a9cc965fd1800aef184e08d1b1a8868f392e79b63|1600": [
+   "1J8NZY1U5CiliplcnllIkulL61YZYHqB5"
+  ],
+  "ethereum:137:tx:0x14a80ff48a57e983e1962f5e6f946916c61b68a094365ee4b555bcaf110d4614|922.95": [
+   "1LkTeonYcz2XxGH5dpg0z5D_6rLYWi2ik"
+  ],
+  "ethereum:137:tx:0x4c7433664340369b05dfaaa6ddb2bc941b16351e04e3e72bdf8f3f7994e3632e|1364.79": [
+   "1E_9cPpUNZ-jSfIHDJFs4U1uQEouaPJn0"
+  ],
+  "ethereum:137:tx:0x7589a7f653e6e92017c5b3ab02c53097b7c1ffd441ffeb6164e710dd9435af84|5995": [
+   "1EOWKdPjgLAsuHFObUDDRBarN-e1Blr18"
+  ],
+  "ethereum:137:tx:0x828c7cba741199cdfab735439792c40c99542eb0cecfb195c6af6dd8bb9bb915|5000": [
+   "1eI_LLMn_Q32joZspFP_jAJ_BjU3Mm0TF"
+  ],
+  "wise:91390025:tx:CARD-1556300602|-43.39": [
+   "13hbO19a8EG8DDCcqMk5rr9h2qnjrSf2B",
+   "1UCBKP1AXDpb131Lk1QOmJjL2QGG1RqEy"
+  ],
+  "wise:91390025:tx:CARD-1579427735|-306.63": [
+   "19yJ_Mg3aVAzKrIxflgBjGVXaOXYc-UrC"
+  ],
+  "wise:91390025:tx:CARD-1582375629|-251.92": [
+   "17GkIDlEzMY20lv2oOE-HYFVqXcaSuMdY",
+   "1c7KdBSU2OsTOoycU0M6rUYPorRi5IM2v"
+  ],
+  "wise:91390025:tx:CARD-1582425581|-62.33": [
+   "1-kpS6lM9SyaqdHS76oU3AZHvq6DkwcKD",
+   "11WTUKKHvVVxZlM6EvDdpcVJoiyzki5tX"
+  ],
+  "wise:91390025:tx:CARD-1582699218|-73.44": [
+   "1QMoYbLmttZGmsn6Q88Jf6_ghHBK3ltgG",
+   "1_Se31cScs4PhyedZqypwefOXQEUPJ1us"
+  ],
+  "wise:91390025:tx:CARD-1582699317|-63.82": [
+   "1LB3lsrhkT5a833ctNysH9CF0NNCjPEYo",
+   "1pjo_l8SsReOdkm8Ao2y8I7K04czyFHBr"
+  ],
+  "wise:91390025:tx:CARD-1588171765|-11.56": [
+   "12zIk7V_tFcNpZDj-txvaNne3TzlBeFkm"
+  ],
+  "wise:91390025:tx:CARD-1590933737|-2.06": [
+   "14Y5sFKdUKGV4yfib2XhT4oV6zgj6ZxMr",
+   "1ehmBbHYA1kKJNHuEzrWUtbOYaUs4szJy"
+  ],
+  "wise:91390025:tx:CARD-1591121952|-2.49": [
+   "1QefASLMZVhQxrVF96XUBqvsaXbMI7--Y",
+   "1RaeT1xbJ5GrY_95ZzJnDPzQsLp27c9PM"
+  ],
+  "wise:91390025:tx:CARD-1591150547|-13.84": [
+   "10fqIbnVuYIsBYK1IKA6GqsWOFdojARPX",
+   "1_i-WAzzGW4LvRBLymn8IaxnUsO0Wq7AX"
+  ],
+  "wise:91390025:tx:CARD-1591351427|-10.08": [
+   "1h0gCqv8SgUW5RwtBNDaLJSLSHM0GUAzZ",
+   "1lOjZRXdJjfOWzHoE3Roon6s8FWKeOQay"
+  ],
+  "wise:91390025:tx:CARD-1600601935|-23.96": [
+   "1DxiRZc8Pa8HgXjqKgU1VIc0PKdaK8Dll"
+  ],
+  "wise:91390025:tx:CARD-1602811955|-26.33": [
+   "1wxMb2uOpijZLqxTTpt5raNesEyacu4a5"
+  ],
+  "wise:91390025:tx:CARD-1624107830|-98.48": [
+   "1_sFvXE3IiON-4skeV1jeXpdz2k2AR2_Y"
+  ],
+  "wise:91390025:tx:CARD-1624159884|-23.37": [
+   "1LkJ6t-14mo1QyKSN4KpVi0O9-oa3PY6e"
+  ],
+  "wise:91390025:tx:TRANSFER-1165188358|-713.81": [
+   "1FR5q7UYuMzXsTG7d_IFOeiQDOoiP2nR7"
+  ],
+  "wise:91390025:tx:TRANSFER-1165191228|-246.41": [
+   "1FEwnZQU67LnofheUrdcTsMQFnS-7m21V"
+  ],
+  "wise:91390025:tx:TRANSFER-1165192595|-385": [
+   "1Eg_ghO0rOYiyzsTFigTsqmmAHKSF_WPj"
+  ],
+  "wise:91390025:tx:TRANSFER-1181245431|-982.52": [
+   "1Emiytm8ALQIEqs9xD9GjTCwUxzE7tMwd",
+   "1Evud4Me42G0oCVNRK3XfnpQIGhXY-C_a"
+  ],
+  "wise:91390025:tx:TRANSFER-1181249390|-737.19": [
+   "1FCsRzvOJVHJFa7p2jnnMbulIoNPbSJ4-"
+  ],
+  "wise:91390025:tx:TRANSFER-1185747304|-50": [
+   "1FHRjzDpaufw0hBeH_c-u6USWRFRifOKF",
+   "1FOJ8WbAXxncqbZBsykWnZDUBx2wMdzOp"
+  ],
+  "wise:91390025:tx:TRANSFER-1200607667|-53.41": [
+   "1Fir3ZZJIU6gzW-0qFZC7ubJd7bDD4LXp"
+  ],
+  "wise:91390025:tx:TRANSFER-1261216563|-48.05": [
+   "1J-wjA0k42MyHNjRBa2WNNi03pSRiLQES"
+  ],
+  "wise:91390025:tx:TRANSFER-1270887506|-59.81": [
+   "1JLKCBns5VbKatMpBzPZa_uO5yv788Fr2"
+  ],
+  "wise:91390025:tx:TRANSFER-1270895034|-108.97": [
+   "1JWYvk7uadi0Sl_cZ9BBhOrD3zkptxVhP",
+   "1JWuwlplYUoZRSnd8NSBjlB3lIhm3odRD"
+  ],
+  "wise:91390025:tx:TRANSFER-1270897586|-23.9": [
+   "1JHh4i8J9L5Qw-7Q92o-vRqyCHdoWMEro",
+   "1JvB5uGYreC47JwpcewN5hoaghLVtJmF8"
+  ],
+  "wise:91390025:tx:TRANSFER-1270899215|-6.7": [
+   "1JHh4i8J9L5Qw-7Q92o-vRqyCHdoWMEro",
+   "1JvB5uGYreC47JwpcewN5hoaghLVtJmF8"
+  ],
+  "wise:91390025:tx:TRANSFER-1270900715|-70.71": [
+   "1JR8XRQdP5AE2MI11-i0S6tw_pyZZ-9TU",
+   "1JvloI8XEUGso0ZW7-g2xfU6mzbZoa6ln"
+  ],
+  "wise:91390025:tx:TRANSFER-1270901723|-43.58": [
+   "1Jq5zGnc5Uteit223VZ6stGutYEj8cuho"
+  ],
+  "wise:91390025:tx:TRANSFER-1270903132|-62": [
+   "1JKQLAVvmUw3G11TJeM_oclztTdr2AoKf",
+   "1JSfQJcpcGYo2pOOKmmFvMD_C-t35x8_t"
+  ],
+  "wise:92133886:tx:TRANSFER-1209043439|-41.61": [
+   "1ESSdprDb5O746grrF38cFgdqXvY2tC1W"
+  ],
+  "wise:92133886:tx:TRANSFER-1209044388|-27.05": [
+   "1ERJrc9mgBDvNwlf5U75mUBojhYm3MRxt"
+  ],
+  "wise:92133886:tx:TRANSFER-1209045380|-11.81": [
+   "1ESxKqNiByxyCCxTNRq92aN2WAa-0XWth"
+  ],
+  "wise:92133886:tx:TRANSFER-1209046045|-9.49": [
+   "1Eb4nJRmL4rc5LpWBcBsyOGRAZ7_MwF3Z"
+  ],
+  "wise:92133886:tx:TRANSFER-1209046833|-11.47": [
+   "1EX9kzDAUsC1QkKj-Dc6dCERwDTl6kb33"
+  ],
+  "wise:92197873:tx:TRANSFER-1171952935|-1356.05": [
+   "1gQIlIKVwEGUWBFjp0tPDn20L2k6AECQC"
+  ],
+  "wise:92197873:tx:TRANSFER-1175833222|-630": [
+   "1FT7lXQNlXoj36U-t4vMQEjQFEXMgv6IF"
+  ],
+  "wise:92197873:tx:TRANSFER-1175835484|-208.83": [
+   "1Zy5JWSDitStbWT1n3TPPapabXynmxXPN"
+  ],
+  "wise:92197873:tx:TRANSFER-1175837041|-157.3": [
+   "1FnUimQxdkLRolnP36gvlB-ztvXKjwQpY"
+  ],
+  "wise:92197873:tx:TRANSFER-1175838474|-265.1": [
+   "1FAwFy_WLUDBF-wGScRJGLDEnA7O2RSy7"
+  ],
+  "wise:92197873:tx:TRANSFER-1261150916|-97.47": [
+   "1Ja5sFzohOK_DeVJNgBNOufwDZuGVab_x"
+  ]
+ }
+}

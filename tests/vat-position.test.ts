@@ -160,3 +160,15 @@ describe("vat-position", () => {
     expect(redactDeclarant(xml)).toBe("<Declarant><ns2:Name>CITIZEN SPRING</ns2:Name></Declarant>")
   })
 })
+
+describe("documents in the Drive", () => {
+  it("finds a transaction's invoice by id and amount", async () => {
+    const { driveDocs, docKey } = await import("@/lib/drive-docs")
+    const data = (await import("@/settings/drive-docs-2023-2024.json")).default as { links: Record<string, string[]> }
+    const [key, ids] = Object.entries(data.links)[0]
+    const [id, amount] = [key.slice(0, key.lastIndexOf("|")), Number(key.slice(key.lastIndexOf("|") + 1))]
+    expect(docKey(id, amount)).toBe(key)
+    expect(driveDocs(id, amount)).toEqual(ids.map((f) => `https://drive.google.com/file/d/${f}/view`))
+    expect(driveDocs("nope", 1)).toEqual([])
+  })
+})

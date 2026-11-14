@@ -127,6 +127,22 @@ function lineText(l: CategoryLine, before: boolean, dir: Direction, lang: Lang, 
   return before ? { label: base.label, why: TEXT[lang].beforeWhy(f.longDate(VAT_REGISTERED_SINCE)) } : base
 }
 
+/** Links to a payment's invoices or receipts in the Accounting Drive (they open for people with access). */
+function DocLinks({ docs, lang }: { docs: string[]; lang: Lang }) {
+  const label = lang === "fr" ? "Facture" : "Invoice"
+  const title = lang === "fr" ? "Ouvrir dans le Google Drive de la comptabilité (accès requis)" : "Open in the accounting Google Drive (access needed)"
+  return (
+    <span className="inline-flex flex-wrap gap-x-2">
+      {docs.map((url, n) => (
+        <a key={url} href={url} target="_blank" rel="noopener noreferrer" title={title} className="inline-flex items-center gap-0.5 text-primary hover:underline">
+          <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          {docs.length > 1 ? `${label} ${n + 1}` : label}
+        </a>
+      ))}
+    </span>
+  )
+}
+
 /** One listed payment (or a group of transfers that are one thing), linked to where it can be checked and annotated. */
 function ItemRow({ i, t, lang, f, showProject }: { i: Item; t: PageText; lang: Lang; f: F; showProject: boolean }) {
   if (i.group) {
@@ -150,6 +166,7 @@ function ItemRow({ i, t, lang, f, showProject }: { i: Item; t: PageText; lang: L
                 {lang === "fr" ? i.group.document.labelFr ?? i.group.document.label : i.group.document.label}
               </a>
             )}
+            {(i.docs?.length ?? 0) > 0 && <DocLinks docs={i.docs!} lang={lang} />}
           </div>
         </div>
         <div className="leading-5 tabular-nums text-foreground">{f.eur(i.amount)}</div>
@@ -167,6 +184,12 @@ function ItemRow({ i, t, lang, f, showProject }: { i: Item; t: PageText; lang: L
             <span className="underline decoration-dotted underline-offset-2">{f.shortDate(i.date)}</span>
           </Link>
           {showProject && i.collective ? <span className="text-muted-foreground">· {projectName(i.collective, lang)}</span> : null}
+          {(i.docs?.length ?? 0) > 0 && (
+            <>
+              <span className="text-muted-foreground">·</span>
+              <DocLinks docs={i.docs!} lang={lang} />
+            </>
+          )}
         </div>
         {text && (
           <div className="break-words text-muted-foreground">

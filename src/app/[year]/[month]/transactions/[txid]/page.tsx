@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, ExternalLink, History } from "lucide-react"
+import { ArrowLeft, ExternalLink, FileText, History } from "lucide-react"
 
 import { DeleteAnnotation } from "@/components/delete-annotation"
 import { TransactionAnnotator } from "@/components/transaction-annotator"
 import { isPartyId } from "@/lib/nip73"
+import { driveDocs } from "@/lib/drive-docs"
 import { RELAYS } from "@/lib/nostr-server"
 import { isAdmin, isMember } from "@/lib/admin-check"
 import { type AnnotationVersion, loadAnnotationHistory } from "@/lib/annotation-history"
@@ -134,6 +135,11 @@ export default async function TransactionPage({ params }: PageProps) {
           {total >= 0 ? "Received on" : "Paid from"} {first.accountName || first.accountSlug}
           {transfers.length > 1 ? ` · ${transfers.length} transfers in one transaction` : ""}
         </p>
+        {[...new Set(transfers.flatMap((t) => driveDocs(t.id, t.amount)))].map((url, n, all) => (
+          <a key={url} href={url} target="_blank" rel="noopener noreferrer" title="Open in the accounting Google Drive (access needed)" className="mt-3 mr-4 inline-flex items-center gap-1.5 text-sm text-primary underline-offset-2 hover:underline">
+            <FileText className="h-4 w-4" /> {all.length > 1 ? `Invoice or receipt ${n + 1}` : "Invoice or receipt"} (Drive)
+          </a>
+        ))}
         {external && (
           <a href={external.href} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary underline-offset-2 hover:underline">
             <ExternalLink className="h-4 w-4" /> {external.label}
