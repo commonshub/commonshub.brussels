@@ -20,7 +20,7 @@ describe("vat-position", () => {
     expect(ruleFor("expense", "expense")).toMatchObject({ rate: "receipt", label: "Expenses reimbursed" }) // chb's slug
     expect(ruleFor("income", undefined)).toMatchObject({ rate: "unknown", label: "Not categorised yet" })
     expect(ruleFor("income", "mystery")).toMatchObject({ rate: "unknown", label: "mystery" })
-    expect(ruleFor("income", "debt", "eurb")).toMatchObject({ rate: "unknown", category: "debt:eurb" })
+    expect(ruleFor("income", "debt", "eurb")).toMatchObject({ rate: "outside", category: "debt:eurb" })
     expect(ruleFor("income", "debt", "brusselspay").category).toBe("debt")
     expect(ruleFor("income", "other-income").rate).toBe("21")
     expect(ruleFor("income", "sponsoring").rate).toBe("unknown")
@@ -85,8 +85,9 @@ describe("vat-position", () => {
       ["Smaller amounts", 65.5],
     ])
     expect(g21.lines[1].why).toBe("Equipment sold (€50), Drinks (€16)")
-    expect(g21.lines[0].items).toEqual([
-      expect.objectContaining({ amount: 3509, date: "2024-11-28", explorer: null, href: "/2024/11/transactions/big" }),
+    expect(g21.lines[0].items.map((i) => [i.amount, i.href])).toEqual([
+      [3509, "/2024/11/transactions/big"],
+      [500, "/2024/10/transactions/r2"], // the largest payments are listed whatever their amount
     ])
     const grant = p.income.groups.find((g) => g.rate === "outside")!.lines[0]
     expect(grant.items[0]).toMatchObject({ explorer: "https://polygonscan.com/tx/0xabc", href: "/2024/05/transactions/0xabc" })
@@ -165,6 +166,15 @@ describe("vat-position", () => {
       ["export", 2512],
       ["unknown", 100],
     ])
+  })
+
+  it("lists every payment of €2,000 or more, and at least the 10 largest per project", async () => {
+    const { pickListed } = await import("@/lib/vat-position")
+    const mk = (amount: number, collective = "a") => ({ amount, collective, date: "2024-06-01", description: "", note: "", href: String(amount), explorer: null })
+    const pool = [...Array.from({ length: 15 }, (_, n) => mk(100 + n)), mk(2500), mk(3000), mk(50, "b")]
+    const listed = pickListed(pool)
+    expect(listed.filter((i) => i.collective === "a").map((i) => i.amount)).toEqual([3000, 2500, 114, 113, 112, 111, 110, 109, 108, 107])
+    expect(listed.filter((i) => i.collective === "b").map((i) => i.amount)).toEqual([50])
   })
 
   it("reads the VAT declared on sales from grids 54 and 64", () => {

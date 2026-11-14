@@ -69,7 +69,7 @@ const RULES_FR: Record<string, { label: string; why: string }> = {
   "income:loan": { label: "Prêts sans intérêt (jetons de dette)", why: "Des membres et soutiens ont prêté de l'argent au Hub pour démarrer, sans intérêt, et détiennent des jetons de dette remboursables en usage de l'espace (voir /debt). Un prêt est un financement, pas une vente : hors du champ de la TVA." },
   "expense:loan": { label: "Prêts remboursés", why: "Rembourser un prêt n'est pas un achat : hors du champ de la TVA." },
   "income:debt": { label: "Rechargements de jetons", why: "Les jetons prépayés sont des bons utilisables chez plusieurs commerçants : la TVA est due sur ce qu'ils achètent quand ils sont dépensés, pas lors du rechargement." },
-  "income:debt:eurb": { label: "Rechargements EURb", why: "Des jetons EURb achetés par carte. La TVA est due sur ce qu'ils achètent quand ils sont dépensés ; on ne sait pas encore ce qu'ils ont acheté ces années-là, d'où l'absence d'estimation." },
+  "income:debt:eurb": { label: "Rechargements EURb", why: "Des jetons EURb achetés par carte : un crédit prépayé, une dette jusqu'à ce qu'ils soient dépensés. La TVA est due sur ce qu'ils achètent alors, pas sur le rechargement : hors du champ de la TVA." },
   "expense:consulting": { label: "Consultants et indépendants", why: "Des services au taux normal. Les indépendants établis dans un autre pays de l'UE nous facturent sans TVA : nous devons alors la TVA belge nous-mêmes (autoliquidation) et la déduisons dans la même déclaration, ce qui revient à zéro." },
   "expense:events": { label: "Événements", why: "Intervenants, lieux et services pour les événements : taux normal." },
   "expense:services": { label: "Services", why: "Taux normal." },
@@ -287,7 +287,8 @@ export const TEXT: Record<Lang, PageText> = {
     items: (amounts, fmt0, groups) => {
       const noun = groups ? ["item", "items"] : ["payment", "payments"]
       if (amounts.length === 1) return `1 ${noun[0]} of ${fmt0(amounts[0])}`
-      return `${amounts.length} ${noun[1]} of €${Math.floor(Math.min(...amounts) / 1000)}k or more`
+      const k = Math.floor(Math.min(...amounts) / 1000)
+      return k < 1 ? `The ${amounts.length} largest ${noun[1]}` : `${amounts.length} ${noun[1]} of €${k}k or more`
     },
     openTx: "Open the transaction: check it and annotate it",
     openFirst: "Open the first payment",
@@ -381,7 +382,8 @@ export const TEXT: Record<Lang, PageText> = {
     items: (amounts, fmt0, groups) => {
       const noun = groups ? ["élément", "éléments"] : ["paiement", "paiements"]
       if (amounts.length === 1) return `1 ${noun[0]} de ${fmt0(amounts[0])}`
-      return `${amounts.length} ${noun[1]} de ${Math.floor(Math.min(...amounts) / 1000)} k€ ou plus`
+      const k = Math.floor(Math.min(...amounts) / 1000)
+      return k < 1 ? `Les ${amounts.length} ${noun[1]} les plus importants` : `${amounts.length} ${noun[1]} de ${k} k€ ou plus`
     },
     openTx: "Ouvrir la transaction : la vérifier et l'annoter",
     openFirst: "Ouvrir le premier paiement",
