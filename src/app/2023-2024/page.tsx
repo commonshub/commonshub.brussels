@@ -159,7 +159,7 @@ export default function Vat20232024Page() {
                 )}
                 {yearsWithoutData.length > 0 && <li>No transactions at all for {yearsWithoutData.join(" and ")} yet.</li>}
                 <li>Grant money that reached us on other blockchains (Celo, Arbitrum: Celo grant tranches, Gitcoin matching) is not imported yet, so it is missing from the income.</li>
-                <li>The fridge and coffee wallets, where the EURb tokens for drinks were spent, are only in the dataset from 2025.</li>
+                <li>Our Wise card balance (card spending, the BeCentral rent) is only exported until 30 September 2024: its last quarter of 2024 is missing.</li>
                 {missing.length > 0 && <li>No VAT return on file for {missing.map((q) => q.label).join(" and ")}: either not filed, or not imported yet.</li>}
               </ul>
             </div>
