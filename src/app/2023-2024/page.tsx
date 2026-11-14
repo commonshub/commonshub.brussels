@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { AlertTriangle, ChevronDown } from "lucide-react"
+import { AlertTriangle, ChevronDown, ReceiptText } from "lucide-react"
 
 import { VatBox } from "@/components/vat-box"
 import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
@@ -104,18 +104,11 @@ function LargeItems({ line }: { line: CategoryLine }) {
           <li key={`${i.href}-${n}`} className="flex gap-3">
             <div className="min-w-0 flex-1">
               <div className="text-foreground">
-                <Link href={i.href} className="underline decoration-dotted underline-offset-2 hover:text-primary" title="Open it in the month's transactions, to annotate it">
+                <Link href={i.href} className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 hover:text-primary" title="Open the transaction: check it and annotate it">
+                  <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   {shortDate(i.date)}
                 </Link>
                 {i.collective ? <span className="text-muted-foreground"> · {i.collective}</span> : null}
-                {i.explorer && (
-                  <>
-                    {" · "}
-                    <a href={i.explorer} target="_blank" rel="noopener noreferrer" className="text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-primary">
-                      blockchain ↗
-                    </a>
-                  </>
-                )}
               </div>
               {(i.note || i.description) && <div className="break-words text-muted-foreground">{i.note || i.description}</div>}
               {!i.note && !i.description && <div className="italic text-amber-700 dark:text-amber-400">No description: open it to annotate</div>}

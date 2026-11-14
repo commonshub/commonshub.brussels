@@ -6,6 +6,7 @@
 
 import type { Transaction } from "@/types/transactions"
 import type { VatFile, VatPeriod } from "./taxes"
+import { txPagePath } from "./tx-slug"
 
 const round = (n: number) => Math.round(n * 100) / 100
 
@@ -156,7 +157,7 @@ export interface Item {
   description: string
   note: string
   collective: string
-  /** The month's transactions, filtered down to it: where it can be annotated. */
+  /** Its own page: where to check and annotate it. */
   href: string
   /** Its page on a blockchain explorer, when it is on chain. */
   explorer: string | null
@@ -178,12 +179,16 @@ export const LARGE = 2000
 /** A category under this total joins the "smaller amounts" of its rate. */
 export const SMALL_CATEGORY = 1000
 
+/** The month folder a transaction is filed under: chb files by UTC date, which can differ from Brussels around midnight. */
+const monthOfFile = (tx: Transaction, brusselsIso: string) => {
+  const utc = new Date(tx.timestamp * 1000).toISOString().slice(0, 10)
+  return utc.slice(0, 7) === brusselsIso.slice(0, 7) ? brusselsIso : utc
+}
+
 export function itemOf(tx: Transaction, date: Date, explorer: (id: string) => string | null): Item {
   const iso = date.toISOString().slice(0, 10)
-  const [y, m] = iso.split("-")
   const abs = Math.abs(tx.amount)
   const onChain = explorer(tx.id)
-  const filter = new URLSearchParams({ account: tx.accountSlug, minAmount: String(Math.floor(abs)), maxAmount: String(Math.ceil(abs)) })
   const meta = (tx.metadata ?? {}) as Record<string, unknown>
   return {
     date: iso,
@@ -191,7 +196,7 @@ export function itemOf(tx: Transaction, date: Date, explorer: (id: string) => st
     description: String(meta.description ?? "").trim(),
     note: String(meta.note ?? "").trim(),
     collective: String(meta.collective ?? ""),
-    href: `/${y}/${m}/transactions?${filter}`,
+    href: txPagePath(tx.id, monthOfFile(tx, iso)),
     explorer: onChain,
   }
 }

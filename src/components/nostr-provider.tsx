@@ -40,6 +40,8 @@ export type Annotation = {
   eventId: string;
   content: string;
   tagMap: Record<string, string>;
+  /** Free labels: one `t` tag each, as txinfo does. */
+  labels: string[];
   origin: "outbox" | "sent" | "relay";
 };
 
@@ -52,7 +54,7 @@ type NostrContextValue = {
   outbox: OutboxItem[];
   publish: (
     uri: string,
-    payload: { content?: string; tags?: Record<string, string | null | undefined> }
+    payload: { content?: string; tags?: Record<string, string | null | undefined>; labels?: string[] }
   ) => Promise<void>;
   watch: (uri: string) => void;
   getAnnotation: (uri: string | null | undefined) => Annotation | undefined;
@@ -110,12 +112,17 @@ function writeJson(key: string, value: unknown) {
 function tagMapFromEvent(event: NostrEvent): Record<string, string> {
   const out: Record<string, string> = {};
   for (const t of event.tags) {
+    if (t[0] === "t") continue; // labels: see labelsFromEvent
     if (t.length >= 2 && typeof t[0] === "string" && typeof t[1] === "string") {
       // single-value last-write-wins; tag-types like `t` collapse to the last one
       out[t[0]] = t[1];
     }
   }
   return out;
+}
+
+function labelsFromEvent(event: NostrEvent): string[] {
+  return [...new Set(event.tags.filter((t) => t[0] === "t" && typeof t[1] === "string" && t[1] && !t[1].startsWith("app:")).map((t) => t[1]))];
 }
 
 function eventUri(event: NostrEvent): string | null {
@@ -141,6 +148,7 @@ function mergeAnnotations(
       eventId: event.id,
       content: event.content,
       tagMap: tagMapFromEvent(event),
+      labels: labelsFromEvent(event),
       origin,
     });
   };
@@ -348,9 +356,11 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       // Reserved tags first, then everything else (except i/k which we set).
       const tags: string[][] = [["i", uri], ["k", nip73Kind(uri)]];
       for (const [k, v] of Object.entries(mergedTagMap)) {
-        if (k === "i" || k === "k") continue;
+        if (k === "i" || k === "k" || k === "t") continue;
         tags.push([k, v]);
       }
+      const labels = payload.labels ?? existing?.labels ?? [];
+      for (const label of [...new Set(labels.map((l) => l.trim()).filter(Boolean))]) tags.push(["t", label]);
 
       const unsigned: UnsignedEvent = {
         kind: KIND_ANNOTATION,

@@ -81,10 +81,10 @@ describe("vat-position", () => {
     ])
     expect(g21.lines[1].why).toBe("Equipment sold (€50), Drinks (€16)")
     expect(g21.lines[0].items).toEqual([
-      expect.objectContaining({ amount: 3509, date: "2024-11-28", explorer: null, href: "/2024/11/transactions?account=kbc&minAmount=3509&maxAmount=3509" }),
+      expect.objectContaining({ amount: 3509, date: "2024-11-28", explorer: null, href: "/2024/11/transactions/big" }),
     ])
     const grant = p.income.groups.find((g) => g.rate === "outside")!.lines[0]
-    expect(grant.items[0]).toMatchObject({ explorer: "https://polygonscan.com/tx/0xabc", href: "/2024/05/transactions?account=cw&minAmount=2500&maxAmount=2500" })
+    expect(grant.items[0]).toMatchObject({ explorer: "https://polygonscan.com/tx/0xabc", href: "/2024/05/transactions/0xabc" })
   })
 
   it("reads the VAT declared on sales from grids 54 and 64", () => {
