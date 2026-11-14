@@ -43,7 +43,7 @@ async function langOf(searchParams: PageProps["searchParams"]): Promise<Lang> {
 
 export async function generateMetadata({ searchParams }: PageProps) {
   const t = TEXT[await langOf(searchParams)]
-  return { title: t.title, description: t.description }
+  return { title: t.title, description: t.description, robots: { index: false, follow: false } }
 }
 
 const YEARS = [2023, 2024]
