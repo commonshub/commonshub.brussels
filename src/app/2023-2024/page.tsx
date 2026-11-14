@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers"
 import { AlertTriangle, ChevronDown, FileText, ReceiptText } from "lucide-react"
 
 import { LangSwitch } from "@/components/lang-switch"
+import { countryFlag } from "@/lib/country-flag"
 import { VatBox } from "@/components/vat-box"
 import { type Lang, LOCALE, RATE_LABELS, TEXT, type PageText, pickLang, ruleText } from "@/lib/vat-i18n"
 import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
@@ -10,6 +11,7 @@ import { loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
 import {
   type CategoryLine,
   type Direction,
+  type Item,
   LARGE,
   type Side,
   declaredInputVat,
@@ -125,12 +127,116 @@ function lineText(l: CategoryLine, before: boolean, dir: Direction, lang: Lang, 
   return before ? { label: base.label, why: TEXT[lang].beforeWhy(f.longDate(VAT_REGISTERED_SINCE)) } : base
 }
 
-/** The payments of a category large enough to justify one by one, each linked to where it can be checked and annotated. */
+/** One listed payment (or a group of transfers that are one thing), linked to where it can be checked and annotated. */
+function ItemRow({ i, t, lang, f, showProject }: { i: Item; t: PageText; lang: Lang; f: F; showProject: boolean }) {
+  if (i.group) {
+    const detail = lang === "fr" ? i.group.detailFr ?? i.group.detail : i.group.detail
+    return (
+      <li className="flex gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="font-medium leading-5 text-foreground">{groupLabel(i.group, lang)}</div>
+          {detail && <div className="text-muted-foreground">{detail}</div>}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 leading-5">
+            <Link href={i.href} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary" title={t.openFirst}>
+              <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="underline decoration-dotted underline-offset-2">
+                {t.transfers(i.count ?? 1)}, {f.shortDate(i.date)}
+                {i.group.until !== i.date ? ` – ${f.shortDate(i.group.until)}` : ""}
+              </span>
+            </Link>
+            {i.group.document && (
+              <a href={i.group.document.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {lang === "fr" ? i.group.document.labelFr ?? i.group.document.label : i.group.document.label}
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="leading-5 tabular-nums text-foreground">{f.eur(i.amount)}</div>
+      </li>
+    )
+  }
+  const text = i.note || i.description
+  const flag = countryFlag(i.note)
+  return (
+    <li className="flex gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-1 leading-5 text-foreground">
+          <Link href={i.href} className="inline-flex items-center gap-1 hover:text-primary" title={t.openTx}>
+            <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="underline decoration-dotted underline-offset-2">{f.shortDate(i.date)}</span>
+          </Link>
+          {showProject && i.collective ? <span className="text-muted-foreground">· {projectName(i.collective, lang)}</span> : null}
+        </div>
+        {text && (
+          <div className="break-words text-muted-foreground">
+            {flag && (
+              <span className="mr-1" aria-hidden>
+                {flag}
+              </span>
+            )}
+            {text}
+          </div>
+        )}
+      </div>
+      <div className="leading-5 tabular-nums text-foreground">{f.eur(i.amount)}</div>
+    </li>
+  )
+}
+
+/** The listed payments and what they leave out. */
+function ItemList({ items, amount, count, t, lang, f, showProject }: { items: Item[]; amount: number; count: number; t: PageText; lang: Lang; f: F; showProject: boolean }) {
+  const rest = round(amount - sum(items.map((i) => i.amount)))
+  const others = count - items.reduce((s, i) => s + (i.count ?? 1), 0)
+  return (
+    <ul className="mt-2 space-y-2 border-l-2 border-border pl-2 text-xs">
+      {items.map((i, n) => (
+        <ItemRow key={`${i.href}-${n}`} i={i} t={t} lang={lang} f={f} showProject={showProject} />
+      ))}
+      {others > 0 && (
+        <li className="flex gap-3 text-muted-foreground">
+          <div className="flex-1">{items.length === 0 ? t.payments(others) : t.smaller(others)}</div>
+          <div className="tabular-nums">{f.eur(rest)}</div>
+        </li>
+      )}
+    </ul>
+  )
+}
+
+const projectName = (slug: string, lang: Lang) => (slug ? COLLECTIVES[slug]?.name ?? slug : lang === "fr" ? "Sans projet" : "No project")
+
+/**
+ * A category's payments. Spread over several projects: one line per project
+ * (total, number of payments), opening onto its payments. One project only:
+ * its large payments behind one toggle.
+ */
 function LargeItems({ line, t, lang, f }: { line: CategoryLine; t: PageText; lang: Lang; f: F }) {
+  const projects = Object.entries(line.projects).sort((a, b) => Math.abs(b[1].amount) - Math.abs(a[1].amount))
+  if (projects.length > 1) {
+    return (
+      <ul className="mt-2 divide-y divide-border/60 rounded-md border border-border/60 text-xs">
+        {projects.map(([slug, pr]) => {
+          const items = line.items.filter((i) => (i.collective ?? "") === slug)
+          return (
+            <li key={slug || "none"}>
+              <details className="group/project">
+                <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1.5 hover:bg-muted/40">
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open/project:rotate-180" />
+                  <span className="min-w-0 flex-1 font-medium text-foreground">{projectName(slug, lang)}</span>
+                  <span className="text-muted-foreground">{t.payments(pr.count)}</span>
+                  <span className="w-24 text-right tabular-nums text-foreground">{f.eur(pr.amount)}</span>
+                </summary>
+                <div className="px-2 pb-2">
+                  <ItemList items={items} amount={pr.amount} count={pr.count} t={t} lang={lang} f={f} showProject={false} />
+                </div>
+              </details>
+            </li>
+          )
+        })}
+      </ul>
+    )
+  }
   if (line.items.length === 0) return null
-  const listed = sum(line.items.map((i) => i.amount))
-  const rest = round(line.amount - listed)
-  const others = line.count - line.items.reduce((s, i) => s + (i.count ?? 1), 0)
   return (
     <details className="group/items mt-2">
       <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-primary">
@@ -143,54 +249,7 @@ function LargeItems({ line, t, lang, f }: { line: CategoryLine; t: PageText; lan
               line.items.some((i) => i.group),
             )}
       </summary>
-      <ul className="mt-2 space-y-2 border-l-2 border-border pl-2 text-xs">
-        {line.items.map((i, n) =>
-          i.group ? (
-            <li key={`group-${n}`} className="flex gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="font-medium leading-5 text-foreground">{groupLabel(i.group, lang)}</div>
-                {(lang === "fr" ? i.group.detailFr ?? i.group.detail : i.group.detail) && <div className="text-muted-foreground">{lang === "fr" ? i.group.detailFr ?? i.group.detail : i.group.detail}</div>}
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 leading-5">
-                  <Link href={i.href} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary" title={t.openFirst}>
-                    <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    <span className="underline decoration-dotted underline-offset-2">
-                      {t.transfers(i.count ?? 1)}, {f.shortDate(i.date)}
-                      {i.group.until !== i.date ? ` – ${f.shortDate(i.group.until)}` : ""}
-                    </span>
-                  </Link>
-                  {i.group.document && (
-                    <a href={i.group.document.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                      <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      {lang === "fr" ? i.group.document.labelFr ?? i.group.document.label : i.group.document.label}
-                    </a>
-                  )}
-                </div>
-              </div>
-              <div className="leading-5 tabular-nums text-foreground">{f.eur(i.amount)}</div>
-            </li>
-          ) : (
-          <li key={`${i.href}-${n}`} className="flex gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-1 leading-5 text-foreground">
-                <Link href={i.href} className="group/date inline-flex items-center gap-1 hover:text-primary" title={t.openTx}>
-                  <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="underline decoration-dotted underline-offset-2">{f.shortDate(i.date)}</span>
-                </Link>
-                {i.collective ? <span className="text-muted-foreground">· {COLLECTIVES[i.collective]?.name ?? i.collective}</span> : null}
-              </div>
-              {(i.note || i.description) && <div className="break-words text-muted-foreground">{i.note || i.description}</div>}
-            </div>
-            <div className="leading-5 tabular-nums text-foreground">{f.eur(i.amount)}</div>
-          </li>
-          ),
-        )}
-        {others > 0 && (
-          <li className="flex gap-3 text-muted-foreground">
-            <div className="flex-1">{t.smaller(others)}</div>
-            <div className="tabular-nums">{f.eur(rest)}</div>
-          </li>
-        )}
-      </ul>
+      <ItemList items={line.items} amount={line.amount} count={line.count} t={t} lang={lang} f={f} showProject={false} />
     </details>
   )
 }

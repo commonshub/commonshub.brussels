@@ -130,6 +130,19 @@ describe("vat-position", () => {
     expect(items.filter((i) => !i.group).map((i) => i.amount)).toEqual([3000])
   })
 
+  it("totals each category per project, over every payment", () => {
+    const p = vatPosition(
+      [
+        { ...tx("a", -3630, "2024-11-13", "consulting"), metadata: { category: "consulting", collective: "brusselspay" } } as Transaction,
+        { ...tx("b", -500, "2024-11-14", "consulting"), metadata: { category: "consulting", collective: "brusselspay" } } as Transaction,
+        { ...tx("c", -4400, "2024-11-01", "consulting"), metadata: { category: "consulting", collective: "regensunite" } } as Transaction,
+      ],
+      [2024],
+    )
+    const line = p.expense.groups[0].lines[0]
+    expect(line.projects).toEqual({ brusselspay: { amount: 4130, count: 2 }, regensunite: { amount: 4400, count: 1 } })
+  })
+
   it("reads the VAT declared on sales from grids 54 and 64", () => {
     expect(declaredSalesVat({ grids: { "54": 1898.73, "64": 69.99 } } as unknown as VatPeriod)).toBe(1828.74)
     expect(declaredSalesVat({ grids: {} } as unknown as VatPeriod)).toBe(0)

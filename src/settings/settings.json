@@ -272,6 +272,12 @@
       "regenvillage": {
         "name": "Regen Village"
       },
+      "regensunite-handbook": {
+        "name": "Regens Unite handbook"
+      },
+      "daobrussels": {
+        "name": "DAO Brussels"
+      },
       "openletter": {
         "name": "Open Letter",
         "icon": "/images/collectives/openletter.png"
