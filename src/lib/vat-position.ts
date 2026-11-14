@@ -189,6 +189,17 @@ export interface CategoryLine {
 
 /** A payment from this amount up is listed one by one. */
 export const LARGE = 2000
+/**
+ * "2 payments of €20k or more": the smallest one listed, rounded down to the
+ * thousand, says more than the threshold. A single one gives its amount.
+ */
+export function itemsLabel(amounts: number[]): string {
+  if (amounts.length === 0) return ""
+  if (amounts.length === 1) return `1 payment of €${Math.round(amounts[0]).toLocaleString("en-GB")}`
+  const floor = Math.floor(Math.min(...amounts) / 1000)
+  return `${amounts.length} payments of €${floor}k or more`
+}
+
 /** A category under this total joins the "smaller amounts" of its rate. */
 export const SMALL_CATEGORY = 1000
 

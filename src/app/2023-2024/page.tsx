@@ -6,6 +6,7 @@ import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
 import { loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
 import {
   type CategoryLine,
+  itemsLabel,
   LARGE,
   RATE_CLASSES,
   type Side,
@@ -99,7 +100,7 @@ function LargeItems({ line }: { line: CategoryLine }) {
     <details className="group/items mt-2">
       <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-primary">
         <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/items:rotate-180" />
-        {line.items.length} {line.items.length === 1 ? "payment" : "payments"} of {eur0.format(LARGE)} or more
+        {itemsLabel(line.items.map((i) => i.amount))}
       </summary>
       <ul className="mt-2 space-y-2 border-l-2 border-border pl-3 text-xs">
         {line.items.map((i, n) => (
