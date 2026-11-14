@@ -243,6 +243,8 @@ export interface CategoryLine {
   items: Item[]
   /** For "smaller amounts": the categories put together. */
   parts?: Array<{ category: string; label: string; amount: number }>
+  /** Totals per project (collective slug, "" when none), over every payment of the line. */
+  projects: Record<string, { amount: number; count: number }>
 }
 
 /** A payment from this amount up is listed one by one. */
@@ -357,7 +359,10 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     const rate = RATE_CLASSES[rule.rate].rate
     const vat = rate === null ? null : vatIncluded(amount, rate)
     const lineKey = `${rule.rate}|${rule.category}`
-    const line = lines[dir].get(lineKey) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0, items: [] }
+    const line = lines[dir].get(lineKey) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0, items: [], projects: {} }
+    const project = String(tx.metadata?.collective ?? "")
+    const pt = line.projects[project] ?? { amount: 0, count: 0 }
+    line.projects[project] = { amount: round(pt.amount + amount), count: pt.count + 1 }
     line.amount = round(line.amount + amount)
     const group = groupOf.get(tx.id)
     if (group) {
@@ -422,6 +427,10 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
                 count: small.reduce((s, l) => s + l.count, 0),
                 items: small.flatMap((l) => l.items),
                 parts: small.map((l) => ({ category: l.category, label: l.label, amount: l.amount })),
+                projects: small.reduce<Record<string, { amount: number; count: number }>>((acc, l) => {
+                  for (const [k, v] of Object.entries(l.projects)) acc[k] = { amount: round((acc[k]?.amount ?? 0) + v.amount), count: (acc[k]?.count ?? 0) + v.count }
+                  return acc
+                }, {}),
               },
             ]
           : small
