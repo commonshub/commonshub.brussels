@@ -1,6 +1,18 @@
 {
  "_comment": "Supporting documents (invoices, receipts) of 2023–2024 transactions in the Accounting Google Drive (folder 1-Fe-2C286MfsW_03raiLhkx8OdPvWHKW), by transaction id and amount. Matched (local mirror, then the live Drive for references the mirror lacked) on Open Collective expense numbers, invoice references and, for file names carrying a date and an amount, the one payment that fits. Drive file ids only: the files open for people with access to that Drive.",
  "links": {
+  "ethereum:100:tx:0xd30debdc4599f3a5863e26385915883b8c367960da45b6cc25c1b9f7dff94a49|-3200": [
+   "1B0z2g2CL3WEWKWBjTVZx7xCbjauytHXN"
+  ],
+  "ethereum:100:tx:0x752743179c3e6c78a7aa8ad7470df5c79407832427652d4151e609e8cbc03666|-3200": [
+   "1Uhm2BjzoM5kWW9IJOcGodYOEOqhvx9nb"
+  ],
+  "ethereum:100:tx:0xba0e7aad44df1bea56273a5d4f9d26490fdb63993135def17a49ac3692baf379|-3200": [
+   "16G8Lpk9PDLVgipGB99jYMqpRA6RnQkv8"
+  ],
+  "iban:be46734072238636:tx:45aaf8b680ac74e1|-1800": [
+   "1S9qEvp_EN9whSJjtuiXbEe8MnhjYZ7NY"
+  ],
   "ethereum:100:tx:0x01682efcfae7847ba6595bd2bb0ad72dd87d1ff904e90358c1c509f1c819f677|-1600": [
    "1F9CaIngiIHP-xwmQKDIT-Rls1srdyTlj"
   ],
