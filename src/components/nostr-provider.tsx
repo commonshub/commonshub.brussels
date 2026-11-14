@@ -60,6 +60,8 @@ type NostrContextValue = {
   getAnnotation: (uri: string | null | undefined) => Annotation | undefined;
   sync: () => void;
   removeFromOutbox: (eventIds: string[]) => void;
+  /** Drop events everywhere this browser keeps them (after a deletion). */
+  forget: (eventIds: string[]) => void;
   /**
    * Sign any event template with this browser's key and send it to the
    * given relays right away (no outbox). Resolves with the signed event and
@@ -463,6 +465,13 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
     setOutbox((prev) => prev.filter((i) => !ids.has(i.event.id)));
   }, []);
 
+  const forget = useCallback((eventIds: string[]) => {
+    const ids = new Set(eventIds);
+    setOutbox((prev) => prev.filter((i) => !ids.has(i.event.id)));
+    setSent((prev) => prev.filter((e) => !ids.has(e.id)));
+    setRelayEvents((prev) => prev.filter((e) => !ids.has(e.id)));
+  }, []);
+
   // ---- expose globals for console inspection ----
   useEffect(() => {
     if (typeof window === "undefined" || !secretKey) return;
@@ -495,6 +504,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       getAnnotation,
       sync,
       removeFromOutbox,
+      forget,
       signAndPublish,
     }),
     [
@@ -506,6 +516,7 @@ export function NostrProvider({ children }: { children: React.ReactNode }) {
       getAnnotation,
       sync,
       removeFromOutbox,
+      forget,
       signAndPublish,
     ]
   );
@@ -529,6 +540,7 @@ export function useNostr(): NostrContextValue {
       getAnnotation: () => undefined,
       sync: () => {},
       removeFromOutbox: () => {},
+      forget: () => {},
       signAndPublish: async () => {
         throw new Error("Nostr is not available on this page");
       },
