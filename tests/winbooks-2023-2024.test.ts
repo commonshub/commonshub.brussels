@@ -48,10 +48,10 @@ describe("winbooks 2023-2024", () => {
     expect(tickets.reasons.find((r) => r.theme === "vat")?.amount).toBe(210)
     expect(tickets.unexplained).toBe(round(tickets.difference - tickets.reasons.reduce((s, r) => s + r.amount, 0)))
 
-    // The City of Brussels subsidy counts as a reason only while the page has it uncategorised.
-    expect(line("funding").reasons.some((r) => r.amount === 3000)).toBe(true)
-    expect(line("uncategorised").reasons.find((r) => r.amount === -3000)).toBeDefined()
-    expect(line("uncategorised").unexplained).toBe(0)
+    // What the page has not categorised is explained receipt by receipt; anything else shows as not explained.
+    const uncategorised = line("uncategorised")
+    expect(uncategorised.page).toBe(3000)
+    expect(uncategorised.unexplained).toBe(round(-3000 - uncategorised.reasons.reduce((s, r) => s + r.amount, 0)))
 
     // A category no line names still counts, so the totals always add up.
     expect(line("other-income").page).toBe(70)
