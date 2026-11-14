@@ -14,6 +14,8 @@ import {
   findPeriod,
   quarterKey,
   returnOverdue,
+  subjectToVat,
+  VAT_REGISTERED_SINCE,
   vatPosition,
 } from "@/lib/vat-position"
 import { firstMonthByAccount, loadTransactions, quarterHasData } from "@/lib/vat-position-data"
@@ -197,14 +199,18 @@ export default function Vat20232024Page() {
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">Taxes</p>
           <h1 className="mt-2 text-4xl sm:text-5xl font-bold text-foreground">VAT 2023–2024</h1>
           <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-            Everything that came in and went out in 2023 and 2024, by VAT regime and why, and where that leaves us with the State. Open a rate to see its categories; open a category to see every payment of {eur0.format(LARGE)} or more, with a link to annotate it.
+            Everything that came in and went out in 2023 and 2024, by VAT regime and why, and where that leaves us with the State. Open a rate to see its categories; open a category to see every payment of {eur0.format(LARGE)} or more, with a link to annotate it. We have been subject to VAT since {new Date(`${VAT_REGISTERED_SINCE}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} (KBO/BCE record of{" "}
+            <a href="https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=0804505132&lang=en" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">0804.505.132</a>
+            ): what came in or went out before that carried no VAT.
           </p>
         </div>
       </section>
 
       <section className="py-12 bg-background">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-12">
-          {(bankMissing || yearsWithoutData.length > 0 || missing.length > 0) && (
+          {/* The Wise card gap is always listed, so the note always shows. */}
+          {(
+
             <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
               <p className="flex items-center gap-2 font-semibold">
                 <AlertTriangle className="h-4 w-4 shrink-0" /> Incomplete: these figures will move
@@ -314,6 +320,7 @@ export default function Vat20232024Page() {
                         <td className="px-3 py-2 font-medium whitespace-nowrap">
                           <Link href={`/${q.key.replace("-", "/")}`} className="hover:underline">{q.label}</Link>
                           {q.missing && <div className="text-xs font-normal text-amber-700 dark:text-amber-400">no return on file</div>}
+                          {!q.period && !subjectToVat(Number(q.key.slice(0, 4)), Number(q.key.slice(-1))) && <div className="text-xs font-normal text-muted-foreground">not registered for VAT yet</div>}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">
                           {eur.format(q.est.collected)}

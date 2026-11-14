@@ -7,6 +7,16 @@
 import type { Transaction } from "@/types/transactions"
 import type { VatFile, VatPeriod } from "./taxes"
 import { txPagePath } from "./tx-slug"
+import settings from "@/settings/settings.json"
+
+/** The day we became subject to VAT (KBO/BCE). Nothing before it carried VAT, and no return was due. */
+export const VAT_REGISTERED_SINCE: string = (settings as unknown as { taxes: { vatRegisteredSince: string } }).taxes.vatRegisteredSince
+
+/** Whether a quarter is (at least partly) after our VAT registration, so a return is due for it. */
+export const subjectToVat = (year: number, quarter: number, since = VAT_REGISTERED_SINCE) => {
+  const end = new Date(Date.UTC(year, quarter * 3, 0)).toISOString().slice(0, 10)
+  return end >= since
+}
 
 const round = (n: number) => Math.round(n * 100) / 100
 
@@ -24,6 +34,7 @@ export const quarterLastMonth = (quarter: number) => String(quarter * 3).padStar
  * as missing once that month is over and no return is on file.
  */
 export function returnOverdue(year: number, quarter: number, now = new Date()): boolean {
+  if (!subjectToVat(year, quarter)) return false
   const deadline = Date.UTC(year, quarter * 3 + 1, 1) // first day of the second month after the quarter
   return now.getTime() >= deadline
 }
@@ -44,7 +55,7 @@ export const declaredSalesVat = (period: VatPeriod) => round((period.grids["54"]
 // ── money in and out, sorted by the VAT rate it carries ───────────────────
 
 export type Direction = "income" | "expense"
-export type RateClass = "21" | "12" | "6" | "exempt" | "outside" | "unknown"
+export type RateClass = "21" | "12" | "6" | "exempt" | "outside" | "unknown" | "before"
 
 export const RATE_CLASSES: Record<RateClass, { label: string; rate: number | null }> = {
   "21": { label: "21%", rate: 0.21 },
@@ -53,8 +64,9 @@ export const RATE_CLASSES: Record<RateClass, { label: string; rate: number | nul
   exempt: { label: "Exempt (0%)", rate: 0 },
   outside: { label: "Outside the scope of VAT", rate: 0 },
   unknown: { label: "Not estimated", rate: null },
+  before: { label: "Before our VAT registration", rate: 0 },
 }
-export const RATE_ORDER: RateClass[] = ["21", "12", "6", "exempt", "outside", "unknown"]
+export const RATE_ORDER: RateClass[] = ["21", "12", "6", "exempt", "outside", "unknown", "before"]
 
 interface Rule {
   rate: RateClass
@@ -127,6 +139,7 @@ export function ruleFor(direction: Direction, category: string | undefined, coll
 }
 
 const EUR = new Set(["EUR", "EURe", "EURb"])
+const longDay = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
 
 /**
  * One movement of money. A blockchain transaction can carry several
@@ -244,17 +257,22 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     const dir = directionOf(tx)
     const date = brusselsDate(tx.timestamp)
     if (!dir || !years.includes(date.getUTCFullYear())) continue
-    const rule = ruleFor(dir, tx.metadata?.category, tx.metadata?.collective)
+    const base = ruleFor(dir, tx.metadata?.category, tx.metadata?.collective)
+    // Before we were registered, nothing carried VAT and none could be deducted.
+    const rule = date.toISOString().slice(0, 10) < VAT_REGISTERED_SINCE
+      ? { ...base, rate: "before" as RateClass, why: `Before ${longDay(VAT_REGISTERED_SINCE)}, when we became subject to VAT: no VAT charged, none deducted.` }
+      : base
     // Expenses count positive; a refund received counts against them.
     const amount = dir === "income" ? tx.amount : -tx.amount
     const rate = RATE_CLASSES[rule.rate].rate
     const vat = rate === null ? null : vatIncluded(amount, rate)
-    const line = lines[dir].get(rule.category) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0, items: [] }
+    const lineKey = `${rule.rate}|${rule.category}`
+    const line = lines[dir].get(lineKey) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0, items: [] }
     line.amount = round(line.amount + amount)
     if (Math.abs(tx.amount) >= LARGE) line.items.push(itemOf(tx, date, explorer))
     if (vat !== null) line.vat = round((line.vat ?? 0) + vat)
     line.count++
-    lines[dir].set(rule.category, line)
+    lines[dir].set(lineKey, line)
     if (vat) {
       const q = quarterOf(date)
       const row = quarters.get(q) ?? { collected: 0, paid: 0 }
