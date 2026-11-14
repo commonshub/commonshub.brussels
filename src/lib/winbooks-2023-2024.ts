@@ -340,6 +340,22 @@ export const LINES: ComparisonLine[] = [
     ],
   },
   {
+    key: "loans",
+    label: "Campaign loans",
+    direction: "income",
+    winbooks: { amount: 0, accounts: "489308 (a debt, not income)" },
+    categories: ["loan"],
+    withoutVat: false,
+    reasons: [
+      {
+        theme: "debt",
+        title: "Interest-free loans are money received on the page, a debt in WinBooks",
+        detail: "The 2024 campaign loans, repaid in kind through debt tokens (see /debt), are booked on 489308 in WinBooks. The page counts them as money received, outside the scope of VAT.",
+        amount: (p) => -amountOf(p, "income", ["loan"]),
+      },
+    ],
+  },
+  {
     key: "other-income",
     label: "Other categories on the page",
     direction: "income",
