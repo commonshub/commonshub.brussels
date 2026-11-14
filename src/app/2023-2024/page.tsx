@@ -208,8 +208,7 @@ export default function Vat20232024Page() {
 
       <section className="py-12 bg-background">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-12">
-          {/* The Wise card gap is always listed, so the note always shows. */}
-          {(
+          {(bankMissing || yearsWithoutData.length > 0 || missing.length > 0) && (
 
             <div role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
               <p className="flex items-center gap-2 font-semibold">
@@ -222,9 +221,6 @@ export default function Vat20232024Page() {
                   </li>
                 )}
                 {yearsWithoutData.length > 0 && <li>No transactions at all for {yearsWithoutData.join(" and ")} yet.</li>}
-                <li>
-                  Our Wise card balance (card spending, the BeCentral rent) is only exported until 30 September 2024. It still held €5,319.99 on 17 September; that money left it in the last quarter of 2024 (spending, a transfer or a closure) in a way we cannot see, and it was not in Wise&apos;s final refund in April 2025. Only that balance&apos;s October–December 2024 statement can tell.
-                </li>
                 {missing.length > 0 && <li>No VAT return on file for {missing.map((q) => q.label).join(" and ")}: either not filed, or not imported yet.</li>}
               </ul>
             </div>
@@ -357,6 +353,9 @@ export default function Vat20232024Page() {
             <h2 className="text-lg font-semibold text-foreground">How to read this</h2>
             <p>
               &quot;Ours&quot; applies each category&apos;s rate to the money that actually moved, so it is an estimate. A return counts an invoice when it is issued, so an amount can fall in the quarter before or after the one that declared it: compare totals rather than single quarters.
+            </p>
+            <p>
+              Our Wise card balance ended 2024 with €4,191.77. Where it went in 2025 is not traced yet: it was not part of Wise&apos;s final refund in April 2025.
             </p>
             <p>The returns also declare sales without Belgian VAT: services to customers in other EU countries (grid 44) and operations outside its scope (grid 47).</p>
             <p>
