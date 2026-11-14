@@ -149,6 +149,19 @@ export const isIncome = (tx: Transaction) => directionOf(tx) === "income"
 /** VAT included in a gross amount at a rate. */
 export const vatIncluded = (gross: number, rate: number) => round((gross * rate) / (1 + rate))
 
+/** A payment large enough to be justified one by one. */
+export interface Item {
+  date: string
+  amount: number
+  description: string
+  note: string
+  collective: string
+  /** The month's transactions, filtered down to it: where it can be annotated. */
+  href: string
+  /** Its page on a blockchain explorer, when it is on chain. */
+  explorer: string | null
+}
+
 export interface CategoryLine {
   category: string
   label: string
@@ -156,6 +169,31 @@ export interface CategoryLine {
   amount: number
   vat: number | null
   count: number
+  /** Payments of at least LARGE, biggest first. */
+  items: Item[]
+}
+
+/** A payment from this amount up is listed one by one. */
+export const LARGE = 2000
+/** A category under this total joins the "smaller amounts" of its rate. */
+export const SMALL_CATEGORY = 1000
+
+export function itemOf(tx: Transaction, date: Date, explorer: (id: string) => string | null): Item {
+  const iso = date.toISOString().slice(0, 10)
+  const [y, m] = iso.split("-")
+  const abs = Math.abs(tx.amount)
+  const onChain = explorer(tx.id)
+  const filter = new URLSearchParams({ account: tx.accountSlug, minAmount: String(Math.floor(abs)), maxAmount: String(Math.ceil(abs)) })
+  const meta = (tx.metadata ?? {}) as Record<string, unknown>
+  return {
+    date: iso,
+    amount: round(abs),
+    description: String(meta.description ?? "").trim(),
+    note: String(meta.note ?? "").trim(),
+    collective: String(meta.collective ?? ""),
+    href: `/${y}/${m}/transactions?${filter}`,
+    explorer: onChain,
+  }
 }
 export interface RateGroup {
   rate: RateClass
@@ -190,7 +228,7 @@ function brusselsDate(timestamp: number): Date {
  * then category, with the VAT each amount carries. Each transaction counts
  * once, on its Brussels date.
  */
-export function vatPosition(txs: Transaction[], years: number[]): Position {
+export function vatPosition(txs: Transaction[], years: number[], explorer: (id: string) => string | null = () => null): Position {
   const seen = new Set<string>()
   const lines = { income: new Map<string, CategoryLine & { rate: RateClass }>(), expense: new Map<string, CategoryLine & { rate: RateClass }>() }
   const quarters = new Map<QuarterKey, { collected: number; paid: number }>()
@@ -206,8 +244,9 @@ export function vatPosition(txs: Transaction[], years: number[]): Position {
     const amount = dir === "income" ? tx.amount : -tx.amount
     const rate = RATE_CLASSES[rule.rate].rate
     const vat = rate === null ? null : vatIncluded(amount, rate)
-    const line = lines[dir].get(rule.category) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0 }
+    const line = lines[dir].get(rule.category) ?? { category: rule.category, label: rule.label, why: rule.why, rate: rule.rate, amount: 0, vat: rate === null ? null : 0, count: 0, items: [] }
     line.amount = round(line.amount + amount)
+    if (Math.abs(tx.amount) >= LARGE) line.items.push(itemOf(tx, date, explorer))
     if (vat !== null) line.vat = round((line.vat ?? 0) + vat)
     line.count++
     lines[dir].set(rule.category, line)
@@ -221,7 +260,29 @@ export function vatPosition(txs: Transaction[], years: number[]): Position {
   }
   const side = (m: Map<string, CategoryLine & { rate: RateClass }>): Side => {
     const groups = RATE_ORDER.map((rate) => {
-      const ls = [...m.values()].filter((l) => l.rate === rate).sort((a, b) => b.amount - a.amount)
+      const all = [...m.values()].filter((l) => l.rate === rate)
+      const big = all.filter((l) => Math.abs(l.amount) >= SMALL_CATEGORY)
+      const small = all.filter((l) => Math.abs(l.amount) < SMALL_CATEGORY)
+      // Categories too small to matter are put together, each still named.
+      const merged =
+        small.length > 1
+          ? [
+              {
+                category: `small:${rate}`,
+                label: "Smaller amounts",
+                why: small
+                  .sort((a, b) => b.amount - a.amount)
+                  .map((l) => `${l.label} (€${Math.round(l.amount).toLocaleString("en-GB")})`)
+                  .join(", "),
+                rate,
+                amount: round(small.reduce((s, l) => s + l.amount, 0)),
+                vat: RATE_CLASSES[rate].rate === null ? null : round(small.reduce((s, l) => s + (l.vat ?? 0), 0)),
+                count: small.reduce((s, l) => s + l.count, 0),
+                items: small.flatMap((l) => l.items),
+              },
+            ]
+          : small
+      const ls = [...big, ...merged].sort((a, b) => b.amount - a.amount).map((l) => ({ ...l, items: [...l.items].sort((a, b) => b.amount - a.amount) }))
       return {
         rate,
         amount: round(ls.reduce((s, l) => s + l.amount, 0)),

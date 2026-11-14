@@ -223,13 +223,14 @@ const EXPLORERS: Record<string, string> = {
   gnosis: "https://gnosisscan.io",
   celo: "https://celoscan.io",
   ethereum: "https://etherscan.io",
+  polygon: "https://polygonscan.com",
 }
 
 /** The public explorer page of an on-chain payment; null for a bank transfer. */
 export function explorerTxUrl(id: string): string | null {
   const parts = id.split(":")
   if (parts[0] !== "ethereum" || parts[2] !== "tx" || !/^0x[0-9a-f]+$/i.test(parts[3] ?? "")) return null
-  const chain = { "1": "ethereum", "100": "gnosis", "42220": "celo" }[parts[1]]
+  const chain = { "1": "ethereum", "100": "gnosis", "137": "polygon", "42220": "celo" }[parts[1]]
   return chain ? `${EXPLORERS[chain]}/tx/${parts[3].toLowerCase()}` : null
 }
 
