@@ -14,6 +14,7 @@ describe("vat-position", () => {
     expect(ruleFor("expense", "rent").rate).toBe("exempt")
     expect(ruleFor("expense", "salaries").rate).toBe("outside")
     expect(ruleFor("expense", "reimbursement")).toMatchObject({ rate: "receipt", label: "Expenses reimbursed" })
+    expect(ruleFor("expense", "expense")).toMatchObject({ rate: "receipt", label: "Expenses reimbursed" }) // chb's slug
     expect(ruleFor("income", undefined)).toMatchObject({ rate: "unknown", label: "Not categorised yet" })
     expect(ruleFor("income", "mystery")).toMatchObject({ rate: "unknown", label: "mystery" })
     expect(ruleFor("income", "debt", "eurb")).toMatchObject({ rate: "unknown", category: "debt:eurb" })
