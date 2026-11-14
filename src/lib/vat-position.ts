@@ -80,7 +80,7 @@ export const SELF_ASSESSED_RATE = 0.21
  * The VAT regime a payment's annotation note states, which wins over its
  * category's: "grid 44" / "EU B2B" (a business customer in another EU
  * country), "grid 47" / "outside the EU" for what we sold (no Belgian VAT),
- * "grids 88" for a service bought from another EU country, "grid 87" for
+ * "grids 88" (or 86 for goods) for a purchase from another EU country, "grid 87" for
  * one bought from outside the EU (both: reverse charge).
  */
 export function regimeFromNote(dir: Direction, note: string | undefined | null): RateClass | null {
@@ -91,7 +91,7 @@ export function regimeFromNote(dir: Direction, note: string | undefined | null):
     if (/grid 47|outside the eu/.test(n)) return "export"
     return null
   }
-  if (/grids? 88|another eu country/.test(n)) return "reverse_eu"
+  if (/grids? 8[68]|another eu country|intra-eu acquisition/.test(n)) return "reverse_eu"
   if (/grids? 87|outside the eu/.test(n)) return "reverse_noneu"
   return null
 }
@@ -102,7 +102,7 @@ export const REGIME_WHY: Record<Direction, Partial<Record<RateClass, string>>> =
     export: "Services to customers outside the EU: no Belgian VAT (grid 47).",
   },
   expense: {
-    reverse_eu: "Services from a supplier in another EU country, invoiced without VAT: we declare the Belgian VAT ourselves (grids 88 and 55) and deduct it in the same return (grid 59), so it comes to nothing.",
+    reverse_eu: "Services or goods from a supplier in another EU country, invoiced without VAT: we declare the Belgian VAT ourselves (grid 88 for services, 86 for goods, and 55) and deduct it in the same return (grid 59), so it comes to nothing.",
     reverse_noneu: "Services from a supplier outside the EU, invoiced without VAT: we declare the Belgian VAT ourselves (grids 87 and 56) and deduct it in the same return (grid 59), so it comes to nothing.",
   },
 }

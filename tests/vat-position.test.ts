@@ -149,6 +149,7 @@ describe("vat-position", () => {
     expect(regimeFromNote("expense", "RIA BEL (Sri Lanka): service from outside the EU, reverse charge, grid 87")).toBe("reverse_noneu")
     expect(regimeFromNote("expense", "Alice Appel (Germany): service from another EU country, grids 88 and 55")).toBe("reverse_eu")
     expect(regimeFromNote("income", "City of Brussels subsidy for Regen Village 2024")).toBeNull()
+    expect(regimeFromNote("expense", "Ubiquiti (Netherlands): intra-EU acquisition of goods, grids 86 and 55, deducted in 59")).toBe("reverse_eu")
     const n = (note: string) => ({ category: "sponsoring", note }) as Transaction["metadata"]
     const p = vatPosition(
       [

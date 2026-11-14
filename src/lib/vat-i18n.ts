@@ -396,7 +396,7 @@ export const REGIME_WHY_FR: Record<Direction, Partial<Record<RateClass, string>>
     export: "Services à des clients hors de l'UE : pas de TVA belge (grille 47).",
   },
   expense: {
-    reverse_eu: "Services d'un fournisseur d'un autre pays de l'UE, facturés sans TVA : nous déclarons la TVA belge nous-mêmes (grilles 88 et 55) et la déduisons dans la même déclaration (grille 59), ce qui revient à zéro.",
+    reverse_eu: "Services ou biens d'un fournisseur d'un autre pays de l'UE, facturés sans TVA : nous déclarons la TVA belge nous-mêmes (grille 88 pour les services, 86 pour les biens, et 55) et la déduisons dans la même déclaration (grille 59), ce qui revient à zéro.",
     reverse_noneu: "Services d'un fournisseur hors de l'UE, facturés sans TVA : nous déclarons la TVA belge nous-mêmes (grilles 87 et 56) et la déduisons dans la même déclaration (grille 59), ce qui revient à zéro.",
   },
 }
