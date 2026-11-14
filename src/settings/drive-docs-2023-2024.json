@@ -1,5 +1,5 @@
 {
- "_comment": "Supporting documents (invoices, receipts) of 2023–2024 transactions in the Accounting Google Drive (folder 1-Fe-2C286MfsW_03raiLhkx8OdPvWHKW), by transaction id and amount. Matched on Open Collective expense numbers, invoice references and, for file names carrying a date and an amount, the one payment that fits. Drive file ids only: the files open for people with access to that Drive.",
+ "_comment": "Supporting documents (invoices, receipts) of 2023–2024 transactions in the Accounting Google Drive (folder 1-Fe-2C286MfsW_03raiLhkx8OdPvWHKW), by transaction id and amount. Matched (local mirror, then the live Drive for references the mirror lacked) on Open Collective expense numbers, invoice references and, for file names carrying a date and an amount, the one payment that fits. Drive file ids only: the files open for people with access to that Drive.",
  "links": {
   "ethereum:100:tx:0x01682efcfae7847ba6595bd2bb0ad72dd87d1ff904e90358c1c509f1c819f677|-1600": [
    "1F9CaIngiIHP-xwmQKDIT-Rls1srdyTlj"
@@ -292,6 +292,139 @@
   ],
   "wise:92197873:tx:TRANSFER-1261150916|-97.47": [
    "1Ja5sFzohOK_DeVJNgBNOufwDZuGVab_x"
+  ],
+  "wise:92197873:tx:TRANSFER-1146331879|-472": [
+   "1GrvnXQ-SN3_mbjC8_F3Os0h-og8C9R-k"
+  ],
+  "wise:92197873:tx:TRANSFER-1147613248|-4500": [
+   "1GHzQkccNR_PkYbK2BKfe81tOuqXG9AuN"
+  ],
+  "wise:92197873:tx:TRANSFER-1164995461|-2000": [
+   "1HN3lSwteV94mKkDHpZV1mqSUxllsFtOV"
+  ],
+  "wise:92197873:tx:TRANSFER-1165006420|-42.5": [
+   "1HA7y426mE2FMnYhlWSO6JfzWcfOYRjeE"
+  ],
+  "wise:92197873:tx:TRANSFER-1165008201|-60": [
+   "1HE9Qegn5yWTo84tj30bghMeYndQK_8Gj"
+  ],
+  "wise:92197873:tx:TRANSFER-1165063329|-9.82": [
+   "1HIoqdL6lZMGE46tnzzhze54eN554FAgB"
+  ],
+  "wise:92197873:tx:TRANSFER-1165064502|-19.8": [
+   "1HI9G-Op9O-ffA_t09WVQnIPYHoDuZutY"
+  ],
+  "wise:92197873:tx:TRANSFER-1165067575|-11.9": [
+   "1HNmY1XUYspfvigpkMItfQuEzTJEPjNJ3"
+  ],
+  "wise:92197873:tx:TRANSFER-1171449235|-316.24": [
+   "1HA7y426mE2FMnYhlWSO6JfzWcfOYRjeE"
+  ],
+  "wise:92197873:tx:TRANSFER-1171956536|-912.1": [
+   "1HLv1ma26TuzlsXlUNL8JQRFNQwTrcn4Z"
+  ],
+  "wise:92197873:tx:TRANSFER-1175832029|-1142.24": [
+   "1HWdVPkA97P85qjCECPNeMB9OrgRIxkBy"
+  ],
+  "wise:92197873:tx:TRANSFER-1175834375|-195.89": [
+   "1Hob56k-6YQO7RCJn6Om2IaV6ybjmT-dW"
+  ],
+  "wise:91390025:tx:TRANSFER-1181248211|-227.97": [
+   "1HjmR-s-zLIvbVVb4I6TD9hdhywTeO55P"
+  ],
+  "wise:91390025:tx:TRANSFER-1200610664|-250": [
+   "1IDEIQ7Mb275t_WsBOikVQkfjuKr7iER8",
+   "1IJj4kWowgWNAl_QiaJpmYzLTWqK8kGLb",
+   "1IT8J2l1OZ08d8D_OUR2xQQxSnVriuiJA"
+  ],
+  "ethereum:100:tx:0x34f37e9b82b116cdb5e238be7e9d5fb37cb9a06389fab531e8bf0e93b790a797|-7450.05": [
+   "1HpiLQg3ALPg1Mp7e5OS6G8IBbDp9hcd6"
+  ],
+  "ethereum:100:tx:0xf68c4af9a8c950611d8fc6a4fe6550af3fb110447d715e1b0854e82c231011ed|-1600": [
+   "1IBa7wk6Wk6p5wJhTnbSiiJcTULvy0Ofg"
+  ],
+  "iban:be46734072238636:tx:5fe0938e1e9aa219|-3000": [
+   "1ulAYh1VzV2-MaKuWjnLl0E8ARC1RKJd_"
+  ],
+  "iban:be46734072238636:tx:d44c4d0bebf8d902|-3000": [
+   "1-m0Cgv7ii0CIXyD33rRFpI1yzz9UaRjB"
+  ],
+  "iban:be46734072238636:tx:332809aa629ec861|-3000": [
+   "1gRaq3BrpcJ24n-inAzX_fU3HLuenqJJE"
+  ],
+  "wise:92133886:tx:TRANSFER-1209041259|-49.15": [
+   "1II1ZdBQ9gvFPPP1nw_DY4vEXHEMLZjrS",
+   "1IQr71DJce7dc7rCH0FCkVOZ-eoWqbEh7",
+   "1IkSv5FnmRpKWHZsAi38-c0w-uaqK3Ym_"
+  ],
+  "wise:92133886:tx:TRANSFER-1209124894|-131.76": [
+   "1ITVuBaKs_6BxMckpbKJ4L6zuzRWlguI6"
+  ],
+  "wise:91390025:tx:TRANSFER-1214893394|-157.3": [
+   "1Im-Ie_84IbRSqbeivlFx9Qe_G32ZesN_"
+  ],
+  "ethereum:137:tx:0x818dcb33af7d4d68a1257911253d0e50607dee6c525c8bfb9fca0a80237ee309|-1333.33": [
+   "14-z-KzF8jlRhjTmsGyJim06NSgTUSOMB"
+  ],
+  "ethereum:100:tx:0xb61b36620e466d49fbdb323689063d1d87e52ccf5114adcd7e4cd7483422118c|-1065.89": [
+   "1KOvSfl3drHlReK5stHrNkbti5KEVStvr"
+  ],
+  "ethereum:100:tx:0xbfccb37a5f59ebb6409c84bb19d92766244c13701523d4799de675ad7dd855fb|-720": [
+   "1KSjPT2R-yguythPdrsbUMog9CH7wftEu"
+  ],
+  "ethereum:100:tx:0xfbce39a6d22048f5e8db5be0bb988a5422c1ea2f95bbce67fd46460d84811b27|3509": [
+   "1uMYO6cKnbxVtu-De9Q1RQYJNAHxJug5y"
+  ],
+  "ethereum:100:tx:0x93c80f769eac0a2657473c2f945b214c818967a32033a95beca356fb615ccbeb|-4840": [
+   "1KpifHxYKFoNlqLhpoL31lsAmAxt_eCYr"
+  ],
+  "ethereum:100:tx:0x75bbfdeafabffce02e38e9858051fb1176c090e90bac0b67a2718a179dbf3719|-12.68": [
+   "1L37twHkKemcDF-BDGkmNUedyxCAHt8vi"
+  ],
+  "ethereum:100:tx:0x2e7a7b07699aa280eb8e31995c9237f6c78c9fcb7252b73eb19db4af31ed7108|-112.58": [
+   "1KSGXCugH51auPBynvkts2kvCKp7Wzn_0"
+  ],
+  "wise:104984308:tx:TRANSFER-1332167896|-3630": [
+   "1mCWoa_RoUmqiGNoRAkDJopapLrRPaGAm"
+  ],
+  "wise:104984308:tx:TRANSFER-1332170112|-3630": [
+   "1laW6ygE7gD9LS4zWoX43KQiw2GlpWDNp"
+  ],
+  "wise:104984308:tx:TRANSFER-1332175074|-1333.33": [
+   "18jWOuU7ijkqEwtiJ_SIyDhfLvlfEY85z"
+  ],
+  "ethereum:100:tx:0x09a6a95ca47ad8d0a5ee08f0e7f19a7038d24dd14b1cecd696d8f3b2f59b89ec|-139.44": [
+   "1KmKwZxuduSMScksQtgsPQ6uTDwk8f3RY",
+   "1LAQljv1e6eWW2lH_A3IBn03n_JRfGGYn"
+  ],
+  "ethereum:100:tx:0x5630dfd5dabad075c11b419164d7e77578c1dc22b32c28e0bafb69b7ac7be669|-130.56": [
+   "1KTVPhuUb5PxIeFiDbTIjHUUBOcFwmWjM",
+   "1LOLXUEoSWqY8nI_RndHAMfgMBpL6EZPp"
+  ],
+  "ethereum:100:tx:0x7d592a0aeccac1058c937eaf570e388c6b2458d88f25ffb8aa29e9217fe4086c|-109.78": [
+   "1LGc3j5L342mr6Ae8RapNaGQAbGEbpoLE"
+  ],
+  "ethereum:100:tx:0x5bdd15c7a60b90720928f60cc2d4dd75f24669cdb1f601a0f2a941eeac54aef5|-2.49": [
+   "1KhaGPTSizB7XSmUjH77jKpReqtqWDIBh"
+  ],
+  "ethereum:100:tx:0x0fda333d88e6778832702084ba2691c54b8e25325732dcd13ba93b8338d9c629|-220.07": [
+   "1L8aCUmJOC5MBVIRGuR6lq9kxdDOaDMtx"
+  ],
+  "ethereum:100:tx:0x6a92c2be2ffe3624c35698e806924fc03cf61f730366727920e356b57a313005|-1400": [
+   "1LNmSQ27Uhzmdm0nYciflF9bmxKURN8IV"
+  ],
+  "ethereum:100:tx:0xcb9648e0f5ae56d78392539c49fdf21ed2ffe674de59e3d7f8e4d6ada524b774|-1400": [
+   "1ML-gaRI5Z-D3IBMEhu6VCwkpHKTYbsDl"
+  ],
+  "wise:104984308:tx:TRANSFER-1342857974|-2420": [
+   "1TWSoblOblehKuRDOyVBrfOKFVRxMqDDb"
+  ],
+  "wise:104984308:tx:TRANSFER-1342872300|-3630": [
+   "1ctN4XFUZssY1xij5MgCfEAxN9NrT3pxy"
+  ],
+  "ethereum:100:tx:0x570cbaf39e06d770358c1020ca3980a61bc3f4d328f4526ab24521f97988f236|-130.56": [
+   "1KTVPhuUb5PxIeFiDbTIjHUUBOcFwmWjM",
+   "1LOLXUEoSWqY8nI_RndHAMfgMBpL6EZPp"
   ]
  }
 }
