@@ -22,6 +22,7 @@ import {
   vatPosition,
 } from "@/lib/vat-position"
 import { firstMonthByAccount, loadTransactions, quarterHasData } from "@/lib/vat-position-data"
+import settings from "@/settings/settings.json"
 
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic"
@@ -41,6 +42,7 @@ export async function generateMetadata({ searchParams }: PageProps) {
 }
 
 const YEARS = [2023, 2024]
+const COLLECTIVES = (settings.finance as { collectives?: Record<string, { name: string }> }).collectives ?? {}
 const BANK_ACCOUNT = "kbc"
 /** Number and date formatting in the page's language. */
 function formatters(lang: Lang) {
@@ -174,7 +176,7 @@ function LargeItems({ line, t, lang, f }: { line: CategoryLine; t: PageText; lan
                   <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span className="underline decoration-dotted underline-offset-2">{f.shortDate(i.date)}</span>
                 </Link>
-                {i.collective ? <span className="text-muted-foreground">· {i.collective}</span> : null}
+                {i.collective ? <span className="text-muted-foreground">· {COLLECTIVES[i.collective]?.name ?? i.collective}</span> : null}
               </div>
               {(i.note || i.description) && <div className="break-words text-muted-foreground">{i.note || i.description}</div>}
             </div>
