@@ -269,6 +269,9 @@
         "name": "Regens Unite",
         "icon": "/images/partners/regensunite.avif"
       },
+      "regenvillage": {
+        "name": "Regen Village"
+      },
       "openletter": {
         "name": "Open Letter",
         "icon": "/images/collectives/openletter.png"
