@@ -132,15 +132,10 @@ export const INCOME_RULES: Record<string, Rule> = {
   subsidy: { rate: "outside", label: "Subsidies", why: "Public funding not linked to the price of a service: no VAT." },
   loan: {
     rate: "outside",
-    label: "Interest-free loans (debt tokens)",
-    why: "Members and supporters lent the Hub money to get started, without interest, and hold debt tokens they can redeem against the space (see /debt). A loan is financing, not a sale: outside the scope of VAT.",
+    label: "Interest-free loans",
+    why: "Members and supporters lent the Hub money to get started, without interest; the Hub repays them in kind, against use of the space (see /debt). A loan is financing, not a sale: outside the scope of VAT.",
   },
-  debt: { rate: "outside", label: "Token top-ups", why: "Prepaid tokens are vouchers usable with many merchants: the VAT is due on what they buy when they are spent, not on the top-up." },
-  "debt:eurb": {
-    rate: "outside",
-    label: "EURb top-ups",
-    why: "EURb tokens bought by card: prepaid credit, a debt until the tokens are spent. The VAT is due on what they buy then, not on the top-up: outside the scope of VAT.",
-  },
+  debt: { rate: "outside", label: "Token top-ups", why: "Prepaid tokens (Brussels Pay, EURb, Zinne…) are vouchers, a debt until they are spent: the VAT is due on what they buy then, not on the top-up." },
 }
 
 /** The VAT on each chb category of expense, and why. Amounts paid include the VAT. */
@@ -406,7 +401,8 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     const base = regime ? { ...category0, rate: regime, why: REGIME_WHY[dir][regime] ?? category0.why } : category0
     // Before we were registered, nothing carried VAT and none could be deducted. That only
     // changes something for what would carry VAT: donations or rent are the same either way.
-    const taxable = ["21", "12", "6", "receipt"].includes(base.rate)
+    // (A purchase under reverse charge only became one when we registered: before, no VAT to declare or deduct.)
+    const taxable = ["21", "12", "6", "receipt"].includes(base.rate) || (dir === "expense" && (base.rate === "reverse_eu" || base.rate === "reverse_noneu"))
     const rule = taxable && date.toISOString().slice(0, 10) < VAT_REGISTERED_SINCE
       ? { ...base, rate: "before" as RateClass, why: `Before ${longDay(VAT_REGISTERED_SINCE)}, when we became subject to VAT: no VAT charged, none deducted.` }
       : base
