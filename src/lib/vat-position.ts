@@ -56,19 +56,56 @@ export const declaredSalesVat = (period: VatPeriod) => round((period.grids["54"]
 // ── money in and out, sorted by the VAT rate it carries ───────────────────
 
 export type Direction = "income" | "expense"
-export type RateClass = "21" | "12" | "6" | "receipt" | "exempt" | "outside" | "unknown" | "before"
+export type RateClass = "21" | "12" | "6" | "reverse_eu" | "export" | "reverse_noneu" | "receipt" | "exempt" | "outside" | "unknown" | "before"
 
 export const RATE_CLASSES: Record<RateClass, { label: string; rate: number | null }> = {
   "21": { label: "21%", rate: 0.21 },
   "12": { label: "12%", rate: 0.12 },
   "6": { label: "6%", rate: 0.06 },
+  reverse_eu: { label: "Reverse charge: a business in another EU country", rate: 0 },
+  export: { label: "0%: customers outside the EU", rate: 0 },
+  reverse_noneu: { label: "Reverse charge: suppliers outside the EU", rate: 0 },
   receipt: { label: "VAT paid, not deductible", rate: 0 },
   exempt: { label: "Exempt (0%)", rate: 0 },
   outside: { label: "Outside the scope of VAT", rate: 0 },
   unknown: { label: "Not estimated", rate: null },
   before: { label: "Before our VAT registration", rate: 0 },
 }
-export const RATE_ORDER: RateClass[] = ["21", "12", "6", "receipt", "exempt", "outside", "unknown", "before"]
+export const RATE_ORDER: RateClass[] = ["21", "12", "6", "reverse_eu", "export", "reverse_noneu", "receipt", "exempt", "outside", "unknown", "before"]
+
+/** VAT we declare and deduct ourselves on a service bought under reverse charge (net zero), at the standard rate. */
+export const SELF_ASSESSED_RATE = 0.21
+
+/**
+ * The VAT regime a payment's annotation note states, which wins over its
+ * category's: "grid 44" / "EU B2B" (a business customer in another EU
+ * country), "grid 47" / "outside the EU" for what we sold (no Belgian VAT),
+ * "grids 88" for a service bought from another EU country, "grid 87" for
+ * one bought from outside the EU (both: reverse charge).
+ */
+export function regimeFromNote(dir: Direction, note: string | undefined | null): RateClass | null {
+  const n = (note ?? "").toLowerCase()
+  if (!n) return null
+  if (dir === "income") {
+    if (/grid 44|eu b2b/.test(n)) return "reverse_eu"
+    if (/grid 47|outside the eu/.test(n)) return "export"
+    return null
+  }
+  if (/grids? 88|another eu country/.test(n)) return "reverse_eu"
+  if (/grids? 87|outside the eu/.test(n)) return "reverse_noneu"
+  return null
+}
+
+export const REGIME_WHY: Record<Direction, Partial<Record<RateClass, string>>> = {
+  income: {
+    reverse_eu: "Services to a business in another EU country: no Belgian VAT on the invoice, the customer accounts for it (grid 44).",
+    export: "Services to customers outside the EU: no Belgian VAT (grid 47).",
+  },
+  expense: {
+    reverse_eu: "Services from a supplier in another EU country, invoiced without VAT: we declare the Belgian VAT ourselves (grids 88 and 55) and deduct it in the same return (grid 59), so it comes to nothing.",
+    reverse_noneu: "Services from a supplier outside the EU, invoiced without VAT: we declare the Belgian VAT ourselves (grids 87 and 56) and deduct it in the same return (grid 59), so it comes to nothing.",
+  },
+}
 
 interface Rule {
   rate: RateClass
@@ -350,8 +387,12 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     seen.add(key)
     const dir = directionOf(tx)
     const date = brusselsDate(tx.timestamp)
-    if (!dir || !years.includes(date.getUTCFullYear())) continue
-    const base = ruleFor(dir, tx.metadata?.category, tx.metadata?.collective)
+    // €1 test transfers (before a real payment, or to try a wallet) are noise here.
+    if (!dir || !years.includes(date.getUTCFullYear()) || Math.abs(tx.amount) <= 1) continue
+    const category0 = ruleFor(dir, tx.metadata?.category, tx.metadata?.collective)
+    // The annotation's VAT regime (a sponsor abroad, a supplier billing under reverse charge) wins over the category's.
+    const regime = regimeFromNote(dir, String((tx.metadata as Record<string, unknown>)?.note ?? ""))
+    const base = regime ? { ...category0, rate: regime, why: REGIME_WHY[dir][regime] ?? category0.why } : category0
     // Before we were registered, nothing carried VAT and none could be deducted. That only
     // changes something for what would carry VAT: donations or rent are the same either way.
     const taxable = ["21", "12", "6", "receipt"].includes(base.rate)
