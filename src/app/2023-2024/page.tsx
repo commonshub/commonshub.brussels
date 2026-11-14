@@ -457,6 +457,10 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
               {t.sources[2]}
               <Link href="/taxes" className="underline underline-offset-2">{t.sources[3]}</Link>.
             </p>
+            <p>
+              How these figures compare with our books, line by line:{" "}
+              <Link href="/2023-2024/winbooks" className="underline underline-offset-2">WinBooks and the money</Link>.
+            </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

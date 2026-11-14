@@ -288,11 +288,26 @@ export interface Side {
   vat: number
   groups: RateGroup[]
 }
+/** One category's total over every rate it falls under (before and after our VAT registration). */
+export interface CategoryTotal {
+  category: string
+  label: string
+  /** VAT included. */
+  amount: number
+  /** VAT in it; 0 where no rate is estimated. */
+  vat: number
+  count: number
+  /** Payments of at least LARGE. */
+  items: Item[]
+}
+
 export interface Position {
   income: Side
   expense: Side
   /** Per quarter: the VAT our income and expenses carry. */
   quarters: Map<QuarterKey, { collected: number; paid: number }>
+  /** The same money by category alone, for comparing with books kept by category (WinBooks). */
+  byCategory: Record<Direction, Map<string, CategoryTotal>>
 }
 
 /** Brussels calendar date, as a UTC date (so getUTC* reads it back). */
@@ -316,6 +331,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
   const grouped = new Map<string, Map<string, Item>>()
   const lines = { income: new Map<string, CategoryLine & { rate: RateClass }>(), expense: new Map<string, CategoryLine & { rate: RateClass }>() }
   const quarters = new Map<QuarterKey, { collected: number; paid: number }>()
+  const byCategory: Position["byCategory"] = { income: new Map(), expense: new Map() }
   for (const tx of txs) {
     const key = txKey(tx)
     if (seen.has(key)) continue
@@ -360,6 +376,12 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     if (vat !== null) line.vat = round((line.vat ?? 0) + vat)
     line.count++
     lines[dir].set(lineKey, line)
+    const total = byCategory[dir].get(base.category) ?? { category: base.category, label: base.label, amount: 0, vat: 0, count: 0, items: [] }
+    total.amount = round(total.amount + amount)
+    total.vat = round(total.vat + (vat ?? 0))
+    total.count++
+    if (Math.abs(tx.amount) >= LARGE) total.items.push(itemOf(tx, date, explorer))
+    byCategory[dir].set(base.category, total)
     if (vat) {
       const q = quarterOf(date)
       const row = quarters.get(q) ?? { collected: 0, paid: 0 }
@@ -407,7 +429,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     }).filter((g) => g.lines.length > 0)
     return { amount: round(groups.reduce((s, g) => s + g.amount, 0)), vat: round(groups.reduce((s, g) => s + (g.vat ?? 0), 0)), groups }
   }
-  return { income: side(lines.income), expense: side(lines.expense), quarters }
+  return { income: side(lines.income), expense: side(lines.expense), quarters, byCategory }
 }
 
 /** VAT deducted on purchases, as declared (grid 59). */
