@@ -71,6 +71,8 @@ export const INCOME_RULES: Record<string, Rule> = {
   sponsoring: { rate: "unknown", label: "Sponsoring", why: "Visibility in exchange for money is a service, taxed where the customer is: 21% for a Belgian sponsor, no Belgian VAT for a business abroad (grids 44 and 47). Most of our sponsors (Regen Village) were foreign companies, so it is not estimated." },
   catering: { rate: "12", label: "Catering", why: "Meals served: 12% on the food (drinks would be 21%)." },
   consulting: { rate: "21", label: "Consulting", why: "A service at the standard rate." },
+  equipment: { rate: "21", label: "Equipment sold", why: "A sale of goods at the standard rate." },
+  webservice: { rate: "21", label: "Web services", why: "A service at the standard rate." },
   other_income: { rate: "21", label: "Other sales", why: "Taken as a service at the standard rate." },
   membership: { rate: "exempt", label: "Membership", why: "Fees an association collects from its members for its statutory purpose, with no individual service in exchange, are exempt (art. 44 §2 11°)." },
   donation: { rate: "outside", label: "Donations", why: "Nothing is given in exchange: not a supply, so no VAT." },
@@ -79,8 +81,8 @@ export const INCOME_RULES: Record<string, Rule> = {
   debt: { rate: "outside", label: "Token top-ups", why: "Prepaid tokens are vouchers usable with many merchants: the VAT is due on what they buy when they are spent, not on the top-up." },
   "debt:eurb": {
     rate: "unknown",
-    label: "EURb top-ups (drinks and coffee)",
-    why: "Drinks and coffee were paid with EURb tokens bought here, so no drink sale shows in our accounts. The VAT is due when the tokens are spent at the fridge and the coffee machine; those wallets are not in the dataset for these years, so it is not estimated.",
+    label: "EURb top-ups",
+    why: "EURb tokens bought by card. The VAT is due on what they buy when they are spent, and what they bought in these years is not known yet, so it is not estimated.",
   },
 }
 
@@ -93,6 +95,9 @@ export const EXPENSE_RULES: Record<string, Rule> = {
   equipment: { rate: "21", label: "Equipment", why: "Goods at the standard rate." },
   supplies: { rate: "21", label: "Supplies", why: "Goods at the standard rate." },
   catering: { rate: "12", label: "Catering", why: "A catering service: 12% on the food (drinks 21%)." },
+  webservice: { rate: "21", label: "Software and web services", why: "Standard rate. Most are billed from abroad: we then declare the Belgian VAT ourselves (reverse charge) and deduct it in the same return." },
+  fridge: { rate: "6", label: "Fridge stock", why: "Food and soft drinks bought for the fridge: 6% (beer and other alcohol would be 21%)." },
+  donation: { rate: "outside", label: "Donations we made", why: "Nothing received in exchange: not a purchase." },
   drinks: { rate: "21", label: "Drinks bought", why: "Taken at the standard rate (soft drinks and water bought in a shop can be 6%)." },
   rent: { rate: "exempt", label: "Rent", why: "Letting of a building is exempt (art. 44 §3 2°), unless the owner opted to charge VAT." },
   insurance: { rate: "exempt", label: "Insurance", why: "Insurance is exempt (art. 44 §3 4°); a separate insurance tax applies instead." },
