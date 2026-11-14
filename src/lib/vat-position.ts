@@ -137,9 +137,9 @@ export const INCOME_RULES: Record<string, Rule> = {
   },
   debt: { rate: "outside", label: "Token top-ups", why: "Prepaid tokens are vouchers usable with many merchants: the VAT is due on what they buy when they are spent, not on the top-up." },
   "debt:eurb": {
-    rate: "unknown",
+    rate: "outside",
     label: "EURb top-ups",
-    why: "EURb tokens bought by card. The VAT is due on what they buy when they are spent, and what they bought in these years is not known yet, so it is not estimated.",
+    why: "EURb tokens bought by card: prepaid credit, a debt until the tokens are spent. The VAT is due on what they buy then, not on the top-up: outside the scope of VAT.",
   },
 }
 
@@ -283,12 +283,23 @@ export interface CategoryLine {
   items: Item[]
   /** For "smaller amounts": the categories put together. */
   parts?: Array<{ category: string; label: string; amount: number }>
+  /** Every payment of the line, before the listed ones are picked (internal). */
+  pool?: Item[]
   /** Totals per project (collective slug, "" when none), over every payment of the line. */
   projects: Record<string, { amount: number; count: number }>
 }
 
 /** A payment from this amount up is listed one by one. */
 export const LARGE = 2000
+/** And at least this many of the largest, per project, whatever their amount. */
+export const TOP = 10
+
+/** The payments to list: per project, every one of LARGE or more, and at least the TOP largest. */
+export function pickListed(pool: Item[]): Item[] {
+  const byProject = new Map<string, Item[]>()
+  for (const i of pool) byProject.set(i.collective ?? "", [...(byProject.get(i.collective ?? "") ?? []), i])
+  return [...byProject.values()].flatMap((items) => items.sort((a, b) => b.amount - a.amount).filter((i, n) => n < TOP || Math.abs(i.amount) >= LARGE))
+}
 /**
  * "2 payments of €20k or more": the smallest one listed, rounded down to the
  * thousand, says more than the threshold. A single one gives its amount.
@@ -297,7 +308,7 @@ export function itemsLabel(amounts: number[]): string {
   if (amounts.length === 0) return ""
   if (amounts.length === 1) return `1 payment of €${Math.round(amounts[0]).toLocaleString("en-GB")}`
   const floor = Math.floor(Math.min(...amounts) / 1000)
-  return `${amounts.length} payments of €${floor}k or more`
+  return floor < 1 ? `The ${amounts.length} largest payments` : `${amounts.length} payments of €${floor}k or more`
 }
 
 /** A category under this total joins the "smaller amounts" of its rate. */
@@ -429,7 +440,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
         if (iso > g.group!.until) g.group!.until = iso
       }
       grouped.set(`${dir}|${lineKey}`, byGroup)
-    } else if (Math.abs(tx.amount) >= LARGE) line.items.push(itemOf(tx, date, explorer))
+    } else (line.pool ??= []).push(itemOf(tx, date, explorer))
     if (vat !== null) line.vat = round((line.vat ?? 0) + vat)
     line.count++
     lines[dir].set(lineKey, line)
@@ -451,6 +462,11 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     const [dir, lineKey] = [key.slice(0, key.indexOf("|")), key.slice(key.indexOf("|") + 1)] as [Direction, string]
     lines[dir].get(lineKey)?.items.push(...byGroup.values())
   }
+  for (const m of [lines.income, lines.expense])
+    for (const line of m.values()) {
+      line.items = [...line.items, ...pickListed(line.pool ?? [])]
+      delete line.pool
+    }
   const side = (m: Map<string, CategoryLine & { rate: RateClass }>): Side => {
     const groups = RATE_ORDER.map((rate) => {
       const all = [...m.values()].filter((l) => l.rate === rate)
