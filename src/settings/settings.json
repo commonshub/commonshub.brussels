@@ -474,7 +474,8 @@
     "chbPubkey": "f41dba36eefd728c4a4da627f50dd83e442c2e1cb4775ded98818b7f2b43cd0f"
   },
   "taxes": {
-    "_comment": "Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists the taxes billed to us (the owner's letter of 27 September 2026); payments of the same kind and tax year count against them, and an entry disappears once paid in full. `installments`: the dates by which each equal part is due, for what is past due. `passThrough` is the owner's split of the building's property tax, office tax and non-residential surfaces tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
+    "vatRegisteredSince": "2024-05-01",
+    "_comment": "vatRegisteredSince: the day we became subject to VAT (KBO/BCE record of 0804.505.132: 'Subject to VAT since May 1, 2024'); no return is due before it, nothing before it carried VAT. Shown on /taxes. Payments are read from the public transactions: a payment belongs to the first rule whose `match` (regex, case-insensitive) finds its description. Amounts paid count positive, refunds negative. `pending` lists the taxes billed to us (the owner's letter of 27 September 2026); payments of the same kind and tax year count against them, and an entry disappears once paid in full. `installments`: the dates by which each equal part is due, for what is past due. `passThrough` is the owner's split of the building's property tax, office tax and non-residential surfaces tax by cadastral income (R.C.) — see the spreadsheet 'Répartition R.C. — Précompte immobilier & Taxe bureaux'. The VAT returns themselves come from chb's latest/vat.json.",
     "rules": [
       {
         "kind": "property-tax",

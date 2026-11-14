@@ -1,4 +1,4 @@
-import { declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
+import { subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
 import type { VatPeriod } from "@/lib/taxes"
 import type { Transaction } from "@/types/transactions"
 
@@ -33,8 +33,8 @@ describe("vat-position", () => {
   it("adds up income and expenses by rate, once each, on the Brussels date", () => {
     const p = vatPosition(
       [
-        tx("a", 121, "2024-04-02", "rental"),
-        tx("a", 121, "2024-04-02", "rental"), // the same transaction filed twice
+        tx("a", 121, "2024-06-02", "rental"),
+        tx("a", 121, "2024-06-02", "rental"), // the same transaction filed twice
         { ...tx("m", 100, "2024-05-20", "grant"), counterpartyId: "x" }, // one swap paying out two amounts
         { ...tx("m", 200, "2024-05-20", "grant"), counterpartyId: "y" },
         tx("b", 1000, "2024-05-01", "donation"),
@@ -85,6 +85,18 @@ describe("vat-position", () => {
     ])
     const grant = p.income.groups.find((g) => g.rate === "outside")!.lines[0]
     expect(grant.items[0]).toMatchObject({ explorer: "https://polygonscan.com/tx/0xabc", href: "/2024/05/transactions/0xabc" })
+  })
+
+  it("charges and deducts no VAT before our registration (1 May 2024), and expects no return before it", () => {
+    const p = vatPosition([tx("a", 121, "2024-04-30", "rental"), tx("b", 121, "2024-05-01", "rental"), tx("c", -121, "2024-03-01", "services")], [2024])
+    expect(p.income.groups.map((g) => [g.rate, g.amount, g.vat])).toEqual([
+      ["21", 121, 21],
+      ["before", 121, 0],
+    ])
+    expect(p.expense.vat).toBe(0)
+    expect(subjectToVat(2024, 1)).toBe(false)
+    expect(subjectToVat(2024, 2)).toBe(true)
+    expect(returnOverdue(2023, 4, new Date("2026-11-14T00:00:00Z"))).toBe(false)
   })
 
   it("reads the VAT declared on sales from grids 54 and 64", () => {
