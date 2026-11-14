@@ -1,4 +1,4 @@
-import { subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
+import { itemsLabel, subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
 import type { VatPeriod } from "@/lib/taxes"
 import type { Transaction } from "@/types/transactions"
 
@@ -97,6 +97,13 @@ describe("vat-position", () => {
     expect(subjectToVat(2024, 1)).toBe(false)
     expect(subjectToVat(2024, 2)).toBe(true)
     expect(returnOverdue(2023, 4, new Date("2026-11-14T00:00:00Z"))).toBe(false)
+  })
+
+  it("says how big the listed payments are", () => {
+    expect(itemsLabel([35000, 20558.41])).toBe("2 payments of €20k or more")
+    expect(itemsLabel([3509])).toBe("1 payment of €3,509")
+    expect(itemsLabel([5000, 2019.68, 4000])).toBe("3 payments of €2k or more")
+    expect(itemsLabel([])).toBe("")
   })
 
   it("reads the VAT declared on sales from grids 54 and 64", () => {
