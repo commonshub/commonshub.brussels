@@ -20,7 +20,7 @@ describe("vat-position", () => {
     expect(ruleFor("expense", "expense")).toMatchObject({ rate: "receipt", label: "Expenses reimbursed" }) // chb's slug
     expect(ruleFor("income", undefined)).toMatchObject({ rate: "unknown", label: "Not categorised yet" })
     expect(ruleFor("income", "mystery")).toMatchObject({ rate: "unknown", label: "mystery" })
-    expect(ruleFor("income", "debt", "eurb")).toMatchObject({ rate: "outside", category: "debt:eurb" })
+    expect(ruleFor("income", "debt", "eurb")).toMatchObject({ rate: "outside", category: "debt", label: "Token top-ups" })
     expect(ruleFor("income", "debt", "brusselspay").category).toBe("debt")
     expect(ruleFor("income", "other-income").rate).toBe("21")
     expect(ruleFor("income", "sponsoring").rate).toBe("unknown")
@@ -161,6 +161,8 @@ describe("vat-position", () => {
       ],
       [2024],
     )
+    const before = vatPosition([{ ...tx("q", -9, "2024-03-30", "webservice"), metadata: { category: "webservice", note: "QuickNode Inc. (US): service from outside the EU, reverse charge (grids 87 and 56)" } } as Transaction], [2024])
+    expect(before.expense.groups.map((g) => g.rate)).toEqual(["before"]) // reverse charge only from our VAT registration
     expect(p.income.groups.map((g) => [g.rate, g.amount])).toEqual([
       ["reverse_eu", 5000],
       ["export", 2512],
