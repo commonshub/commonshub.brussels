@@ -362,6 +362,10 @@ export default function Vat20232024Page() {
               <Link href="/integrity" className="underline underline-offset-2">public dataset</Link>, the returns from Intervat; see also{" "}
               <Link href="/taxes" className="underline underline-offset-2">all our taxes</Link>.
             </p>
+            <p>
+              How these figures compare with our books, line by line:{" "}
+              <Link href="/2023-2024/winbooks" className="underline underline-offset-2">WinBooks and the money</Link>.
+            </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
