@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { AlertTriangle, ChevronDown, ReceiptText } from "lucide-react"
+import { AlertTriangle, ChevronDown, FileText, ReceiptText } from "lucide-react"
 
 import { VatBox } from "@/components/vat-box"
 import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
@@ -95,15 +95,41 @@ function LargeItems({ line }: { line: CategoryLine }) {
   if (line.items.length === 0) return null
   const listed = sum(line.items.map((i) => i.amount))
   const rest = round(line.amount - listed)
-  const others = line.count - line.items.length
+  const others = line.count - line.items.reduce((s, i) => s + (i.count ?? 1), 0)
   return (
     <details className="group/items mt-2">
       <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-primary">
         <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/items:rotate-180" />
-        {itemsLabel(line.items.map((i) => i.amount))}
+        {line.items.length === 1 && line.items[0].group
+          ? `${line.items[0].group.label}: ${eur0.format(line.items[0].amount)}`
+          : itemsLabel(line.items.map((i) => i.amount)).replace(/payments?/, (w) => (line.items.some((i) => i.group) ? (w.endsWith("s") ? "items" : "item") : w))}
       </summary>
       <ul className="mt-2 space-y-2 border-l-2 border-border pl-2 text-xs">
-        {line.items.map((i, n) => (
+        {line.items.map((i, n) =>
+          i.group ? (
+            <li key={`group-${n}`} className="flex gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium leading-5 text-foreground">{i.group.label}</div>
+                {i.group.detail && <div className="text-muted-foreground">{i.group.detail}</div>}
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 leading-5">
+                  <Link href={i.href} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary" title="Open the first payment">
+                    <ReceiptText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="underline decoration-dotted underline-offset-2">
+                      {i.count} {i.count === 1 ? "transfer" : "transfers"}, {shortDate(i.date)}
+                      {i.group.until !== i.date ? ` – ${shortDate(i.group.until)}` : ""}
+                    </span>
+                  </Link>
+                  {i.group.document && (
+                    <a href={i.group.document.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                      <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {i.group.document.label}
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div className="leading-5 tabular-nums text-foreground">{eur.format(i.amount)}</div>
+            </li>
+          ) : (
           <li key={`${i.href}-${n}`} className="flex gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-1 leading-5 text-foreground">
@@ -117,7 +143,8 @@ function LargeItems({ line }: { line: CategoryLine }) {
             </div>
             <div className="leading-5 tabular-nums text-foreground">{eur.format(i.amount)}</div>
           </li>
-        ))}
+          ),
+        )}
         {others > 0 && (
           <li className="flex gap-3 text-muted-foreground">
             <div className="flex-1">
