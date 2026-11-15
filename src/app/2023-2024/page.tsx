@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers"
 import { AlertTriangle, ChevronDown, FileText, ReceiptText } from "lucide-react"
 
 import { LangSwitch } from "@/components/lang-switch"
+import { Linkified } from "@/components/linkified"
 import { countryFlag } from "@/lib/country-flag"
 import { VatBox } from "@/components/vat-box"
 import { type Lang, LOCALE, RATE_LABELS, REGIME_WHY_FR, SELF_ASSESSED, TEXT, type PageText, pickLang, ruleText } from "@/lib/vat-i18n"
@@ -221,7 +222,7 @@ function ItemRow({ i, t, lang, f, showProject }: { i: Item; t: PageText; lang: L
                 {flag}
               </span>
             )}
-            {text}
+            <Linkified text={text} />
           </div>
         )}
       </div>
