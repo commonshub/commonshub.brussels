@@ -185,7 +185,7 @@ export interface PageText {
   wiseCard: string
   grids4447: string
   sources: [string, string, string, string]
-  winbooks: [string, string]
+  books: { title: string; intro: string; crypto: (a: string) => string; timing: (a: string) => string; noVatCode: string; debts: string; cta: [string, string] }
   vatNotEstimated: string
   vat: string
   payments: (n: number) => string
@@ -277,7 +277,15 @@ export const TEXT: Record<Lang, PageText> = {
     wiseCard: "Our Wise card balance ended 2024 with €4,191.77. Where it went in 2025 is not traced yet: it was not part of Wise's final refund in April 2025.",
     grids4447: "The returns also declare sales without Belgian VAT: services to customers in other EU countries (grid 44) and operations outside its scope (grid 47).",
     sources: ["Every amount comes from the ", "public dataset", ", the returns from Intervat; see also ", "all our taxes"],
-    winbooks: ["How these figures compare with our books, line by line: ", "WinBooks and the money"],
+    books: {
+      title: "Our books (WinBooks) next to these figures",
+      intro: "Our accounts for July 2023 – December 2024, kept in WinBooks, do not match the money that moved. The main gaps:",
+      crypto: (a) => `crypto grant money counted twice, or at its dollar value, in WinBooks: ${a} of income too much;`,
+      timing: (a) => `invoices of 2024 paid in 2025, booked in 2024 in WinBooks: ${a};`,
+      noVatCode: "ticket sales, Stripe memberships, coworking and the Citizen Wallet sponsor contributions booked without a VAT code, so in no VAT return;",
+      debts: "token top-ups and campaign loans booked as debts, not as income.",
+      cta: ["Every difference, line by line, with its reason: ", "WinBooks and the money"],
+    },
     vatNotEstimated: "VAT not estimated",
     vat: "VAT",
     payments: (n) => `${n} ${n === 1 ? "payment" : "payments"}`,
@@ -373,7 +381,15 @@ export const TEXT: Record<Lang, PageText> = {
     wiseCard: "Le solde de notre carte Wise finissait 2024 à 4 191,77 €. Où il est parti en 2025 n'est pas encore retracé : il ne faisait pas partie du remboursement final de Wise en avril 2025.",
     grids4447: "Les déclarations reprennent aussi des ventes sans TVA belge : services à des clients d'autres pays de l'UE (grille 44) et opérations hors de son champ (grille 47).",
     sources: ["Chaque montant vient des ", "données publiques", ", les déclarations d'Intervat ; voir aussi ", "toutes nos taxes"],
-    winbooks: ["Comment ces chiffres se comparent à notre comptabilité, ligne par ligne : ", "WinBooks et l'argent (en anglais)"],
+    books: {
+      title: "Notre comptabilité (WinBooks) face à ces chiffres",
+      intro: "Nos comptes de juillet 2023 à décembre 2024, tenus dans WinBooks, ne correspondent pas à l'argent qui a circulé. Les principaux écarts :",
+      crypto: (a) => `des subventions reçues en crypto comptées deux fois, ou à leur valeur en dollars, dans WinBooks : ${a} de recettes en trop ;`,
+      timing: (a) => `des factures de 2024 payées en 2025, comptabilisées en 2024 dans WinBooks : ${a} ;`,
+      noVatCode: "les tickets, les cotisations Stripe, le coworking et les contributions de sponsors de Citizen Wallet comptabilisés sans code TVA, donc dans aucune déclaration ;",
+      debts: "les recharges de jetons et les prêts de la campagne comptabilisés comme des dettes, pas comme des recettes.",
+      cta: ["Chaque écart, ligne par ligne, avec sa raison : ", "WinBooks et l'argent (en anglais)"],
+    },
     vatNotEstimated: "TVA non estimée",
     vat: "TVA",
     payments: (n) => `${n} paiement${n === 1 ? "" : "s"}`,

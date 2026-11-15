@@ -28,6 +28,7 @@ import {
 } from "@/lib/vat-position"
 import { firstMonthByAccount, loadTransactions, quarterHasData } from "@/lib/vat-position-data"
 import settings from "@/settings/settings.json"
+import { compareWithWinbooks } from "@/lib/winbooks-2023-2024"
 
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic"
@@ -340,6 +341,8 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
   const declaredSales = sum(filed.map((q) => declaredSalesVat(q.period!)))
   const declaredInput = sum(filed.map((q) => declaredInputVat(q.period!)))
   const estBalance = round(position.income.vat - position.expense.vat)
+  const books = compareWithWinbooks(position)
+  const themeAmount = (theme: string) => books.themes.find((x) => x.theme === theme)?.amount ?? 0
   const owed = sum(filed.filter((q) => q.net > 0).map((q) => q.net))
   const owedToUs = sum(filed.filter((q) => q.net < 0).map((q) => -q.net))
   const net = round(owed - owedToUs)
@@ -542,6 +545,21 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
             </details>
           </div>
 
+          <div id="winbooks" className="max-w-3xl scroll-mt-24 rounded-lg border border-border bg-card p-5">
+            <h2 className="text-lg font-semibold text-foreground">{t.books.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{t.books.intro}</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              <li>{t.books.crypto(f.eur(themeAmount("crypto")))}</li>
+              <li>{t.books.timing(f.eur(themeAmount("timing")))}</li>
+              <li>{t.books.noVatCode}</li>
+              <li>{t.books.debts}</li>
+            </ul>
+            <p className="mt-3 text-sm">
+              {t.books.cta[0]}
+              <Link href="/2023-2024/winbooks" className="font-medium underline underline-offset-2">{t.books.cta[1]}</Link>.
+            </p>
+          </div>
+
           <div className="max-w-3xl space-y-3 text-sm text-muted-foreground">
             <h2 className="text-lg font-semibold text-foreground">{t.howToRead}</h2>
             <p>{t.howOurs}</p>
@@ -552,10 +570,6 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
               <Link href="/integrity" className="underline underline-offset-2">{t.sources[1]}</Link>
               {t.sources[2]}
               <Link href="/taxes" className="underline underline-offset-2">{t.sources[3]}</Link>.
-            </p>
-            <p>
-              {t.winbooks[0]}
-              <Link href="/2023-2024/winbooks" className="underline underline-offset-2">{t.winbooks[1]}</Link>.
             </p>
           </div>
 
