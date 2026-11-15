@@ -140,7 +140,7 @@ export const INCOME_RULES: Record<string, Rule> = {
 
 /** The VAT on each chb category of expense, and why. Amounts paid include the VAT. */
 export const EXPENSE_RULES: Record<string, Rule> = {
-  consulting: { rate: "21", label: "Consultants and freelancers", why: "Services at the standard rate. Freelancers based in another EU country invoice us without VAT: we then owe the Belgian VAT ourselves (reverse charge) and deduct it in the same return, so for them it comes to nothing." },
+  consulting: { rate: "21", label: "Consultants and freelancers", why: "Services from Belgian consultants and freelancers, invoiced with 21% VAT. Those based abroad, invoiced without VAT, are under reverse charge below." },
   events: { rate: "21", label: "Events", why: "Speakers, venues and services for events: standard rate." },
   services: { rate: "21", label: "Services", why: "Standard rate." },
   other_expense: { rate: "21", label: "Other expenses", why: "Taken at the standard rate." },
@@ -361,6 +361,8 @@ export interface Position {
   expense: Side
   /** Per quarter: the VAT our income and expenses carry. */
   quarters: Map<QuarterKey, { collected: number; paid: number }>
+  /** Per quarter: the return's grids as the money says they should read (see GRID_ROWS). */
+  grids: Map<QuarterKey, Record<string, number>>
   /** The same money by category alone, for comparing with books kept by category (WinBooks). */
   byCategory: Record<Direction, Map<string, CategoryTotal>>
 }
@@ -386,6 +388,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
   const grouped = new Map<string, Map<string, Item>>()
   const lines = { income: new Map<string, CategoryLine & { rate: RateClass }>(), expense: new Map<string, CategoryLine & { rate: RateClass }>() }
   const quarters = new Map<QuarterKey, { collected: number; paid: number }>()
+  const grids = new Map<QuarterKey, Record<string, number>>()
   const byCategory: Position["byCategory"] = { income: new Map(), expense: new Map() }
   for (const tx of txs) {
     const key = txKey(tx)
@@ -446,6 +449,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     total.count++
     if (Math.abs(tx.amount) >= LARGE) total.items.push(itemOf(tx, date, explorer))
     byCategory[dir].set(base.category, total)
+    addToGrids(grids, quarterOf(date), dir, rule.rate, amount, vat ?? 0)
     if (vat) {
       const q = quarterOf(date)
       const row = quarters.get(q) ?? { collected: 0, paid: 0 }
@@ -502,7 +506,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     }).filter((g) => g.lines.length > 0)
     return { amount: round(groups.reduce((s, g) => s + g.amount, 0)), vat: round(groups.reduce((s, g) => s + (g.vat ?? 0), 0)), groups }
   }
-  return { income: side(lines.income), expense: side(lines.expense), quarters, byCategory }
+  return { income: side(lines.income), expense: side(lines.expense), quarters, grids, byCategory }
 }
 
 /** VAT deducted on purchases, as declared (grid 59). */
@@ -510,3 +514,91 @@ export const declaredInputVat = (period: VatPeriod) => round(period.grids["59"] 
 
 /** Never serve a filer's contact details, even if a published return still had them. */
 export const redactDeclarant = (xml: string) => xml.replace(/<(\w+:)?(EmailAddress|Phone)>[^<]*<\/(\w+:)?\2>/g, "")
+
+/**
+ * A payment's note as listed under its category: without the VAT-regime
+ * sentence ("outside the EU, no Belgian VAT, grid 47", "Belgian VAT
+ * self-assessed under reverse charge (grids 88 and 55…)"), which the
+ * category's own explanation already gives. The transaction page keeps the
+ * full note.
+ */
+export function itemNote(note: string | undefined | null): string {
+  let n = note ?? ""
+  const boiler = [
+    /[.;:,]?\s*service from another EU country without VAT: Belgian VAT self-assessed under reverse charge(?:\s*\([^)]*\))?/gi,
+    /[.;:,]?\s*service from outside the EU, Belgian VAT self-assessed under reverse charge(?:\s*\([^)]*\)|(?:, grids? \d+(?: and \d+)?)?(?:, deducted in 59)?)/gi,
+    /[.;:,]?\s*intra-EU acquisition of goods: Belgian VAT self-assessed(?:\s*\([^)]*\))?/gi,
+    /[.;:,]?\s*service to a business in another EU country(?=:)/gi,
+    /[.;:,]?\s*EU B2B, reverse charge, grid 44/gi,
+    /[.;:,]?\s*outside the EU, no Belgian VAT, grid 47/gi,
+  ]
+  for (const re of boiler) n = n.replace(re, "")
+  return n
+    .replace(/\(\s*\)/g, "")
+    .replace(/\s*[:;,]\s*\)/g, ")")
+    .replace(/:\s*;/g, ";")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s*[:;,]\s*$/, "")
+    .trim()
+}
+
+/**
+ * The grids of a Belgian VAT return we can work out from the money, in
+ * order. Purchases are one total (81 + 82 + 83: goods, services, investment
+ * goods) and EU purchases under reverse charge too (86 goods, 88 services):
+ * a payment does not say which. Credit notes (48, 49, 63, 64, 84, 85) are
+ * not visible in payments.
+ */
+export const GRID_ROWS: { grid: string; filed: string[]; side: "sales" | "purchases" | "vat" | "balance" }[] = [
+  { grid: "01", filed: ["01"], side: "sales" },
+  { grid: "02", filed: ["02"], side: "sales" },
+  { grid: "03", filed: ["03"], side: "sales" },
+  { grid: "00", filed: ["00"], side: "sales" },
+  { grid: "44", filed: ["44"], side: "sales" },
+  { grid: "47", filed: ["47"], side: "sales" },
+  { grid: "49", filed: ["49"], side: "sales" },
+  { grid: "81-83", filed: ["81", "82", "83"], side: "purchases" },
+  { grid: "84-85", filed: ["84", "85"], side: "purchases" },
+  { grid: "86+88", filed: ["86", "88"], side: "purchases" },
+  { grid: "87", filed: ["87"], side: "purchases" },
+  { grid: "54", filed: ["54"], side: "vat" },
+  { grid: "55", filed: ["55"], side: "vat" },
+  { grid: "56", filed: ["56"], side: "vat" },
+  { grid: "64", filed: ["64"], side: "vat" },
+  { grid: "59", filed: ["59"], side: "vat" },
+  { grid: "71-72", filed: ["71", "72"], side: "balance" },
+]
+
+/** A filed return's value for a row (72, a credit, counts negative in 71-72). */
+export function filedGrid(grids: Record<string, number>, row: (typeof GRID_ROWS)[number]): number | null {
+  if (row.grid === "71-72") return grids["71"] !== undefined || grids["72"] !== undefined ? round((grids["71"] ?? 0) - (grids["72"] ?? 0)) : null
+  const present = row.filed.filter((g) => grids[g] !== undefined)
+  return present.length ? round(present.reduce((s, g) => s + grids[g], 0)) : null
+}
+
+const SALES_GRID: Partial<Record<RateClass, string>> = { "21": "03", "12": "02", "6": "01" }
+
+function addToGrids(grids: Map<QuarterKey, Record<string, number>>, q: QuarterKey, dir: Direction, rate: RateClass, amount: number, vat: number) {
+  const g = grids.get(q) ?? {}
+  const add = (k: string, v: number) => {
+    if (v) g[k] = round((g[k] ?? 0) + v)
+  }
+  const self = round(amount * SELF_ASSESSED_RATE)
+  if (dir === "income") {
+    if (SALES_GRID[rate]) {
+      add(SALES_GRID[rate]!, amount - vat)
+      add("54", vat)
+    } else if (rate === "reverse_eu") add("44", amount)
+    else if (rate === "export") add("47", amount)
+  } else if (["21", "12", "6"].includes(rate)) {
+    add("81-83", amount - vat)
+    add("59", vat)
+  } else if (rate === "reverse_eu" || rate === "reverse_noneu") {
+    add("81-83", amount)
+    add(rate === "reverse_eu" ? "86+88" : "87", amount)
+    add(rate === "reverse_eu" ? "55" : "56", self)
+    add("59", self)
+  }
+  g["71-72"] = round((g["54"] ?? 0) + (g["55"] ?? 0) + (g["56"] ?? 0) - (g["59"] ?? 0))
+  grids.set(q, g)
+}
