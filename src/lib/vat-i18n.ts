@@ -123,7 +123,7 @@ export interface PageText {
   kbo: string
   introEnd: string
   tldrTitle: string
-  tldr: (p: { x1: string; x2: string; gap: string; z: string; z2: string; z3: string; stateOwes: boolean; refunded: string }) => string[]
+  tldr: (p: { x1: string; x2: string; gap: string; z: string; z2: string; zgap: string; z3: string; stateOwes: boolean; refunded: string; selfAssessed: string }) => string[]
   tldrLinks: { income: string; expenses: string; balance: string }
   incomplete: string
   bankMissing: (from: string | null) => string
@@ -140,7 +140,7 @@ export interface PageText {
   paidLbl: string
   suppliersCharged: string
   deductedInReturns: string
-  purchasesGrid: string
+  purchasesGrid: (selfAssessed: string) => string
   deductibleShare: string
   balance: string
   fromOurs: string
@@ -197,8 +197,8 @@ export interface PageText {
     plan: (amount: string) => string[]
   }
   grids: { title: string; intro: string; cols: [string, string, string, string, string]; labels: Record<string, string>; notInMoney: string; note: string }
-  faq: { title: string; items: { q: string; a: string[] }[] }
-  books: { title: string; intro: string; crypto: (a: string) => string; timing: (a: string) => string; noVatCode: string; debts: string; cta: [string, string] }
+  faq: { title: string; items: { q: string; a: string[] }[]; differ: { q: string; a: string } }
+  books: { title: string; accountants: string; intro: string; crypto: (a: string) => string; timing: (a: string) => string; noVatCode: string; debts: string; cta: [string, string] }
   vatNotEstimated: string
   vat: string
   payments: (n: number) => string
@@ -221,12 +221,13 @@ export const TEXT: Record<Lang, PageText> = {
     kbo: "0804.505.132",
     introEnd: "): what came in or went out before that carried no VAT.",
     tldrTitle: "In short",
-    tldr: ({ x1, x2, gap, z, z2, z3, stateOwes, refunded }) => [
-      `In 2023–2024 we should have charged ${x1} of VAT on what we sold, but we declared only ${x2}: ${gap} less.`,
-      `We paid ${z} of VAT on what we bought, and claimed back only ${z2}.`,
+    tldr: ({ x1, x2, gap, z, z2, zgap, z3, stateOwes, refunded, selfAssessed }) => [
+      `In 2023–2024 we should have charged ${x1} of VAT on what we sold, and declared only ${x2}: we owe the State ${gap}.`,
+      `Our suppliers charged us ${z} of VAT, and we deducted only ${z2} of it: ${zgap} more to claim back, if all of it is deductible.`,
       stateOwes
-        ? `So, if all of that VAT were deductible, the State would still owe us ${z3}, on top of the ${refunded} it has already refunded.`
-        : `So, even if all of that VAT were deductible, we would still owe the State ${z3}, after the ${refunded} it has refunded.`,
+        ? `Net, the State would still owe us ${z3} (${zgap} − ${gap}), on top of the ${refunded} it has already refunded.`
+        : `Net, we would still owe the State ${z3} (${gap} − ${zgap}), after the ${refunded} it has refunded.`,
+      `Purchases under reverse charge are left out of both sides: the ${selfAssessed} of VAT we declared on them ourselves was deducted in the same returns, so it comes to nothing.`,
     ],
     tldrLinks: { income: "Money received", expenses: "Money paid out", balance: "VAT balance" },
     incomplete: "Incomplete: these figures will move",
@@ -244,7 +245,7 @@ export const TEXT: Record<Lang, PageText> = {
     paidLbl: "Paid",
     suppliersCharged: "what our suppliers charged us",
     deductedInReturns: "Deducted in the returns",
-    purchasesGrid: "VAT on purchases (grid 59)",
+    purchasesGrid: (a) => `grid 59, without the ${a} of reverse-charge VAT we declared ourselves`,
     deductibleShare: "VAT on purchases can only be deducted for what serves our taxable activities. Part of what we do (donations, membership) is outside VAT, so in principle only a share of it is deductible.",
     balance: "3. VAT balance",
     fromOurs: "From our income and expenses",
@@ -339,7 +340,6 @@ export const TEXT: Record<Lang, PageText> = {
           a: [
             "VAT on a cost is deductible as far as the cost serves our taxable activity: room hire, coworking, event tickets, sponsoring (art. 45 of the VAT Code). Donations, grants and subsidies are outside the scope of VAT; they do not prevent a deduction by themselves. What counts is what the costs are used for.",
             "Most of what we bought is the development of Citizen Wallet and Brussels Pay. Both are open-source software the community uses to operate: they are how we coordinate the work that needs to be done, and how we sell our goods and services and receive donations. They were an integral part of Regen Village, which brought in most of our sponsoring and ticket sales in 2024 and gave the Hub a lot of visibility in this space, so they also have a marketing value. We therefore treat them as serving our taxable activity.",
-            "What a controller may still ask: how we split costs that serve both the taxable activity and the association's non-economic work, such as some general costs of the Hub. Those we would deduct in proportion (art. 46), not in full.",
           ],
         },
         {
@@ -360,16 +360,15 @@ export const TEXT: Record<Lang, PageText> = {
             "Sponsoring is a service to a business, taxed where the customer is established (art. 21 §2). A sponsor in another EU country gets an invoice with its VAT number and no VAT, and accounts for the VAT itself (grid 44; these sales also go in the intra-community listing). A sponsor outside the EU pays no Belgian VAT (grid 47).",
           ],
         },
-        {
-          q: "Why do the figures on this page differ from the returns?",
-          a: [
-            "The returns count invoices when they are issued; this page counts money when it moves. An invoice of December paid in January falls in another quarter, and sales without an invoice (through Stripe) are only here. The grid-by-grid comparison shows each difference.",
-          ],
-        },
       ],
+      differ: {
+        q: "Why do the figures on this page differ from the returns?",
+        a: "The returns count invoices when they are issued; this page counts money when it moves. An invoice of December paid in January falls in another quarter, and sales without an invoice (through Stripe) are only here. The grid-by-grid comparison shows each difference.",
+      },
     },
     books: {
       title: "Our books (WinBooks) next to these figures",
+      accountants: "We have to own this: our accountants at the time worked with outdated software, did not know how to use Google Drive or what Stripe is, and our books for those years show it. We have since moved our books to Odoo, and we are moving to accountants who have experience with cooperatives and the commons.",
       intro: "Our accounts for July 2023 – December 2024, kept in WinBooks, do not match the money that moved. The main gaps:",
       crypto: (a) => `crypto grant money counted twice, or at its dollar value, in WinBooks: ${a} of income too much;`,
       timing: (a) => `invoices of 2024 paid in 2025, booked in 2024 in WinBooks: ${a};`,
@@ -403,12 +402,13 @@ export const TEXT: Record<Lang, PageText> = {
     kbo: "0804.505.132",
     introEnd: ") : ce qui est entré ou sorti avant cette date ne portait pas de TVA.",
     tldrTitle: "En bref",
-    tldr: ({ x1, x2, gap, z, z2, z3, stateOwes, refunded }) => [
-      `En 2023–2024, nous aurions dû facturer ${x1} de TVA sur ce que nous avons vendu, mais nous n'en avons déclaré que ${x2} : ${gap} de moins.`,
-      `Nous avons payé ${z} de TVA sur ce que nous avons acheté, et n'en avons récupéré que ${z2}.`,
+    tldr: ({ x1, x2, gap, z, z2, zgap, z3, stateOwes, refunded, selfAssessed }) => [
+      `En 2023–2024, nous aurions dû facturer ${x1} de TVA sur ce que nous avons vendu, et n'en avons déclaré que ${x2} : nous devons ${gap} à l'État.`,
+      `Nos fournisseurs nous ont facturé ${z} de TVA, et nous n'en avons déduit que ${z2} : ${zgap} de plus à récupérer, si tout est déductible.`,
       stateOwes
-        ? `Donc, si toute cette TVA était déductible, l'État nous devrait encore ${z3}, en plus des ${refunded} déjà remboursés.`
-        : `Donc, même si toute cette TVA était déductible, nous devrions encore ${z3} à l'État, après les ${refunded} remboursés.`,
+        ? `Au net, l'État nous devrait encore ${z3} (${zgap} − ${gap}), en plus des ${refunded} déjà remboursés.`
+        : `Au net, nous devrions encore ${z3} à l'État (${gap} − ${zgap}), après les ${refunded} remboursés.`,
+      `Les achats en autoliquidation sont laissés de côté des deux côtés : les ${selfAssessed} de TVA que nous avons déclarés nous-mêmes ont été déduits dans les mêmes déclarations, cela s'annule.`,
     ],
     tldrLinks: { income: "Argent reçu", expenses: "Argent dépensé", balance: "Solde TVA" },
     incomplete: "Incomplet : ces chiffres vont bouger",
@@ -426,7 +426,7 @@ export const TEXT: Record<Lang, PageText> = {
     paidLbl: "Payé",
     suppliersCharged: "ce que nos fournisseurs nous ont facturé",
     deductedInReturns: "Déduit dans les déclarations",
-    purchasesGrid: "TVA sur les achats (grille 59)",
+    purchasesGrid: (a) => `grille 59, sans les ${a} de TVA autoliquidée`,
     deductibleShare: "La TVA sur les achats n'est déductible que pour ce qui sert nos activités taxables. Une partie de ce que nous faisons (dons, cotisations) est hors TVA : en principe, seule une part en est déductible.",
     balance: "3. Solde TVA",
     fromOurs: "D'après nos revenus et dépenses",
@@ -521,7 +521,6 @@ export const TEXT: Record<Lang, PageText> = {
           a: [
             "La TVA sur un coût est déductible dans la mesure où ce coût sert notre activité taxable : location de salles, coworking, tickets d'événements, sponsoring (art. 45 du Code TVA). Les dons, subventions et bourses sont hors du champ de la TVA ; ils n'empêchent pas la déduction en soi. Ce qui compte, c'est l'usage des coûts.",
             "L'essentiel de nos achats est le développement de Citizen Wallet et de Brussels Pay. Ce sont deux logiciels open source que la communauté utilise pour fonctionner : c'est avec eux que nous coordonnons le travail à faire, que nous vendons nos biens et services et que nous recevons des dons. Ils faisaient partie intégrante du Regen Village, qui a apporté l'essentiel de notre sponsoring et de nos tickets en 2024 et beaucoup de visibilité au Hub dans ce milieu : ils ont donc aussi une valeur marketing. Nous les considérons donc comme servant notre activité taxable.",
-            "Ce qu'un contrôleur pourrait encore demander : comment nous répartissons les coûts qui servent à la fois l'activité taxable et le travail non économique de l'association, comme certains frais généraux du Hub. Ceux-là, nous les déduirions au prorata (art. 46), pas entièrement.",
           ],
         },
         {
@@ -542,16 +541,15 @@ export const TEXT: Record<Lang, PageText> = {
             "Le sponsoring est un service à une entreprise, taxé là où le client est établi (art. 21 §2). Un sponsor d'un autre pays de l'UE reçoit une facture avec son numéro de TVA et sans TVA, et autoliquide la TVA (grille 44 ; ces ventes figurent aussi dans le relevé intracommunautaire). Un sponsor hors UE ne paie pas de TVA belge (grille 47).",
           ],
         },
-        {
-          q: "Pourquoi les chiffres de cette page diffèrent-ils des déclarations ?",
-          a: [
-            "Les déclarations comptent les factures à leur émission ; cette page compte l'argent quand il circule. Une facture de décembre payée en janvier tombe dans un autre trimestre, et les ventes sans facture (via Stripe) ne sont qu'ici. La comparaison grille par grille montre chaque écart.",
-          ],
-        },
       ],
+      differ: {
+        q: "Pourquoi les chiffres de cette page diffèrent-ils des déclarations ?",
+        a: "Les déclarations comptent les factures à leur émission ; cette page compte l'argent quand il circule. Une facture de décembre payée en janvier tombe dans un autre trimestre, et les ventes sans facture (via Stripe) ne sont qu'ici. La comparaison grille par grille montre chaque écart.",
+      },
     },
     books: {
       title: "Notre comptabilité (WinBooks) face à ces chiffres",
+      accountants: "Nous devons le reconnaître : nos comptables de l'époque travaillaient avec un logiciel dépassé, ne savaient pas utiliser Google Drive ni ce qu'est Stripe, et notre comptabilité de ces années s'en ressent. Nous sommes depuis passés à Odoo, et nous changeons de comptables pour des professionnels qui connaissent les coopératives et les communs.",
       intro: "Nos comptes de juillet 2023 à décembre 2024, tenus dans WinBooks, ne correspondent pas à l'argent qui a circulé. Les principaux écarts :",
       crypto: (a) => `des subventions reçues en crypto comptées deux fois, ou à leur valeur en dollars, dans WinBooks : ${a} de recettes en trop ;`,
       timing: (a) => `des factures de 2024 payées en 2025, comptabilisées en 2024 dans WinBooks : ${a} ;`,

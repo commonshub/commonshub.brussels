@@ -18,6 +18,8 @@ import {
   SELF_ASSESSED_RATE,
   type Side,
   declaredInputVat,
+  selfAssessedVat,
+  deductedSupplierVat,
   declaredSalesVat,
   filedGrid,
   findPeriod,
@@ -347,6 +349,9 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
 
   const declaredSales = sum(filed.map((q) => declaredSalesVat(q.period!)))
   const declaredInput = sum(filed.map((q) => declaredInputVat(q.period!)))
+  // Like for like with the VAT our suppliers charged: grid 59 without the reverse-charge VAT we declared ourselves.
+  const selfAssessed = sum(filed.map((q) => selfAssessedVat(q.period!)))
+  const deductedSuppliers = round(declaredInput - selfAssessed)
   const estBalance = round(position.income.vat - position.expense.vat)
   // VAT on our sales: Stripe sales were never invoiced, so their VAT is exactly what is missing; invoiced sales compare over the year.
   const stripeVat = sum(filed.map((q) => q.est.stripe))
@@ -395,13 +400,15 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
                   x2: f.eur0(declaredSales),
                   gap: f.eur0(position.income.vat - declaredSales),
                   z: f.eur0(position.expense.vat),
-                  z2: f.eur0(declaredInput),
+                  z2: f.eur0(deductedSuppliers),
+                  zgap: f.eur0(position.expense.vat - deductedSuppliers),
+                  selfAssessed: f.eur0(selfAssessed),
                   z3: f.eur0(Math.abs(stillOwed)),
                   stateOwes: stillOwed >= 0,
                   refunded: f.eur0(refunded - paid),
                 })
                 .map((line, i) => (
-                  <p key={i} className={i === 2 ? "font-semibold" : undefined}>
+                  <p key={i} className={i === 2 ? "font-semibold" : i === 3 ? "text-sm text-muted-foreground" : undefined}>
                     {line}
                   </p>
                 ))}
@@ -453,7 +460,7 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
             <div className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-3">
               <Figure label={t.paidLbl} value={f.eur(position.expense.amount)} note={t.vatIncluded} />
               <Figure label={t.vatInIt} value={f.eur(position.expense.vat)} note={t.suppliersCharged} />
-              <Figure label={t.deductedInReturns} value={f.eur(declaredInput)} note={t.purchasesGrid} />
+              <Figure label={t.deductedInReturns} value={f.eur(deductedSuppliers)} note={t.purchasesGrid(f.eur(selfAssessed))} />
             </div>
             <RateBreakdown side={position.expense} dir="expense" lang={lang} f={f} />
             <p className="mt-3 text-sm text-muted-foreground">{t.deductibleShare}</p>
@@ -534,7 +541,7 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
                         </td>
                         <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
                           {f.eur(q.est.paid)}
-                          <span className="block text-xs text-muted-foreground">{q.period ? f.eur(declaredInputVat(q.period)) : "—"}</span>
+                          <span className="block text-xs text-muted-foreground">{q.period ? f.eur(deductedSupplierVat(q.period)) : "—"}</span>
                         </td>
                         <td className={`px-3 py-2 text-right tabular-nums ${q.net < 0 ? "text-green-700 dark:text-green-400" : ""}`}>
                           {q.period ? f.signed(q.net) : "—"}
@@ -663,21 +670,6 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
             </details>
           </div>
 
-          <div id="winbooks" className="max-w-3xl scroll-mt-24 rounded-lg border border-border bg-card p-5">
-            <h2 className="text-lg font-semibold text-foreground">{t.books.title}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{t.books.intro}</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>{t.books.crypto(f.eur(themeAmount("crypto")))}</li>
-              <li>{t.books.timing(f.eur(themeAmount("timing")))}</li>
-              <li>{t.books.noVatCode}</li>
-              <li>{t.books.debts}</li>
-            </ul>
-            <p className="mt-3 text-sm">
-              {t.books.cta[0]}
-              <Link href="/2023-2024/winbooks" className="font-medium underline underline-offset-2">{t.books.cta[1]}</Link>.
-            </p>
-          </div>
-
           <div id="faq" className="max-w-3xl scroll-mt-24">
             <h2 className="text-lg font-semibold text-foreground">{t.faq.title}</h2>
             <div className="mt-3 divide-y divide-border rounded-lg border border-border">
@@ -693,6 +685,26 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
                   </div>
                 </details>
               ))}
+              <details id="winbooks" className="group scroll-mt-24">
+                <summary className="flex cursor-pointer list-none items-start gap-2 px-4 py-3 font-medium hover:bg-muted/40">
+                  <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" /> {t.faq.differ.q}
+                </summary>
+                <div className="space-y-2 px-4 pb-4 pl-10 text-sm text-muted-foreground">
+                  <p>{t.faq.differ.a}</p>
+                  <p>{t.books.intro}</p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    <li>{t.books.crypto(f.eur(themeAmount("crypto")))}</li>
+                    <li>{t.books.timing(f.eur(themeAmount("timing")))}</li>
+                    <li>{t.books.noVatCode}</li>
+                    <li>{t.books.debts}</li>
+                  </ul>
+                  <p>{t.books.accountants}</p>
+                  <p className="text-foreground">
+                    {t.books.cta[0]}
+                    <Link href="/2023-2024/winbooks" className="font-medium underline underline-offset-2">{t.books.cta[1]}</Link>.
+                  </p>
+                </div>
+              </details>
             </div>
           </div>
 
