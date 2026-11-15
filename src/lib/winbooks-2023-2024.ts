@@ -196,7 +196,7 @@ export const LINES: ComparisonLine[] = [
         theme: "category",
         title: "Citizen Wallet server hosting: sponsoring in WinBooks, web services on the page",
         detail:
-          "WinBooks accrues eleven Stripe payments of €100 to Citizen Wallet (February to December 2024) as sponsoring, €909.09 after taking out 21% VAT (part of the Stripe “SERVICE” accrual). The page counts ten of them as server hosting for The Blockchain Socialist cooperative, a service to a business in another EU country without Belgian VAT (see Other sales), and the eleventh, of 5 June 2024, as a donation.",
+          "WinBooks accrues eleven Stripe payments of €100 to Citizen Wallet (February to December 2024) as sponsoring, €909.09 after taking out 21% VAT (part of the Stripe “SERVICE” accrual). The page counts ten of them as server hosting for Bread Cooperative (https://bread.coop), a service to a business in another EU country without Belgian VAT (see Other sales), and the eleventh, of 5 June 2024, as a donation.",
         amount: 909.09,
       },
       {
@@ -334,7 +334,7 @@ export const LINES: ComparisonLine[] = [
       {
         theme: "category",
         title: "Citizen Wallet server hosting: web services on the page, sponsoring in WinBooks",
-        detail: "Ten monthly €100 Stripe payments from The Blockchain Socialist cooperative, without Belgian VAT (reverse charge). WinBooks books them with the sponsoring (see Sponsoring).",
+        detail: "Ten monthly €100 Stripe payments from Bread Cooperative (https://bread.coop), without Belgian VAT (reverse charge). WinBooks books them with the sponsoring (see Sponsoring).",
         amount: -1000,
       },
       {

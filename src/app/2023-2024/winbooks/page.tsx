@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, ChevronDown } from "lucide-react"
+import { Linkified } from "@/components/linkified"
 
 import { explorerTxUrl } from "@/lib/taxes"
 import { vatPosition } from "@/lib/vat-position"
@@ -70,7 +71,7 @@ function Line({ r }: { r: LineResult }) {
               <li key={x.title} className="flex gap-3 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-foreground">{x.title}</div>
-                  <div className="text-xs text-muted-foreground">{x.detail}</div>
+                  <div className="text-xs text-muted-foreground"><Linkified text={x.detail} /></div>
                 </div>
                 <div className="text-right tabular-nums">{signed(x.amount)}</div>
               </li>

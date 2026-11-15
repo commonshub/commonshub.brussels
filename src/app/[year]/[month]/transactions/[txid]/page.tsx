@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { ArrowLeft, ExternalLink, FileText, History } from "lucide-react"
+import { Linkified } from "@/components/linkified"
 
 import { DeleteAnnotation } from "@/components/delete-annotation"
 import { TransactionAnnotator } from "@/components/transaction-annotator"
@@ -180,7 +181,7 @@ export default async function TransactionPage({ params }: PageProps) {
               {transfers[i].metadata?.note ? (
                 <>
                   <dt className="text-muted-foreground">Note</dt>
-                  <dd className="break-words">{String(transfers[i].metadata.note)}</dd>
+                  <dd className="break-words"><Linkified text={String(transfers[i].metadata.note)} /></dd>
                 </>
               ) : null}
               <dt className="text-muted-foreground">Id</dt>
