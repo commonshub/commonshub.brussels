@@ -523,6 +523,12 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
 /** VAT deducted on purchases, as declared (grid 59). */
 export const declaredInputVat = (period: VatPeriod) => round(period.grids["59"] ?? 0)
 
+/** VAT on reverse-charge purchases we declared ourselves (grids 55, 56, 57): deducted again in 59, so it nets to nothing. */
+export const selfAssessedVat = (period: VatPeriod) => round((period.grids["55"] ?? 0) + (period.grids["56"] ?? 0) + (period.grids["57"] ?? 0))
+
+/** The VAT our suppliers charged us that the return deducted: grid 59 without the reverse-charge VAT in it. */
+export const deductedSupplierVat = (period: VatPeriod) => round(declaredInputVat(period) - selfAssessedVat(period))
+
 /** Never serve a filer's contact details, even if a published return still had them. */
 export const redactDeclarant = (xml: string) => xml.replace(/<(\w+:)?(EmailAddress|Phone)>[^<]*<\/(\w+:)?\2>/g, "")
 
