@@ -187,13 +187,14 @@ export interface PageText {
   sources: [string, string, string, string]
   undeclared: {
     title: string
-    intro: (ours: string, declared: string, gap: string) => string
-    cols: [string, string, string, string]
+    intro: (stripe: string) => string
+    invoiced: (ours: string, declared: string, gap: string) => string
+    cols: [string, string, string, string, string]
     total: string
     fromTitle: string
     fromNote: string
     planTitle: string
-    plan: string[]
+    plan: (amount: string) => string[]
   }
   grids: { title: string; intro: string; cols: [string, string, string, string, string]; labels: Record<string, string>; notInMoney: string; note: string }
   faq: { title: string; items: { q: string; a: string[] }[] }
@@ -291,17 +292,17 @@ export const TEXT: Record<Lang, PageText> = {
     sources: ["Every amount comes from the ", "public dataset", ", the returns from Intervat; see also ", "all our taxes"],
     undeclared: {
       title: "4. VAT on sales we did not declare",
-      intro: (ours, declared, gap) => `From the money, our sales of 2024 carried ${ours} of VAT; the returns declared ${declared}. Most of the ${gap} difference is sales that never had an invoice with a VAT code: event tickets, coworking and services sold through Stripe. Our books recorded them without a VAT code, so they reached no return.`,
-      cols: ["Quarter", "VAT on our sales, from the money", "Declared (grids 54 − 64)", "Not declared"],
+      intro: (stripe) => `Our Stripe sales of 2024 (event tickets, coworking passes and services) carried ${stripe} of VAT: 21% included in each price, counted charge by charge from the Stripe data. They were never invoiced and our books recorded them without a VAT code, so none of it reached a return. That is the VAT to declare.`,
+      invoiced: (ours, declared, gap) => `Our invoiced sales (mostly room hire) carried ${ours} of VAT and the returns declared ${declared}. The ${gap} between them still needs tracing: an invoice of 2024 paid in another year (or the other way round) explains part of it; a payment received without an invoice would add to what is to declare. The grid comparison below shows it quarter by quarter.`,
+      cols: ["Quarter", "Stripe sales", "VAT in them, to declare", "Invoiced sales: VAT, from the money", "Declared (grids 54 − 64)"],
       total: "Total",
-      fromTitle: "Where it comes from (21% VAT included in the price)",
-      fromNote: "Room hire was invoiced with VAT and declared; an invoice can fall in another quarter than its payment, so compare totals.",
+      fromTitle: "To declare, by kind of sale",
+      fromNote: "Each line adds up the Stripe charges of that kind, VAT included; the VAT is 21/121 of it.",
       planTitle: "How we will put it right (to agree with our accountant)",
-      plan: [
-        "Rebuild the exact amounts from Stripe: every ticket, coworking pass and service sold in 2024, quarter by quarter, with the 21% VAT included in its price. Sales already invoiced with VAT (room hire) stay out.",
-        "Declare it: the missing VAT as a correction in favour of the State (grid 61) in our next return, with a note listing the 2024 quarters and amounts, or as corrected 2024 returns if the VAT office prefers. Late-payment interest is due on it; correcting it ourselves, before any audit, normally avoids a fine.",
+      plan: (amount) => [
+        `Declare the ${amount}: as a correction in favour of the State (grid 61) in our next return, with a note listing the three 2024 quarters and their amounts, or as corrected 2024 returns if the VAT office prefers. Late-payment interest is due on it; correcting it ourselves, before any audit, normally avoids a fine.`,
         "Settle it: it is set against the VAT the State owes us in that return, or paid with it.",
-        "Stop it happening again: a VAT code on every product sold through Stripe and on every Stripe sale in our books, and the same check on the 2025 returns.",
+        "Keep a VAT code on every product sold through Stripe and on every Stripe sale in our books. The 2025 returns already declare roughly what our invoiced and Stripe sales carried, so the gap is a 2024 one.",
       ],
     },
     grids: {
@@ -473,17 +474,17 @@ export const TEXT: Record<Lang, PageText> = {
     sources: ["Chaque montant vient des ", "données publiques", ", les déclarations d'Intervat ; voir aussi ", "toutes nos taxes"],
     undeclared: {
       title: "4. La TVA sur nos ventes que nous n'avons pas déclarée",
-      intro: (ours, declared, gap) => `D'après l'argent reçu, nos ventes de 2024 contenaient ${ours} de TVA ; les déclarations en reprennent ${declared}. L'essentiel de l'écart de ${gap} vient de ventes qui n'ont jamais eu de facture avec un code TVA : les tickets d'événements, le coworking et les services vendus via Stripe. Notre comptabilité les a enregistrées sans code TVA, elles ne sont donc dans aucune déclaration.`,
-      cols: ["Trimestre", "TVA sur nos ventes, d'après l'argent", "Déclarée (grilles 54 − 64)", "Non déclarée"],
+      intro: (stripe) => `Nos ventes Stripe de 2024 (tickets d'événements, pass de coworking et services) contenaient ${stripe} de TVA : 21 % compris dans chaque prix, compté paiement par paiement à partir des données Stripe. Elles n'ont jamais été facturées et notre comptabilité les a enregistrées sans code TVA, elles ne sont donc dans aucune déclaration. C'est la TVA à déclarer.`,
+      invoiced: (ours, declared, gap) => `Nos ventes facturées (surtout la location de salles) contenaient ${ours} de TVA et les déclarations en reprennent ${declared}. L'écart de ${gap} reste à retracer : une facture de 2024 payée une autre année (ou l'inverse) en explique une partie ; un paiement reçu sans facture s'ajouterait à ce qui est à déclarer. La comparaison grille par grille ci-dessous le montre trimestre par trimestre.`,
+      cols: ["Trimestre", "Ventes Stripe", "TVA comprise, à déclarer", "Ventes facturées : TVA, d'après l'argent", "Déclarée (grilles 54 − 64)"],
       total: "Total",
-      fromTitle: "D'où elle vient (TVA de 21 % comprise dans le prix)",
-      fromNote: "La location de salles a été facturée avec TVA et déclarée ; une facture peut tomber dans un autre trimestre que son paiement, comparez donc les totaux.",
+      fromTitle: "À déclarer, par type de vente",
+      fromNote: "Chaque ligne additionne les paiements Stripe de ce type, TVA comprise ; la TVA en est les 21/121.",
       planTitle: "Comment nous allons régulariser (à valider avec notre comptable)",
-      plan: [
-        "Reconstituer les montants exacts depuis Stripe : chaque ticket, pass de coworking et service vendu en 2024, trimestre par trimestre, avec la TVA de 21 % comprise dans son prix. Les ventes déjà facturées avec TVA (location de salles) restent hors du calcul.",
-        "La déclarer : la TVA manquante comme régularisation en faveur de l'État (grille 61) dans notre prochaine déclaration, avec une note détaillant les trimestres et montants de 2024, ou par des déclarations 2024 rectifiées si l'administration le préfère. Des intérêts de retard sont dus ; régulariser nous-mêmes, avant tout contrôle, évite normalement l'amende.",
+      plan: (amount) => [
+        `Déclarer les ${amount} : comme régularisation en faveur de l'État (grille 61) dans notre prochaine déclaration, avec une note détaillant les trois trimestres de 2024 et leurs montants, ou par des déclarations 2024 rectifiées si l'administration le préfère. Des intérêts de retard sont dus ; régulariser nous-mêmes, avant tout contrôle, évite normalement l'amende.`,
         "La régler : elle s'impute sur la TVA que l'État nous doit dans cette déclaration, ou se paie avec elle.",
-        "Éviter que cela se reproduise : un code TVA sur chaque produit vendu via Stripe et sur chaque vente Stripe dans notre comptabilité, et la même vérification sur les déclarations 2025.",
+        "Garder un code TVA sur chaque produit vendu via Stripe et sur chaque vente Stripe dans notre comptabilité. Les déclarations 2025 reprennent déjà à peu près la TVA de nos ventes facturées et Stripe : l'écart ne concerne que 2024.",
       ],
     },
     grids: {

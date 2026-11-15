@@ -360,7 +360,9 @@ export interface Position {
   income: Side
   expense: Side
   /** Per quarter: the VAT our income and expenses carry. */
-  quarters: Map<QuarterKey, { collected: number; paid: number }>
+  quarters: Map<QuarterKey, { collected: number; paid: number; stripe: number; stripeAmount: number }>
+  /** Sales through Stripe (tickets, coworking passes, services), by category: never invoiced, VAT included in each price. */
+  stripeSales: Map<string, { category: string; label: string; amount: number; vat: number }>
   /** Per quarter: the return's grids as the money says they should read (see GRID_ROWS). */
   grids: Map<QuarterKey, Record<string, number>>
   /** The same money by category alone, for comparing with books kept by category (WinBooks). */
@@ -387,7 +389,8 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
   // Per category line, the group items being built.
   const grouped = new Map<string, Map<string, Item>>()
   const lines = { income: new Map<string, CategoryLine & { rate: RateClass }>(), expense: new Map<string, CategoryLine & { rate: RateClass }>() }
-  const quarters = new Map<QuarterKey, { collected: number; paid: number }>()
+  const quarters = new Map<QuarterKey, { collected: number; paid: number; stripe: number; stripeAmount: number }>()
+  const stripeSales: Position["stripeSales"] = new Map()
   const grids = new Map<QuarterKey, Record<string, number>>()
   const byCategory: Position["byCategory"] = { income: new Map(), expense: new Map() }
   for (const tx of txs) {
@@ -452,9 +455,17 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     addToGrids(grids, quarterOf(date), dir, rule.rate, amount, vat ?? 0)
     if (vat) {
       const q = quarterOf(date)
-      const row = quarters.get(q) ?? { collected: 0, paid: 0 }
+      const row = quarters.get(q) ?? { collected: 0, paid: 0, stripe: 0, stripeAmount: 0 }
       if (dir === "income") row.collected = round(row.collected + vat)
       else row.paid = round(row.paid + vat)
+      if (dir === "income" && tx.provider === "stripe") {
+        row.stripe = round(row.stripe + vat)
+        row.stripeAmount = round(row.stripeAmount + amount)
+        const st = stripeSales.get(rule.category) ?? { category: rule.category, label: rule.label, amount: 0, vat: 0 }
+        st.amount = round(st.amount + amount)
+        st.vat = round(st.vat + vat)
+        stripeSales.set(rule.category, st)
+      }
       quarters.set(q, row)
     }
   }
@@ -506,7 +517,7 @@ export function vatPosition(txs: Transaction[], years: number[], explorer: (id: 
     }).filter((g) => g.lines.length > 0)
     return { amount: round(groups.reduce((s, g) => s + g.amount, 0)), vat: round(groups.reduce((s, g) => s + (g.vat ?? 0), 0)), groups }
   }
-  return { income: side(lines.income), expense: side(lines.expense), quarters, grids, byCategory }
+  return { income: side(lines.income), expense: side(lines.expense), quarters, stripeSales, grids, byCategory }
 }
 
 /** VAT deducted on purchases, as declared (grid 59). */

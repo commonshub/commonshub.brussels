@@ -83,6 +83,9 @@ function Figure({ label, value, note, tone }: { label: string; value: string; no
   )
 }
 
+/** Purchases under reverse charge: we declare the VAT ourselves and deduct it, so none is paid to the supplier. */
+const selfAssessed = (rate: string, dir: Direction) => dir === "expense" && (rate === "reverse_eu" || rate === "reverse_noneu")
+
 /** One side (income or expenses): a row per VAT rate, opening onto its categories and why that rate. */
 function RateBreakdown({ side, dir, lang, f }: { side: Side; dir: Direction; lang: Lang; f: F }) {
   const t = TEXT[lang]
@@ -92,15 +95,16 @@ function RateBreakdown({ side, dir, lang, f }: { side: Side; dir: Direction; lan
         <details key={g.rate} className="group">
           <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-muted/40">
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-            <span className="min-w-0 flex-1 font-medium text-foreground">{RATE_LABELS[lang][g.rate]}</span>
-            <span className="text-right tabular-nums">
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium text-foreground">{RATE_LABELS[lang][g.rate]}</span>
+              {selfAssessed(g.rate, dir) && (
+                <span className="block text-xs text-muted-foreground">{SELF_ASSESSED[lang](f.eur(round(g.amount * SELF_ASSESSED_RATE)))}</span>
+              )}
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-right tabular-nums">
               {f.eur(g.amount)}
               <span className="block text-xs text-muted-foreground">
-                {g.vat === null
-                  ? t.vatNotEstimated
-                  : dir === "expense" && (g.rate === "reverse_eu" || g.rate === "reverse_noneu")
-                    ? SELF_ASSESSED[lang](f.eur(round(g.amount * SELF_ASSESSED_RATE)))
-                    : `${f.eur(g.vat)} ${t.vat}`}
+                {g.vat === null ? t.vatNotEstimated : `${f.eur(selfAssessed(g.rate, dir) ? 0 : g.vat)} ${t.vat}`}
               </span>
             </span>
           </summary>
@@ -333,7 +337,7 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
         label: lang === "fr" ? `T${q} ${y}` : `${y} Q${q}`,
         period,
         missing: !period && returnOverdue(y, q, now),
-        est: position.quarters.get(key) ?? { collected: 0, paid: 0 },
+        est: position.quarters.get(key) ?? { collected: 0, paid: 0, stripe: 0, stripeAmount: 0 },
         net: period?.totals.net ?? 0,
         settled: settlement && settlement.status !== "none" ? settlement.payments : [],
       }
@@ -344,11 +348,11 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
   const declaredSales = sum(filed.map((q) => declaredSalesVat(q.period!)))
   const declaredInput = sum(filed.map((q) => declaredInputVat(q.period!)))
   const estBalance = round(position.income.vat - position.expense.vat)
-  // VAT on our sales: what the money says against what the returns declared, over the quarters filed.
-  const salesOurs = sum(filed.map((q) => q.est.collected))
-  const salesGap = round(salesOurs - declaredSales)
-  const salesDeclared = declaredSales
-  const salesLines = (position.income.groups.find((g) => g.rate === "21")?.lines ?? []).filter((l) => (l.vat ?? 0) > 0)
+  // VAT on our sales: Stripe sales were never invoiced, so their VAT is exactly what is missing; invoiced sales compare over the year.
+  const stripeVat = sum(filed.map((q) => q.est.stripe))
+  const stripeAmount = sum(filed.map((q) => q.est.stripeAmount))
+  const invoicedOurs = round(sum(filed.map((q) => q.est.collected)) - stripeVat)
+  const stripeLines = [...position.stripeSales.values()].filter((l) => l.vat > 0).sort((a, b) => b.vat - a.vat)
   const books = compareWithWinbooks(position)
   const themeAmount = (theme: string) => books.themes.find((x) => x.theme === theme)?.amount ?? 0
   const owed = sum(filed.filter((q) => q.net > 0).map((q) => q.net))
@@ -555,49 +559,54 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
 
           <div id="undeclared" className="scroll-mt-24">
             <h2 className="text-2xl font-bold text-foreground">{t.undeclared.title}</h2>
-            <p className="mt-3 max-w-3xl text-muted-foreground">{t.undeclared.intro(f.eur(salesOurs), f.eur(salesDeclared), f.eur(salesGap))}</p>
+            <p className="mt-3 max-w-3xl text-muted-foreground">{t.undeclared.intro(f.eur(stripeVat))}</p>
             <div className="mt-4 overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-muted-foreground">
+                <thead className="bg-muted/50 text-left align-bottom text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium">{t.undeclared.cols[0]}</th>
-                    <th className="px-3 py-2 text-right font-medium">{t.undeclared.cols[1]}</th>
+                    <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">{t.undeclared.cols[1]}</th>
                     <th className="px-3 py-2 text-right font-medium">{t.undeclared.cols[2]}</th>
-                    <th className="px-3 py-2 text-right font-medium">{t.undeclared.cols[3]}</th>
+                    <th className="hidden px-3 py-2 text-right font-medium md:table-cell">{t.undeclared.cols[3]}</th>
+                    <th className="hidden px-3 py-2 text-right font-medium md:table-cell">{t.undeclared.cols[4]}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filed.map((q) => (
                     <tr key={q.key}>
                       <td className="px-3 py-2 font-medium whitespace-nowrap">{q.label}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{f.eur(q.est.collected)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{f.eur(declaredSalesVat(q.period!))}</td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium">{f.eur(round(q.est.collected - declaredSalesVat(q.period!)))}</td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{f.eur(q.est.stripeAmount)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">{f.eur(q.est.stripe)}</td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{f.eur(round(q.est.collected - q.est.stripe))}</td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums text-muted-foreground md:table-cell">{f.eur(declaredSalesVat(q.period!))}</td>
                     </tr>
                   ))}
                   <tr className="font-semibold">
                     <td className="px-3 py-2">{t.undeclared.total}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(salesOurs)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(salesDeclared)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(salesGap)}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{f.eur(stripeAmount)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(stripeVat)}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums md:table-cell">{f.eur(invoicedOurs)}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums md:table-cell">{f.eur(declaredSales)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <p className="mt-3 max-w-3xl text-sm text-muted-foreground">{t.undeclared.invoiced(f.eur(invoicedOurs), f.eur(declaredSales), f.eur(round(invoicedOurs - declaredSales)))}</p>
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
               <div>
                 <h3 className="font-semibold text-foreground">{t.undeclared.fromTitle}</h3>
                 <dl className="mt-2 space-y-1 text-sm">
-                  {salesLines.map((l) => (
-                    <Row key={l.category} label={ruleText(lang, "income", l.category, { label: l.label, why: "" }).label} value={f.eur(l.vat ?? 0)} />
+                  {stripeLines.map((l) => (
+                    <Row key={l.category} label={ruleText(lang, "income", l.category, { label: l.label, why: "" }).label} value={f.eur(l.vat)} />
                   ))}
+                  <Row label={t.undeclared.total} value={f.eur(stripeVat)} strong />
                 </dl>
                 <p className="mt-2 text-xs text-muted-foreground">{t.undeclared.fromNote}</p>
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">{t.undeclared.planTitle}</h3>
                 <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-                  {t.undeclared.plan.map((step) => (
+                  {t.undeclared.plan(f.eur(stripeVat)).map((step) => (
                     <li key={step}>{step}</li>
                   ))}
                 </ol>
