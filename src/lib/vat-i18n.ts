@@ -69,7 +69,7 @@ const RULES_FR: Record<string, { label: string; why: string }> = {
   "income:loan": { label: "Prêts sans intérêt", why: "Des membres et soutiens ont prêté de l'argent au Hub pour démarrer, sans intérêt ; le Hub les rembourse en nature, en usage de l'espace (voir /debt). Un prêt est un financement, pas une vente : hors du champ de la TVA." },
   "expense:loan": { label: "Prêts remboursés", why: "Rembourser un prêt n'est pas un achat : hors du champ de la TVA." },
   "income:debt": { label: "Rechargements de jetons", why: "Les jetons prépayés (Brussels Pay, EURb, Zinne…) sont des bons, une dette jusqu'à ce qu'ils soient dépensés : la TVA est due sur ce qu'ils achètent alors, pas lors du rechargement." },
-  "expense:consulting": { label: "Consultants et indépendants", why: "Des services au taux normal. Les indépendants établis dans un autre pays de l'UE nous facturent sans TVA : nous devons alors la TVA belge nous-mêmes (autoliquidation) et la déduisons dans la même déclaration, ce qui revient à zéro." },
+  "expense:consulting": { label: "Consultants et indépendants", why: "Des services de consultants et d'indépendants belges, facturés avec 21 % de TVA. Ceux établis à l'étranger, facturés sans TVA, sont en autoliquidation plus bas." },
   "expense:events": { label: "Événements", why: "Intervenants, lieux et services pour les événements : taux normal." },
   "expense:services": { label: "Services", why: "Taux normal." },
   "expense:other_expense": { label: "Autres dépenses", why: "Considérées au taux normal." },
@@ -185,6 +185,18 @@ export interface PageText {
   wiseCard: string
   grids4447: string
   sources: [string, string, string, string]
+  undeclared: {
+    title: string
+    intro: (ours: string, declared: string, gap: string) => string
+    cols: [string, string, string, string]
+    total: string
+    fromTitle: string
+    fromNote: string
+    planTitle: string
+    plan: string[]
+  }
+  grids: { title: string; intro: string; cols: [string, string, string, string, string]; labels: Record<string, string>; notInMoney: string; note: string }
+  faq: { title: string; items: { q: string; a: string[] }[] }
   books: { title: string; intro: string; crypto: (a: string) => string; timing: (a: string) => string; noVatCode: string; debts: string; cta: [string, string] }
   vatNotEstimated: string
   vat: string
@@ -277,6 +289,84 @@ export const TEXT: Record<Lang, PageText> = {
     wiseCard: "Our Wise card balance ended 2024 with €4,191.77. Where it went in 2025 is not traced yet: it was not part of Wise's final refund in April 2025.",
     grids4447: "The returns also declare sales without Belgian VAT: services to customers in other EU countries (grid 44) and operations outside its scope (grid 47).",
     sources: ["Every amount comes from the ", "public dataset", ", the returns from Intervat; see also ", "all our taxes"],
+    undeclared: {
+      title: "4. VAT on sales we did not declare",
+      intro: (ours, declared, gap) => `From the money, our sales of 2024 carried ${ours} of VAT; the returns declared ${declared}. Most of the ${gap} difference is sales that never had an invoice with a VAT code: event tickets, coworking and services sold through Stripe. Our books recorded them without a VAT code, so they reached no return.`,
+      cols: ["Quarter", "VAT on our sales, from the money", "Declared (grids 54 − 64)", "Not declared"],
+      total: "Total",
+      fromTitle: "Where it comes from (21% VAT included in the price)",
+      fromNote: "Room hire was invoiced with VAT and declared; an invoice can fall in another quarter than its payment, so compare totals.",
+      planTitle: "How we will put it right (to agree with our accountant)",
+      plan: [
+        "Rebuild the exact amounts from Stripe: every ticket, coworking pass and service sold in 2024, quarter by quarter, with the 21% VAT included in its price. Sales already invoiced with VAT (room hire) stay out.",
+        "Declare it: the missing VAT as a correction in favour of the State (grid 61) in our next return, with a note listing the 2024 quarters and amounts, or as corrected 2024 returns if the VAT office prefers. Late-payment interest is due on it; correcting it ourselves, before any audit, normally avoids a fine.",
+        "Settle it: it is set against the VAT the State owes us in that return, or paid with it.",
+        "Stop it happening again: a VAT code on every product sold through Stripe and on every Stripe sale in our books, and the same check on the 2025 returns.",
+      ],
+    },
+    grids: {
+      title: "Grid by grid: what we filed and what the money says",
+      intro: "Each 2024 return next to the grids as they would read from the money that moved. The returns count invoices when they are issued and this page counts payments, so a difference can be timing; the ones that stay are the ones to correct.",
+      cols: ["Grid", "", "Filed", "From the money", "Difference"],
+      labels: {
+        "01": "Sales at 6% (without VAT)",
+        "02": "Sales at 12% (without VAT)",
+        "03": "Sales at 21% (without VAT)",
+        "00": "Sales at 0% or under a special scheme",
+        "44": "Services to businesses in another EU country",
+        "47": "Other sales without Belgian VAT (outside the EU)",
+        "49": "Credit notes we issued",
+        "81-83": "Purchases: goods (81), services (82), investment goods (83), without VAT",
+        "84-85": "Credit notes we received",
+        "86+88": "Purchases from the EU under reverse charge: goods (86), services (88)",
+        "87": "Other purchases under reverse charge (outside the EU)",
+        "54": "VAT due on our sales",
+        "55": "VAT due on purchases from the EU (reverse charge)",
+        "56": "VAT due on other purchases under reverse charge",
+        "64": "VAT on credit notes we issued, in our favour",
+        "59": "Deductible VAT",
+        "71-72": "Balance: owed to the State (+) or to us (−)",
+      },
+      notInMoney: "not visible in payments",
+      note: "“From the money” assumes everything bought is fully deductible (see the questions below) and cannot split purchases into goods, services and investment goods.",
+    },
+    faq: {
+      title: "Questions a VAT controller would ask",
+      items: [
+        {
+          q: "Can we deduct the VAT on all our costs, when most of the money we receive is donations, grants and subsidies?",
+          a: [
+            "VAT on a cost is deductible as far as the cost serves our taxable activity: room hire, coworking, event tickets, sponsoring (art. 45 of the VAT Code). Donations, grants and subsidies are outside the scope of VAT; they do not prevent a deduction by themselves. What counts is what the costs are used for.",
+            "Most of what we bought is the development of Citizen Wallet and Brussels Pay. Both are open-source software the community uses to operate: they are how we coordinate the work that needs to be done, and how we sell our goods and services and receive donations. They were an integral part of Regen Village, which brought in most of our sponsoring and ticket sales in 2024 and gave the Hub a lot of visibility in this space, so they also have a marketing value. We therefore treat them as serving our taxable activity.",
+            "What a controller may still ask: how we split costs that serve both the taxable activity and the association's non-economic work, such as some general costs of the Hub. Those we would deduct in proportion (art. 46), not in full.",
+          ],
+        },
+        {
+          q: "Why is there no VAT on token top-ups (EURb, Zinne, Brussels Pay)?",
+          a: [
+            "They are multi-purpose vouchers: the tokens can be spent with several merchants, not only at the Hub, so what they will buy, and at which rate, is not known when they are bought. VAT is due when they are spent, by whoever sells the goods or services. Until then a top-up is money we owe to its holder.",
+          ],
+        },
+        {
+          q: "Why are All for Climate's transfers donations?",
+          a: [
+            "We are the fiscal host of collectives that are projects of our association. All for Climate passed on donations made to them: for VAT and in our books they are donations to the association, with nothing given in exchange.",
+          ],
+        },
+        {
+          q: "Why is there no Belgian VAT on sponsoring from abroad?",
+          a: [
+            "Sponsoring is a service to a business, taxed where the customer is established (art. 21 §2). A sponsor in another EU country gets an invoice with its VAT number and no VAT, and accounts for the VAT itself (grid 44; these sales also go in the intra-community listing). A sponsor outside the EU pays no Belgian VAT (grid 47).",
+          ],
+        },
+        {
+          q: "Why do the figures on this page differ from the returns?",
+          a: [
+            "The returns count invoices when they are issued; this page counts money when it moves. An invoice of December paid in January falls in another quarter, and sales without an invoice (through Stripe) are only here. The grid-by-grid comparison shows each difference.",
+          ],
+        },
+      ],
+    },
     books: {
       title: "Our books (WinBooks) next to these figures",
       intro: "Our accounts for July 2023 – December 2024, kept in WinBooks, do not match the money that moved. The main gaps:",
@@ -381,6 +471,84 @@ export const TEXT: Record<Lang, PageText> = {
     wiseCard: "Le solde de notre carte Wise finissait 2024 à 4 191,77 €. Où il est parti en 2025 n'est pas encore retracé : il ne faisait pas partie du remboursement final de Wise en avril 2025.",
     grids4447: "Les déclarations reprennent aussi des ventes sans TVA belge : services à des clients d'autres pays de l'UE (grille 44) et opérations hors de son champ (grille 47).",
     sources: ["Chaque montant vient des ", "données publiques", ", les déclarations d'Intervat ; voir aussi ", "toutes nos taxes"],
+    undeclared: {
+      title: "4. La TVA sur nos ventes que nous n'avons pas déclarée",
+      intro: (ours, declared, gap) => `D'après l'argent reçu, nos ventes de 2024 contenaient ${ours} de TVA ; les déclarations en reprennent ${declared}. L'essentiel de l'écart de ${gap} vient de ventes qui n'ont jamais eu de facture avec un code TVA : les tickets d'événements, le coworking et les services vendus via Stripe. Notre comptabilité les a enregistrées sans code TVA, elles ne sont donc dans aucune déclaration.`,
+      cols: ["Trimestre", "TVA sur nos ventes, d'après l'argent", "Déclarée (grilles 54 − 64)", "Non déclarée"],
+      total: "Total",
+      fromTitle: "D'où elle vient (TVA de 21 % comprise dans le prix)",
+      fromNote: "La location de salles a été facturée avec TVA et déclarée ; une facture peut tomber dans un autre trimestre que son paiement, comparez donc les totaux.",
+      planTitle: "Comment nous allons régulariser (à valider avec notre comptable)",
+      plan: [
+        "Reconstituer les montants exacts depuis Stripe : chaque ticket, pass de coworking et service vendu en 2024, trimestre par trimestre, avec la TVA de 21 % comprise dans son prix. Les ventes déjà facturées avec TVA (location de salles) restent hors du calcul.",
+        "La déclarer : la TVA manquante comme régularisation en faveur de l'État (grille 61) dans notre prochaine déclaration, avec une note détaillant les trimestres et montants de 2024, ou par des déclarations 2024 rectifiées si l'administration le préfère. Des intérêts de retard sont dus ; régulariser nous-mêmes, avant tout contrôle, évite normalement l'amende.",
+        "La régler : elle s'impute sur la TVA que l'État nous doit dans cette déclaration, ou se paie avec elle.",
+        "Éviter que cela se reproduise : un code TVA sur chaque produit vendu via Stripe et sur chaque vente Stripe dans notre comptabilité, et la même vérification sur les déclarations 2025.",
+      ],
+    },
+    grids: {
+      title: "Grille par grille : ce que nous avons déclaré et ce que dit l'argent",
+      intro: "Chaque déclaration de 2024 à côté des grilles telles qu'elles se liraient d'après l'argent qui a circulé. Les déclarations comptent les factures à leur émission et cette page les paiements : un écart peut être une question de date ; ceux qui restent sont à corriger.",
+      cols: ["Grille", "", "Déclaré", "D'après l'argent", "Écart"],
+      labels: {
+        "01": "Ventes à 6 % (hors TVA)",
+        "02": "Ventes à 12 % (hors TVA)",
+        "03": "Ventes à 21 % (hors TVA)",
+        "00": "Ventes à 0 % ou sous régime particulier",
+        "44": "Services à des entreprises d'un autre pays de l'UE",
+        "47": "Autres ventes sans TVA belge (hors UE)",
+        "49": "Notes de crédit émises",
+        "81-83": "Achats : marchandises (81), services (82), biens d'investissement (83), hors TVA",
+        "84-85": "Notes de crédit reçues",
+        "86+88": "Achats dans l'UE en autoliquidation : biens (86), services (88)",
+        "87": "Autres achats en autoliquidation (hors UE)",
+        "54": "TVA due sur nos ventes",
+        "55": "TVA due sur les achats dans l'UE (autoliquidation)",
+        "56": "TVA due sur les autres achats en autoliquidation",
+        "64": "TVA sur les notes de crédit émises, en notre faveur",
+        "59": "TVA déductible",
+        "71-72": "Solde : dû à l'État (+) ou à nous (−)",
+      },
+      notInMoney: "invisible dans les paiements",
+      note: "« D'après l'argent » suppose que tout ce qui a été acheté est entièrement déductible (voir les questions ci-dessous) et ne peut pas répartir les achats entre marchandises, services et biens d'investissement.",
+    },
+    faq: {
+      title: "Les questions d'un contrôleur TVA",
+      items: [
+        {
+          q: "Pouvons-nous déduire la TVA sur tous nos coûts, alors que l'essentiel de l'argent reçu est fait de dons, de subventions et de bourses ?",
+          a: [
+            "La TVA sur un coût est déductible dans la mesure où ce coût sert notre activité taxable : location de salles, coworking, tickets d'événements, sponsoring (art. 45 du Code TVA). Les dons, subventions et bourses sont hors du champ de la TVA ; ils n'empêchent pas la déduction en soi. Ce qui compte, c'est l'usage des coûts.",
+            "L'essentiel de nos achats est le développement de Citizen Wallet et de Brussels Pay. Ce sont deux logiciels open source que la communauté utilise pour fonctionner : c'est avec eux que nous coordonnons le travail à faire, que nous vendons nos biens et services et que nous recevons des dons. Ils faisaient partie intégrante du Regen Village, qui a apporté l'essentiel de notre sponsoring et de nos tickets en 2024 et beaucoup de visibilité au Hub dans ce milieu : ils ont donc aussi une valeur marketing. Nous les considérons donc comme servant notre activité taxable.",
+            "Ce qu'un contrôleur pourrait encore demander : comment nous répartissons les coûts qui servent à la fois l'activité taxable et le travail non économique de l'association, comme certains frais généraux du Hub. Ceux-là, nous les déduirions au prorata (art. 46), pas entièrement.",
+          ],
+        },
+        {
+          q: "Pourquoi pas de TVA sur les recharges de jetons (EURb, Zinne, Brussels Pay) ?",
+          a: [
+            "Ce sont des bons à usages multiples : les jetons se dépensent chez plusieurs commerçants, pas seulement au Hub, donc ce qu'ils achèteront, et à quel taux, n'est pas connu à l'achat. La TVA est due quand ils sont dépensés, par celui qui vend le bien ou le service. Jusque-là, une recharge est de l'argent que nous devons à son détenteur.",
+          ],
+        },
+        {
+          q: "Pourquoi les virements d'All for Climate sont-ils des dons ?",
+          a: [
+            "Nous sommes l'hôte fiscal de collectifs qui sont des projets de notre association. All for Climate nous a reversé des dons qui leur étaient faits : pour la TVA et dans notre comptabilité, ce sont des dons à l'association, sans contrepartie.",
+          ],
+        },
+        {
+          q: "Pourquoi pas de TVA belge sur le sponsoring venant de l'étranger ?",
+          a: [
+            "Le sponsoring est un service à une entreprise, taxé là où le client est établi (art. 21 §2). Un sponsor d'un autre pays de l'UE reçoit une facture avec son numéro de TVA et sans TVA, et autoliquide la TVA (grille 44 ; ces ventes figurent aussi dans le relevé intracommunautaire). Un sponsor hors UE ne paie pas de TVA belge (grille 47).",
+          ],
+        },
+        {
+          q: "Pourquoi les chiffres de cette page diffèrent-ils des déclarations ?",
+          a: [
+            "Les déclarations comptent les factures à leur émission ; cette page compte l'argent quand il circule. Une facture de décembre payée en janvier tombe dans un autre trimestre, et les ventes sans facture (via Stripe) ne sont qu'ici. La comparaison grille par grille montre chaque écart.",
+          ],
+        },
+      ],
+    },
     books: {
       title: "Notre comptabilité (WinBooks) face à ces chiffres",
       intro: "Nos comptes de juillet 2023 à décembre 2024, tenus dans WinBooks, ne correspondent pas à l'argent qui a circulé. Les principaux écarts :",

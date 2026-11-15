@@ -1,4 +1,4 @@
-import { regimeFromNote, itemsLabel, subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
+import { filedGrid, GRID_ROWS, itemNote, regimeFromNote, itemsLabel, subjectToVat, declaredInputVat, declaredSalesVat, directionOf, isIncome, redactDeclarant, returnOverdue, ruleFor, vatPosition } from "@/lib/vat-position"
 import type { VatPeriod } from "@/lib/taxes"
 import type { Transaction } from "@/types/transactions"
 
@@ -206,5 +206,37 @@ describe("documents in the Drive", () => {
     expect(docKey(id, amount)).toBe(key)
     expect(driveDocs(id, amount)).toEqual(ids.map((f) => `https://drive.google.com/file/d/${f}/view`))
     expect(driveDocs("nope", 1)).toEqual([])
+  })
+
+  it("lists a payment without the VAT-regime sentence its category already gives", () => {
+    expect(itemNote("Gnosis Ltd., Regen Village sponsorship, invoice RV202407 (Gibraltar: outside the EU, no Belgian VAT, grid 47)")).toBe("Gnosis Ltd., Regen Village sponsorship, invoice RV202407 (Gibraltar)")
+    expect(itemNote("Kolektivo Labs B.V., invoice RV202402 (Netherlands, VAT NL863356151B01: EU B2B, reverse charge, grid 44)")).toBe("Kolektivo Labs B.V., invoice RV202402 (Netherlands, VAT NL863356151B01)")
+    expect(itemNote("Hetzner Online GmbH (Germany): servers, marked reverse charge. Service from another EU country without VAT: Belgian VAT self-assessed under reverse charge (grids 88 and 55, deducted in 59)")).toBe("Hetzner Online GmbH (Germany): servers, marked reverse charge")
+    expect(itemNote("QuickNode Inc. (United States; from its invoices): service from outside the EU, Belgian VAT self-assessed under reverse charge (grids 87 and 56, deducted in 59)")).toBe("QuickNode Inc. (United States; from its invoices)")
+    expect(itemNote(undefined)).toBe("")
+  })
+
+  it("works out the return's grids from the money, quarter by quarter", () => {
+    const p = vatPosition(
+      [
+        tx("t1", 121, "2024-10-02", "ticket"),
+        tx("s1", 5000, "2024-10-03", "sponsoring", { metadata: { category: "sponsoring", note: "Acme BV (Netherlands): EU B2B, reverse charge, grid 44" } } as Partial<Transaction>),
+        tx("c1", -1000, "2024-11-04", "consulting", { type: "DEBIT", metadata: { category: "consulting", note: "Freelancer (Germany). Service from another EU country without VAT: Belgian VAT self-assessed under reverse charge (grids 88 and 55, deducted in 59)" } } as Partial<Transaction>),
+        tx("e1", -242, "2024-11-05", "equipment", { type: "DEBIT" }),
+      ],
+      [2024],
+    )
+    const g = p.grids.get("2024-Q4")!
+    expect(g["03"]).toBe(100)
+    expect(g["54"]).toBe(21)
+    expect(g["44"]).toBe(5000)
+    expect(g["86+88"]).toBe(1000)
+    expect(g["55"]).toBe(210)
+    expect(g["81-83"]).toBe(1200)
+    expect(g["59"]).toBe(252)
+    expect(g["71-72"]).toBe(-21)
+    const balance = GRID_ROWS.find((r) => r.grid === "71-72")!
+    expect(filedGrid({ "72": 472.58 }, balance)).toBe(-472.58)
+    expect(filedGrid({ "81": 1, "82": 2 }, GRID_ROWS.find((r) => r.grid === "81-83")!)).toBe(3)
   })
 })

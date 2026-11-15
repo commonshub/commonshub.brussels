@@ -19,7 +19,10 @@ import {
   type Side,
   declaredInputVat,
   declaredSalesVat,
+  filedGrid,
   findPeriod,
+  GRID_ROWS,
+  itemNote,
   quarterKey,
   returnOverdue,
   subjectToVat,
@@ -187,7 +190,7 @@ function ItemRow({ i, t, lang, f, showProject }: { i: Item; t: PageText; lang: L
       </li>
     )
   }
-  const text = i.note || i.description
+  const text = itemNote(i.note) || i.description
   const flag = countryFlag(i.note)
   return (
     <li className="flex gap-3">
@@ -341,6 +344,11 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
   const declaredSales = sum(filed.map((q) => declaredSalesVat(q.period!)))
   const declaredInput = sum(filed.map((q) => declaredInputVat(q.period!)))
   const estBalance = round(position.income.vat - position.expense.vat)
+  // VAT on our sales: what the money says against what the returns declared, over the quarters filed.
+  const salesOurs = sum(filed.map((q) => q.est.collected))
+  const salesGap = round(salesOurs - declaredSales)
+  const salesDeclared = declaredSales
+  const salesLines = (position.income.groups.find((g) => g.rate === "21")?.lines ?? []).filter((l) => (l.vat ?? 0) > 0)
   const books = compareWithWinbooks(position)
   const themeAmount = (theme: string) => books.themes.find((x) => x.theme === theme)?.amount ?? 0
   const owed = sum(filed.filter((q) => q.net > 0).map((q) => q.net))
@@ -545,6 +553,107 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
             </details>
           </div>
 
+          <div id="undeclared" className="scroll-mt-24">
+            <h2 className="text-2xl font-bold text-foreground">{t.undeclared.title}</h2>
+            <p className="mt-3 max-w-3xl text-muted-foreground">{t.undeclared.intro(f.eur(salesOurs), f.eur(salesDeclared), f.eur(salesGap))}</p>
+            <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">{t.undeclared.cols[0]}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t.undeclared.cols[1]}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t.undeclared.cols[2]}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t.undeclared.cols[3]}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filed.map((q) => (
+                    <tr key={q.key}>
+                      <td className="px-3 py-2 font-medium whitespace-nowrap">{q.label}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{f.eur(q.est.collected)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{f.eur(declaredSalesVat(q.period!))}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">{f.eur(round(q.est.collected - declaredSalesVat(q.period!)))}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-semibold">
+                    <td className="px-3 py-2">{t.undeclared.total}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(salesOurs)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(salesDeclared)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{f.eur(salesGap)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <div>
+                <h3 className="font-semibold text-foreground">{t.undeclared.fromTitle}</h3>
+                <dl className="mt-2 space-y-1 text-sm">
+                  {salesLines.map((l) => (
+                    <Row key={l.category} label={ruleText(lang, "income", l.category, { label: l.label, why: "" }).label} value={f.eur(l.vat ?? 0)} />
+                  ))}
+                </dl>
+                <p className="mt-2 text-xs text-muted-foreground">{t.undeclared.fromNote}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">{t.undeclared.planTitle}</h3>
+                <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+                  {t.undeclared.plan.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+
+            <details className="group mt-6 rounded-lg border border-border">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 font-medium hover:bg-muted/40">
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" /> {t.grids.title}
+              </summary>
+              <div className="space-y-4 border-t border-border p-4">
+                <p className="text-sm text-muted-foreground">{t.grids.intro}</p>
+                {filed.map((q) => {
+                  const ours = position.grids.get(q.key) ?? {}
+                  return (
+                    <div key={q.key} className="overflow-x-auto">
+                      <h3 className="mb-1 font-semibold text-foreground">{q.label}</h3>
+                      <table className="w-full text-sm">
+                        <thead className="text-left text-muted-foreground">
+                          <tr className="border-b border-border">
+                            <th className="py-1 pr-2 font-medium">{t.grids.cols[0]}</th>
+                            <th className="py-1 pr-2 font-medium">{t.grids.cols[1]}</th>
+                            <th className="py-1 pr-2 text-right font-medium">{t.grids.cols[2]}</th>
+                            <th className="py-1 pr-2 text-right font-medium">{t.grids.cols[3]}</th>
+                            <th className="hidden py-1 text-right font-medium sm:table-cell">{t.grids.cols[4]}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {GRID_ROWS.map((row) => {
+                            const filedValue = filedGrid(q.period!.grids, row)
+                            const computable = !["00", "49", "84-85", "64"].includes(row.grid)
+                            const oursValue = computable ? ours[row.grid] ?? null : null
+                            if (filedValue === null && !oursValue) return null
+                            const diff = computable ? round((filedValue ?? 0) - (oursValue ?? 0)) : null
+                            return (
+                              <tr key={row.grid} className="align-top">
+                                <td className="py-1 pr-2 font-medium whitespace-nowrap">{row.grid}</td>
+                                <td className="py-1 pr-2 text-muted-foreground">{t.grids.labels[row.grid]}</td>
+                                <td className="py-1 pr-2 text-right tabular-nums">{filedValue === null ? "—" : row.grid === "71-72" ? f.signed(filedValue) : f.eur(filedValue)}</td>
+                                <td className="py-1 pr-2 text-right tabular-nums">{computable ? (row.grid === "71-72" ? f.signed(oursValue ?? 0) : f.eur(oursValue ?? 0)) : <span className="text-xs text-muted-foreground">{t.grids.notInMoney}</span>}</td>
+                                <td className={`hidden py-1 text-right tabular-nums sm:table-cell ${diff && Math.abs(diff) >= 1 ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}>
+                                  {diff === null ? "" : f.signed(diff)}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+                <p className="text-xs text-muted-foreground">{t.grids.note}</p>
+              </div>
+            </details>
+          </div>
+
           <div id="winbooks" className="max-w-3xl scroll-mt-24 rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold text-foreground">{t.books.title}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{t.books.intro}</p>
@@ -558,6 +667,24 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
               {t.books.cta[0]}
               <Link href="/2023-2024/winbooks" className="font-medium underline underline-offset-2">{t.books.cta[1]}</Link>.
             </p>
+          </div>
+
+          <div id="faq" className="max-w-3xl scroll-mt-24">
+            <h2 className="text-lg font-semibold text-foreground">{t.faq.title}</h2>
+            <div className="mt-3 divide-y divide-border rounded-lg border border-border">
+              {t.faq.items.map((item) => (
+                <details key={item.q} className="group">
+                  <summary className="flex cursor-pointer list-none items-start gap-2 px-4 py-3 font-medium hover:bg-muted/40">
+                    <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" /> {item.q}
+                  </summary>
+                  <div className="space-y-2 px-4 pb-4 pl-10 text-sm text-muted-foreground">
+                    {item.a.map((para) => (
+                      <p key={para}>{para}</p>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
 
           <div className="max-w-3xl space-y-3 text-sm text-muted-foreground">
