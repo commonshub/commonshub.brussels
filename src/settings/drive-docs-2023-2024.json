@@ -1,6 +1,199 @@
 {
  "_comment": "Supporting documents (invoices, receipts) of 2023–2024 transactions in the Accounting Google Drive (folder 1-Fe-2C286MfsW_03raiLhkx8OdPvWHKW), by transaction id and amount. Matched (local mirror, then the live Drive for references the mirror lacked) on Open Collective expense numbers, invoice references and, for file names carrying a date and an amount, the one payment that fits. Drive file ids only: the files open for people with access to that Drive.",
  "links": {
+  "ethereum:137:tx:0x77ab2d74db1b3e53ef89393a4e62ddebd0caed02121a5a4b122dec5834642298|-5298.59": [
+   "19CE96rZEAxUMbhUHgzLI4rg_OePaxWHD"
+  ],
+  "ethereum:137:tx:0xeda3d35fb87ec2e0c9ba15a309c060a698ac35266a22d39cd4a46276ad4a5ffc|-5298.59": [
+   "1iXOSzzGp9zw6MCAnKlLcCAFvL0f2ytkR"
+  ],
+  "ethereum:137:tx:0x807a1e6f851f30e32b28bc256e6e1a5f967a33241f1b22f2b648293d721a11d8|-5298.59": [
+   "1hUuQ-2_yWRo4NJBx2fUjxijQBhmd_n9L"
+  ],
+  "ethereum:137:tx:0x6e26db13c066c05fff72fb2fab0b4b35a7004b818eb54dbc8391f295a09f38f5|-3000": [
+   "1O1LMKiZDnmGD621PWrrDWlW2rZjjTaIc"
+  ],
+  "ethereum:137:tx:0x21db2ec628c0e432fac0cc8d904ab0d54f3705c1ea954eeb227871201e9a35b9|-3000": [
+   "1uWWEsIBdta2Z72y6TwhGaNkFw0lG7Bry"
+  ],
+  "ethereum:137:tx:0xb013764350c1116a4cb14080a24fde71a455bbe281b43a8215ac6c984bdd3c41|-3000": [
+   "1He6SP5qW7S8pzNvZJneLfGJfRU2IZ8b4"
+  ],
+  "wise:104984308:tx:TRANSFER-1332177907|-3872": [
+   "1RBnHMfvsmH9VqNmZj7iEWXQNhLshJ2F0"
+  ],
+  "iban:be46734072238636:tx:255083845bb05dd4|-2439.36": [
+   "13f3Wo4izibW3qgG5Jc96cEPw18QW-8Sq"
+  ],
+  "wise:85390967:tx:CARD-1447200523|-1811.05": [
+   "1WFqGQJ9Fp4OeTSnDOw9xQsDopHLiIL-Z"
+  ],
+  "ethereum:100:tx:0xa9b47e912a2b6a99682060d89bf4b0d7d2b4dce59963c171e2281db2924cf8ef|-1565.5": [
+   "1WCCI6DvJSex3sPsK0onpFq87K7Ws0XYA",
+   "1cFe3UN-y1h41pFGEXeL4ResdhfmDOt1l",
+   "1Xyd9bM2jDkrEzobYW0BIbg7mV7QT7kgM"
+  ],
+  "wise:92197873:tx:TRANSFER-1132785261|-1500": [
+   "1bJKmlmTdNtHjG0lE900zKCM-1BW4_RRF"
+  ],
+  "ethereum:137:tx:0x2e81075bf371c90ecc62c9ab948def651b08e3028cdfb9a999f2b699c01f81a5|-1317.21": [
+   "1p9XTEOZz276Bqqu7tTSDmmKkTbrKJzWn",
+   "1E71yzc2g6UgFOnc_1x7K39H_zQ9DCOWl"
+  ],
+  "wise:88938999:tx:TRANSFER-1124603826|-847": [
+   "1EQraMfnirY_G-KnX3eWJxjODhUP8KQSF"
+  ],
+  "wise:88938999:tx:TRANSFER-1166990758|-847": [
+   "1pdOmYBS6JBIQVv396NmoBDLSNHrXUcGs"
+  ],
+  "wise:88938999:tx:TRANSFER-1205467172|-847": [
+   "1yk6ClPiNW7bWFfesqhTtiJ1bGI-WF-KE"
+  ],
+  "iban:be46734072238636:tx:cbf97784e1e29af5|-758": [
+   "1Ic4KZqM1WXGhiWF3nLSmdPHU3O9FG1Tm"
+  ],
+  "wise:85390967:tx:TRANSFER-1205432983|-619.52": [
+   "14a8lFDkjw2ZVOcxFWJ0kdHcGysp3cr_U"
+  ],
+  "wise:91390025:tx:CARD-1532297824|-594": [
+   "1raf9nunA2z6FV9o22N--PDUXl7Ubvk-b"
+  ],
+  "wise:91390025:tx:TRANSFER-1208712975|-577.26": [
+   "1scNfcR-jIGcujEawk_G6c-iJpDk0QZtV"
+  ],
+  "wise:91390025:tx:CARD-1579268572|-549": [
+   "1_rlscEZq_8HcxTFIhGn1CfHAIbnwFsFs"
+  ],
+  "wise:91390025:tx:TRANSFER-1268006895|-527.59": [
+   "1UaRVnnjw1B_vyPMsDU7U_k_fNbCMOGWQ"
+  ],
+  "wise:91390025:tx:TRANSFER-1126719479|-411": [
+   "18GTg2VHX24S6sYsdaRyPeF-4E1Gfl07o"
+  ],
+  "wise:85390967:tx:CARD-1555791382|-392.62": [
+   "1KHWMHajq93aZri0IupL-FJvApfjCXRrz",
+   "1eyDanQs0NXCAUk6nsvFwZcEkMRzTAB-G"
+  ],
+  "wise:92197873:tx:CARD-1600177719|-373.69": [
+   "1hjSuCvJiZuh2CpEN96GV1HUyHts0jzGK",
+   "1hqyIz8uZogqLnIeZvxDI3WcG2VHjU637",
+   "1vdF-AI1PSNASaBpLTf4keN3yVUQM6w2A"
+  ],
+  "wise:88938999:tx:CARD-1990362265|-355": [
+   "1xNDVuqoaJbTmv04Emn5UP1Tl547DJyTM"
+  ],
+  "wise:91390025:tx:CARD-1568395222|-338": [
+   "1eqcAJxQxyKY8APg0PTrYxCodYJa-w8y0"
+  ],
+  "wise:91390025:tx:CARD-1598979666|-266.16": [
+   "1AWEaRsz7zvog6JR-5hCZ7l05Q3QcEo3M"
+  ],
+  "wise:91390025:tx:TRANSFER-1146389908|-237.1": [
+   "17YimX9W5Kaj-mJQ5mUjwsqufBz6OepVL"
+  ],
+  "wise:91390025:tx:TRANSFER-1135908446|-233.65": [
+   "1WhCjVrwNWxRAU2C1dJTw-dnsK_PD4vjr"
+  ],
+  "wise:91390025:tx:TRANSFER-1124745134|-200": [
+   "1lB8FFSIkWWWA1hsS1hg8rddKrvGqYbcM"
+  ],
+  "wise:91390025:tx:TRANSFER-1126722965|-200": [
+   "14386xtnJehwjOsDziLbjR4iV1OlWL2Hr"
+  ],
+  "wise:91390025:tx:CARD-1606718069|-152.75": [
+   "1HRbqI_9KI802-ss1KVu6XE8LK7BhYZZh"
+  ],
+  "wise:92197873:tx:TRANSFER-1127332267|-116.77": [
+   "1MFNwL7dwjVxRw2nLNARqCfpz3SoL19WZ",
+   "1VeGKplqoGa1Qhbdz2luljMePXYY_7UBX"
+  ],
+  "wise:91390025:tx:CARD-1620524301|-114": [
+   "1claKM7I0uTFltX7LWaqiFCUHb0J1UvnX"
+  ],
+  "ethereum:100:tx:0x4a7e8d4cbe71edcee4b487d78701b3f0612f14684b98e6152f477c84982f44d9|-113.12": [
+   "1mrM1LCMnporf4--t4-h0K4MrntVZUnLV",
+   "1QuFSomJmZrpVxHXtn-49QcKY1pvoGPqr"
+  ],
+  "wise:91390025:tx:CARD-1604637187|-69.9": [
+   "1RTGweO-eFuVSjnLzsjCh-bXOeozDEoi9"
+  ],
+  "wise:92197873:tx:TRANSFER-1146343322|-67": [
+   "1VCmp5OePBVz0gVR1f8air75gt9w9zAl6"
+  ],
+  "wise:88938999:tx:TRANSFER-1303941498|-65.9": [
+   "1V9YrMp5ieCxIiJ-uppwO94-yNZP0z1MM"
+  ],
+  "wise:92197873:tx:TRANSFER-1146341312|-60.1": [
+   "13dp0DSIY7yE1ugAMxYrUmEcTqtGtdf5E"
+  ],
+  "ethereum:137:tx:0x4eef1546663f21a0f55daf42aa867ddf4dbb38b97afb62d76a60a0e1ad03c797|-26.49": [
+   "1ES8nKcx4xhPas3L3C2P-r0S8phkll5Ca"
+  ],
+  "ethereum:137:tx:0x4a35c480c481208be2c87d47452e4fde6aa634ad9c190afd069f90636b57f44e|-18.24": [
+   "1qGtA2ZnVHnIi5USP0Ywu_Zy-65wCepwR"
+  ],
+  "wise:88938999:tx:CARD-1859301489|-18.16": [
+   "14HYwh1kkk7-tS24WFKzbDB6T3YPgS64M"
+  ],
+  "ethereum:137:tx:0xb68f85f222d4db8bf035c7fae275ffa7ac428d36866a3fb9e8d4698495342ab5|-17.75": [
+   "1Fu2kY-88DPLQofVxLx4oX4EQt7du-nd1"
+  ],
+  "wise:92197873:tx:CARD-1613465911|-15.72": [
+   "1bWaGYPA0dtcjxM0vMNV8Ud53XIaNoP9w"
+  ],
+  "wise:88938999:tx:CARD-1877242551|-13.53": [
+   "1UL_I2gpdL43s0ag5WOiVobYDGJRrOFik",
+   "1rTRhhsZdyQEVUVvYiN9_yMdavs2Y_c_K"
+  ],
+  "wise:88938999:tx:CARD-2046530259|-11.18": [
+   "1UFDbFsEwJx9ITBF_plUviPH1MAxhkc5o",
+   "137PWxNkjJX4B7-CW_b8lIekiM2i4p3nd"
+  ],
+  "wise:85390967:tx:CARD-1545994676|-11.68": [
+   "1mNsq2h_GqVeQhejVUqtJyW_SmwQh7bwn"
+  ],
+  "wise:92133886:tx:CARD-1634784281|-9.17": [
+   "1p9fJPfFypXZBqyxeGJXbRf_bMXizyxwX"
+  ],
+  "wise:92133886:tx:CARD-1695610740|-9.16": [
+   "1Cs-ZeM_7jkXmc0ve6U49T3N2tkTkM8W7"
+  ],
+  "wise:88938999:tx:CARD-2012870970|-10.56": [
+   "1mmwyCobK4HYIUotncSaWw1sQP24veEFs"
+  ],
+  "iban:be46734072238636:tx:725808120ec9180d|-802.33": [
+   "1CY1zbcitnqlOdwcDTx2hExemEXqIL1aY"
+  ],
+  "iban:be46734072238636:tx:27e3ff701f10d774|3000": [
+   "10XsGZRhOQhXohyaahoIk9rDClZkDyANw",
+   "14HERs-HLnD3E83sEX9KY-RUObT5MMjGd"
+  ],
+  "ethereum:100:tx:0x5876e44be75f9847e7d185eda9419670c7e45161c8e78cf3ef2f2a0f0fa10a5f|526.35": [
+   "1s_S9xTdyWRwTLXg-KPH1H4y_3W8X2RP4"
+  ],
+  "ethereum:137:tx:0x134696ed02d47e8ee62415ee17495910f871bdbec37f4f5d55e295e966e9902e|500": [
+   "1zhmpQpyUuSJoW3nzib-Dyqwki7cNNVWR"
+  ],
+  "wise:85390967:tx:TRANSFER-1166891062|466.39": [
+   "1IPtxF1EdG5BUvLULF5QwYNxAO4uWOjE_"
+  ],
+  "stripe:txn_3QDuXcFAhaWeDyow01KMtBg4|302.5": [
+   "10xpUUl2P-iS-QitGDnw2inqfFVvlIXSn",
+   "1IlVHSCyADwTMj9G9KilLYiynuA7MtXk0"
+  ],
+  "stripe:txn_3QY98lFAhaWeDyow1EX28Dt7|302.5": [
+   "1BFtxk55lo5AIXjWdMD4URszCyefqYN31"
+  ],
+  "ethereum:137:tx:0x7106841373bf5ca26a1a5741d9430b58a36e0d13d8118f6636f6dad4e7d4363e|5": [
+   "1793eQITnvRgUZxTYe9NW6BdcuUjMP9FV",
+   "1hGSw2CTO9-rEi6FMLxgaZK4yptY5yow7"
+  ],
+  "iban:be46734072238636:tx:5f9c3a442b61d01f|1560.73": [
+   "1Gv69vm9QtP_9C39QHn7ifgs5m22ksewd"
+  ],
+  "iban:be46734072238636:tx:041cd97cdcd1eedc|38.9": [
+   "1U6lvYmdeFrtsh2Ocog2FaLd0Ky7fVVsc"
+  ],
   "ethereum:100:tx:0xd30debdc4599f3a5863e26385915883b8c367960da45b6cc25c1b9f7dff94a49|-3200": [
    "1B0z2g2CL3WEWKWBjTVZx7xCbjauytHXN"
   ],
