@@ -83,6 +83,9 @@ function Figure({ label, value, note, tone }: { label: string; value: string; no
   )
 }
 
+/** Purchases under reverse charge: we declare the VAT ourselves and deduct it, so none is paid to the supplier. */
+const selfAssessed = (rate: string, dir: Direction) => dir === "expense" && (rate === "reverse_eu" || rate === "reverse_noneu")
+
 /** One side (income or expenses): a row per VAT rate, opening onto its categories and why that rate. */
 function RateBreakdown({ side, dir, lang, f }: { side: Side; dir: Direction; lang: Lang; f: F }) {
   const t = TEXT[lang]
@@ -92,15 +95,16 @@ function RateBreakdown({ side, dir, lang, f }: { side: Side; dir: Direction; lan
         <details key={g.rate} className="group">
           <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-muted/40">
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-            <span className="min-w-0 flex-1 font-medium text-foreground">{RATE_LABELS[lang][g.rate]}</span>
-            <span className="text-right tabular-nums">
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium text-foreground">{RATE_LABELS[lang][g.rate]}</span>
+              {selfAssessed(g.rate, dir) && (
+                <span className="block text-xs text-muted-foreground">{SELF_ASSESSED[lang](f.eur(round(g.amount * SELF_ASSESSED_RATE)))}</span>
+              )}
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-right tabular-nums">
               {f.eur(g.amount)}
               <span className="block text-xs text-muted-foreground">
-                {g.vat === null
-                  ? t.vatNotEstimated
-                  : dir === "expense" && (g.rate === "reverse_eu" || g.rate === "reverse_noneu")
-                    ? SELF_ASSESSED[lang](f.eur(round(g.amount * SELF_ASSESSED_RATE)))
-                    : `${f.eur(g.vat)} ${t.vat}`}
+                {g.vat === null ? t.vatNotEstimated : `${f.eur(selfAssessed(g.rate, dir) ? 0 : g.vat)} ${t.vat}`}
               </span>
             </span>
           </summary>

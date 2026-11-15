@@ -63,7 +63,7 @@ describe("vat-position", () => {
     ])
     expect(p.expense.amount).toBe(1100)
     expect(p.expense.vat).toBe(21)
-    expect(p.quarters.get("2024-Q2")).toEqual({ collected: 21, paid: 21 })
+    expect(p.quarters.get("2024-Q2")).toEqual({ collected: 21, paid: 21, stripe: 0, stripeAmount: 0 })
     expect(directionOf(tx("h", -5, "2024-01-01", "vat"))).toBeNull()
   })
 
