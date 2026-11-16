@@ -65,6 +65,7 @@ export function PendingBills({ bills, summary, shown = 10 }: { bills: Contributa
             <div className="text-sm text-muted-foreground">
               {summary.count} {summary.count === 1 ? "bill" : "bills"} still to pay
               {summary.otherCurrencies.map((c) => `, plus ${money(c.amountDue, c.currency)} in ${c.currency}`).join("")}
+              {summary.disputed?.count ? ` (not counting ${formatEur(summary.disputed.amountDue)} we dispute)` : ""}
             </div>
           </div>
           <div className="text-xs text-muted-foreground">Updated {moment(summary.generatedAt)}</div>
