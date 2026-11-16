@@ -334,6 +334,10 @@
     }
   },
   "contribute": {
+    "disputed": {
+      "_comment": "Vendor bills we dispute, by Odoo bill number: not counted in what is still to pay (/finance) and not offered on /contribute until resolved. Arca Fiduciaire: the work promised was never delivered (Xavier, 2026-11-17).",
+      "bills": ["CHB-S/2026/04/0020", "CHB-S/2026/05/00005", "CHB-S/2026/06/0018"]
+    },
     "_comment": "Expenses shown on /contribute. Recurring rules match Odoo vendor bills by vendor name (regex, needs the private export) or by bill line text (regex, public export); title is an extra condition for vendors that bill other things too; monthlyAmount is the fixed monthly cost shown on the page and wins over the amount read from bills; annualAmount is a yearly bill shown as a twelfth per month (the two taxes: the 2026 bills, the same as settings.taxes.pending); short names the cost in the transfer message, \"Contribution <short>\" (the fixed costs below are set from the Odoo vendor bills as of September 2026 — update them when a contract changes). Bills matching exclude go nowhere (catering is bought and consumed on the day). vendorLabel names the suppliers on the page when a cost has several; aliases are older slugs that redirect to this one. billed: false marks a cost paid under a contract (the rent): no bill is ever matched to it.",
     "recurring": [
       {

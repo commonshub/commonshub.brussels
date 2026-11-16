@@ -50,6 +50,8 @@ export interface FinanceOutlook {
   cash: number
   /** Unpaid EUR bills in the books; null when chb has not published the list. */
   unpaidBills: { amount: number; count: number; overdue: number; overdueCount: number } | null
+  /** Bills we dispute: shown apart, not in stillToPay. */
+  disputedBills: { amount: number; count: number }
   /** The building's taxes billed to us, what is left to pay of them (/taxes). */
   unpaidTaxes: { amount: number; count: number; overdue: number }
   /** Unpaid bills and taxes together. */
@@ -138,6 +140,7 @@ export function computeOutlook(input: {
   unpaid: Array<{ amountDue: number; overdue?: boolean }> | null
   /** What is left to pay of each tax bill, and how much of it is past due. */
   taxes?: Array<{ amount: number; overdue: number }>
+  disputed?: { amountDue: number; count: number }
   fixedCosts: FixedCost[]
   /** Oldest first; the last one is the current, partial month. */
   months: MonthFlow[]
@@ -175,6 +178,7 @@ export function computeOutlook(input: {
   return {
     cash,
     unpaidBills,
+    disputedBills: { amount: input.disputed?.amountDue ?? 0, count: input.disputed?.count ?? 0 },
     unpaidTaxes,
     stillToPay,
     fixedCosts: input.fixedCosts,
@@ -202,6 +206,7 @@ export function loadFinanceOutlook(cash: number, now: Date = new Date()): Financ
   return computeOutlook({
     cash,
     unpaid: expenses.pending ? expenses.oneTime.map((b) => ({ amountDue: b.amountEur, overdue: b.overdue })) : null,
+    disputed: expenses.pending?.disputed,
     taxes: openPending(PENDING_TAXES, loadTaxPayments(), TAX_RULES, now.toLocaleDateString("en-CA", { timeZone: "Europe/Brussels" })),
     fixedCosts: fixedCostsOf(expenses.recurring),
     months,

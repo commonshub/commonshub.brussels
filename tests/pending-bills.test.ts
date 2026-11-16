@@ -42,6 +42,8 @@ beforeAll(() => {
       bill({ id: "b-usd", currency: "USD", totalAmount: 20, amountDue: 20 }),
       bill({ id: "b-cn", type: "credit_note", totalAmount: 50, amountDue: 50 }),
       bill({ id: "b-rev", status: "reversed", totalAmount: 70, amountDue: 70 }),
+      // Listed in settings.contribute.disputed.
+      bill({ id: "b-disp", number: "CHB-S/2026/05/00005", vendor: { type: "business", name: "Arca Fiduciaire" }, totalAmount: 5872.81, amountDue: 5872.81 }),
     ],
   })
   const { type: _type, ...paid } = bill({ id: "b-9", status: "paid", amountDue: 0, date: "2026-08-05", vendor: { type: "organisation", name: "Relieve Group" }, description: "Relieve furniture rental August 2026" })
@@ -61,7 +63,7 @@ describe("bills still to pay", () => {
     ])
     // On Nostr a bill is known by chb's public id, which never changes.
     expect(expenses[0]).toMatchObject({ uri: "odoo:commonshub.odoo.com:commonshub:account.move:b-2", publicId: "b-2", category: "catering" })
-    expect(summary).toMatchObject({ count: 3, amountDue: 196.69, otherCurrencies: [{ currency: "USD", count: 1, amountDue: 20 }] })
+    expect(summary).toMatchObject({ count: 3, amountDue: 196.69, otherCurrencies: [{ currency: "USD", count: 1, amountDue: 20 }], disputed: { count: 1, amountDue: 5872.81 } })
   })
 
   test("each bill is covered by quoting its number, and individuals stay anonymous", () => {

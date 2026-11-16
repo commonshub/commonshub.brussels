@@ -143,6 +143,11 @@ export function FinanceOutlookSection({ outlook }: { outlook: FinanceOutlook }) 
           ) : (
             <p>The list of unpaid bills is not published yet.</p>
           )}
+          {o.disputedBills.count > 0 && (
+            <p>
+              Not counted: {eur(o.disputedBills.amount)} in {o.disputedBills.count} {o.disputedBills.count === 1 ? "bill" : "bills"} we dispute.
+            </p>
+          )}
           {o.unpaidTaxes.amount > 0 && (
             <p>
               {eur(o.unpaidTaxes.amount)} of{" "}

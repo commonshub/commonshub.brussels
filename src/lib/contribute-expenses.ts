@@ -84,6 +84,8 @@ export interface PendingSummary {
   amountDue: number
   /** Bills in another currency than EUR: listed in their currency, not coverable here. */
   otherCurrencies: Array<{ currency: string; count: number; amountDue: number }>
+  /** EUR bills we dispute (settings.contribute.disputed): left out of count and amountDue. */
+  disputed: { count: number; amountDue: number }
 }
 
 // ── raw records, as chb writes them ──────────────────────────────────────
@@ -159,6 +161,8 @@ interface ContributeSettings {
   oneTimeMonths: number
   /** One-time bills under this are bank fees and rounding, not expenses. */
   oneTimeMinAmount?: number
+  /** Bills we dispute, by Odoo number: not to pay until resolved. */
+  disputed?: { bills: string[] }
 }
 
 const CONFIG = settings.contribute as unknown as ContributeSettings
@@ -261,7 +265,10 @@ export function readPendingBills(dataDir: string, now: Date = new Date()): { exp
   if (!file) return null
   const today = now.toISOString().slice(0, 10)
   const open = file.bills.filter((b) => b.type === "bill" && b.status !== "reversed" && b.amountDue > 0)
-  const eur = open.filter((b) => b.currency === "EUR")
+  const disputedNumbers = new Set(CONFIG.disputed?.bills ?? [])
+  const isDisputed = (b: ChbBill) => !!b.number && disputedNumbers.has(b.number)
+  const disputed = open.filter((b) => b.currency === "EUR" && isDisputed(b))
+  const eur = open.filter((b) => b.currency === "EUR" && !isDisputed(b))
 
   const expenses = eur
     .map((record): ContributableExpense => {
@@ -300,6 +307,7 @@ export function readPendingBills(dataDir: string, now: Date = new Date()): { exp
       count: expenses.length,
       amountDue: Math.round(expenses.reduce((s, e) => s + e.amountEur, 0) * 100) / 100,
       otherCurrencies: [...others.entries()].map(([currency, v]) => ({ currency, ...v })),
+      disputed: { count: disputed.length, amountDue: Math.round(disputed.reduce((s, b) => s + b.amountDue, 0) * 100) / 100 },
     },
   }
 }
