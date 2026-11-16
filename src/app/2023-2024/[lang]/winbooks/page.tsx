@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { RefreshSession } from "@/components/refresh-session"
+import { notFound } from "next/navigation"
 import { ArrowLeft, ChevronDown } from "lucide-react"
 import { Linkified } from "@/components/linkified"
 
@@ -7,8 +9,14 @@ import { vatPosition } from "@/lib/vat-position"
 import { loadTransactions } from "@/lib/vat-position-data"
 import { THEMES, WINBOOKS, compareWithWinbooks, type LineResult } from "@/lib/winbooks-2023-2024"
 
-// Reads the dataset volume, so never prerender it.
-export const dynamic = "force-dynamic"
+// Cached like /2023-2024 (see ../page.tsx). English only: src/proxy.ts maps
+// /2023-2024/winbooks to /2023-2024/en/winbooks.
+export const dynamic = "force-static"
+export const revalidate = 3600
+export const dynamicParams = true
+export function generateStaticParams() {
+  return []
+}
 
 export const metadata = {
   title: "WinBooks and the money, 2023–2024 | Commons Hub Brussels",
@@ -118,7 +126,8 @@ function Lines({ lines, total }: { lines: LineResult[]; total: { winbooks: numbe
   )
 }
 
-export default function Winbooks20232024Page() {
+export default async function Winbooks20232024Page({ params }: { params: Promise<{ lang: string }> }) {
+  if ((await params).lang !== "en") notFound()
   const txs = loadTransactions([...YEARS, YEARS[YEARS.length - 1] + 1])
   const position = vatPosition(txs, YEARS, explorerTxUrl)
   const c = compareWithWinbooks(position)
@@ -127,6 +136,7 @@ export default function Winbooks20232024Page() {
 
   return (
     <main className="min-h-screen">
+      <RefreshSession />
       <section className="pt-32 pb-12 bg-primary/5">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link href="/2023-2024" className="inline-flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-primary hover:underline">

@@ -1,12 +1,13 @@
 import Link from "next/link"
-import { cookies, headers } from "next/headers"
+import { RefreshSession } from "@/components/refresh-session"
+import { notFound } from "next/navigation"
 import { AlertTriangle, ChevronDown, FileText, ReceiptText } from "lucide-react"
 
 import { LangSwitch } from "@/components/lang-switch"
 import { Linkified } from "@/components/linkified"
 import { countryFlag } from "@/lib/country-flag"
 import { VatBox } from "@/components/vat-box"
-import { type Lang, LOCALE, RATE_LABELS, REGIME_WHY_FR, SELF_ASSESSED, TEXT, type PageText, pickLang, ruleText } from "@/lib/vat-i18n"
+import { type Lang, LOCALE, RATE_LABELS, REGIME_WHY_FR, SELF_ASSESSED, TEXT, type PageText, ruleText } from "@/lib/vat-i18n"
 import { explorerTxUrl, matchVatPayments } from "@/lib/taxes"
 import { loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
 import {
@@ -36,20 +37,30 @@ import { firstMonthByAccount, loadTransactions, quarterHasData } from "@/lib/vat
 import settings from "@/settings/settings.json"
 import { compareWithWinbooks } from "@/lib/winbooks-2023-2024"
 
-// Reads the dataset volume, so never prerender it.
-export const dynamic = "force-dynamic"
+// Built on the first visit after a deploy, then served from the cache; rebuilt
+// in the background at most once an hour. The language is in the internal path:
+// src/proxy.ts maps /2023-2024 to /2023-2024/en or /fr (?lang=, cookie, browser).
+// force-static also keeps the root layout from reading cookies here, so the page
+// never depends on who is looking.
+export const dynamic = "force-static"
+export const revalidate = 3600
+export const dynamicParams = true
+export function generateStaticParams() {
+  return [] // nothing at build time: the dataset is only on the server
+}
 
 interface PageProps {
-  searchParams: Promise<{ lang?: string }>
+  params: Promise<{ lang: string }>
 }
 
-async function langOf(searchParams: PageProps["searchParams"]): Promise<Lang> {
-  const [{ lang }, jar, h] = await Promise.all([searchParams, cookies(), headers()])
-  return pickLang(lang, jar.get("lang")?.value, h.get("accept-language"))
+async function langOf(params: PageProps["params"]): Promise<Lang> {
+  const { lang } = await params
+  if (lang !== "en" && lang !== "fr") notFound()
+  return lang
 }
 
-export async function generateMetadata({ searchParams }: PageProps) {
-  const t = TEXT[await langOf(searchParams)]
+export async function generateMetadata({ params }: PageProps) {
+  const t = TEXT[await langOf(params)]
   return { title: t.title, description: t.description, robots: { index: false, follow: false } }
 }
 
@@ -313,8 +324,8 @@ function Row({ label, value, strong, tone }: { label: string; value: string; str
   )
 }
 
-export default async function Vat20232024Page({ searchParams }: PageProps) {
-  const lang = await langOf(searchParams)
+export default async function Vat20232024Page({ params }: PageProps) {
+  const lang = await langOf(params)
   const t = TEXT[lang]
   const f = formatters(lang)
   const now = new Date()
@@ -384,6 +395,7 @@ export default async function Vat20232024Page({ searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen" lang={lang}>
+      <RefreshSession />
       <section className="pt-32 pb-12 bg-primary/5">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
