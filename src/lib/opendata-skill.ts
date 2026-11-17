@@ -128,7 +128,7 @@ const { bookings, rooms } = await fetch(\`\${API}/2026/bookings.json\`).then(r =
 
 \`totals\` (count, untaxedAmount, totalAmount, paidAmount, amountDue), \`byCategory[]\`, and \`expenses[]\`:
 \`id\`, \`number\` (our accounting number), \`kind\` (\`bill\` | \`credit_note\` | \`expense\` = someone reimbursed),
-\`status\` (\`pending\` | \`partially_paid\` | \`paid\` | \`reversed\` | \`submitted\`), \`date\`, \`dueDate\`,
+\`status\` (\`pending\` | \`partially_paid\` | \`paid\` | \`reversed\` | \`disputed\` | \`submitted\`), \`date\`, \`dueDate\`,
 \`vendor\` (\`{ id, type, name, vat }\`, see below), \`description\`, \`category\`, \`collective\`, \`event\`,
 amounts, \`hasDocument\`, and \`lines[]\` (\`description\`, \`product\`, \`quantity\`, \`unitPrice\`,
 \`untaxedAmount\`, \`totalAmount\`, \`vatRate\`, \`account: { code, class }\`).

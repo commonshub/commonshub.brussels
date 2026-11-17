@@ -42,8 +42,8 @@ beforeAll(() => {
       bill({ id: "b-usd", currency: "USD", totalAmount: 20, amountDue: 20 }),
       bill({ id: "b-cn", type: "credit_note", totalAmount: 50, amountDue: 50 }),
       bill({ id: "b-rev", status: "reversed", totalAmount: 70, amountDue: 70 }),
-      // Listed in settings.contribute.disputed.
-      bill({ id: "b-disp", number: "CHB-S/2026/05/00005", vendor: { type: "business", name: "Arca Fiduciaire" }, totalAmount: 5872.81, amountDue: 5872.81 }),
+      // Payment blocked in Odoo: chb ≥ 3.54 flags it.
+      bill({ id: "b-disp", number: "CHB-S/2026/05/00005", status: "disputed", disputed: true, vendor: { type: "business", name: "Arca Fiduciaire" }, totalAmount: 5872.81, amountDue: 5872.81 }),
     ],
   })
   const { type: _type, ...paid } = bill({ id: "b-9", status: "paid", amountDue: 0, date: "2026-08-05", vendor: { type: "organisation", name: "Relieve Group" }, description: "Relieve furniture rental August 2026" })
