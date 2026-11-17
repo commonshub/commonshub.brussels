@@ -20,13 +20,38 @@ export const dynamic = "force-dynamic"
  * in over the period), orgName=… and orgContribution=<euros> (their
  * organisation's), shown under the share of costs covered.
  */
-export async function GET(request: Request) {
+function authorized(request: Request): boolean {
   const secret = process.env.RENEW_LINK_SECRET
   const given = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "")
   const digest = (s: string) => createHash("sha256").update(s).digest()
-  if (!secret || !given || !timingSafeEqual(digest(given), digest(secret))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+  return !!secret && !!given && timingSafeEqual(digest(given), digest(secret))
+}
 
-  const q = new URL(request.url).searchParams
+export async function GET(request: Request) {
+  if (!authorized(request)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+  return render(new URL(request.url).searchParams, [])
+}
+
+/**
+ * POST: the same, with a JSON body ({period, discordId | emailHash + name, contribution,
+ * orgName, orgContribution, euroTransactions}), for what doesn't fit in a URL: the member's
+ * euro transactions over the period, [{at: ISO, amount, description}], amount from the member's
+ * side (a payment to the hub is negative, a refund positive).
+ */
+export async function POST(request: Request) {
+  if (!authorized(request)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+  const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>
+  const q = new URLSearchParams()
+  for (const k of ["period", "discordId", "emailHash", "name", "contribution", "orgName", "orgContribution"]) if (body[k] !== undefined && body[k] !== null) q.set(k, String(body[k]))
+  const euros = (Array.isArray(body.euroTransactions) ? body.euroTransactions : [])
+    .slice(0, 100)
+    .map((t) => t as { at?: unknown; amount?: unknown; description?: unknown })
+    .map((t) => ({ at: Date.parse(String(t.at ?? "")), amount: Number(t.amount), description: String(t.description ?? "").slice(0, 140) }))
+    .filter((t) => Number.isFinite(t.at) && Number.isFinite(t.amount) && t.amount !== 0)
+  return render(q, euros)
+}
+
+async function render(q: URLSearchParams, euroTransactions: Array<{ at: number; amount: number; description: string }>) {
   const discordId = q.get("discordId") ?? ""
   const emailHash = (q.get("emailHash") ?? "").toLowerCase()
   const [year, part] = (q.get("period") ?? "").split("-")
@@ -52,9 +77,11 @@ export async function GET(request: Request) {
   if (personal !== null) recap.contribution = { personal, ...(orgName && orgAmount !== null ? { org: { name: orgName, amount: orgAmount } } : {}) }
   // Everyone gets the community mosaic: a member without Discord too (their own photos come first when we know them).
   if (!byDiscord) recap.photos = await communityPhotos(period).catch(() => [])
+  if (euroTransactions.length) recap.euros = euroTransactions
 
-  const settingsLink = settingsUrl(SITE, signSettingsLink(byDiscord ? discordId : `e:${emailHash}`))
-  const { subject, html, text } = buildRecapEmail(recap, { origin: SITE, settingsLink, ...(byEmail ? { linkDiscord: linkDiscordUrl(SITE, signDiscordLinkToken(emailHash)) } : {}) })
+  const token = signSettingsLink(byDiscord ? discordId : `e:${emailHash}`)
+  const settingsLink = settingsUrl(SITE, token)
+  const { subject, html, text } = buildRecapEmail(recap, { origin: SITE, settingsLink, viewToken: token, ...(byEmail ? { linkDiscord: linkDiscordUrl(SITE, signDiscordLinkToken(emailHash)) } : {}) })
   return NextResponse.json({
     ok: true,
     member: byDiscord ? { discordId: recap.member.id, username: recap.member.username, name: recap.member.name } : { emailHash, name: recap.member.name },

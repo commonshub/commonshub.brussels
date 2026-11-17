@@ -88,3 +88,28 @@ test("my contribution and my organisation's under the share covered, with Donate
   expect(html).not.toContain("border:1px solid #eaded9\">")
   expect(text).toContain("My personal contribution: €30")
 })
+
+test("one Transactions list: tokens in and out and euros, by date, signed from the member's side", async () => {
+  const { transactions } = await import("@/lib/monthly-recap-email")
+  const t = transactions({
+    received: [{ at: Date.parse("2026-11-03T10:00:00Z"), what: "Park cleaning", amount: 1 } as never],
+    spent: [{ at: Date.parse("2026-11-05T10:00:00Z"), what: "Coworking", amount: 3 } as never],
+    euros: [{ at: Date.parse("2026-11-04T10:00:00Z"), amount: -50, description: "Membership" }, { at: Date.parse("2026-11-06T10:00:00Z"), amount: 12.5, description: "Refund" }],
+  })
+  expect(t.map((x) => [x.label, x.description])).toEqual([
+    ["+1 token", "Park cleaning"],
+    ["−€50", "Membership"],
+    ["−3 tokens", "Coworking"],
+    ["+€12.50", "Refund"],
+  ])
+})
+
+test("mosaic photos open the month's carousel, with the reader's token", async () => {
+  const { photoPageUrl } = await import("@/lib/monthly-recap-email")
+  expect(photoPageUrl("/data/2026/11/public/images/1572229535276081232.jpg", "https://commonshub.brussels", "tok.sig")).toBe("https://commonshub.brussels/contributions/2026/11/photos?image=1572229535276081232&t=tok.sig")
+  expect(photoPageUrl("https://cdn.discordapp.com/x.jpg")).toBe(null)
+  const r = communityOnlyRecap("M", period)
+  r.community = community
+  r.photos = [{ src: "/data/2026/11/public/images/a1.jpg", by: "Dean", text: "x" }]
+  expect(buildRecapEmail(r, { viewToken: "tok" }).html).toContain('href="https://commonshub.brussels/contributions/2026/11/photos?image=a1&amp;t=tok"')
+})
