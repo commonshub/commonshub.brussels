@@ -36,7 +36,11 @@ type Done =
   | { kind: "me"; title: string; start: string; end: string; allDay?: boolean; price: number; balanceAfter: number; location: string }
   | { kind: "guest"; guest: string; emailed: boolean | null; passUrl?: string; when: string; price: number; balanceAfter: number }
 
-const tokens = (n: number) => `${n} token${n === 1 ? "" : "s"}`
+/** Whole tokens only, rounded down: a fraction of a token cannot be spent. */
+const tokens = (n: number) => {
+  const whole = Math.floor(n + 1e-9)
+  return `${whole.toLocaleString("en-GB")} token${whole === 1 ? "" : "s"}`
+}
 
 async function post(action: string, body: Record<string, unknown> = {}) {
   const res = await fetch(`/api/hub/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
