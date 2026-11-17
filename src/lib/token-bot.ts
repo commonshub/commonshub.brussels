@@ -19,7 +19,10 @@ export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error:
 /** POST to one of the bot's /api/website/* endpoints, on behalf of a member. */
 export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork"
 
-export async function callTokenBot(endpoint: BotEndpoint, userId: string, body: Record<string, unknown> = {}): Promise<{ status: number; body: BotAnswer }> {
+/** Who the bot acts for: a member's Discord id, or a test user (signed in with an email code). */
+export type BotIdentity = string | { testUser: { email: string; partnerId: number; name: string } }
+
+export async function callTokenBot(endpoint: BotEndpoint, who: BotIdentity, body: Record<string, unknown> = {}): Promise<{ status: number; body: BotAnswer }> {
   const base = process.env.TOKEN_BOT_URL
   const token = process.env.TOKEN_BOT_API_TOKEN
   if (!base || !token) return { status: 503, body: { ok: false, error: "Booking from the website isn't available right now: please use Discord." } }
@@ -27,7 +30,7 @@ export async function callTokenBot(endpoint: BotEndpoint, userId: string, body: 
     const res = await fetch(`${base.replace(/\/$/, "")}/api/website/${endpoint}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, guildId: settings.discord.guildId, userId }),
+      body: JSON.stringify({ ...body, guildId: settings.discord.guildId, ...(typeof who === "string" ? { userId: who } : who) }),
       cache: "no-store",
       signal: AbortSignal.timeout(60_000),
     })

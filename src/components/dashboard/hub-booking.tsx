@@ -33,6 +33,8 @@ interface Options {
   terms: { cowork: string; room: string }
   disclaimer: string
   eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote> }
+  /** A test user: euros only (invoices in the test copy of Odoo, cards in Stripe's sandbox). */
+  test?: boolean
 }
 
 type CoworkItem = { id: string; label: string; price: number; terms: string }
@@ -112,6 +114,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
         setOptions(o)
         setRoom((r) => r || o.rooms[0]?.slug || "")
         setCoworkItem((c) => c ?? o.cowork.item?.id ?? o.cowork.items?.[0]?.id ?? null)
+        if (o.test && o.eur?.available) chooseCurrency("eur")
       })
       .catch((e: Error) => setError(e.message))
   }, [])
@@ -255,7 +258,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
 
       {options && (
         <div className="space-y-4">
-          {euroPossible && (
+          {options.test && <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">Test mode: invoices go to the test Odoo, cards to Stripe&apos;s sandbox (card 4242 4242 4242 4242), and no room is really booked.</p>}
+          {euroPossible && !options.test && (
             <div className="grid grid-cols-2 rounded-full border border-border p-1 text-sm" role="radiogroup" aria-label="Pay with">
               {(["tokens", "eur"] as const).map((c) => (
                 <button
