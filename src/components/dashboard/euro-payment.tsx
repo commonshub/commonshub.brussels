@@ -17,7 +17,15 @@ import { type BotInvoice, payLaterUrl } from "@/lib/invoice-payment"
  */
 
 export type Address = { street: string; zip: string; city: string; country: string }
-export type Org = { id: number; name: string; vat: string | null; email: string | null; address: Address; billing: (Address & { id: number }) | null; self?: boolean }
+export type Lang = "en_GB" | "fr_BE" | "nl_BE"
+/** The language Odoo writes invoices and their emails in. */
+export const LANGS: Array<[Lang, string]> = [
+  ["en_GB", "English"],
+  ["fr_BE", "Français"],
+  ["nl_BE", "Nederlands"],
+]
+/** existing: saved as new but already in Odoo (same VAT number), linked with the details Odoo has. */
+export type Org = { id: number; name: string; vat: string | null; email: string | null; address: Address; billing: (Address & { id: number }) | null; self?: boolean; lang?: Lang; existing?: boolean }
 export type EurQuote = { untaxed: number; vat: number; total: number; discount: number; lines: Array<{ label: string; quantity: number; unitPrice: number; discount: number }> }
 
 export const eur = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n)
@@ -65,7 +73,7 @@ export function InvoiceToRow({ org, onClick }: { org: Org | null; onClick: () =>
       <span className="min-w-0 flex-1">
         <span className="block text-xs text-muted-foreground">Invoice to</span>
         <span className="block truncate font-semibold text-foreground">{org ? (org.self ? `${org.name} (myself)` : org.name) : "Choose or add an organisation"}</span>
-        {org?.email && <span className="block truncate text-xs text-muted-foreground">Sent to {org.email}</span>}
+        {org?.email && <span className="block truncate text-xs text-muted-foreground">Billing email: {org.email}</span>}
       </span>
       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
     </button>
@@ -85,10 +93,11 @@ export function OrgPicker({ orgs, selected, onPick, onEdit, onAdd, onBack }: { o
           <div key={o.id} className={`flex items-start gap-2 rounded-xl border-2 p-3 ${selected === o.id ? "border-primary bg-primary/10" : "border-border"}`}>
             <button type="button" role="radio" aria-checked={selected === o.id} onClick={() => onPick(o.id)} className="min-w-0 flex-1 text-left">
               <span className="block font-semibold text-foreground">{o.self ? `${o.name} (myself, no company)` : o.name}</span>
-              <span className="block text-xs text-muted-foreground">{o.vat ? `VAT ${o.vat}` : "No VAT number"}</span>
+              {!o.self && <span className="block text-xs text-muted-foreground">{o.vat ? `VAT ${o.vat}` : "No VAT number"}</span>}
               <span className="block text-xs text-muted-foreground">{[o.address.street, `${o.address.zip} ${o.address.city}`.trim()].filter(Boolean).join(", ")}</span>
               {o.billing && <span className="block text-xs text-muted-foreground">Billing: {o.billing.street}, {o.billing.zip} {o.billing.city}</span>}
-              {o.email && <span className="block text-xs text-foreground/80">Invoice sent to {o.email}</span>}
+              {o.email && <span className="block text-xs text-foreground/80">Billing email: {o.email}</span>}
+              {o.existing && <span className="block text-xs text-foreground/80">Already in our books: we kept the details we have. Edit them if something changed.</span>}
             </button>
             <Button variant="link" size="sm" className="px-1" onClick={() => onEdit(o)}>
               Edit
@@ -117,6 +126,7 @@ export function OrgForm({ org, onSaved, onCancel }: { org: Org | null; onSaved: 
   const [vat, setVat] = useState(org?.vat ?? "")
   const [name, setName] = useState(org?.name ?? "")
   const [email, setEmail] = useState(org?.email ?? "")
+  const [lang, setLang] = useState<Lang>(org?.lang ?? "en_GB")
   const [address, setAddress] = useState<Address>(org?.address ?? emptyAddress)
   const [hasBilling, setHasBilling] = useState(!!org?.billing)
   const [billing, setBilling] = useState<Address>(org?.billing ?? emptyAddress)
@@ -157,6 +167,7 @@ export function OrgForm({ org, onSaved, onCancel }: { org: Org | null; onSaved: 
         city: address.city,
         country: address.country,
         billing: hasBilling ? "yes" : "no",
+        lang,
         ...(hasBilling ? { billingstreet: billing.street, billingzip: billing.zip, billingcity: billing.city, billingcountry: billing.country } : {}),
       })
       onSaved(saved)
@@ -212,7 +223,17 @@ export function OrgForm({ org, onSaved, onCancel }: { org: Org | null; onSaved: 
             </div>
           </div>
         )}
-        {field("org-email", "Invoices are sent to", email, setEmail, { type: "email", maxLength: 200 })}
+        {field("org-email", "Billing email address", email, setEmail, { type: "email", maxLength: 200, placeholder: "billing@yourcompany.com" })}
+        <div className="space-y-1.5">
+          <Label htmlFor="org-lang">Invoice language</Label>
+          <select id="org-lang" value={lang} onChange={(e) => setLang(e.target.value as Lang)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+            {LANGS.map(([code, label]) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onCancel} disabled={busy !== null}>
@@ -235,7 +256,7 @@ export function PayChoice({ total, org, busy, error, onCard, onLater, onBack }: 
         <DialogTitle>Pay {eur(total)}</DialogTitle>
         <DialogDescription>
           Either way, the invoice goes to {org.name}
-          {org.email ? ` at ${org.email}` : ""}.
+          {org.email ? `, billing email ${org.email}` : ""}.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-2">
@@ -267,46 +288,24 @@ export function PayChoice({ total, org, busy, error, onCard, onLater, onBack }: 
   )
 }
 
-/** Booked, invoice sent: the details, and the bank transfer on /pay. */
-export function InvoiceConfirmation({ what, invoice, note, onClose }: { what: string; invoice: BotInvoice; note?: string; onClose: () => void }) {
+/**
+ * Booked, invoice sent: pay it by bank transfer (/pay, with the QR code), or come back to the
+ * dashboard, which lists the booking and whether it is paid.
+ */
+export function InvoiceConfirmation({ what, invoice, note }: { what: string; invoice: BotInvoice; note?: string }) {
   return (
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <CheckCircle2 className="h-6 w-6 text-green-700 dark:text-green-400" aria-hidden /> Booked
         </DialogTitle>
-        <DialogDescription>{what}. Here is your invoice.</DialogDescription>
+        <DialogDescription>
+          {what}. {invoice.emailed ? `Invoice ${invoice.number} (${eur(invoice.total)}) is on its way to ${invoice.sentTo ?? "you"}.` : `Invoice ${invoice.number} (${eur(invoice.total)}): we couldn't email it, a steward will send it to you.`}
+        </DialogDescription>
       </DialogHeader>
       {note && <p className="text-sm text-destructive">{note}</p>}
-      <dl className="space-y-1.5 rounded-xl bg-muted p-3 text-sm">
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Invoice</dt>
-          <dd className="font-semibold">{invoice.number}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">To</dt>
-          <dd className="text-right">{invoice.partnerName}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Amount</dt>
-          <dd className="font-semibold">{eur(invoice.total)}</dd>
-        </div>
-        {invoice.due && (
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Due</dt>
-            <dd>{new Date(invoice.due).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</dd>
-          </div>
-        )}
-        <div className="border-t border-border pt-1.5">
-          <dt className="text-muted-foreground">Communication</dt>
-          <dd className="break-all font-mono font-semibold">{invoice.communication}</dd>
-        </div>
-      </dl>
-      <p className="text-sm text-muted-foreground">
-        {invoice.emailed ? `The invoice is on its way to ${invoice.sentTo ?? "you"}.` : "We couldn't email the invoice: a steward will send it to you."}
-      </p>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={() => window.location.assign("/")}>
           Done
         </Button>
         <Button asChild>

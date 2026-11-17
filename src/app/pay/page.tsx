@@ -1,3 +1,4 @@
+import Link from "next/link"
 import type { Metadata } from "next"
 import QRCode from "qrcode"
 
@@ -47,6 +48,9 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
           hello@commonshub.brussels
         </a>
       </p>
+      <Link href="/" className="mt-6 inline-block text-primary underline underline-offset-2">
+        Done: back to the Commons Hub
+      </Link>
     </div>
   )
 }

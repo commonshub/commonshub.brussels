@@ -11,10 +11,11 @@ import { isMember } from "@/lib/admin-check"
  * who already pay (lib/member-activation.ts). A test user (signed in with an
  * email code, in the bot's TEST_LOGIN_EMAILS) gets the test dashboard.
  */
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ paid?: string }> }) {
+  const paid = (await searchParams).paid?.slice(0, 40)
   const session = await auth()
-  if (session?.user?.testMode) return <TestDashboard name={session.user.username || session.user.name || "Test user"} email={session.user.email} />
-  if (session?.user && (await isMember())) return <MemberDashboard user={session.user} />
+  if (session?.user?.testMode) return <TestDashboard user={session.user} paid={paid} />
+  if (session?.user && (await isMember())) return <MemberDashboard user={session.user} paid={paid} />
   return (
     <>
       {session?.user?.discordId && <ActivateMembership username={session.user.username} />}

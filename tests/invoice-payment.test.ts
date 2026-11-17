@@ -29,7 +29,7 @@ describe("paying a booking's invoice", () => {
     expect(p.client_reference_id).toBe("2026_RCC_0105")
     expect(p.payment_intent_data.metadata).toEqual({ invoice: "2026_RCC_0105", odooInvoiceId: "900", kind: "booking" })
     expect(p.customer_email).toBe("billing@acme.example")
-    expect(p.success_url).toBe("https://commonshub.brussels/booking/paid?invoice=2026_RCC_0105")
+    expect(p.success_url).toBe("https://commonshub.brussels/booking/paid?invoice=2026_RCC_0105&session_id={CHECKOUT_SESSION_ID}")
     expect(p.cancel_url).toBe(`https://commonshub.brussels${payLaterUrl(invoice)}`)
     expect(checkoutParams({ ...invoice, number: "INV/2026/0001", sentTo: null }, "x", "https://o").client_reference_id).toBe("INV-2026-0001")
   })

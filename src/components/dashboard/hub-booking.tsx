@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { CalendarPlus, Check, Copy, Loader2, Share2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -107,6 +108,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const [editing, setEditing] = useState<Org | null>(null)
   const [payBusy, setPayBusy] = useState<"card" | "later" | null>(null)
   const [eurDone, setEurDone] = useState<{ what: string; invoice: BotInvoice; note?: string } | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     post("options")
@@ -154,6 +156,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
       }
       const what = mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
       setEurDone({ what, invoice: r.invoice, note: r.checkoutError })
+      router.refresh() // the dashboard lists it (pending payment) behind the dialog
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -211,7 +214,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   }
 
   if (done) return <Confirmation done={done} onClose={onClose} />
-  if (eurDone) return <InvoiceConfirmation what={eurDone.what} invoice={eurDone.invoice} note={eurDone.note} onClose={onClose} />
+  if (eurDone) return <InvoiceConfirmation what={eurDone.what} invoice={eurDone.invoice} note={eurDone.note} />
   if (view === "orgs" && orgs)
     return (
       <OrgPicker
