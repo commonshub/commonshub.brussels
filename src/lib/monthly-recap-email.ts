@@ -74,13 +74,13 @@ export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settin
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#FBF4F2;color:#001309;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF4F2"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;border:1px solid #eaded9">
-<tr><td style="padding:28px 28px 8px" align="left">
+<body style="margin:0;padding:0;background:#ffffff;color:#001309;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff"><tr><td align="center" style="padding:0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff">
+<tr><td style="padding:20px 16px 8px" align="left">
   <a href="${SITE}" style="text-decoration:none;color:#001309"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle"><img src="${ICON}" alt="" width="36" height="36" style="display:block;width:36px;height:36px;border:0;border-radius:18px"></td><td style="vertical-align:middle;padding-left:10px;font-size:17px;font-weight:800;color:#001309">${HUB.name}</td></tr></table></a>
 </td></tr>
-<tr><td style="padding:8px 28px 32px">
+<tr><td style="padding:8px 16px 28px">
   <h1 style="font-size:22px;line-height:1.3;margin:12px 0 8px">Hi ${esc(first)}, here's your ${esc(month)}</h1>
 ${
   known
@@ -96,7 +96,7 @@ ${
     ? `  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF4F2;border-radius:10px"><tr><td style="padding:16px">
     <div style="font-weight:700;margin:0 0 4px">See your own ${span} here</div>
     <div style="font-size:15px;margin:0 0 12px">Link your Discord account to your membership: next time this email shows the days you came, the tokens you earned and spent, and the thank-yous you got.</div>
-    ${button(linkDiscord, "Link my Discord account", true)}
+    <div style="text-align:center;margin:4px 0 0"><a href="${esc(linkDiscord)}" style="display:inline-block;background:#5865F2;color:#ffffff;text-decoration:none;font-weight:600;padding:10px 20px;border-radius:8px"><img src="${SITE}/brandkit/discord-white.png" alt="" width="20" height="20" style="display:inline-block;width:20px;height:20px;border:0;vertical-align:-4px;margin-right:8px">Link my Discord account</a></div>
   </td></tr></table>`
     : ""
 }`
@@ -139,7 +139,7 @@ ${
     : ""
 }
 </td></tr>
-<tr><td style="padding:24px 28px 28px;font-size:13px;color:#5d625e;border-top:1px solid #eaded9">
+<tr><td style="padding:20px 16px 28px;font-size:13px;color:#5d625e;border-top:1px solid #eaded9">
   ${online ? `<a href="${esc(online)}" style="color:#5d625e">See this online</a> · ` : ""}<a href="${esc(settingsLink)}" style="color:#5d625e">Notification settings</a><br>
   You receive this ${EVERY[r.period.kind]} because you're a member of the Commons Hub. You can choose monthly, quarterly or yearly recaps, or none, in your <a href="${esc(settingsLink)}" style="color:#5d625e">notification settings</a>.<br>
   ${HUB.name} · ${esc(HUB.address)}
@@ -181,6 +181,7 @@ function communityHtml(r: Recap, span: string, h2: (t: string) => string): strin
   return `${h2("The hub this " + span)}
   <p style="margin:0 0 4px"><strong>${money(c.income)}</strong> came in this ${span}. Keeping the hub open costs about <strong>${money(c.costs)}</strong>${c.months > 1 ? ` (${money(c.costs / c.months)} a month)` : ""}${costs ? `: ${esc(costs)} a month are the biggest costs` : ""}.</p>
   ${bar}
+${contributionHtml(r)}
   ${c.care && c.care.people ? `<p style="margin:14px 0 0"><strong>${c.care.people} ${c.care.people === 1 ? "person" : "people"}</strong> gave <strong>${c.care.hours} ${c.care.hours === 1 ? "hour" : "hours"}</strong> of care shifts to keep the space open and welcoming. Thank you!</p>` : ""}`
 }
 
@@ -191,6 +192,7 @@ function communityText(r: Recap, span: string): string[] {
     "",
     `THE HUB THIS ${span.toUpperCase()}`,
     `${money(c.income)} came in. Keeping the hub open costs about ${money(c.costs)}${c.mainCosts.length ? ` (biggest: ${c.mainCosts.map((m) => `${m.label.toLowerCase()} ${money(m.monthly)}`).join(", ")} a month)` : ""}.`,
+    ...(r.contribution ? [`My personal contribution: ${money(r.contribution.personal)} (donate: ${SITE}/donate)`, ...(r.contribution.org ? [`${r.contribution.org.name}'s contribution: ${money(r.contribution.org.amount)}`] : [])] : []),
     ...(c.care && c.care.people ? [`${c.care.people} people gave ${c.care.hours} hours of care shifts. Thank you!`] : []),
   ]
 }
@@ -205,4 +207,14 @@ function featuredHtml(r: Recap, h2: (t: string) => string, button: (href: string
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;background:#FBF4F2;border-radius:10px">${e.cover ? `<tr><td><a href="${esc(e.url)}"><img src="${esc(e.cover)}" alt="" width="544" style="display:block;width:100%;height:auto;border:0;border-radius:10px 10px 0 0"></a></td></tr>` : ""}<tr><td style="padding:14px 16px"><div style="font-size:13px;color:#b83500">${esc(dayDate(e.start))}</div><div style="font-weight:700;font-size:16px">${esc(e.name)}</div>${e.tagline ? `<div style="font-size:15px;color:#5d625e;margin:2px 0 0">${esc(e.tagline)}</div>` : ""}<div style="margin:10px 0 0">${button(e.url, "Find out more")}</div></td></tr></table>`,
     )
     .join("\n  ")}`
+}
+
+/** Under the share covered: what the member (and their organisation) paid in over the period, and a way to give more. */
+function contributionHtml(r: Recap): string {
+  const k = r.contribution
+  if (!k) return ""
+  const row = (label: string, amount: number, extra = "") =>
+    `<tr><td style="padding:6px 0;font-size:15px">${esc(label)}</td><td align="right" style="padding:6px 0;font-size:15px;font-weight:700;white-space:nowrap">${money(amount)}</td>${extra}</tr>`
+  const donate = `<td align="right" width="92" style="padding:6px 0 6px 10px;width:92px;white-space:nowrap"><a href="${SITE}/donate" style="display:inline-block;background:#FF4C02;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:6px 12px;border-radius:8px">Donate</a></td>`
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 0;border-top:1px solid #f0e6e2">${row("My personal contribution", k.personal, donate)}${k.org ? row(`${k.org.name}'s contribution`, k.org.amount, `<td width="92" style="width:92px"></td>`) : ""}</table>`
 }
