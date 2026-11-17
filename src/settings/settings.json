@@ -444,10 +444,10 @@
     "channelId": "1306678821751230514"
   },
   "shifts": {
-    "_comment": "Same slots, cap and wording as the Discord bot's /shifts command (opencollective/token-bot). Sign-ups are NIP-52 RSVPs signed by the member's own key; announced in discord.channels.activities.shifts.",
+    "_comment": "Same slots, cap and wording as the Discord bot's /shifts command (commonshub/chb-backend). Sign-ups are NIP-52 RSVPs signed by the member's own key; announced in discord.channels.activities.shifts.",
     "description": "Sign up for a caretaking shift to take care of our common space and help hosting events.",
     "maxSignupsPerSlot": 3,
-    "_calendarComment": "The shifts calendar the Discord bot's /shifts writes to (opencollective/token-bot data/<guild>/shifts-settings.json). The website writes tablet sign-ups there in the same format, so tokens are claimed the same way. One token per hour on shift.",
+    "_calendarComment": "The shifts calendar the Discord bot's /shifts writes to (commonshub/chb-backend data/<guild>/shifts-settings.json). The website writes tablet sign-ups there in the same format, so tokens are claimed the same way. One token per hour on shift.",
     "calendarId": "c_a29d527434d56287ac6913ce483525d79f14ff053d483c2b21297f1a2df479aa@group.calendar.google.com",
     "rewardAmountPerHour": 1,
     "timezone": "Europe/Brussels",
@@ -475,7 +475,7 @@
     ]
   },
   "nostr": {
-    "_comment": "Community relays are the record (relay.commonshub.brussels first, relay.commonshub.dev as backup); every event carries i=discord:<guild> and t=app:commonshub.brussels. The site signs with a key derived from AUTH_SECRET (see /api/nostr/identity) and acts as identity provider (kind 31926) for members' browser keys. The Discord bot (opencollective/token-bot, /shifts) is the shift coordinator (kind 31923 occurrences) and attests the keys it derives for Discord members; coordinatorNpub is its key, so RSVPs from both apps point at the same occurrences and both apps trust each other's attestations. Conventions: docs/nostr.md and https://commonshub.dev/docs.",
+    "_comment": "Community relays are the record (relay.commonshub.brussels first, relay.commonshub.dev as backup); every event carries i=discord:<guild> and t=app:commonshub.brussels. The site signs with a key derived from AUTH_SECRET (see /api/nostr/identity) and acts as identity provider (kind 31926) for members' browser keys. The Discord bot (commonshub/chb-backend, /shifts) is the shift coordinator (kind 31923 occurrences) and attests the keys it derives for Discord members; coordinatorNpub is its key, so RSVPs from both apps point at the same occurrences and both apps trust each other's attestations. Conventions: docs/nostr.md and https://commonshub.dev/docs.",
     "relays": [
       "wss://relay.commonshub.brussels",
       "wss://relay.commonshub.dev"

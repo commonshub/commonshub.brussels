@@ -1,5 +1,5 @@
 /**
- * The website's calls to the Discord bot (opencollective/token-bot), which
+ * The website's calls to the Discord bot (commonshub/chb-backend), which
  * holds the hub's token payments, room calendars and guest emails: a member
  * books a room, buys coworking or a guest pass from the dashboard, and the
  * bot does exactly what its /book, /buy and /guestpass commands do.
@@ -37,6 +37,31 @@ export async function callTokenBot(endpoint: BotEndpoint, userId: string, body: 
   } catch (error) {
     console.error(`[token-bot] ${endpoint} failed:`, error)
     return { status: 502, body: { ok: false, error: "We couldn't reach the bot, please try again." } }
+  }
+}
+
+/**
+ * Signing in with an email address (the bot checks it is an Odoo partner's and emails a 6-digit
+ * code): /api/website/login/{code,verify}. Not on behalf of a member, so no user id.
+ */
+export async function callBotLogin(step: "code" | "verify", body: { email: string; code?: string }): Promise<{ status: number; body: BotAnswer }> {
+  const base = process.env.TOKEN_BOT_URL
+  const token = process.env.TOKEN_BOT_API_TOKEN
+  if (!base || !token) return { status: 503, body: { ok: false, error: "Signing in with an email address isn't available right now: use Discord." } }
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/api/website/login/${step}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    })
+    const answer = (await res.json().catch(() => null)) as BotAnswer | null
+    if (!answer || typeof answer.ok !== "boolean") return { status: 502, body: { ok: false, error: "Something went wrong, please try again." } }
+    return { status: res.status, body: answer }
+  } catch (error) {
+    console.error(`[token-bot] login/${step} failed:`, error)
+    return { status: 502, body: { ok: false, error: "We couldn't reach our server, please try again." } }
   }
 }
 

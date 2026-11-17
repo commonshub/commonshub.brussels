@@ -1,7 +1,7 @@
 /**
  * A personal link that opens the hub's door during a time window, signed
  * the way the door server (door.commonshub.brussels) and the Discord bot
- * expect (same message format as opencollective/token-bot's door-link.ts).
+ * expect (same message format as commonshub/chb-backend's door-link.ts).
  * Needs DOOR_SIGNING_KEY on the server; without it, no link.
  */
 

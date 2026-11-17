@@ -5,7 +5,7 @@
  * - the public dataset (transactions, contributors, events, rooms, tokens);
  * - our Luma calendar: list events, look one up (participants by status,
  *   organizers' names), add a member's event to the calendar, create one;
- * - the Discord bot's tools (opencollective/token-bot: permissions, rooms,
+ * - the Discord bot's tools (commonshub/chb-backend: permissions, rooms,
  *   shifts, and proposals to mint tokens, sign up for a shift or book a room,
  *   which the person concerned confirms in Discord), proxied as they are.
  *

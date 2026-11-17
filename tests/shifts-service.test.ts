@@ -10,7 +10,7 @@ const { buildShiftEmail, buildShiftIcs } = require("@/lib/shift-email") as typeo
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 
-/** The Discord bot's parser (opencollective/token-bot parseShiftSignups), which the token claims rely on. */
+/** The Discord bot's parser (commonshub/chb-backend parseShiftSignups), which the token claims rely on. */
 function botParse(description: string) {
   const signups: Array<{ discordUserId: string; username: string }> = []
   const cancelled = new Set<string>()
