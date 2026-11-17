@@ -19,6 +19,8 @@ export interface FeaturedEvent {
   start: string
   url: string
   tagline?: string
+  /** Absolute URL of its cover image. */
+  cover?: string
 }
 
 export interface RecapCommunity {
@@ -40,7 +42,7 @@ export function featuredEvents(now = new Date(), limit = 2, hosted: HostedEvent[
     .filter((h) => h.featured !== false && Date.parse(h.endAt) > now.getTime())
     .sort((a, b) => a.startAt.localeCompare(b.startAt))
     .slice(0, limit)
-    .map((h) => ({ name: h.name, start: h.startAt, url: `${SITE}/events/${h.slug}`, ...(h.tagline ? { tagline: h.tagline } : {}) }))
+    .map((h) => ({ name: h.name, start: h.startAt, url: `${SITE}/events/${h.slug}`, ...(h.tagline ? { tagline: h.tagline } : {}), ...(h.coverImage ? { cover: h.coverImage.startsWith("/") ? `${SITE}${h.coverImage}` : h.coverImage } : {}) }))
 }
 
 /** Distinct people and total hours of the care shifts (one signup = its shift's hours). */

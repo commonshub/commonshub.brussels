@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 
-import { communityOnlyRecap, loadRecap, parsePeriod, SITE } from "@/lib/monthly-recap"
+import { communityOnlyRecap, communityPhotos, loadRecap, parsePeriod, SITE } from "@/lib/monthly-recap"
 import { buildRecapEmail } from "@/lib/monthly-recap-email"
 import { linkDiscordUrl, settingsUrl, signDiscordLinkToken, signSettingsLink } from "@/lib/notification-links"
 import { featuredEvents, loadCommunity } from "@/lib/recap-community"
@@ -38,6 +38,8 @@ export async function GET(request: Request) {
   if (!recap) return NextResponse.json({ ok: false, error: "No such member on Discord" }, { status: 404 })
   recap.featured = featuredEvents(now)
   recap.community = await loadCommunity(period, now)
+  // Everyone gets the community mosaic: a member without Discord too (their own photos come first when we know them).
+  if (!byDiscord) recap.photos = await communityPhotos(period).catch(() => [])
 
   const settingsLink = settingsUrl(SITE, signSettingsLink(byDiscord ? discordId : `e:${emailHash}`))
   const { subject, html, text } = buildRecapEmail(recap, { origin: SITE, settingsLink, ...(byEmail ? { linkDiscord: linkDiscordUrl(SITE, signDiscordLinkToken(emailHash)) } : {}) })
