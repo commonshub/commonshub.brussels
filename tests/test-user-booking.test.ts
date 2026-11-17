@@ -64,3 +64,15 @@ test("an email user who isn't a test user, or a non-member, still can't book", a
 test("the browser can't pass a test identity along", () => {
   expect(pickFields("paybook", { testUser: { email: "x" }, org: "self" })).toEqual({ org: "self" })
 })
+
+test("pay what's left on an invoice by card: the amount comes from the bot, sandbox for a test user", async () => {
+  session.user = { authMethod: "email", testMode: true, email: "xdamman+test@gmail.com", odooPartnerId: 9000 }
+  global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)))
+    return new Response(JSON.stringify({ ok: true, bookings: [{ kind: "room", label: "Satoshi Room", invoice: { ...INVOICE, id: 7, due: 25.41 } }] }), { status: 200 })
+  }) as never
+  const r = await call("payinvoice", { invoiceId: "7", amount: "0.01" })
+  expect(await r.json()).toMatchObject({ ok: true, checkoutUrl: "https://checkout.stripe.test/x" })
+  expect(stripeKeys).toEqual(["sk_test_x"])
+  expect((await call("payinvoice", { invoiceId: "8" })).status).toBe(404)
+})

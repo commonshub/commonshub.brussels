@@ -5,7 +5,7 @@ import { auth } from "@/auth"
 import { isMember } from "@/lib/admin-check"
 import { type BotInvoice, checkoutParams } from "@/lib/invoice-payment"
 import { publicOrigin } from "@/lib/public-origin"
-import { ALLOWED_FIELDS, type BotEndpoint, botIdentity, callTokenBot, pickFields } from "@/lib/token-bot"
+import { ALLOWED_FIELDS, type BotEndpoint, type BotIdentity, botIdentity, callTokenBot, pickFields } from "@/lib/token-bot"
 
 export const dynamic = "force-dynamic"
 
@@ -32,6 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
   const test = !!who && typeof who !== "string"
   if (!who || (!test && !(await isMember()))) return NextResponse.json({ ok: false, error: "Members only" }, { status: 403 })
   const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>
+  if (action === "payinvoice") return payInvoice(request, who, test, Number(body.invoiceId))
   const answer = await callTokenBot(action as BotEndpoint, who, pickFields(action, body))
 
   const invoice = (answer.body as { invoice?: BotInvoice }).invoice
@@ -49,4 +50,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
     }
   }
   return NextResponse.json(answer.body, { status: answer.status })
+}
+
+/**
+ * Pay what is left on one of the member's booking invoices by card: the amount comes from the bot
+ * (the invoice in Odoo), never from the browser. Stripe's sandbox for a test user.
+ */
+async function payInvoice(request: Request, who: BotIdentity, test: boolean, invoiceId: number) {
+  if (!Number.isInteger(invoiceId) || invoiceId <= 0) return NextResponse.json({ ok: false, error: "invoiceId is required" }, { status: 400 })
+  const secretKey = test ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY
+  if (!secretKey) return NextResponse.json({ ok: false, error: "Card payment isn't available right now: pay by bank transfer." }, { status: 503 })
+  type Listed = { kind: string; label: string; invoice: BotInvoice & { due: number } }
+  const lists = await Promise.all([callTokenBot("mine", who), callTokenBot("mine", who, { past: true })])
+  const found = lists.flatMap((a) => (a.body.ok ? ((a.body as { bookings?: Listed[] }).bookings ?? []) : [])).find((b) => b.invoice.id === invoiceId)
+  if (!found) return NextResponse.json({ ok: false, error: "That invoice isn't one of yours." }, { status: 404 })
+  if (!(found.invoice.due > 0)) return NextResponse.json({ ok: false, error: "Nothing is left to pay on this invoice." }, { status: 409 })
+  try {
+    const checkout = await new Stripe(secretKey).checkout.sessions.create(checkoutParams({ ...found.invoice, total: found.invoice.due, sentTo: null } as BotInvoice, found.label, publicOrigin(request)))
+    return NextResponse.json({ ok: true, checkoutUrl: checkout.url })
+  } catch (error) {
+    console.error("[hub] Stripe Checkout for invoice", invoiceId, "failed:", error)
+    return NextResponse.json({ ok: false, error: "We couldn't open the card payment: pay by bank transfer instead." }, { status: 502 })
+  }
 }

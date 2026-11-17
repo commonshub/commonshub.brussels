@@ -17,7 +17,7 @@ export const isTokenBotConfigured = () => !!process.env.TOKEN_BOT_URL && !!proce
 export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error: string }
 
 /** POST to one of the bot's /api/website/* endpoints, on behalf of a member. */
-export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid"
+export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid" | "cancelbooking"
 
 /** Who the bot acts for: a member's Discord id, or a test user (signed in with an email code). */
 export type BotIdentity = string | { testUser: { email: string; partnerId: number; name: string } }
@@ -91,6 +91,9 @@ export const ALLOWED_FIELDS: Record<string, string[]> = {
   vat: ["vat"],
   paybook: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail", "org"],
   paycowork: ["requestId", "item", "org"],
+  // The dashboard's bookings: cancel one (refund by the terms), or pay what is left on its invoice by card.
+  cancelbooking: ["invoiceId"],
+  payinvoice: ["invoiceId"],
 }
 
 export function pickFields(endpoint: string, body: Record<string, unknown>): Record<string, unknown> {
