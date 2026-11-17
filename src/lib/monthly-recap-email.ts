@@ -40,7 +40,11 @@ export function recapSubject(r: Recap): string {
 }
 
 /** `settingsLink`: the notification settings URL with its signed token (settingsUrl + signSettingsLink). */
-export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settingsUrl(origin), linkDiscord }: { origin?: string; settingsLink?: string; linkDiscord?: string } = {}): { subject: string; html: string; text: string } {
+/**
+ * `viewToken`: the member's signed settings token; the mosaic's photos link to the month's photo
+ * carousel with it, so the messages show without logging in.
+ */
+export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settingsUrl(origin), linkDiscord, viewToken }: { origin?: string; settingsLink?: string; linkDiscord?: string; viewToken?: string } = {}): { subject: string; html: string; text: string } {
   const subject = recapSubject(r)
   const known = !!r.member.id
   const month = periodName(r.period)
@@ -53,17 +57,21 @@ export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settin
   const h2 = (t: string) => `<h2 style="font-size:17px;margin:28px 0 8px">${t}</h2>`
   const stat = (n: string, label: string) =>
     `<td align="center" style="padding:14px 6px;background:#FBF4F2;border-radius:10px;width:33%"><div style="font-size:26px;font-weight:800;color:#b83500;line-height:1.1">${esc(n)}</div><div style="font-size:13px;color:#5d625e">${esc(label)}</div></td>`
-  const lines = (ls: Recap["received"]) =>
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px">${ls
-      .map(
-        (l) =>
-          `<tr><td style="padding:8px 8px 8px 0;border-bottom:1px solid #f0e6e2"><div style="font-size:13px;color:#5d625e">${esc(shortDate(l.at))}</div><div>${esc(lineText(l))}</div></td><td align="right" style="padding:8px 0;border-bottom:1px solid #f0e6e2;white-space:nowrap;font-weight:600;vertical-align:bottom">${esc(tokens(l.amount))}</td></tr>`,
-      )
-      .join("")}</table>`
 
   // Columns of one portrait or two stacked landscapes, cropped by the image proxy to shapes that line up.
-  const img = (t: MosaicTile) =>
-    `<img src="${esc(photoUrl(t.photo.src, origin, t.crop))}" alt="${esc(t.photo.text || `Shared by ${t.photo.by}`)}" width="175" style="display:block;width:100%;height:auto;border-radius:8px;border:0">`
+  const img = (t: MosaicTile) => {
+    const tag = `<img src="${esc(photoUrl(t.photo.src, origin, t.crop))}" alt="${esc(t.photo.text || `Shared by ${t.photo.by}`)}" width="175" style="display:block;width:100%;height:auto;border-radius:8px;border:0">`
+    const href = photoPageUrl(t.photo.src, origin, viewToken)
+    return href ? `<a href="${esc(href)}">${tag}</a>` : tag
+  }
+  // One list, latest last: tokens in and out, and the euros they paid (or got back).
+  const txs = transactions(r)
+  const txRows = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px">${txs
+    .map(
+      (t) =>
+        `<tr><td style="padding:8px 0 0;font-size:13px;color:#5d625e">${esc(shortDate(t.at))}</td><td align="right" style="padding:8px 0 0;white-space:nowrap;font-weight:700;color:${t.amount > 0 ? "#2f7d4f" : "#001309"}">${esc(t.label)}</td></tr><tr><td colspan="2" style="padding:0 0 8px;border-bottom:1px solid #f0e6e2">${esc(t.description)}</td></tr>`,
+    )
+    .join("")}</table>`
   const rows = mosaicRows(r.photos.slice(0, 12)).map((cols) => {
     const cells = cols.map((tiles) => `<td width="33%" style="padding:3px;vertical-align:top">${tiles.map(img).join(`<div style="height:6px;line-height:6px;font-size:0">&nbsp;</div>`)}</td>`)
     while (cells.length < 3) cells.push(`<td width="33%"></td>`)
@@ -101,8 +109,7 @@ ${
     : ""
 }`
 }
-${r.received.length ? `${h2("Tokens you received")}${lines(r.received)}` : ""}
-${r.spent.length ? `${h2("Tokens you spent")}${lines(r.spent)}` : ""}
+${txs.length ? `${h2("Transactions")}${txRows}` : ""}
 ${
   r.praise.length
     ? `${h2(`💝 ${r.praise.length === 1 ? "A thank-you" : `${r.praise.length} thank-yous`} for you`)}
@@ -147,15 +154,13 @@ ${
 </table></td></tr></table>
 </body></html>`
 
-  const textLines = (ls: Recap["received"]) => ls.map((l) => `- ${shortDate(l.at)}: ${lineText(l)} (${tokens(l.amount)})`)
   const text = [
     `Hi ${first}, here's your ${month}`,
     "",
     ...(known
       ? [`${r.days} ${r.days === 1 ? "day" : "days"} at the hub · +${r.receivedTotal} tokens received · ${Math.abs(r.spentTotal) || 0} tokens spent`]
       : [`Thank you for being a member of the Commons Hub. Here's what the community has been up to this ${span}.`, ...(linkDiscord ? ["", `Link your Discord account to see your own ${span} next time: ${linkDiscord}`] : [])]),
-    ...(r.received.length ? ["", "TOKENS YOU RECEIVED", ...textLines(r.received)] : []),
-    ...(r.spent.length ? ["", "TOKENS YOU SPENT", ...textLines(r.spent)] : []),
+    ...(txs.length ? ["", "TRANSACTIONS", ...txs.map((t) => `- ${shortDate(t.at)} ${t.label}: ${t.description}`)] : []),
     ...(r.praise.length ? ["", "THANK-YOUS FOR YOU", ...r.praise.map((p) => `"${p.text}" (${p.from.name}, ${shortDate(p.at)})`)] : []),
     ...communityText(r, span),
     ...(r.featured?.length ? ["", "COMING UP", ...r.featured.map((e) => `- ${dayDate(e.start)}: ${e.name}${e.tagline ? `, ${e.tagline}` : ""} ${e.url}`)] : []),
@@ -217,4 +222,28 @@ function contributionHtml(r: Recap): string {
     `<tr><td style="padding:6px 0;font-size:15px">${esc(label)}</td><td align="right" style="padding:6px 0;font-size:15px;font-weight:700;white-space:nowrap">${money(amount)}</td>${extra}</tr>`
   const donate = `<td align="right" width="92" style="padding:6px 0 6px 10px;width:92px;white-space:nowrap"><a href="${SITE}/donate" style="display:inline-block;background:#FF4C02;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:6px 12px;border-radius:8px">Donate</a></td>`
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 0;border-top:1px solid #f0e6e2">${row("My personal contribution", k.personal, donate)}${k.org ? row(`${k.org.name}'s contribution`, k.org.amount, `<td width="92" style="width:92px"></td>`) : ""}</table>`
+}
+
+/** "+1 token", "−3 tokens", "−€50", "+€12.50". */
+function signed(amount: number, unit: "token" | "eur"): string {
+  const sign = amount > 0 ? "+" : "−"
+  const n = Math.abs(amount)
+  if (unit === "eur") return `${sign}${new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", minimumFractionDigits: Number.isInteger(n) ? 0 : 2 }).format(n)}`
+  return `${sign}${tokens(n)}`
+}
+
+/** Tokens received and spent, and euros paid or refunded, by date. */
+export function transactions(r: Pick<Recap, "received" | "spent" | "euros">): Array<{ at: number; amount: number; label: string; description: string }> {
+  return [
+    ...r.received.map((l) => ({ at: l.at, amount: l.amount, label: signed(l.amount, "token"), description: lineText(l) })),
+    ...r.spent.map((l) => ({ at: l.at, amount: -l.amount, label: signed(-l.amount, "token"), description: lineText(l) })),
+    ...(r.euros ?? []).map((e) => ({ at: e.at, amount: e.amount, label: signed(e.amount, "eur"), description: e.description || (e.amount < 0 ? "Payment to the Commons Hub" : "Refund") })),
+  ].sort((a, b) => a.at - b.at)
+}
+
+/** The photo in the month's carousel (/contributions/YYYY/MM/photos), from its dataset path; null for anything else. */
+export function photoPageUrl(src: string, origin = SITE, token?: string): string | null {
+  const m = /^\/data\/(\d{4})\/(\d{2})\/public\/images\/([\w-]+)\.\w+$/.exec(src)
+  if (!m) return null
+  return `${origin}/contributions/${m[1]}/${m[2]}/photos?image=${m[3]}${token ? `&t=${encodeURIComponent(token)}` : ""}`
 }

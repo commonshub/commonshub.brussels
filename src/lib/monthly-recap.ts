@@ -187,6 +187,8 @@ export interface Recap {
   community?: RecapCommunity
   /** What the member paid in over the period, and their organisation (from chb, which knows the payments). */
   contribution?: { personal: number; org?: { name: string; amount: number } }
+  /** The member's euro transactions over the period (from chb): amount from their side, a payment to the hub is negative. */
+  euros?: Array<{ at: number; amount: number; description: string }>
 }
 
 /** Everyone's photos in #contributions over the period (the community mosaic), portrait or not. */
