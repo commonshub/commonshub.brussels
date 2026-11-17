@@ -58,3 +58,19 @@ test("signed links: settings for e:<emailHash>, and the link-Discord token", () 
   expect(verifyDiscordLinkToken(signSettingsLink("123456789"))).toBe(null)
   expect(verifySettingsLink(t)).toBe(null)
 })
+
+test("the mosaic follows the care line, featured events show their cover, no −0", () => {
+  process.env.RENEW_LINK_SECRET = "s".repeat(32)
+  const r = communityOnlyRecap("Marianne", period, new Date("2026-12-01T09:00:00Z"))
+  r.community = community
+  r.featured = [{ name: "OSV", start: "2027-01-10T10:00:00Z", url: "https://commonshub.brussels/events/osv", cover: "https://commonshub.brussels/images/events/osv-2027.png" }]
+  r.photos = [{ src: "/data/2026/11/members/images/a.jpg", by: "Dean", text: "Fixed the door" }, { src: "/data/2026/11/members/images/b.jpg", by: "Leo", text: "Plants", portrait: true }]
+  const { html } = buildRecapEmail(r)
+  expect(html.indexOf("hours</strong> of care")).toBeLessThan(html.indexOf("Shared in #contributions"))
+  expect(html).toContain("/api/image-proxy?")
+  expect(html).toContain('src="https://commonshub.brussels/images/events/osv-2027.png"')
+  const known = { ...r, member: { id: "42", username: "x", name: "X" }, spentTotal: -0 }
+  const out = buildRecapEmail(known)
+  expect(out.html).not.toContain("−0")
+  expect(out.text).toContain("· 0 tokens spent")
+})

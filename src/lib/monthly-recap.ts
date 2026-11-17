@@ -187,6 +187,13 @@ export interface Recap {
   community?: RecapCommunity
 }
 
+/** Everyone's photos in #contributions over the period (the community mosaic), portrait or not. */
+export async function communityPhotos(period: Period): Promise<RecapPhoto[]> {
+  const messages = period.months.flatMap((m) => readTierJson<ChannelFeed>("members", "contributions.json", period.year, m)?.messages ?? [])
+  const photos = contributionPhotos({ messages }, { id: "", username: "", name: "" })
+  return Promise.all(photos.map(async (p) => ({ ...p, portrait: await isPortrait(p.src) })))
+}
+
 /**
  * The recap of a member we don't know on Discord (chb has their membership, not their Discord id):
  * nothing of their own, only what the community did and what's coming up; the email asks them to

@@ -88,7 +88,7 @@ ${
   <table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate"><tr>
     ${stat(String(r.days), r.days === 1 ? "day at the hub" : "days at the hub")}
     ${stat(`+${r.receivedTotal}`, "tokens received")}
-    ${stat(`−${r.spentTotal}`, "tokens spent")}
+    ${stat(String(Math.abs(r.spentTotal) || 0), "tokens spent")}
   </tr></table>`
     : `  <p style="margin:0 0 18px">Thank you for being a member of the Commons Hub. Here's what the community has been up to this ${span}.</p>
 ${
@@ -114,14 +114,14 @@ ${
     .join("\n  ")}`
     : ""
 }
+${communityHtml(r, span, h2)}
 ${
   rows.length
     ? `${h2("Shared in #contributions")}
-  <p style="margin:0 0 8px;font-size:15px;color:#5d625e">What members did for the hub this ${span}.</p>
+  <p style="margin:0 0 8px;font-size:15px;color:#5d625e">What members did for the hub this ${span}, shared in #contributions.</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>`
     : ""
 }
-${communityHtml(r, span, h2)}
 ${featuredHtml(r, h2, button)}
   ${h2("See you at the hub")}
   <p style="margin:0 0 12px">Shifts are how we keep the hub open and welcoming, and they earn tokens.</p>
@@ -152,7 +152,7 @@ ${
     `Hi ${first}, here's your ${month}`,
     "",
     ...(known
-      ? [`${r.days} ${r.days === 1 ? "day" : "days"} at the hub · +${r.receivedTotal} tokens received · −${r.spentTotal} tokens spent`]
+      ? [`${r.days} ${r.days === 1 ? "day" : "days"} at the hub · +${r.receivedTotal} tokens received · ${Math.abs(r.spentTotal) || 0} tokens spent`]
       : [`Thank you for being a member of the Commons Hub. Here's what the community has been up to this ${span}.`, ...(linkDiscord ? ["", `Link your Discord account to see your own ${span} next time: ${linkDiscord}`] : [])]),
     ...(r.received.length ? ["", "TOKENS YOU RECEIVED", ...textLines(r.received)] : []),
     ...(r.spent.length ? ["", "TOKENS YOU SPENT", ...textLines(r.spent)] : []),
@@ -202,7 +202,7 @@ function featuredHtml(r: Recap, h2: (t: string) => string, button: (href: string
   ${r.featured
     .map(
       (e) =>
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;background:#FBF4F2;border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:13px;color:#b83500">${esc(dayDate(e.start))}</div><div style="font-weight:700;font-size:16px">${esc(e.name)}</div>${e.tagline ? `<div style="font-size:15px;color:#5d625e;margin:2px 0 0">${esc(e.tagline)}</div>` : ""}<div style="margin:10px 0 0">${button(e.url, "Find out more")}</div></td></tr></table>`,
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;background:#FBF4F2;border-radius:10px">${e.cover ? `<tr><td><a href="${esc(e.url)}"><img src="${esc(e.cover)}" alt="" width="544" style="display:block;width:100%;height:auto;border:0;border-radius:10px 10px 0 0"></a></td></tr>` : ""}<tr><td style="padding:14px 16px"><div style="font-size:13px;color:#b83500">${esc(dayDate(e.start))}</div><div style="font-weight:700;font-size:16px">${esc(e.name)}</div>${e.tagline ? `<div style="font-size:15px;color:#5d625e;margin:2px 0 0">${esc(e.tagline)}</div>` : ""}<div style="margin:10px 0 0">${button(e.url, "Find out more")}</div></td></tr></table>`,
     )
     .join("\n  ")}`
 }
