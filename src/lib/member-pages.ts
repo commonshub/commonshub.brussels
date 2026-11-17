@@ -257,7 +257,7 @@ export function deletePage(username: string, slug: string): boolean {
 export const RESERVED = new Set([
   "2023-2024", "api", "book", "booking", "brand", "calendar", "calendar.ics", "collectives", "community", "community.md", "contact", "contribute",
   "contributions", "coworking", "data", "debt", "docs", "donate", "door", "economy", "economy.md", "events", "events.md", "expenses",
-  "finance", "finance.md", "fiscal-sponsorship", "fridge", "handbook", "homepage", "integrity", "llms.txt", "mcp", "members", "membership",
+  "finance", "finance.md", "fiscal-sponsorship", "fridge", "handbook", "homepage", "integrity", "link-discord", "llms.txt", "mcp", "members", "membership",
   "newsletter", "notifications", "opendata", "opendata.md", "pass", "pay", "posters", "potluck", "reports", "robots.txt", "rooms", "rooms.md", "sandbox",
   "screen", "screens", "shifts", "sitemap.xml", "status", "status.json", "stewards", "tablet", "taxes", "today", "token", "volunteer",
   "workshops", "apply", "admin", "login", "logout", "auth", "p", "pages", "static", "_next", "favicon.ico", "brandkit", "images",

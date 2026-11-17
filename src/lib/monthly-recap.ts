@@ -31,6 +31,7 @@ import { isPublicEvent, unwrapGoogleRedirect } from "./public-events"
 import { photoSource } from "./photos"
 import { getCardAddresses } from "./citizenwallet"
 import { getCachedWalletAddress, setBatchCachedWalletAddresses } from "./wallet-address-cache"
+import type { FeaturedEvent, RecapCommunity } from "./recap-community"
 
 const TZ = "Europe/Brussels"
 export const SITE = "https://commonshub.brussels"
@@ -180,6 +181,30 @@ export interface Recap {
   praise: RecapPraise[]
   photos: RecapPhoto[]
   events: RecapEvent[]
+  /** The hub's events with their own page, coming up (lib/recap-community.ts). */
+  featured?: FeaturedEvent[]
+  /** Money in against the costs, and the care shifts, over the period (lib/recap-community.ts). */
+  community?: RecapCommunity
+}
+
+/**
+ * The recap of a member we don't know on Discord (chb has their membership, not their Discord id):
+ * nothing of their own, only what the community did and what's coming up; the email asks them to
+ * link their Discord account.
+ */
+export function communityOnlyRecap(name: string, period: Period, now = new Date()): Recap {
+  return {
+    member: { id: "", username: "", name: name.trim() || "there", avatar: null },
+    period,
+    days: 0,
+    received: [],
+    spent: [],
+    receivedTotal: 0,
+    spentTotal: 0,
+    praise: [],
+    photos: [],
+    events: upcomingEvents(readTierJson<EventsFile>("public", "events.json"), now),
+  }
 }
 
 /** "12 Oct". */
