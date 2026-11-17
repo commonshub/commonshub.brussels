@@ -5,7 +5,7 @@ import { auth } from "@/auth"
 import { isMember } from "@/lib/admin-check"
 import { type BotInvoice, checkoutParams } from "@/lib/invoice-payment"
 import { publicOrigin } from "@/lib/public-origin"
-import { ALLOWED_FIELDS, type BotEndpoint, type BotIdentity, callTokenBot, pickFields } from "@/lib/token-bot"
+import { ALLOWED_FIELDS, type BotEndpoint, botIdentity, callTokenBot, pickFields } from "@/lib/token-bot"
 
 export const dynamic = "force-dynamic"
 
@@ -28,11 +28,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
   const { action } = await params
   if (!(action in ALLOWED_FIELDS)) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
   const session = await auth()
-  const test = session?.user?.testMode === true && !!session.user.email && !!session.user.odooPartnerId
-  if (!test && (!session?.user?.discordId || !(await isMember()))) return NextResponse.json({ ok: false, error: "Members only" }, { status: 403 })
-  const who: BotIdentity = test
-    ? { testUser: { email: session!.user.email!, partnerId: session!.user.odooPartnerId!, name: session!.user.username || session!.user.name || "Test user" } }
-    : session!.user.discordId
+  const who = botIdentity(session?.user)
+  const test = !!who && typeof who !== "string"
+  if (!who || (!test && !(await isMember()))) return NextResponse.json({ ok: false, error: "Members only" }, { status: 403 })
   const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>
   const answer = await callTokenBot(action as BotEndpoint, who, pickFields(action, body))
 

@@ -7,6 +7,7 @@ import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { AddEmailCard } from "@/components/dashboard/add-email"
 import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
+import { MyBookings } from "@/components/dashboard/my-bookings"
 import { NextShiftCard, SignUpForShift } from "@/components/dashboard/next-shift"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
@@ -27,7 +28,7 @@ type User = { discordId: string; username: string; email?: string | null; avatar
  * When chb has no email for their membership, a card asks for one (lib/partner-email.ts).
  * Their token balance is in the header.
  */
-export async function MemberDashboard({ user }: { user: User }) {
+export async function MemberDashboard({ user, paid }: { user: User; paid?: string }) {
   const { plan, candidate } = await findPlan(user)
   return (
     <div className="mx-auto max-w-5xl px-4 pb-10 pt-10 sm:px-6">
@@ -44,6 +45,10 @@ export async function MemberDashboard({ user }: { user: User }) {
           </span>
         </a>
       </div>
+
+      <Suspense fallback={null}>
+        <MyBookings who={user.discordId} paid={paid} />
+      </Suspense>
 
       {chbPubkey() && needsEmail(user.discordId) && <AddEmailCard />}
 

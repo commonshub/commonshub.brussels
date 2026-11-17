@@ -17,10 +17,20 @@ export const isTokenBotConfigured = () => !!process.env.TOKEN_BOT_URL && !!proce
 export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error: string }
 
 /** POST to one of the bot's /api/website/* endpoints, on behalf of a member. */
-export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork"
+export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid"
 
 /** Who the bot acts for: a member's Discord id, or a test user (signed in with an email code). */
 export type BotIdentity = string | { testUser: { email: string; partnerId: number; name: string } }
+
+/**
+ * Who the bot acts for, from the session: a test user (signed in with an email code, testMode), or
+ * a member's Discord id. null for anyone else. Membership itself is checked by the caller (isMember).
+ */
+export function botIdentity(user: { testMode?: boolean; email?: string | null; odooPartnerId?: number; username?: string; name?: string | null; discordId?: string } | undefined): BotIdentity | null {
+  if (!user) return null
+  if (user.testMode && user.email && user.odooPartnerId) return { testUser: { email: user.email, partnerId: user.odooPartnerId, name: user.username || user.name || "Test user" } }
+  return user.discordId || null
+}
 
 export async function callTokenBot(endpoint: BotEndpoint, who: BotIdentity, body: Record<string, unknown> = {}): Promise<{ status: number; body: BotAnswer }> {
   const base = process.env.TOKEN_BOT_URL
@@ -77,7 +87,7 @@ export const ALLOWED_FIELDS: Record<string, string[]> = {
   book: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail"],
   // Paying in euros: who to invoice (the bot keeps a member's organisations in Odoo), then the invoice.
   orgs: [],
-  org: ["id", "name", "vat", "email", "street", "zip", "city", "country", "billing", "billingstreet", "billingzip", "billingcity", "billingcountry"],
+  org: ["id", "name", "vat", "email", "street", "zip", "city", "country", "billing", "billingstreet", "billingzip", "billingcity", "billingcountry", "lang"],
   vat: ["vat"],
   paybook: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail", "org"],
   paycowork: ["requestId", "item", "org"],

@@ -39,7 +39,8 @@ export function checkoutParams(invoice: BotInvoice, what: string, origin: string
     line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: Math.round(invoice.total * 100), product_data: { name: label } } }],
     payment_intent_data: { description: label, metadata: { invoice: invoice.number, odooInvoiceId: String(invoice.id), kind: "booking" } },
     metadata: { invoice: invoice.number, odooInvoiceId: String(invoice.id), kind: "booking" },
-    success_url: `${origin}/booking/paid?invoice=${encodeURIComponent(invoice.number)}`,
+    // /booking/paid checks the session with Stripe, notes the payment with the bot, then goes to the dashboard.
+    success_url: `${origin}/booking/paid?invoice=${encodeURIComponent(invoice.number)}&session_id={CHECKOUT_SESSION_ID}`,
     // Changed their mind: the invoice is still there, payable by transfer.
     cancel_url: `${origin}${payLaterUrl(invoice)}`,
   }
