@@ -2,7 +2,7 @@
  * The confirmation for a caretaking shift sign-up: an email (with an .ics)
  * and a Discord DM, sent by the website after every sign-up made on the
  * community tablet. Same content as the Discord bot's /shifts confirmation
- * (opencollective/token-bot src/lib/shift-email.ts), so people get one
+ * (commonshub/chb-backend src/lib/shift-email.ts), so people get one
  * consistent message whichever way they signed up.
  */
 

@@ -1,5 +1,7 @@
 import NextAuth from "next-auth"
 import Discord from "next-auth/providers/discord"
+import Credentials from "next-auth/providers/credentials"
+import { callBotLogin } from "@/lib/token-bot"
 import settings from "@/settings/settings.json"
 import { liveRoles, roleNames } from "@/lib/live-roles"
 
@@ -19,11 +21,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       },
     }),
+    // An email address that belongs to a partner in our books (Odoo), proved with a 6-digit code the
+    // bot emails (POST /api/auth/email-code). No Discord: no roles, so not a member on the site.
+    Credentials({
+      id: "email-code",
+      name: "Email",
+      credentials: { email: { label: "Email", type: "email" }, code: { label: "Code", type: "text" } },
+      async authorize(credentials) {
+        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : ""
+        const code = typeof credentials?.code === "string" ? credentials.code.replace(/\s/g, "") : ""
+        if (!email || !/^\d{6}$/.test(code)) return null
+        const answer = await callBotLogin("verify", { email, code })
+        const partner = answer.body.ok ? (answer.body as { partner?: { id: number; name: string; email: string } }).partner : null
+        if (!partner) return null
+        return { id: `odoo-partner-${partner.id}`, name: partner.name, email: partner.email, odooPartnerId: partner.id } as never
+      },
+    }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
+      // Signed in with an email code: who they are in our books, nothing from Discord.
+      if (account?.provider === "email-code" && user) {
+        token.authMethod = "email"
+        token.odooPartnerId = (user as { odooPartnerId?: number }).odooPartnerId
+        token.username = user.name ?? ""
+        token.roles = []
+        token.roleDetails = []
+        return token
+      }
+      if (token.authMethod === "email") return token
+
       // Initial sign in
       if (account && profile) {
+        token.authMethod = "discord"
         token.discordId = profile.id
         token.username = profile.username
         token.discriminator = profile.discriminator
@@ -166,6 +196,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.roles = (token.roles as string[]) || []
         session.user.roleDetails = (token.roleDetails as Array<{ id: string; name: string }>) || []
         session.user.accessToken = token.accessToken as string
+        session.user.authMethod = token.authMethod ?? "discord"
+        if (token.odooPartnerId) session.user.odooPartnerId = token.odooPartnerId
       }
       return session
     },

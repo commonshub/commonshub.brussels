@@ -1,6 +1,6 @@
 /**
  * Guest passes: a member buys a door link for a guest with their tokens on
- * Discord (opencollective/token-bot, /guestpass). The member shares
+ * Discord (commonshub/chb-backend, /guestpass). The member shares
  * commonshub.brussels/pass#<signed door-link parameters>&pass=half-day|day;
  * the page shows the pass and opens the real signed link. A room booked for
  * a guest without an email (/book, or the dashboard) gives the same page

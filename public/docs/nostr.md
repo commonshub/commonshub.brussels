@@ -90,7 +90,7 @@ is in [`docs/website.md`](https://github.com/commonshub/commonshub.brussels/blob
 
 ## Two apps, one record
 
-The Discord bot's `/shifts` command ([opencollective/token-bot](https://github.com/opencollective/token-bot),
+The Discord bot's `/shifts` command ([commonshub/chb-backend](https://github.com/commonshub/chb-backend),
 `src/lib/shifts-nostr.ts`) writes and reads the same events:
 
 - it is the **coordinator**: it publishes a slot's occurrence (kind 31923)

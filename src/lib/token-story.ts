@@ -2,7 +2,7 @@
  * What /token and /token/slides tell: how members earn tokens by caring for
  * the hub, and what they spend them on. One source for both pages.
  *
- * The amounts are the bot's (opencollective/token-bot): weekly role
+ * The amounts are the bot's (commonshub/chb-backend): weekly role
  * issuance from its roles.json, 1 token an hour of shift
  * (settings.shifts.rewardAmountPerHour), 1 token for attending the
  * heartbeat or a park cleaning, coworking and guest passes from its shop,

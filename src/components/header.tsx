@@ -7,13 +7,15 @@ import { AuthButton } from "@/components/auth-button";
 import { NostrOutboxBadge } from "@/components/nostr-outbox-badge";
 import { Menu, X, LogOut, Coins } from "lucide-react";
 import { useState } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTokenBalance } from "@/hooks/use-token-balance";
 import { getDisplayRoles } from "@/lib/roles";
+import { SignInDialog } from "@/components/sign-in-dialog";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
   const { data: session } = useSession();
   const { balance } = useTokenBalance();
 
@@ -151,7 +153,7 @@ export function Header() {
               {session?.user ? (
                 <div className="flex flex-col gap-3 pt-2">
                   <Link
-                    href={`/members/${session.user.username}`}
+                    href={session.user.discordId ? `/members/${session.user.username}` : "#"}
                     className="flex items-center gap-3 p-3 rounded-lg bg-muted hover:bg-accent transition-colors"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -169,16 +171,19 @@ export function Header() {
                     </Avatar>
                     <div className="flex-1 min-w-0 space-y-1">
                       <p className="font-medium text-sm truncate">
-                        {session.user.username}
+                        {session.user.username || session.user.name}
                       </p>
+                      {!session.user.discordId && session.user.email && (
+                        <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+                      )}
 
                       {/* Token balance */}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {session.user.discordId && <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Coins className="w-3.5 h-3.5" />
                         <span>
                           {balance !== null ? `${balance} tokens` : "..."}
                         </span>
-                      </div>
+                      </div>}
 
                       {/* Roles */}
                       {displayRoles.length > 0 && (
@@ -208,15 +213,16 @@ export function Header() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => signIn("discord")}
+                  onClick={() => (setMobileMenuOpen(false), setSignInOpen(true))}
                 >
-                  Login with Discord
+                  Sign in
                 </Button>
               )}
             </div>
           </nav>
         </div>
       )}
+      <SignInDialog open={signInOpen} onOpenChange={setSignInOpen} />
     </header>
   );
 }
