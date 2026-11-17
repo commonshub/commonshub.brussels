@@ -16,7 +16,9 @@ export const dynamic = "force-dynamic"
  *     what the community did, and a button to link their Discord account.
  * The email is rendered with the member's signed notification settings link
  * (keyed by the Discord id, or "e:<emailHash>"). chb adds the address; the
- * site never sees it.
+ * site never sees it. Optional: contribution=<euros> (what the member paid
+ * in over the period), orgName=… and orgContribution=<euros> (their
+ * organisation's), shown under the share of costs covered.
  */
 export async function GET(request: Request) {
   const secret = process.env.RENEW_LINK_SECRET
@@ -38,6 +40,16 @@ export async function GET(request: Request) {
   if (!recap) return NextResponse.json({ ok: false, error: "No such member on Discord" }, { status: 404 })
   recap.featured = featuredEvents(now)
   recap.community = await loadCommunity(period, now)
+  // What they paid in over the period, as chb counts it (contribution=, orgName=, orgContribution=, in euros).
+  const amount = (k: string) => {
+    const v = q.get(k)
+    const n = v === null || v === "" ? NaN : Number(v)
+    return Number.isFinite(n) && n >= 0 && n < 1e7 ? Math.round(n * 100) / 100 : null
+  }
+  const personal = amount("contribution")
+  const orgName = (q.get("orgName") ?? "").trim().slice(0, 80)
+  const orgAmount = amount("orgContribution")
+  if (personal !== null) recap.contribution = { personal, ...(orgName && orgAmount !== null ? { org: { name: orgName, amount: orgAmount } } : {}) }
   // Everyone gets the community mosaic: a member without Discord too (their own photos come first when we know them).
   if (!byDiscord) recap.photos = await communityPhotos(period).catch(() => [])
 

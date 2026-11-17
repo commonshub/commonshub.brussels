@@ -185,6 +185,8 @@ export interface Recap {
   featured?: FeaturedEvent[]
   /** Money in against the costs, and the care shifts, over the period (lib/recap-community.ts). */
   community?: RecapCommunity
+  /** What the member paid in over the period, and their organisation (from chb, which knows the payments). */
+  contribution?: { personal: number; org?: { name: string; amount: number } }
 }
 
 /** Everyone's photos in #contributions over the period (the community mosaic), portrait or not. */

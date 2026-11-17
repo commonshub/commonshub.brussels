@@ -74,3 +74,17 @@ test("the mosaic follows the care line, featured events show their cover, no −
   expect(out.html).not.toContain("−0")
   expect(out.text).toContain("· 0 tokens spent")
 })
+
+test("my contribution and my organisation's under the share covered, with Donate; no frame", () => {
+  const r = communityOnlyRecap("Marianne", period, new Date("2026-12-01T09:00:00Z"))
+  r.community = community
+  r.contribution = { personal: 30, org: { name: "Acme SRL", amount: 250.5 } }
+  const { html, text } = buildRecapEmail(r, { linkDiscord: "https://commonshub.brussels/link-discord?t=x" })
+  expect(html.indexOf("fixed costs covered")).toBeLessThan(html.indexOf("My personal contribution"))
+  expect(html).toContain("€30")
+  expect(html).toContain("Acme SRL&#39;s contribution".replace("&#39;", "'"))
+  expect(html).toContain("https://commonshub.brussels/donate")
+  expect(html).toContain("discord-white.png")
+  expect(html).not.toContain("border:1px solid #eaded9\">")
+  expect(text).toContain("My personal contribution: €30")
+})
