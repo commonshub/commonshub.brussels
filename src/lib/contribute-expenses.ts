@@ -84,7 +84,7 @@ export interface PendingSummary {
   amountDue: number
   /** Bills in another currency than EUR: listed in their currency, not coverable here. */
   otherCurrencies: Array<{ currency: string; count: number; amountDue: number }>
-  /** EUR bills we dispute (settings.contribute.disputed): left out of count and amountDue. */
+  /** EUR bills we dispute (payment blocked in Odoo, flagged by chb): left out of count and amountDue. */
   disputed: { count: number; amountDue: number }
 }
 
@@ -97,7 +97,10 @@ export interface ChbBill {
   uri: string
   number: string
   type: "bill" | "credit_note"
-  status: "pending" | "partially_paid" | "paid" | "reversed"
+  /** "disputed" (chb ≥ 3.54): payment blocked in Odoo, still owed in the books. */
+  status: "pending" | "partially_paid" | "paid" | "reversed" | "disputed"
+  /** chb ≥ 3.54: true when the bill's payment is blocked in Odoo (we dispute it). */
+  disputed?: boolean
   date: string
   dueDate?: string
   /** "business" in pending-bills.json; "organisation" / "sole_trader" in expenses.json. */
@@ -161,8 +164,6 @@ interface ContributeSettings {
   oneTimeMonths: number
   /** One-time bills under this are bank fees and rounding, not expenses. */
   oneTimeMinAmount?: number
-  /** Bills we dispute, by Odoo number: not to pay until resolved. */
-  disputed?: { bills: string[] }
 }
 
 const CONFIG = settings.contribute as unknown as ContributeSettings
@@ -265,8 +266,8 @@ export function readPendingBills(dataDir: string, now: Date = new Date()): { exp
   if (!file) return null
   const today = now.toISOString().slice(0, 10)
   const open = file.bills.filter((b) => b.type === "bill" && b.status !== "reversed" && b.amountDue > 0)
-  const disputedNumbers = new Set(CONFIG.disputed?.bills ?? [])
-  const isDisputed = (b: ChbBill) => !!b.number && disputedNumbers.has(b.number)
+  // Bills whose payment is blocked in Odoo: chb flags them (≥ 3.54).
+  const isDisputed = (b: ChbBill) => b.disputed === true || b.status === "disputed"
   const disputed = open.filter((b) => b.currency === "EUR" && isDisputed(b))
   const eur = open.filter((b) => b.currency === "EUR" && !isDisputed(b))
 
