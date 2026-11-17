@@ -17,7 +17,9 @@ export const isTokenBotConfigured = () => !!process.env.TOKEN_BOT_URL && !!proce
 export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error: string }
 
 /** POST to one of the bot's /api/website/* endpoints, on behalf of a member. */
-export async function callTokenBot(endpoint: "options" | "availability" | "cowork" | "guestpass" | "book", userId: string, body: Record<string, unknown> = {}): Promise<{ status: number; body: BotAnswer }> {
+export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork"
+
+export async function callTokenBot(endpoint: BotEndpoint, userId: string, body: Record<string, unknown> = {}): Promise<{ status: number; body: BotAnswer }> {
   const base = process.env.TOKEN_BOT_URL
   const token = process.env.TOKEN_BOT_API_TOKEN
   if (!base || !token) return { status: 503, body: { ok: false, error: "Booking from the website isn't available right now: please use Discord." } }
@@ -45,6 +47,12 @@ export const ALLOWED_FIELDS: Record<string, string[]> = {
   cowork: ["requestId", "item"],
   guestpass: ["requestId", "length", "start", "guestName", "guestEmail"],
   book: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail"],
+  // Paying in euros: who to invoice (the bot keeps a member's organisations in Odoo), then the invoice.
+  orgs: [],
+  org: ["id", "name", "vat", "email", "street", "zip", "city", "country", "billing", "billingstreet", "billingzip", "billingcity", "billingcountry"],
+  vat: ["vat"],
+  paybook: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail", "org"],
+  paycowork: ["requestId", "item", "org"],
 }
 
 export function pickFields(endpoint: string, body: Record<string, unknown>): Record<string, unknown> {

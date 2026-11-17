@@ -8,11 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { brusselsIso, icsFor, nextHalfHour, todayInBrussels, nowTimeInBrussels, whenText } from "@/lib/hub-booking"
+import type { BotInvoice } from "@/lib/invoice-payment"
+import { eur, EurSummary, type EurQuote, InvoiceConfirmation, InvoiceToRow, loadOrgs, type Org, OrgForm, OrgPicker, PayChoice } from "@/components/dashboard/euro-payment"
 
 /**
  * The dashboard's Cowork and Book a room, for the member or a guest: the
  * same choices as the Discord commands (/buy, /guestpass, /book), paid in
- * tokens through the bot, without leaving the site. Then a confirmation:
+ * tokens through the bot, without leaving the site; or in euros (coworking
+ * and rooms), with an invoice from the bot to the member's organisation,
+ * paid now by card or later by transfer (euro-payment.tsx). Then a confirmation:
  * for the member, a calendar file; for a guest, either "we emailed them
  * (you're cc'd)" or a link and QR code to share.
  */
@@ -28,6 +32,7 @@ interface Options {
   rooms: Array<{ slug: string; name: string; capacity?: number; tokenPricePerHour: number | null; bookableFromNote?: string }>
   terms: { cowork: string; room: string }
   disclaimer: string
+  eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote> }
 }
 
 type CoworkItem = { id: string; label: string; price: number; terms: string }
@@ -89,8 +94,17 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const [title, setTitle] = useState("")
   const [guestName, setGuestName] = useState("")
   const [guestEmail, setGuestEmail] = useState("")
-  const [quote, setQuote] = useState<{ price: number } | null>(null)
+  const [quote, setQuote] = useState<{ price: number; eur?: EurQuote } | null>(null)
   const [coworkItem, setCoworkItem] = useState<string | null>(null)
+
+  // Paying in euros
+  const [currency, setCurrency] = useState<"tokens" | "eur">("tokens")
+  const [orgs, setOrgs] = useState<Org[] | null>(null)
+  const [orgId, setOrgId] = useState<number | null>(null)
+  const [view, setView] = useState<"form" | "orgs" | "org-edit" | "pay">("form")
+  const [editing, setEditing] = useState<Org | null>(null)
+  const [payBusy, setPayBusy] = useState<"card" | "later" | null>(null)
+  const [eurDone, setEurDone] = useState<{ what: string; invoice: BotInvoice; note?: string } | null>(null)
 
   useEffect(() => {
     post("options")
@@ -104,6 +118,45 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
 
   const isGuest = mode.endsWith("guest")
   const isRoom = mode.startsWith("room")
+  const euroPossible = !!options?.eur?.available && mode !== "cowork-guest"
+  const inEur = euroPossible && currency === "eur"
+  const org = orgs?.find((o) => o.id === orgId) ?? null
+
+  function chooseCurrency(c: "tokens" | "eur") {
+    setCurrency(c)
+    setError(null)
+    setRequestId(crypto.randomUUID())
+    if (c === "eur" && orgs === null)
+      loadOrgs()
+        .then((list) => {
+          setOrgs(list)
+          setOrgId((id) => id ?? (list.find((o) => !o.self) ?? list[0])?.id ?? null)
+        })
+        .catch((e: Error) => setError(e.message))
+  }
+
+  async function payEur(method: "card" | "later") {
+    if (!org) return setView("orgs")
+    setError(null)
+    setPayBusy(method)
+    try {
+      const target = org.self ? "self" : String(org.id)
+      const r =
+        mode === "cowork-me"
+          ? await post("paycowork", { requestId, item: coworkItem, org: target, pay: method })
+          : await post("paybook", { requestId, room, start: brusselsIso(date, time), end: brusselsIso(date, endTime), title: title || (isGuest ? `${guestName}'s meeting` : "Meeting"), org: target, pay: method, ...(isGuest ? { guestName, guestEmail } : {}) })
+      if (r.checkoutUrl) {
+        window.location.href = r.checkoutUrl
+        return
+      }
+      const what = mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
+      setEurDone({ what, invoice: r.invoice, note: r.checkoutError })
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setPayBusy(null)
+    }
+  }
   const roomInfo = options?.rooms.find((r) => r.slug === room)
   const roomTimesChanged = () => {
     setQuote(null)
@@ -119,7 +172,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
     try {
       const a = await post("availability", { room, start: brusselsIso(date, time), end: brusselsIso(date, endTime) })
       if (!a.available) throw new Error(a.reason || "The room isn't free then: try another time.")
-      setQuote({ price: a.price })
+      setQuote({ price: a.price, eur: a.eur })
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -155,25 +208,71 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   }
 
   if (done) return <Confirmation done={done} onClose={onClose} />
+  if (eurDone) return <InvoiceConfirmation what={eurDone.what} invoice={eurDone.invoice} note={eurDone.note} onClose={onClose} />
+  if (view === "orgs" && orgs)
+    return (
+      <OrgPicker
+        orgs={orgs}
+        selected={orgId}
+        onPick={setOrgId}
+        onEdit={(o) => (setEditing(o), setView("org-edit"))}
+        onAdd={() => (setEditing(null), setView("org-edit"))}
+        onBack={() => setView("form")}
+      />
+    )
+  if (view === "org-edit")
+    return (
+      <OrgForm
+        org={editing}
+        onCancel={() => setView("orgs")}
+        onSaved={(saved) => {
+          setOrgs((list) => [...(list ?? []).filter((o) => o.id !== saved.id), saved].sort((a, b) => Number(!!a.self) - Number(!!b.self)))
+          setOrgId(saved.id)
+          setView("orgs")
+        }}
+      />
+    )
 
   const coworkItems = options ? (options.cowork.items?.length ? options.cowork.items : options.cowork.item ? [options.cowork.item] : []) : []
   const chosenCowork = coworkItems.find((i) => i.id === coworkItem) ?? coworkItems[0]
   const price = mode === "cowork-me" ? chosenCowork?.price : mode === "cowork-guest" ? options?.guestPass[length].price : quote?.price
   const enough = options && price !== undefined ? options.balance >= price : true
   const maxDate = options ? todayInBrussels(options.guestPass.maxDaysAhead) : undefined
+  const eurQuote = !inEur ? undefined : mode === "cowork-me" ? (chosenCowork ? options?.eur?.cowork[chosenCowork.id] : undefined) : quote?.eur
+  const eurLabel = mode === "cowork-me" ? (chosenCowork?.label.replace(/^Contributor c/, "C") ?? "Coworking") : `${roomInfo?.name ?? "Room"}, ${quote?.eur?.lines[0]?.quantity ?? ""} h`
+
+  if (view === "pay" && eurQuote && org)
+    return <PayChoice total={eurQuote.total} org={org} busy={payBusy} error={error} onCard={() => payEur("card")} onLater={() => payEur("later")} onBack={() => (setError(null), setView("form"))} />
 
   return (
     <>
       <DialogHeader>
         <DialogTitle>{TITLES[mode]}</DialogTitle>
-        <DialogDescription>{options ? `You have ${tokens(options.balance)}.` : "Loading…"}</DialogDescription>
+        <DialogDescription>{options ? (inEur ? `Members get ${options.eur?.memberDiscount ?? 30}% off. Every booking paid in euros gets an invoice.` : `You have ${tokens(options.balance)}.`) : "Loading…"}</DialogDescription>
       </DialogHeader>
 
       {!options && !error && <Loader2 className="mx-auto my-6 h-6 w-6 animate-spin text-muted-foreground" />}
 
       {options && (
         <div className="space-y-4">
-          {options.hasWallet === false && <p className="text-sm text-destructive">You don&apos;t have a token wallet yet: ask Elinor on Discord to set one up.</p>}
+          {euroPossible && (
+            <div className="grid grid-cols-2 rounded-full border border-border p-1 text-sm" role="radiogroup" aria-label="Pay with">
+              {(["tokens", "eur"] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={currency === c}
+                  onClick={() => chooseCurrency(c)}
+                  className={`min-h-9 rounded-full font-medium transition ${currency === c ? "bg-foreground text-background" : "text-foreground hover:bg-muted"}`}
+                >
+                  {c === "tokens" ? "Tokens" : "Euros"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!inEur && options.hasWallet === false && <p className="text-sm text-destructive">You don&apos;t have a token wallet yet: ask Elinor on Discord to set one up.</p>}
 
           {mode === "cowork-me" &&
             (coworkItems.length ? (
@@ -191,8 +290,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
                       }}
                       className={`rounded-xl border-2 p-3 text-center text-sm transition ${chosenCowork?.id === i.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/60"}`}
                     >
-                      <span className="block font-semibold text-foreground">{i.label}</span>
-                      <span className="block text-xs text-muted-foreground">{tokens(i.price)}</span>
+                      <span className="block font-semibold text-foreground">{inEur ? i.label.replace(/^Contributor c/, "C") : i.label}</span>
+                      <span className="block text-xs text-muted-foreground">{inEur && options.eur?.cowork[i.id] ? `${eur(options.eur.cowork[i.id].total)} incl. VAT` : tokens(i.price)}</span>
                     </button>
                   ))}
                 </div>
@@ -240,7 +339,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
                 {options.rooms.map((r) => (
                   <option key={r.slug} value={r.slug}>
                     {r.name}
-                    {r.tokenPricePerHour !== null ? ` · ${tokens(r.tokenPricePerHour)}/h` : ""}
+                    {inEur ? "" : r.tokenPricePerHour !== null ? ` · ${tokens(r.tokenPricePerHour)}/h` : ""}
                   </option>
                 ))}
               </select>
@@ -288,7 +387,14 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
             </>
           )}
 
-          {price !== undefined && (
+          {inEur && eurQuote && (
+            <>
+              <EurSummary quote={eurQuote} label={eurLabel} />
+              <InvoiceToRow org={org} onClick={() => orgs && setView("orgs")} />
+            </>
+          )}
+
+          {!inEur && price !== undefined && (
             <div className="rounded-xl bg-muted p-3 text-sm">
               <p className="font-semibold text-foreground">Cost: {tokens(price)}</p>
               {!enough && <p className="mt-1 text-destructive">You don&apos;t have enough tokens for this. You can /claim tokens for a contribution on Discord.</p>}
@@ -305,6 +411,11 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
             {isRoom && !quote ? (
               <Button onClick={checkRoom} disabled={busy || !room}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Check availability
+              </Button>
+            ) : inEur ? (
+              <Button onClick={() => (org ? setView("pay") : orgs && setView("orgs"))} disabled={!eurQuote || orgs === null || (isGuest && !guestName.trim())}>
+                {orgs === null && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {org ? `Pay ${eurQuote ? eur(eurQuote.total) : ""}` : "Choose who we invoice"}
               </Button>
             ) : (
               <Button onClick={pay} disabled={busy || !enough || price === undefined}>
