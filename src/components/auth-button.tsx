@@ -55,6 +55,7 @@ export function AuthButton() {
             <div className="space-y-2">
               <p className="font-medium">{session.user.username || session.user.name}</p>
               {!session.user.discordId && session.user.email && <p className="text-xs font-normal text-muted-foreground">{session.user.email}</p>}
+              {session.user.testMode && <p className="inline-block rounded bg-amber-200 px-1.5 py-0.5 text-xs font-semibold text-amber-950">Test mode</p>}
 
               {/* Token balance */}
               {session.user.discordId && (

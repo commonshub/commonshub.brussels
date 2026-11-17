@@ -32,9 +32,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const code = typeof credentials?.code === "string" ? credentials.code.replace(/\s/g, "") : ""
         if (!email || !/^\d{6}$/.test(code)) return null
         const answer = await callBotLogin("verify", { email, code })
-        const partner = answer.body.ok ? (answer.body as { partner?: { id: number; name: string; email: string } }).partner : null
+        const partner = answer.body.ok ? (answer.body as { partner?: { id: number; name: string; email: string; test?: boolean } }).partner : null
         if (!partner) return null
-        return { id: `odoo-partner-${partner.id}`, name: partner.name, email: partner.email, odooPartnerId: partner.id } as never
+        // test: a test user (the bot's TEST_LOGIN_EMAILS): the test copy of Odoo, Stripe's sandbox.
+        return { id: `odoo-partner-${partner.id}`, name: partner.name, email: partner.email, odooPartnerId: partner.id, testMode: partner.test === true } as never
       },
     }),
   ],
@@ -44,6 +45,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account?.provider === "email-code" && user) {
         token.authMethod = "email"
         token.odooPartnerId = (user as { odooPartnerId?: number }).odooPartnerId
+        token.testMode = (user as { testMode?: boolean }).testMode === true
         token.username = user.name ?? ""
         token.roles = []
         token.roleDetails = []
@@ -198,6 +200,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.accessToken = token.accessToken as string
         session.user.authMethod = token.authMethod ?? "discord"
         if (token.odooPartnerId) session.user.odooPartnerId = token.odooPartnerId
+        if (token.testMode) session.user.testMode = true
       }
       return session
     },

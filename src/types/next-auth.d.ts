@@ -14,6 +14,8 @@ declare module "next-auth" {
       /** Signed in with an email address and a code: the Odoo partner it belongs to (no Discord). */
       odooPartnerId?: number
       authMethod?: "discord" | "email"
+      /** A test user (signed in with an email code): the test copy of Odoo and Stripe's sandbox. */
+      testMode?: boolean
     } & DefaultSession["user"]
   }
 
@@ -42,5 +44,6 @@ declare module "next-auth/jwt" {
     expiresAt?: number
     odooPartnerId?: number
     authMethod?: "discord" | "email"
+    testMode?: boolean
   }
 }
