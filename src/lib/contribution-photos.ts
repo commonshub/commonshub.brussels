@@ -2,8 +2,7 @@
  * A month's photos from #contributions, for the carousel the recap emails link to
  * (/contributions/YYYY/MM/photos). The photos are public (latest public tier:
  * images.json, the contributions channel); what was said with them is members
- * tier (contributions.json), so captions are only joined for a member or for
- * someone holding a recap link's signed token.
+ * tier (contributions.json), so captions are only joined for a signed-in member.
  */
 
 import settings from "@/settings/settings.json"

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 
 import { communityOnlyRecap, communityPhotos, loadRecap, parsePeriod, SITE } from "@/lib/monthly-recap"
 import { buildRecapEmail } from "@/lib/monthly-recap-email"
-import { linkDiscordUrl, settingsUrl, signDiscordLinkToken, signSettingsLink } from "@/lib/notification-links"
+import { linkDiscordUrl, settingsUrl, signSettingsLink } from "@/lib/notification-links"
 import { featuredEvents, loadCommunity } from "@/lib/recap-community"
 
 export const dynamic = "force-dynamic"
@@ -79,9 +79,9 @@ async function render(q: URLSearchParams, euroTransactions: Array<{ at: number; 
   if (!byDiscord) recap.photos = await communityPhotos(period).catch(() => [])
   if (euroTransactions.length) recap.euros = euroTransactions
 
-  const token = signSettingsLink(byDiscord ? discordId : `e:${emailHash}`)
-  const settingsLink = settingsUrl(SITE, token)
-  const { subject, html, text } = buildRecapEmail(recap, { origin: SITE, settingsLink, viewToken: token, ...(byEmail ? { linkDiscord: linkDiscordUrl(SITE, signDiscordLinkToken(emailHash)) } : {}) })
+  // The only signed link in the email: the member's recap settings (frequency or none), nothing else.
+  const settingsLink = settingsUrl(SITE, signSettingsLink(byDiscord ? discordId : `e:${emailHash}`))
+  const { subject, html, text } = buildRecapEmail(recap, { origin: SITE, settingsLink, ...(byEmail ? { linkDiscord: linkDiscordUrl(SITE) } : {}) })
   return NextResponse.json({
     ok: true,
     member: byDiscord ? { discordId: recap.member.id, username: recap.member.username, name: recap.member.name } : { emailHash, name: recap.member.name },
