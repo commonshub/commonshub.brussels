@@ -43,7 +43,7 @@ describe("Partners Data Integrity", () => {
 
   test("number of partners in JSON matches expected count", () => {
     // Update this count if partners are added/removed
-    const expectedPartnerCount = 22;
+    const expectedPartnerCount = 23;
     expect(partners.length).toBe(expectedPartnerCount);
   });
 });
