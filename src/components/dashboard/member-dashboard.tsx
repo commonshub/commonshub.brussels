@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { ArrowRight, CalendarDays, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
+import { ArrowRight, CalendarDays, Eye, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
 
 import { Logo } from "@/components/logo"
 import { ActionToggle } from "@/components/dashboard/action-toggle"
@@ -8,9 +8,12 @@ import { AddEmailCard } from "@/components/dashboard/add-email"
 import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MyBookings } from "@/components/dashboard/my-bookings"
+import { MyOrganisations } from "@/components/dashboard/my-organisations"
+import { TodayAtTheHub } from "@/components/dashboard/today-at-the-hub"
 import { NextShiftCard, SignUpForShift } from "@/components/dashboard/next-shift"
 import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
+import { getProxiedImageUrl } from "@/lib/image-proxy"
 import { findPlan } from "@/lib/member-plan"
 import { chbPubkey, needsEmail } from "@/lib/partner-email"
 import { isApplicationsConfigured, listApplications } from "@/lib/membership-applications-store"
@@ -23,20 +26,35 @@ type User = { discordId: string; username: string; email?: string | null; avatar
 
 /**
  * What a member sees at /, instead of the homepage (still at /homepage):
- * open the door (without leaving the page), ask Elinor, cowork or book a room (for themselves or a
- * guest), their next shift (or sign up for one), vouch for applicants, what's coming up, and their membership plan.
+ * open the door (without leaving the page), ask Elinor, today at the hub (who came in, today's
+ * events), cowork or book a room (for themselves or a guest), their bookings, their next shift (or
+ * sign up for one), vouch for applicants, what's coming up, their membership plan and organisations.
+ * `viewAs`: an admin looking at this member's dashboard (/?as=<username>): read-only.
  * When chb has no email for their membership, a card asks for one (lib/partner-email.ts).
  * Their token balance is in the header.
  */
-export async function MemberDashboard({ user, paid }: { user: User; paid?: string }) {
+export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid?: string; viewAs?: { by: string } }) {
   const { plan, candidate } = await findPlan(user)
+  const readOnly = !!viewAs
+  const avatar = user.avatar ? (user.avatar.startsWith("http") ? user.avatar : `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png?size=96`) : null
   return (
     <div className="mx-auto max-w-5xl px-4 pb-10 pt-10 sm:px-6">
+      {viewAs && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+          <Eye className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+          <p className="text-sm">
+            <span className="font-bold">Viewing as {user.username}.</span> This is their dashboard, read-only: buttons are off. The token balance in the header is still yours.{" "}
+            <Link href="/" className="font-semibold underline">
+              Back to mine
+            </Link>
+          </p>
+        </div>
+      )}
       <h1 className="text-3xl font-extrabold text-foreground sm:text-4xl">Hi {user.username}</h1>
       <p className="mt-1 text-muted-foreground">Welcome home.</p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <DoorOpener name={user.username} />
+      <fieldset disabled={readOnly} className="mt-8 grid min-w-0 gap-4 sm:grid-cols-2">
+        <DoorOpener name={user.username} refresh />
         <a href={ELINOR} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border-2 border-primary p-5 text-foreground transition hover:bg-primary/5">
           <MessageCircle className="h-8 w-8 shrink-0 text-primary" />
           <span>
@@ -44,19 +62,13 @@ export async function MemberDashboard({ user, paid }: { user: User; paid?: strin
             <span className="block text-sm text-muted-foreground">Our community assistant, on Discord</span>
           </span>
         </a>
-      </div>
+      </fieldset>
 
-      <Suspense fallback={null}>
-        <MyBookings who={user.discordId} paid={paid} />
+      <Suspense fallback={<div className="mt-6 h-32 animate-pulse rounded-2xl bg-muted" />}>
+        <TodayAtTheHub me={{ username: user.username, avatar }} />
       </Suspense>
 
-      {chbPubkey() && needsEmail(user.discordId) && <AddEmailCard />}
-
-      <Suspense fallback={null}>
-        <VouchCard />
-      </Suspense>
-
-      <div className="mt-4 grid items-start gap-4 sm:grid-cols-2">
+      <fieldset disabled={readOnly} className="mt-4 grid min-w-0 items-start gap-4 sm:grid-cols-2">
         <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Contributor coworking with your tokens, or a guest pass for half a day or a day.">
           <HubBookingButton mode="cowork-me" className={ACTION}>
             For me, today
@@ -73,7 +85,17 @@ export async function MemberDashboard({ user, paid }: { user: User; paid?: strin
             For a guest
           </HubBookingButton>
         </ActionToggle>
-      </div>
+      </fieldset>
+
+      <Suspense fallback={null}>
+        <MyBookings who={user.discordId} paid={paid} readOnly={readOnly} />
+      </Suspense>
+
+      {!readOnly && chbPubkey() && needsEmail(user.discordId) && <AddEmailCard />}
+
+      <Suspense fallback={null}>
+        <VouchCard />
+      </Suspense>
 
       <Suspense fallback={<SignUpForShift />}>
         <NextShiftCard user={user} />
@@ -98,9 +120,9 @@ export async function MemberDashboard({ user, paid }: { user: User; paid?: strin
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Link href={`/members/${user.username}`} className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 transition hover:bg-muted">
-            {user.avatar ? (
+            {avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={`https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png?size=96`} alt="" width={48} height={48} className="h-12 w-12 rounded-full" />
+              <img src={getProxiedImageUrl(avatar)} alt="" width={48} height={48} className="h-12 w-12 rounded-full" />
             ) : (
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">{user.username.charAt(0).toUpperCase()}</span>
             )}
@@ -109,7 +131,12 @@ export async function MemberDashboard({ user, paid }: { user: User; paid?: strin
               <span className="block text-sm text-muted-foreground">Your profile and contributions</span>
             </span>
           </Link>
-          <MembershipPlanCard plan={plan} candidate={candidate} discordId={user.discordId} />
+          <fieldset disabled={readOnly} className="min-w-0">
+            <MembershipPlanCard plan={plan} candidate={candidate} discordId={user.discordId} />
+          </fieldset>
+          <Suspense fallback={null}>
+            <MyOrganisations who={user.discordId} />
+          </Suspense>
         </div>
       </section>
 

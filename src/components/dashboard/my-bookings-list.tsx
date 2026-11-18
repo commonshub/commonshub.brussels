@@ -35,7 +35,8 @@ async function post(action: string, body: Record<string, unknown>) {
 }
 
 /** Upcoming and past bookings paid in euros: pay what's due, cancel a room, download the invoice. */
-export function MyBookingsList({ upcoming, past, policy, paid }: { upcoming: MyBooking[]; past: MyBooking[]; policy: string; paid?: string }) {
+/** `readOnly`: an admin viewing someone else's dashboard (/?as=…): no Pay or Cancel. */
+export function MyBookingsList({ upcoming, past, policy, paid, readOnly }: { upcoming: MyBooking[]; past: MyBooking[]; policy: string; paid?: string; readOnly?: boolean }) {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming")
   const [paying, setPaying] = useState<MyBooking | null>(null)
   const [cancelling, setCancelling] = useState<MyBooking | null>(null)
@@ -100,12 +101,12 @@ export function MyBookingsList({ upcoming, past, policy, paid }: { upcoming: MyB
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusPill b={b} />
-                    {b.invoice.due > 0 && (
+                    {!readOnly && b.invoice.due > 0 && (
                       <Button size="sm" onClick={() => setPaying(b)}>
                         Pay {eur(b.invoice.due)}
                       </Button>
                     )}
-                    {b.cancel && (
+                    {!readOnly && b.cancel && (
                       <Button size="sm" variant="outline" onClick={() => setCancelling(b)}>
                         Cancel
                       </Button>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { DoorClosed, DoorOpen, RotateCcw } from "lucide-react"
 
 import type { DoorVisitor } from "@/lib/door-today"
@@ -12,6 +13,9 @@ import type { DoorVisitor } from "@/lib/door-today"
  * a plain form that goes to the door. Calm for people who ask for reduced
  * motion.
  *
+ * `refresh` (the dashboard, which lists who came in under "Today at the hub"): no list here,
+ * the page refreshes once the door is open.
+ *
  * `demo` (the /door/preview page) plays it all without opening the door:
  * it waits as long as a real knock and shows the visitors it was given.
  */
@@ -20,8 +24,9 @@ type State = { step: "idle" } | { step: "knocking" } | { step: "open"; visitors:
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" })
 
-export function DoorOpener({ name, demo }: { name: string; demo?: { visitors: DoorVisitor[]; fail?: boolean } }) {
+export function DoorOpener({ name, demo, refresh }: { name: string; demo?: { visitors: DoorVisitor[]; fail?: boolean }; refresh?: boolean }) {
   const [state, setState] = useState<State>({ step: "idle" })
+  const router = useRouter()
 
   async function open(e: React.FormEvent | React.MouseEvent) {
     e.preventDefault()
@@ -39,6 +44,7 @@ export function DoorOpener({ name, demo }: { name: string; demo?: { visitors: Do
       await knock
       if (!res.ok || !body.ok) return setState({ step: "stuck", error: body.error || "The door didn't answer. Try again in a moment." })
       setState({ step: "open", visitors: body.visitors ?? [] })
+      if (refresh) router.refresh()
     } catch {
       await knock
       setState({ step: "stuck", error: "No connection. Try again in a moment." })
@@ -64,7 +70,7 @@ export function DoorOpener({ name, demo }: { name: string; demo?: { visitors: Do
         </button>
       </form>
       {/* Under both buttons on a wide screen, right under this one on a phone. */}
-      {(opened || state.step === "stuck") && (
+      {((opened && !refresh) || state.step === "stuck") && (
         <div className="rounded-2xl border border-border bg-card p-5 sm:order-last sm:col-span-2" aria-live="polite">
           {state.step === "stuck" && (
             <div className="text-center">
