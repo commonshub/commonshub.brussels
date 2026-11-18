@@ -9,8 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { payLaterUrl } from "@/lib/invoice-payment"
 
 export type MyBooking = ({ kind: "room"; label: string; start: string; end: string; guest?: string } | { kind: "cowork"; label: string; date: string }) & {
-  invoice: { id: number; number: string; total: number; communication: string; pdfUrl: string | null; due: number }
-  status: "paid" | "partial" | "pending" | "cancelled"
+  /** null: paid only with an organisation's room credits (no invoice); eventId then. */
+  invoice: { id: number; number: string; total: number; communication: string; pdfUrl: string | null; due: number } | null
+  eventId?: string
+  credits?: { hours: number; organisation: string }
+  status: "paid" | "partial" | "pending" | "cancelled" | "credits"
   cancel?: { refundPercent: number; refund: number }
   creditNote?: { number: string; total: number; pdfUrl: string | null }
 }
@@ -65,7 +68,7 @@ export function MyBookingsList({ upcoming, past, policy, paid, readOnly }: { upc
       ) : (
         <ul className="mt-3 divide-y divide-border">
           {list.map((b) => (
-            <li key={b.invoice.id} className="py-3">
+            <li key={b.invoice?.id ?? b.eventId} className="py-3">
               <div className="flex items-start gap-3">
                 {b.kind === "room" ? <Presentation className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden /> : <Laptop className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />}
                 <div className="min-w-0 flex-1">
@@ -74,6 +77,12 @@ export function MyBookingsList({ upcoming, past, policy, paid, readOnly }: { upc
                     {b.kind === "cowork" ? `${b.label} pass` : b.label}
                     {b.kind === "room" && b.guest ? ` · for ${b.guest}` : ""}
                   </p>
+                  {b.credits && (
+                    <p className="text-sm text-muted-foreground">
+                      {b.credits.hours} h of {b.credits.organisation}&apos;s room credits
+                    </p>
+                  )}
+                  {b.invoice && (
                   <p className="text-sm text-muted-foreground">
                     {eur(b.invoice.total)} · invoice{" "}
                     {b.invoice.pdfUrl ? (
@@ -99,9 +108,10 @@ export function MyBookingsList({ upcoming, past, policy, paid, readOnly }: { upc
                       </>
                     )}
                   </p>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusPill b={b} />
-                    {!readOnly && b.invoice.due > 0 && (
+                    {!readOnly && b.invoice && b.invoice.due > 0 && (
                       <Button size="sm" onClick={() => setPaying(b)}>
                         Pay {eur(b.invoice.due)}
                       </Button>
@@ -131,6 +141,7 @@ export function MyBookingsList({ upcoming, past, policy, paid, readOnly }: { upc
 function StatusPill({ b }: { b: MyBooking }) {
   const pill = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
   if (b.status === "cancelled") return <span className={`${pill} bg-muted text-muted-foreground`}><XCircle className="h-3.5 w-3.5" aria-hidden /> Cancelled</span>
+  if (b.status === "credits") return <span className={`${pill} bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200`}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Room credits</span>
   if (b.status === "paid") return <span className={`${pill} bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200`}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Paid</span>
   return <span className={`${pill} bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200`}><Clock className="h-3.5 w-3.5" aria-hidden /> {b.status === "partial" ? "Partly paid" : "Pending payment"}</span>
 }
@@ -142,7 +153,7 @@ function PayDialog({ b }: { b: MyBooking }) {
     setError(null)
     setBusy(true)
     try {
-      const { checkoutUrl } = await post("payinvoice", { invoiceId: String(b.invoice.id) })
+      const { checkoutUrl } = await post("payinvoice", { invoiceId: String(b.invoice!.id) })
       window.location.href = checkoutUrl
     } catch (e) {
       setError((e as Error).message)
@@ -152,8 +163,8 @@ function PayDialog({ b }: { b: MyBooking }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Pay {eur(b.invoice.due)}</DialogTitle>
-        <DialogDescription>Invoice {b.invoice.number}.</DialogDescription>
+        <DialogTitle>Pay {eur(b.invoice!.due)}</DialogTitle>
+        <DialogDescription>Invoice {b.invoice!.number}.</DialogDescription>
       </DialogHeader>
       <div className="space-y-2">
         <button type="button" onClick={card} disabled={busy} className="flex w-full items-center gap-3 rounded-xl bg-primary p-4 text-left text-primary-foreground disabled:opacity-60">
@@ -164,7 +175,7 @@ function PayDialog({ b }: { b: MyBooking }) {
           </span>
           <ChevronRight className="h-5 w-5" aria-hidden />
         </button>
-        <a href={payLaterUrl({ total: b.invoice.due, communication: b.invoice.communication })} className="flex w-full items-center gap-3 rounded-xl border-2 border-primary p-4 text-left">
+        <a href={payLaterUrl({ total: b.invoice!.due, communication: b.invoice!.communication })} className="flex w-full items-center gap-3 rounded-xl border-2 border-primary p-4 text-left">
           <Landmark className="h-5 w-5 text-primary" aria-hidden />
           <span className="flex-1">
             <span className="block font-medium text-primary">Pay by bank transfer</span>
@@ -189,7 +200,7 @@ function CancelDialog({ b, policy, onDone }: { b: MyBooking; policy: string; onD
     setError(null)
     setBusy(true)
     try {
-      setResult(await post("cancelbooking", { invoiceId: String(b.invoice.id) }))
+      setResult(await post("cancelbooking", b.invoice ? { invoiceId: String(b.invoice.id) } : { eventId: b.eventId }))
       router.refresh()
     } catch (e) {
       setError((e as Error).message)
@@ -206,7 +217,7 @@ function CancelDialog({ b, policy, onDone }: { b: MyBooking; policy: string; onD
           </DialogTitle>
           <DialogDescription>
             {b.label}, {whenText(b)} is cancelled and the room is free again.{" "}
-            {result.creditNote ? `Credit note ${result.creditNote.number} (${eur(result.creditNote.total)}) is on its way by email.` : "No refund, as it was less than 7 days before."}{" "}
+            {b.credits && !b.invoice ? `${b.credits.hours} h of room credits are back for ${b.credits.organisation} this week.` : result.creditNote ? `Credit note ${result.creditNote.number} (${eur(result.creditNote.total)}) is on its way by email.` : "No refund, as it was less than 7 days before."}{" "}
             {result.refundDue ? `You had paid: a steward will pay ${eur(result.refundDue)} back to you.` : ""}
           </DialogDescription>
         </DialogHeader>
@@ -223,6 +234,9 @@ function CancelDialog({ b, policy, onDone }: { b: MyBooking; policy: string; onD
           {b.label}, {whenText(b)}.
         </DialogDescription>
       </DialogHeader>
+      {!b.invoice ? (
+        <p className="rounded-xl bg-muted p-3 text-sm">Paid with {b.credits?.organisation}&apos;s room credits: cancelling gives the {b.credits?.hours} h back.</p>
+      ) : (
       <div className={`flex gap-3 rounded-xl p-3 text-sm ${pct === 100 ? "bg-muted" : "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100"}`}>
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
         <div>
@@ -230,14 +244,15 @@ function CancelDialog({ b, policy, onDone }: { b: MyBooking; policy: string; onD
             {pct === 100
               ? `Full refund: ${eur(b.cancel!.refund)}.`
               : pct === 50
-                ? `Late cancellation: 50% refund only (${eur(b.cancel!.refund)} of ${eur(b.invoice.total)}).`
-                : `Less than 7 days before: no refund. The invoice (${eur(b.invoice.total)}) stays due.`}
+                ? `Late cancellation: 50% refund only (${eur(b.cancel!.refund)} of ${eur(b.invoice!.total)}).`
+                : `Less than 7 days before: no refund. The invoice (${eur(b.invoice!.total)}) stays due.`}
           </p>
           <p className="mt-1">
             {pct > 0 ? `You get a credit note for ${eur(b.cancel!.refund)}${paid ? ", and a steward pays it back to you" : ""}.` : ""} {policy}
           </p>
         </div>
       </div>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onDone} disabled={busy}>

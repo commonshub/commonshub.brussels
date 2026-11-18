@@ -5,7 +5,7 @@ import { auth } from "@/auth"
 import { isMember } from "@/lib/admin-check"
 import { type BotInvoice, checkoutParams } from "@/lib/invoice-payment"
 import { publicOrigin } from "@/lib/public-origin"
-import { ALLOWED_FIELDS, type BotEndpoint, type BotIdentity, botIdentity, callTokenBot, pickFields } from "@/lib/token-bot"
+import { ALLOWED_FIELDS, type BotEndpoint, type BotIdentity, botIdentity, callTokenBot, isTestIdentity, pickFields } from "@/lib/token-bot"
 
 export const dynamic = "force-dynamic"
 
@@ -29,8 +29,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
   if (!(action in ALLOWED_FIELDS)) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
   const session = await auth()
   const who = botIdentity(session?.user)
-  const test = !!who && typeof who !== "string"
-  if (!who || (!test && !(await isMember()))) return NextResponse.json({ ok: false, error: "Members only" }, { status: 403 })
+  const test = isTestIdentity(who)
+  // A Discord id must be a member's; a test user or an email user (an Odoo contact) pays in euros.
+  if (!who || (typeof who === "string" && !(await isMember()))) return NextResponse.json({ ok: false, error: "Members only" }, { status: 403 })
   const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>
   if (action === "payinvoice") return payInvoice(request, who, test, Number(body.invoiceId))
   const answer = await callTokenBot(action as BotEndpoint, who, pickFields(action, body))
@@ -60,10 +61,10 @@ async function payInvoice(request: Request, who: BotIdentity, test: boolean, inv
   if (!Number.isInteger(invoiceId) || invoiceId <= 0) return NextResponse.json({ ok: false, error: "invoiceId is required" }, { status: 400 })
   const secretKey = test ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY
   if (!secretKey) return NextResponse.json({ ok: false, error: "Card payment isn't available right now: pay by bank transfer." }, { status: 503 })
-  type Listed = { kind: string; label: string; invoice: BotInvoice & { due: number } }
+  type Listed = { kind: string; label: string; invoice: (BotInvoice & { due: number }) | null }
   const lists = await Promise.all([callTokenBot("mine", who), callTokenBot("mine", who, { past: true })])
-  const found = lists.flatMap((a) => (a.body.ok ? ((a.body as { bookings?: Listed[] }).bookings ?? []) : [])).find((b) => b.invoice.id === invoiceId)
-  if (!found) return NextResponse.json({ ok: false, error: "That invoice isn't one of yours." }, { status: 404 })
+  const found = lists.flatMap((a) => (a.body.ok ? ((a.body as { bookings?: Listed[] }).bookings ?? []) : [])).find((b) => b.invoice?.id === invoiceId)
+  if (!found?.invoice) return NextResponse.json({ ok: false, error: "That invoice isn't one of yours." }, { status: 404 })
   if (!(found.invoice.due > 0)) return NextResponse.json({ ok: false, error: "Nothing is left to pay on this invoice." }, { status: 409 })
   try {
     const checkout = await new Stripe(secretKey).checkout.sessions.create(checkoutParams({ ...found.invoice, total: found.invoice.due, sentTo: null } as BotInvoice, found.label, publicOrigin(request)))
