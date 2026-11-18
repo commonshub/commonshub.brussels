@@ -3,6 +3,7 @@ import path from "path";
 import settings from "@/settings/settings.json";
 import { DATA_DIR, tierDir } from "@/lib/data-paths";
 import { isInternalTransfer } from "@/lib/transactions";
+import { addressFromUri } from "@/lib/nip73";
 import type { Transaction, TransactionsFile } from "@/types/transactions";
 
 export interface MonthlyBreakdown {
@@ -171,6 +172,29 @@ function calculateBalanceFromTransactions(transactions: Transaction[]): number {
     const amount = tx.normalizedAmount ?? tx.amount ?? 0;
     return balance + amount;
   }, 0);
+}
+
+/** Sentinel for the "other side" of a token mint/burn (no counterparty wallet). */
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+/**
+ * from/to for an on-chain row of `accountAddress`, with the counterparty on
+ * the other side. chb writes the counterparty wallet in `counterpartyId`; for
+ * MINT/BURN rows it is the token contract instead, so those use the zero
+ * address (a Monerium EURe mint/burn is a SEPA deposit/payout).
+ */
+export function onchainParties(
+  tx: Pick<Transaction, "type" | "counterpartyId">,
+  accountAddress: string | undefined,
+  direction: "in" | "out"
+): { from?: string; to?: string } {
+  const counterparty =
+    tx.type === "MINT" || tx.type === "BURN"
+      ? ZERO_ADDRESS
+      : addressFromUri(tx.counterpartyId) ?? undefined;
+  return direction === "in"
+    ? { from: counterparty, to: accountAddress }
+    : { from: accountAddress, to: counterparty };
 }
 
 function transactionValue(tx: Transaction): number {
@@ -395,8 +419,7 @@ function fetchAccountData(
         return {
           hash: tx.providerId || tx.id,
           date: new Date(tx.timestamp * 1000).toISOString(),
-          from: direction === "out" ? address : undefined,
-          to: direction === "in" ? address : undefined,
+          ...onchainParties(tx, address, direction),
           value: Math.round(transactionValue(tx) * 100) / 100,
           type: direction as "in" | "out",
           description,
