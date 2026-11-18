@@ -5,7 +5,7 @@
 import { communityOnlyRecap, parsePeriod } from "@/lib/monthly-recap"
 import { buildRecapEmail } from "@/lib/monthly-recap-email"
 import { careOf, featuredEvents } from "@/lib/recap-community"
-import { signDiscordLinkToken, signSettingsLink, verifyDiscordLinkToken, verifySettingsLink } from "@/lib/notification-links"
+import { signSettingsLink, verifySettingsLink } from "@/lib/notification-links"
 import type { HostedEvent } from "@/lib/hosted-events"
 
 const HASH = "a".repeat(64)
@@ -31,7 +31,7 @@ test("a member without Discord: the community, a link-Discord button, no persona
   const r = communityOnlyRecap("Marianne", period, new Date("2026-12-01T09:00:00Z"))
   r.community = community
   r.featured = [{ name: "Open Source Village", start: "2027-01-10T10:00:00Z", url: "https://commonshub.brussels/events/osv", tagline: "A week of open source" }]
-  const link = `https://commonshub.brussels/link-discord?t=${signDiscordLinkToken(HASH)}`
+  const link = "https://commonshub.brussels/link-discord"
   const { html, text } = buildRecapEmail(r, { linkDiscord: link })
   expect(html).toContain("Hi Marianne, here's your November 2026")
   expect(html).toContain("Link my Discord account")
@@ -47,16 +47,12 @@ test("a member without Discord: the community, a link-Discord button, no persona
   expect(text).toContain(link)
 })
 
-test("signed links: settings for e:<emailHash>, and the link-Discord token", () => {
+test("signed links: settings for e:<emailHash>", () => {
   process.env.RENEW_LINK_SECRET = "s".repeat(32)
   expect(verifySettingsLink(signSettingsLink(`e:${HASH}`))?.d).toBe(`e:${HASH}`)
   expect(verifySettingsLink(signSettingsLink("e:nothex"))).toBe(null)
-  const t = signDiscordLinkToken(HASH)
-  expect(verifyDiscordLinkToken(t)).toBe(HASH)
-  expect(verifyDiscordLinkToken(t.replace(/.$/, (c) => (c === "A" ? "B" : "A")))).toBe(null)
-  // A settings token is not a link token, and the other way round.
-  expect(verifyDiscordLinkToken(signSettingsLink("123456789"))).toBe(null)
-  expect(verifySettingsLink(t)).toBe(null)
+  const t = signSettingsLink(`e:${HASH}`)
+  expect(verifySettingsLink(t.replace(/.$/, (c) => (c === "A" ? "B" : "A")))).toBe(null)
 })
 
 test("the mosaic follows the care line, featured events show their cover, no −0", () => {
@@ -104,12 +100,24 @@ test("one Transactions list: tokens in and out and euros, by date, signed from t
   ])
 })
 
-test("mosaic photos open the month's carousel, with the reader's token", async () => {
+test("mosaic photos open the month's carousel, with no token", async () => {
   const { photoPageUrl } = await import("@/lib/monthly-recap-email")
-  expect(photoPageUrl("/data/2026/11/public/images/1572229535276081232.jpg", "https://commonshub.brussels", "tok.sig")).toBe("https://commonshub.brussels/contributions/2026/11/photos?image=1572229535276081232&t=tok.sig")
+  expect(photoPageUrl("/data/2026/11/public/images/1572229535276081232.jpg", "https://commonshub.brussels")).toBe("https://commonshub.brussels/contributions/2026/11/photos?image=1572229535276081232")
   expect(photoPageUrl("https://cdn.discordapp.com/x.jpg")).toBe(null)
   const r = communityOnlyRecap("M", period)
   r.community = community
   r.photos = [{ src: "/data/2026/11/public/images/a1.jpg", by: "Dean", text: "x" }]
-  expect(buildRecapEmail(r, { viewToken: "tok" }).html).toContain('href="https://commonshub.brussels/contributions/2026/11/photos?image=a1&amp;t=tok"')
+  expect(buildRecapEmail(r).html).toContain('href="https://commonshub.brussels/contributions/2026/11/photos?image=a1"')
+})
+
+test("forwarding the email gives nothing away: the only signed link is the recap settings", () => {
+  process.env.RENEW_LINK_SECRET = "s".repeat(32)
+  const r = communityOnlyRecap("Marianne", period)
+  r.community = community
+  r.photos = [{ src: "/data/2026/11/public/images/a1.jpg", by: "Dean", text: "x" }]
+  const settingsLink = `https://commonshub.brussels/notifications?t=${encodeURIComponent(signSettingsLink(`e:${HASH}`))}`
+  const { html } = buildRecapEmail(r, { settingsLink, linkDiscord: "https://commonshub.brussels/link-discord" })
+  const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&"))
+  expect(hrefs.filter((h) => /[?&]t=/.test(h)).every((h) => h.startsWith("https://commonshub.brussels/notifications?t="))).toBe(true)
+  expect(hrefs).toContain("https://commonshub.brussels/link-discord")
 })

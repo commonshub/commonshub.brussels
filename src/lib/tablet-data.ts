@@ -22,7 +22,7 @@ import * as path from "path"
 import { tierDir, type Tier } from "./data-paths"
 import { readEventsForMonth, readLatestEvents, readTierJson } from "./dataset"
 import { discordGet, isDiscordConfigured } from "./discord"
-import { buildDays, introOf, isCancelledTitle, weekRange, type TabletBooking, type TabletDay } from "./tablet"
+import { asksForSteward, buildDays, introOf, isCancelledTitle, weekRange, type TabletBooking, type TabletDay } from "./tablet"
 import { isShiftsConfigured, listShifts, REWARD_PER_HOUR } from "./shifts-service"
 
 interface BookingsFile {
@@ -36,6 +36,8 @@ interface BookingsFile {
     public?: boolean
     /** How it was paid, from the booking (chb): token-paid bookings need no steward. */
     payment?: "tokens" | "euros" | null
+    /** chb: the room calendar entry's description says "Steward(s) needed" (the description itself stays private). */
+    stewardNeeded?: boolean
   }>
 }
 
@@ -136,6 +138,7 @@ export function loadTabletBookings(fromMs: number, toMs: number, tier: Tier = "p
         startMs,
         endMs,
         ...(event?.description ? { description: plain(event.description) } : {}),
+        ...(b.stewardNeeded || asksForSteward(event?.description) ? { stewardNeeded: true } : {}),
       })
     }
   }
@@ -143,7 +146,7 @@ export function loadTabletBookings(fromMs: number, toMs: number, tier: Tier = "p
     const startMs = Date.parse(e.startAt)
     const endMs = e.endAt ? Date.parse(e.endAt) : startMs + 2 * 3_600_000
     if (!Number.isFinite(startMs) || endMs <= fromMs || startMs >= toMs || (e.url && seen.has(e.url))) continue
-    out.push({ id: e.id, title: e.name, rooms: [], startMs, endMs, ...(isCancelledTitle(e.name) ? { cancelled: true } : {}), ...(e.description ? { description: plain(e.description) } : {}) })
+    out.push({ id: e.id, title: e.name, rooms: [], startMs, endMs, ...(isCancelledTitle(e.name) ? { cancelled: true } : {}), ...(e.description ? { description: plain(e.description) } : {}), ...(asksForSteward(e.description) ? { stewardNeeded: true } : {}) })
   }
   return out.sort((a, b) => a.startMs - b.startMs)
 }

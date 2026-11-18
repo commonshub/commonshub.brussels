@@ -41,7 +41,12 @@ export interface TabletBooking {
   description?: string
   /** Called off (its title says so): shown greyed out, needing nobody. */
   cancelled?: boolean
+  /** Its description asks for a steward ("Steward needed", "Stewards needed"): highlighted. */
+  stewardNeeded?: boolean
 }
+
+/** "Steward needed" / "Stewards needed" in a description, any case. */
+export const asksForSteward = (text: string | null | undefined) => !!text && /\bstewards?\s+needed\b/i.test(text)
 
 /** A booking called off keeps its slot in the calendar with "cancelled" in its title: "(cancelled)", "[Cancelled]", "Cancelled: …". */
 export const isCancelledTitle = (title: string) => /\bcancell?ed\b/i.test(title)
@@ -85,6 +90,7 @@ export function mergeRooms(bookings: TabletBooking[]): TabletBooking[] {
     }
     same.endMs = Math.max(same.endMs, b.endMs)
     same.description ||= b.description
+    if (b.stewardNeeded) same.stewardNeeded = true
     for (const r of b.rooms) if (!same.rooms.includes(r)) same.rooms.push(r)
   }
   for (const b of out) b.rooms.sort((x, y) => x.localeCompare(y))

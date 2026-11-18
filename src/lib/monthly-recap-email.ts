@@ -40,11 +40,8 @@ export function recapSubject(r: Recap): string {
 }
 
 /** `settingsLink`: the notification settings URL with its signed token (settingsUrl + signSettingsLink). */
-/**
- * `viewToken`: the member's signed settings token; the mosaic's photos link to the month's photo
- * carousel with it, so the messages show without logging in.
- */
-export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settingsUrl(origin), linkDiscord, viewToken }: { origin?: string; settingsLink?: string; linkDiscord?: string; viewToken?: string } = {}): { subject: string; html: string; text: string } {
+/** The mosaic's photos link to the month's photo carousel (public photos; the messages show to signed-in members). */
+export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settingsUrl(origin), linkDiscord }: { origin?: string; settingsLink?: string; linkDiscord?: string } = {}): { subject: string; html: string; text: string } {
   const subject = recapSubject(r)
   const known = !!r.member.id
   const month = periodName(r.period)
@@ -61,7 +58,7 @@ export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settin
   // Columns of one portrait or two stacked landscapes, cropped by the image proxy to shapes that line up.
   const img = (t: MosaicTile) => {
     const tag = `<img src="${esc(photoUrl(t.photo.src, origin, t.crop))}" alt="${esc(t.photo.text || `Shared by ${t.photo.by}`)}" width="175" style="display:block;width:100%;height:auto;border-radius:8px;border:0">`
-    const href = photoPageUrl(t.photo.src, origin, viewToken)
+    const href = photoPageUrl(t.photo.src, origin)
     return href ? `<a href="${esc(href)}">${tag}</a>` : tag
   }
   // One list, latest last: tokens in and out, and the euros they paid (or got back).
@@ -242,8 +239,8 @@ export function transactions(r: Pick<Recap, "received" | "spent" | "euros">): Ar
 }
 
 /** The photo in the month's carousel (/contributions/YYYY/MM/photos), from its dataset path; null for anything else. */
-export function photoPageUrl(src: string, origin = SITE, token?: string): string | null {
+export function photoPageUrl(src: string, origin = SITE): string | null {
   const m = /^\/data\/(\d{4})\/(\d{2})\/public\/images\/([\w-]+)\.\w+$/.exec(src)
   if (!m) return null
-  return `${origin}/contributions/${m[1]}/${m[2]}/photos?image=${m[3]}${token ? `&t=${encodeURIComponent(token)}` : ""}`
+  return `${origin}/contributions/${m[1]}/${m[2]}/photos?image=${m[3]}`
 }
