@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-import { isMember } from "@/lib/admin-check"
 import { contributionPhotos } from "@/lib/contribution-photos"
 import { PhotoCarousel } from "./photo-carousel"
 
@@ -13,14 +12,13 @@ export const metadata: Metadata = { title: "Contributions | Commons Hub Brussels
 /**
  * /contributions/YYYY/MM/photos?image=<id>: what members shared in #contributions that month, full
  * screen, swipe left and right. The recap emails' mosaic links here, opening on the photo tapped.
- * The photos are public; the messages (members-only data) show to signed-in members.
+ * Photos and messages are public.
  */
 export default async function ContributionPhotosPage({ params, searchParams }: { params: Promise<{ year: string; month: string }>; searchParams: Promise<{ image?: string }> }) {
   const { year, month } = await params
   const { image } = await searchParams
   if (!/^\d{4}$/.test(year) || !/^(0[1-9]|1[0-2])$/.test(month)) notFound()
-  const withCaptions = await isMember()
-  const photos = contributionPhotos(year, month, { withCaptions })
+  const photos = contributionPhotos(year, month)
   const name = new Date(Date.UTC(Number(year), Number(month) - 1, 15)).toLocaleDateString("en-GB", { month: "long", year: "numeric" })
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 pt-10 sm:px-6">

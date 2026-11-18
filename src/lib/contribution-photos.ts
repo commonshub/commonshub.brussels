@@ -1,8 +1,7 @@
 /**
  * A month's photos from #contributions, for the carousel the recap emails link to
- * (/contributions/YYYY/MM/photos). The photos are public (latest public tier:
- * images.json, the contributions channel); what was said with them is members
- * tier (contributions.json), so captions are only joined for a signed-in member.
+ * (/contributions/YYYY/MM/photos), with what was said with each: all public
+ * (public tier: images.json, the contributions channel, and contributions.json).
  */
 
 import settings from "@/settings/settings.json"
@@ -23,15 +22,13 @@ interface ImagesFile {
   images?: Array<{ id: string; url?: string; filePath?: string; channelId?: string; timestamp?: string; author?: { id?: string; displayName?: string; username?: string; avatar?: string | null } }>
 }
 
-export function contributionPhotos(year: string, month: string, { withCaptions = false } = {}): ContributionPhoto[] {
+export function contributionPhotos(year: string, month: string): ContributionPhoto[] {
   const channel = settings.discord.channels.contributions
   const file = readTierJson<ImagesFile>("public", "images.json", year, month)
   const captions = new Map<string, string>()
-  if (withCaptions) {
-    for (const m of readTierJson<ChannelFeed>("members", "contributions.json", year, month)?.messages ?? []) {
-      const text = plainText(m.content)
-      if (text) for (const img of m.images ?? []) captions.set(String(img), text)
-    }
+  for (const m of readTierJson<ChannelFeed>("public", "contributions.json", year, month)?.messages ?? []) {
+    const text = plainText(m.content)
+    if (text) for (const img of m.images ?? []) captions.set(String(img), text)
   }
   return (file?.images ?? [])
     .filter((i) => i.channelId === channel && i.filePath)
