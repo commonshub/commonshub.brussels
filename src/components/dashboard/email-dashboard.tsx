@@ -1,6 +1,9 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { ArrowRight, CalendarDays, Eye } from "lucide-react"
+import { ArrowRight, CalendarDays, Eye, Laptop, Presentation } from "lucide-react"
+
+import { ActionToggle } from "@/components/dashboard/action-toggle"
+import { HubBookingButton } from "@/components/dashboard/hub-booking"
 
 import { MyBookings } from "@/components/dashboard/my-bookings"
 import { OrganisationsCard, type Org } from "@/components/dashboard/my-organisations"
@@ -9,10 +12,13 @@ import { callTokenBot } from "@/lib/token-bot"
 
 /**
  * What someone signed in with an email code (no Discord, e.g. a contact of an organisation in Odoo)
- * sees at /: their organisations, their bookings and invoices (read-only), what's coming up.
- * `viewAs`: an admin looking at it (/?as=<email>).
+ * sees at /: book a room or coworking (in euros, or with their organisation's room credits), their
+ * organisations, their bookings and invoices, what's coming up.
+ * `viewAs`: an admin looking at it (/?as=<email>): read-only.
  */
-export async function EmailDashboard({ email, name, viewAs }: { email: string; name?: string | null; viewAs?: { by: string } }) {
+const ACTION = "inline-flex rounded-full border-2 border-primary px-4 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
+
+export async function EmailDashboard({ email, name, paid, viewAs }: { email: string; name?: string | null; paid?: string; viewAs?: { by: string } }) {
   const who = { emailUser: { email } }
   const answer = await callTokenBot("orgs", who).catch(() => null)
   const known = !!answer?.body.ok
@@ -24,7 +30,7 @@ export async function EmailDashboard({ email, name, viewAs }: { email: string; n
         <div className="mb-6 flex items-start gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
           <Eye className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <p className="text-sm">
-            <span className="font-bold">Viewing as {email}</span>, as if they signed in with that address.{" "}
+            <span className="font-bold">Viewing as {email}</span>, as if they signed in with that address. Buttons are off.{" "}
             {!known && answer?.status === 404 ? "Odoo has no contact with that address: they couldn't sign in. " : ""}
             <Link href="/" className="font-semibold underline">
               Back to mine
@@ -35,13 +41,29 @@ export async function EmailDashboard({ email, name, viewAs }: { email: string; n
       <h1 className="text-3xl font-extrabold text-foreground sm:text-4xl">Hi {shown}</h1>
       <p className="mt-1 text-muted-foreground">Welcome to the Commons Hub.</p>
 
-      <div className="mt-6 grid items-start gap-4 sm:grid-cols-2">
-        <OrganisationsCard orgs={orgs} />
-      </div>
+      <fieldset disabled={!!viewAs || !known} className="mt-6 grid min-w-0 items-start gap-4 sm:grid-cols-2">
+        <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="For a meeting, a workshop or an event: paid in euros, or with your organisation's room credits.">
+          <HubBookingButton mode="room-me" className={ACTION}>
+            For me
+          </HubBookingButton>
+          <HubBookingButton mode="room-guest" className={ACTION}>
+            For a guest
+          </HubBookingButton>
+        </ActionToggle>
+        <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="A half day or a day at the hub, paid in euros.">
+          <HubBookingButton mode="cowork-me" className={ACTION}>
+            Today
+          </HubBookingButton>
+        </ActionToggle>
+      </fieldset>
 
       <Suspense fallback={null}>
-        <MyBookings who={who} readOnly />
+        <MyBookings who={who} paid={paid} readOnly={!!viewAs} />
       </Suspense>
+
+      <div className="mt-4 grid items-start gap-4 sm:grid-cols-2">
+        <OrganisationsCard orgs={orgs} />
+      </div>
 
       <section className="mt-10">
         <h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-foreground">

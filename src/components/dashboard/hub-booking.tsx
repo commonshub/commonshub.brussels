@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarPlus, Check, Copy, Loader2, Share2 } from "lucide-react"
+import { CalendarPlus, Check, CheckCircle2, Copy, Loader2, Share2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -36,7 +36,12 @@ interface Options {
   eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote> }
   /** A test user: euros only (invoices in the test copy of Odoo, cards in Stripe's sandbox). */
   test?: boolean
+  /** No Discord (signed in with an email address, or a test user): euros only. */
+  eurOnly?: boolean
 }
+
+/** What an organisation's room credits cover of this booking (the bot's availability with `org`). */
+type CreditsQuote = { organisation: string; perWeek: number; left: number; covered: number; overflow: number; leftAfter: number; eur?: EurQuote }
 
 type CoworkItem = { id: string; label: string; price: number; terms: string }
 
@@ -107,7 +112,9 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const [view, setView] = useState<"form" | "orgs" | "org-edit" | "pay">("form")
   const [editing, setEditing] = useState<Org | null>(null)
   const [payBusy, setPayBusy] = useState<"card" | "later" | null>(null)
-  const [eurDone, setEurDone] = useState<{ what: string; invoice: BotInvoice; note?: string } | null>(null)
+  const [eurDone, setEurDone] = useState<{ what: string; invoice: BotInvoice | null; credits?: { hours: number; left: number; organisation: string }; note?: string } | null>(null)
+  // undefined: not checked yet for this organisation and time; null: no credits.
+  const [credits, setCredits] = useState<CreditsQuote | null | undefined>(undefined)
   const router = useRouter()
 
   useEffect(() => {
@@ -116,7 +123,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
         setOptions(o)
         setRoom((r) => r || o.rooms[0]?.slug || "")
         setCoworkItem((c) => c ?? o.cowork.item?.id ?? o.cowork.items?.[0]?.id ?? null)
-        if (o.test && o.eur?.available) chooseCurrency("eur")
+        if ((o.test || o.eurOnly) && o.eur?.available) chooseCurrency("eur")
       })
       .catch((e: Error) => setError(e.message))
   }, [])
@@ -155,7 +162,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
         return
       }
       const what = mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
-      setEurDone({ what, invoice: r.invoice, note: r.checkoutError })
+      setEurDone({ what, invoice: r.invoice ?? null, credits: r.credits, note: r.checkoutError })
       router.refresh() // the dashboard lists it (pending payment) behind the dialog
     } catch (e) {
       setError((e as Error).message)
@@ -164,7 +171,16 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
     }
   }
   const roomInfo = options?.rooms.find((r) => r.slug === room)
+  // Booking a room for an organisation: does it have room credits for it? (Checked again for another one.)
+  useEffect(() => setCredits(undefined), [orgId])
+  useEffect(() => {
+    if (view !== "pay" || !isRoom || !org || org.self || credits !== undefined) return
+    post("availability", { room, start: brusselsIso(date, time), end: brusselsIso(date, endTime), org: String(org.id) })
+      .then((a) => setCredits(a.credits ?? null))
+      .catch(() => setCredits(null))
+  }, [view, isRoom, org, credits, room, date, time, endTime])
   const roomTimesChanged = () => {
+    setCredits(undefined)
     setQuote(null)
     setRequestId(crypto.randomUUID())
   }
@@ -214,7 +230,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   }
 
   if (done) return <Confirmation done={done} onClose={onClose} />
-  if (eurDone) return <InvoiceConfirmation what={eurDone.what} invoice={eurDone.invoice} note={eurDone.note} />
+  if (eurDone && !eurDone.invoice && eurDone.credits) return <CreditsConfirmation what={eurDone.what} credits={eurDone.credits} />
+  if (eurDone?.invoice) return <InvoiceConfirmation what={eurDone.what} invoice={eurDone.invoice} note={[eurDone.credits ? `${eurDone.credits.hours} h were paid with ${eurDone.credits.organisation}'s room credits.` : "", eurDone.note ?? ""].filter(Boolean).join(" ") || undefined} />
   if (view === "orgs" && orgs)
     return (
       <OrgPicker
@@ -247,14 +264,31 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const eurQuote = !inEur ? undefined : mode === "cowork-me" ? (chosenCowork ? options?.eur?.cowork[chosenCowork.id] : undefined) : quote?.eur
   const eurLabel = mode === "cowork-me" ? (chosenCowork?.label.replace(/^Contributor c/, "C") ?? "Coworking") : `${roomInfo?.name ?? "Room"}, ${quote?.eur?.lines[0]?.quantity ?? ""} h`
 
-  if (view === "pay" && eurQuote && org)
-    return <PayChoice total={eurQuote.total} org={org} busy={payBusy} error={error} onCard={() => payEur("card")} onLater={() => payEur("later")} onBack={() => (setError(null), setView("form"))} />
+  if (view === "pay" && eurQuote && org) {
+    const back = () => (setError(null), setView("form"))
+    if (isRoom && !org.self && credits === undefined) return <Loader2 className="mx-auto my-10 h-6 w-6 animate-spin text-muted-foreground" />
+    if (credits && credits.covered > 0 && credits.overflow <= 0)
+      return <UseCredits credits={credits} busy={payBusy !== null} error={error} onBook={() => payEur("later")} onBack={back} />
+    const partly = credits && credits.covered > 0 && credits.eur ? credits : null
+    return (
+      <PayChoice
+        total={partly ? partly.eur!.total : eurQuote.total}
+        org={org}
+        note={partly ? `${partly.covered} h of this booking use ${partly.organisation}'s room credits (the last ${partly.left} h this week). The other ${partly.overflow} h are invoiced.` : undefined}
+        busy={payBusy}
+        error={error}
+        onCard={() => payEur("card")}
+        onLater={() => payEur("later")}
+        onBack={back}
+      />
+    )
+  }
 
   return (
     <>
       <DialogHeader>
         <DialogTitle>{TITLES[mode]}</DialogTitle>
-        <DialogDescription>{options ? (inEur ? `Members get ${options.eur?.memberDiscount ?? 30}% off. Every booking paid in euros gets an invoice.` : `You have ${tokens(options.balance)}.`) : "Loading…"}</DialogDescription>
+        <DialogDescription>{options ? (inEur ? `${options.eur?.memberDiscount ? `Members get ${options.eur.memberDiscount}% off. ` : ""}Every booking paid in euros gets an invoice, unless your organisation's room credits cover it.` : `You have ${tokens(options.balance)}.`) : "Loading…"}</DialogDescription>
       </DialogHeader>
 
       {!options && !error && <Loader2 className="mx-auto my-6 h-6 w-6 animate-spin text-muted-foreground" />}
@@ -262,7 +296,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
       {options && (
         <div className="space-y-4">
           {options.test && <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">Test mode: invoices go to the test Odoo, cards to Stripe&apos;s sandbox (card 4242 4242 4242 4242), and no room is really booked.</p>}
-          {euroPossible && !options.test && (
+          {euroPossible && !options.test && !options.eurOnly && (
             <div className="grid grid-cols-2 rounded-full border border-border p-1 text-sm" role="radiogroup" aria-label="Pay with">
               {(["tokens", "eur"] as const).map((c) => (
                 <button
@@ -510,6 +544,47 @@ function GuestConfirmation({ done, onClose }: { done: Extract<Done, { kind: "gue
       )}
       <div className="flex justify-end">
         <Button onClick={onClose}>Done</Button>
+      </div>
+    </>
+  )
+}
+
+/** The booking is fully covered by the organisation's room credits: no invoice. */
+function UseCredits({ credits, busy, error, onBook, onBack }: { credits: CreditsQuote; busy: boolean; error: string | null; onBook: () => void; onBack: () => void }) {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Use room credits</DialogTitle>
+        <DialogDescription>
+          {credits.organisation} has {credits.left} h of room credits left this week (of {credits.perWeek} h). This booking uses {credits.covered} h: no invoice.
+        </DialogDescription>
+      </DialogHeader>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex justify-between gap-2">
+        <Button variant="outline" onClick={onBack} disabled={busy}>
+          Back
+        </Button>
+        <Button onClick={onBook} disabled={busy}>
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Book with credits
+        </Button>
+      </div>
+    </>
+  )
+}
+
+function CreditsConfirmation({ what, credits }: { what: string; credits: { hours: number; left: number; organisation: string } }) {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <CheckCircle2 className="h-6 w-6 text-green-700 dark:text-green-400" aria-hidden /> Booked
+        </DialogTitle>
+        <DialogDescription>
+          {what}. Paid with {credits.hours} h of {credits.organisation}&apos;s room credits: {credits.left} h left this week.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex justify-end">
+        <Button onClick={() => window.location.assign("/")}>Done</Button>
       </div>
     </>
   )

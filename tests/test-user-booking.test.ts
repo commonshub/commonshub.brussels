@@ -53,12 +53,19 @@ test("without the sandbox key, a test user is never charged with the live one", 
   expect(stripeKeys).toEqual([])
 })
 
-test("an email user who isn't a test user, or a non-member, still can't book", async () => {
-  session.user = { authMethod: "email", email: "someone@example.org", odooPartnerId: 5 }
-  expect((await call("options", {})).status).toBe(403)
+test("an email user (an Odoo contact) books as emailUser, with the live Stripe key; a non-member on Discord can't", async () => {
   session.user = { discordId: "123" }
   expect((await call("options", {})).status).toBe(403)
   expect(sent).toEqual([])
+  session.user = { authMethod: "email", email: "someone@example.org", odooPartnerId: 5 }
+  global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)))
+    return new Response(JSON.stringify({ ok: true, invoice: INVOICE }), { status: 200 })
+  }) as never
+  expect((await call("paybook", { org: "self", pay: "card", emailUser: { email: "other@example.org" } })).status).toBe(200)
+  expect(sent[0]).toMatchObject({ emailUser: { email: "someone@example.org" } })
+  expect(sent[0].userId).toBeUndefined()
+  expect(stripeKeys).not.toContain("sk_test_x")
 })
 
 test("the browser can't pass a test identity along", () => {

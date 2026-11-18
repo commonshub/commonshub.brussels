@@ -24,14 +24,19 @@ export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | 
 export type BotIdentity = string | { testUser: { email: string; partnerId: number; name: string } } | { emailUser: { email: string } }
 
 /**
- * Who the bot acts for, from the session: a test user (signed in with an email code, testMode), or
- * a member's Discord id. null for anyone else. Membership itself is checked by the caller (isMember).
+ * Who the bot acts for, from the session: a test user (signed in with an email code, testMode), a
+ * member's Discord id, or someone signed in with an email code (an Odoo contact: euros only).
+ * null for anyone else. Membership itself is checked by the caller (isMember) for Discord ids.
  */
 export function botIdentity(user: { testMode?: boolean; email?: string | null; odooPartnerId?: number; username?: string; name?: string | null; discordId?: string } | undefined): BotIdentity | null {
   if (!user) return null
   if (user.testMode && user.email && user.odooPartnerId) return { testUser: { email: user.email, partnerId: user.odooPartnerId, name: user.username || user.name || "Test user" } }
-  return user.discordId || null
+  if (user.discordId) return user.discordId
+  if (user.odooPartnerId && user.email) return { emailUser: { email: user.email } }
+  return null
 }
+
+export const isTestIdentity = (who: BotIdentity | null): boolean => !!who && typeof who !== "string" && "testUser" in who
 
 export async function callTokenBot(endpoint: BotEndpoint, who: BotIdentity, body: Record<string, unknown> = {}): Promise<{ status: number; body: BotAnswer }> {
   const base = process.env.TOKEN_BOT_URL
@@ -82,7 +87,7 @@ export async function callBotLogin(step: "code" | "verify", body: { email: strin
 /** What the browser may pass on to each endpoint (anything else is dropped). */
 export const ALLOWED_FIELDS: Record<string, string[]> = {
   options: [],
-  availability: ["room", "start", "end"],
+  availability: ["room", "start", "end", "org"],
   cowork: ["requestId", "item"],
   guestpass: ["requestId", "length", "start", "guestName", "guestEmail"],
   book: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail"],
@@ -93,7 +98,7 @@ export const ALLOWED_FIELDS: Record<string, string[]> = {
   paybook: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail", "org"],
   paycowork: ["requestId", "item", "org"],
   // The dashboard's bookings: cancel one (refund by the terms), or pay what is left on its invoice by card.
-  cancelbooking: ["invoiceId"],
+  cancelbooking: ["invoiceId", "eventId"],
   payinvoice: ["invoiceId"],
 }
 

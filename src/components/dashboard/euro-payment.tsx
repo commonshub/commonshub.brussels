@@ -253,7 +253,7 @@ export function OrgForm({ org, onSaved, onCancel }: { org: Org | null; onSaved: 
 }
 
 /** Pay now by card, or send the invoice and pay later. */
-export function PayChoice({ total, org, busy, error, onCard, onLater, onBack }: { total: number; org: Org; busy: "card" | "later" | null; error: string | null; onCard: () => void; onLater: () => void; onBack: () => void }) {
+export function PayChoice({ total, org, note, busy, error, onCard, onLater, onBack }: { total: number; org: Org; note?: string; busy: "card" | "later" | null; error: string | null; onCard: () => void; onLater: () => void; onBack: () => void }) {
   return (
     <>
       <DialogHeader>
@@ -264,6 +264,7 @@ export function PayChoice({ total, org, busy, error, onCard, onLater, onBack }: 
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-2">
+        {note && <p className="rounded-lg bg-muted p-3 text-sm">{note}</p>}
         <button type="button" onClick={onCard} disabled={busy !== null} className="flex w-full items-center gap-3 rounded-xl bg-primary p-4 text-left text-primary-foreground disabled:opacity-60">
           {busy === "card" ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" aria-hidden />}
           <span className="flex-1">

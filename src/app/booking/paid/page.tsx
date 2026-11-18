@@ -5,7 +5,7 @@ import Stripe from "stripe"
 import { CheckCircle2 } from "lucide-react"
 
 import { auth } from "@/auth"
-import { botIdentity, callTokenBot } from "@/lib/token-bot"
+import { botIdentity, isTestIdentity, callTokenBot } from "@/lib/token-bot"
 
 export const dynamic = "force-dynamic"
 
@@ -26,7 +26,7 @@ export default async function BookingPaidPage({ searchParams }: { searchParams: 
   const number = invoice && /^[\w/ -]{1,40}$/.test(invoice) ? invoice : null
   const session = await auth()
   const who = botIdentity(session?.user)
-  const key = who && typeof who !== "string" ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY
+  const key = isTestIdentity(who) ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY
   if (who && key && session_id && /^cs_[\w]{10,200}$/.test(session_id)) {
     const checkout = await new Stripe(key).checkout.sessions.retrieve(session_id).catch(() => null)
     const invoiceId = Number(checkout?.metadata?.odooInvoiceId)

@@ -34,7 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   if (session?.user?.testMode) return <TestDashboard user={session.user} paid={paid} />
   if (session?.user && (await isMember())) return <MemberDashboard user={session.user} paid={paid} />
   // Signed in with an email code (an Odoo contact, no Discord).
-  if (session?.user?.odooPartnerId && session.user.email && !session.user.discordId) return <EmailDashboard email={session.user.email} name={session.user.name} />
+  if (session?.user?.odooPartnerId && session.user.email && !session.user.discordId) return <EmailDashboard email={session.user.email} name={session.user.name} paid={paid} />
   return (
     <>
       {session?.user?.discordId && <ActivateMembership username={session.user.username} />}
