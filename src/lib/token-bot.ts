@@ -20,7 +20,8 @@ export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error:
 export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid" | "cancelbooking"
 
 /** Who the bot acts for: a member's Discord id, or a test user (signed in with an email code). */
-export type BotIdentity = string | { testUser: { email: string; partnerId: number; name: string } }
+/** A member's Discord id; a test user; or someone known to Odoo by email (read-only: orgs, mine). */
+export type BotIdentity = string | { testUser: { email: string; partnerId: number; name: string } } | { emailUser: { email: string } }
 
 /**
  * Who the bot acts for, from the session: a test user (signed in with an email code, testMode), or
