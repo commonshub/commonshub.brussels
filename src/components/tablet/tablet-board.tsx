@@ -897,6 +897,11 @@ function EventSheet({
         </span>
         {booking.rooms.length > 0 && <span className="text-muted-foreground"> · {booking.rooms.join(", ")}</span>}
       </div>
+      {booking.stewardNeeded && !booking.cancelled && (
+        <p className="rounded-[1.5vw] bg-primary font-semibold text-primary-foreground" style={{ fontSize: u(2.9), padding: `${u(1.2)} ${u(2)}` }}>
+          A steward is needed for this event.
+        </p>
+      )}
       {booking.description && (
         <p className="whitespace-pre-line text-muted-foreground" style={{ fontSize: u(2.9), lineHeight: 1.45 }}>
           {booking.description}
@@ -1039,7 +1044,7 @@ function DayRow({
               type="button"
               aria-label={b.title}
               onClick={(e) => (e.stopPropagation(), onBooking(b))}
-              className={`absolute rounded-[0.8vw] ${b.cancelled ? "bg-foreground/10" : covered(b, day.shifts) ? "bg-foreground/25" : "bg-primary"}`}
+              className={`absolute rounded-[0.8vw] ${b.cancelled ? "bg-foreground/10" : covered(b, day.shifts) ? "bg-foreground/25" : b.stewardNeeded ? "bg-primary ring-[0.4vw] ring-primary/40" : "bg-primary"}`}
               style={{ ...span(b.startMs, b.endMs), top: u(0.8), height: u(2.6) }}
             />
           ))}
@@ -1068,12 +1073,14 @@ function DayRow({
           <div className="flex flex-wrap" style={{ gap: u(1) }}>
             {day.bookings.map((b) => {
               const needs = !b.cancelled && !covered(b, day.shifts);
+              // Its description asks for a steward: stands out until someone is on shift for it.
+              const asks = !b.cancelled && !!b.stewardNeeded;
               return (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => onBooking(b)}
-                  className={`flex min-w-0 max-w-full items-baseline rounded-[2vw] border text-left ${needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"} ${b.cancelled ? "opacity-50" : ""}`}
+                  className={`flex min-w-0 max-w-full flex-wrap items-baseline rounded-[2vw] border text-left ${asks && needs ? "border-primary bg-primary text-primary-foreground" : needs ? "border-primary bg-primary/10" : "border-border bg-card text-muted-foreground"} ${b.cancelled ? "opacity-50" : ""}`}
                   style={{ gap: u(1), padding: `${u(0.6)} ${u(1.8)}`, fontSize: u(2.2) }}
                 >
                   <span className="shrink-0 font-semibold tabular-nums">
@@ -1082,9 +1089,14 @@ function DayRow({
                   <span className="min-w-0">
                     <span className={b.cancelled ? "line-through" : ""}>{b.title}</span>
                     {b.rooms.length > 0 && !(b.rooms.length === 1 && b.title.startsWith(b.rooms[0])) && (
-                      <span className="text-muted-foreground"> · {b.rooms.join(", ")}</span>
+                      <span className={asks && needs ? "opacity-80" : "text-muted-foreground"}> · {b.rooms.join(", ")}</span>
                     )}
                   </span>
+                  {asks && (
+                    <span className={`shrink-0 rounded-full font-bold uppercase ${needs ? "bg-primary-foreground text-primary" : "bg-primary/10 text-primary"}`} style={{ fontSize: u(1.6), padding: `${u(0.2)} ${u(1)}`, letterSpacing: "0.04em" }}>
+                      {needs ? "Steward needed" : "Steward ✓"}
+                    </span>
+                  )}
                 </button>
               );
             })}
