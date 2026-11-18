@@ -2,16 +2,20 @@ import { Building2 } from "lucide-react"
 
 import { type BotIdentity, callTokenBot } from "@/lib/token-bot"
 
-type Org = { id: number; name: string; vat: string | null; self?: true }
+export type Org = { id: number; name: string; vat: string | null; self?: true; contact?: true }
 
 /**
- * The organisations the member is part of: the ones they invoice bookings to, as the bot keeps
- * them (Odoo partners, invoice-orgs.json). Their own partner (`self`) isn't one. Nothing when
+ * The organisations the member is part of: the company Odoo has them as a contact of, and the ones
+ * they added to invoice bookings to (the bot). Their own partner (`self`) isn't one. Nothing when
  * they have none or Odoo can't be reached.
  */
 export async function MyOrganisations({ who }: { who: BotIdentity }) {
   const answer = await callTokenBot("orgs", who).catch(() => null)
-  const orgs = answer?.body.ok ? ((answer.body as { orgs?: Org[] }).orgs ?? []).filter((o) => !o.self) : []
+  return <OrganisationsCard orgs={answer?.body.ok ? ((answer.body as { orgs?: Org[] }).orgs ?? []) : []} />
+}
+
+export function OrganisationsCard({ orgs: all }: { orgs: Org[] }) {
+  const orgs = all.filter((o) => !o.self)
   if (!orgs.length) return null
   return (
     <div className="rounded-2xl border border-border bg-card p-5">

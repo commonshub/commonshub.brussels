@@ -24,8 +24,8 @@ export const LANGS: Array<[Lang, string]> = [
   ["fr_BE", "Français"],
   ["nl_BE", "Nederlands"],
 ]
-/** existing: saved as new but already in Odoo (same VAT number), linked with the details Odoo has. */
-export type Org = { id: number; name: string; vat: string | null; email: string | null; address: Address; billing: (Address & { id: number }) | null; self?: boolean; lang?: Lang; existing?: boolean }
+/** contact: the company Odoo has them as a contact of (not editable here). existing: saved as new but already in Odoo (same VAT number), linked with the details Odoo has. */
+export type Org = { id: number; name: string; vat: string | null; email: string | null; address: Address; billing: (Address & { id: number }) | null; self?: boolean; lang?: Lang; existing?: boolean; contact?: boolean }
 export type EurQuote = { untaxed: number; vat: number; total: number; discount: number; lines: Array<{ label: string; quantity: number; unitPrice: number; discount: number }> }
 
 export const eur = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n)
@@ -99,9 +99,13 @@ export function OrgPicker({ orgs, selected, onPick, onEdit, onAdd, onBack }: { o
               {o.email && <span className="block text-xs text-foreground/80">Billing email: {o.email}</span>}
               {o.existing && <span className="block text-xs text-foreground/80">Already in our books: we kept the details we have. Edit them if something changed.</span>}
             </button>
-            <Button variant="link" size="sm" className="px-1" onClick={() => onEdit(o)}>
-              Edit
-            </Button>
+            {o.contact ? (
+              <span className="px-1 text-xs text-muted-foreground">From our books</span>
+            ) : (
+              <Button variant="link" size="sm" className="px-1" onClick={() => onEdit(o)}>
+                Edit
+              </Button>
+            )}
           </div>
         ))}
         {orgs.length === 0 && <p className="text-sm text-muted-foreground">No organisation yet: add the one to invoice.</p>}
