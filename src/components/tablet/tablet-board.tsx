@@ -1,5 +1,6 @@
 "use client";
 
+import { getProxiedImageUrl } from "@/lib/image-proxy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type React from "react";
@@ -107,8 +108,9 @@ function Avatar({
 }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
+    // Through the image proxy: it serves the member's current Discord avatar when the recorded one changed.
     <img
-      src={src}
+      src={/^https?:\/\//.test(src) ? getProxiedImageUrl(src, "sm", { relative: true }) : src}
       alt=""
       className="shrink-0 rounded-full object-cover"
       style={{ width: u(size), height: u(size) }}

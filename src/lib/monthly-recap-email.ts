@@ -40,7 +40,7 @@ export function recapSubject(r: Recap): string {
 }
 
 /** `settingsLink`: the notification settings URL with its signed token (settingsUrl + signSettingsLink). */
-/** The mosaic's photos link to the month's photo carousel (public photos; the messages show to signed-in members). */
+/** The mosaic's photos link to the month's photo carousel (photos and messages are public). */
 export function buildRecapEmail(r: Recap, { origin = SITE, settingsLink = settingsUrl(origin), linkDiscord }: { origin?: string; settingsLink?: string; linkDiscord?: string } = {}): { subject: string; html: string; text: string } {
   const subject = recapSubject(r)
   const known = !!r.member.id

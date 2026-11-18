@@ -36,8 +36,10 @@ interface BookingsFile {
     public?: boolean
     /** How it was paid, from the booking (chb): token-paid bookings need no steward. */
     payment?: "tokens" | "euros" | null
-    /** chb: the room calendar entry's description says "Steward(s) needed" (the description itself stays private). */
+    /** chb: the room calendar entry's description says "Steward(s) needed". */
     stewardNeeded?: boolean
+    /** chb, members tier: the room calendar entry's description (what the event needs). */
+    description?: string
   }>
 }
 
@@ -137,8 +139,8 @@ export function loadTabletBookings(fromMs: number, toMs: number, tier: Tier = "p
         rooms: b.roomName ? [b.roomName] : [],
         startMs,
         endMs,
-        ...(event?.description ? { description: plain(event.description) } : {}),
-        ...(b.stewardNeeded || asksForSteward(event?.description) ? { stewardNeeded: true } : {}),
+        ...(event?.description || b.description ? { description: plain((event?.description || b.description)!) } : {}),
+        ...(b.stewardNeeded || asksForSteward(event?.description) || asksForSteward(b.description) ? { stewardNeeded: true } : {}),
       })
     }
   }

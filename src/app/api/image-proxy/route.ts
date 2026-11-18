@@ -5,6 +5,7 @@ import { DATA_DIR } from "@/lib/data-paths";
 import { isServableDataPath } from "@/lib/served-paths";
 import crypto from "crypto";
 import { isPublicPhotoPath } from "@/lib/photos";
+import { currentDiscordAvatar } from "@/lib/discord-avatar";
 import {
   fetchAndProcessExternalImage,
   readCachedResize,
@@ -80,7 +81,12 @@ export async function GET(request: NextRequest) {
   }
 
   // Otherwise, handle as external URL
-  const response = await fetchAndProcessExternalImage(url, sizeParam);
+  let response = await fetchAndProcessExternalImage(url, sizeParam);
+  // A Discord avatar that changed since the dataset recorded it: serve the member's current one.
+  if (response.status === 404 || response.status === 502) {
+    const current = await currentDiscordAvatar(url);
+    if (current && current !== url) response = await fetchAndProcessExternalImage(current, sizeParam);
+  }
   response.headers.set("Cache-Control", getCacheControl(request, false));
   return response;
 }
@@ -117,3 +123,4 @@ async function handleLocalPath(request: NextRequest, relativePath: string, sizeP
     return NextResponse.json({ error: "Failed to serve image" }, { status: 500 });
   }
 }
+
