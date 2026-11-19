@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { ArrowRight, CalendarDays, Eye, Hand, Laptop, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
+import { ArrowRight, CalendarDays, Eye, Hand, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
 
 import { Logo } from "@/components/logo"
 import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { AddEmailCard } from "@/components/dashboard/add-email"
+import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { DoorOpener } from "@/components/dashboard/door-opener"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MyBookings } from "@/components/dashboard/my-bookings"
@@ -70,14 +71,9 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
       </Suspense>
 
       <fieldset disabled={readOnly} className="mt-4 grid min-w-0 items-start gap-4 sm:grid-cols-2">
-        <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Contributor coworking with your tokens, or a guest pass for half a day or a day.">
-          <HubBookingButton mode="cowork-me" className={ACTION}>
-            For me, today
-          </HubBookingButton>
-          <HubBookingButton mode="cowork-guest" className={ACTION}>
-            For a guest
-          </HubBookingButton>
-        </ActionToggle>
+        <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-muted" />}>
+          <CoworkBox who={user.discordId} guest text="Contributor coworking with your tokens, a guest pass for half a day or a day, or unlimited coworking every month." />
+        </Suspense>
         <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="With your tokens, for a meeting, a workshop or an event.">
           <HubBookingButton mode="room-me" className={ACTION}>
             For me

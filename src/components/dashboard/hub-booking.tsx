@@ -22,7 +22,7 @@ import { eur, EurSummary, type EurQuote, InvoiceConfirmation, InvoiceToRow, load
  * (you're cc'd)" or a link and QR code to share.
  */
 
-type Mode = "cowork-me" | "cowork-guest" | "room-me" | "room-guest"
+type Mode = "cowork-me" | "cowork-guest" | "cowork-monthly" | "room-me" | "room-guest"
 
 interface Options {
   balance: number
@@ -33,7 +33,7 @@ interface Options {
   rooms: Array<{ slug: string; name: string; capacity?: number; tokenPricePerHour: number | null; bookableFromNote?: string }>
   terms: { cowork: string; room: string }
   disclaimer: string
-  eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote> }
+  eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote>; coworkMonthly?: EurQuote }
   /** A test user: euros only (invoices in the test copy of Odoo, cards in Stripe's sandbox). */
   test?: boolean
   /** No Discord (signed in with an email address, or a test user): euros only. */
@@ -64,6 +64,7 @@ async function post(action: string, body: Record<string, unknown> = {}) {
 
 const TITLES: Record<Mode, string> = {
   "cowork-me": "Cowork today",
+  "cowork-monthly": "Unlimited coworking",
   "cowork-guest": "Invite a guest to cowork",
   "room-me": "Book a room",
   "room-guest": "Book a room for a guest",
@@ -123,7 +124,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
         setOptions(o)
         setRoom((r) => r || o.rooms[0]?.slug || "")
         setCoworkItem((c) => c ?? o.cowork.item?.id ?? o.cowork.items?.[0]?.id ?? null)
-        if ((o.test || o.eurOnly) && o.eur?.available) chooseCurrency("eur")
+        if ((o.test || o.eurOnly || mode === "cowork-monthly") && o.eur?.available) chooseCurrency("eur")
       })
       .catch((e: Error) => setError(e.message))
   }, [])
@@ -154,14 +155,16 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
     try {
       const target = org.self ? "self" : String(org.id)
       const r =
-        mode === "cowork-me"
+        mode === "cowork-monthly"
+          ? await post("subscribecowork", { org: target, pay: method })
+          : mode === "cowork-me"
           ? await post("paycowork", { requestId, item: coworkItem, org: target, pay: method })
           : await post("paybook", { requestId, room, start: brusselsIso(date, time), end: brusselsIso(date, endTime), title: title || (isGuest ? `${guestName}'s meeting` : "Meeting"), org: target, pay: method, ...(isGuest ? { guestName, guestEmail } : {}) })
       if (r.checkoutUrl) {
         window.location.href = r.checkoutUrl
         return
       }
-      const what = mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
+      const what = mode === "cowork-monthly" ? `Unlimited coworking (${r.subscription?.name ?? "monthly subscription"}): come whenever you like. We invoice it every month` : mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
       setEurDone({ what, invoice: r.invoice ?? null, credits: r.credits, note: r.checkoutError })
       router.refresh() // the dashboard lists it (pending payment) behind the dialog
     } catch (e) {
@@ -261,8 +264,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const price = mode === "cowork-me" ? chosenCowork?.price : mode === "cowork-guest" ? options?.guestPass[length].price : quote?.price
   const enough = options && price !== undefined ? options.balance >= price : true
   const maxDate = options ? todayInBrussels(options.guestPass.maxDaysAhead) : undefined
-  const eurQuote = !inEur ? undefined : mode === "cowork-me" ? (chosenCowork ? options?.eur?.cowork[chosenCowork.id] : undefined) : quote?.eur
-  const eurLabel = mode === "cowork-me" ? (chosenCowork?.label.replace(/^Contributor c/, "C") ?? "Coworking") : `${roomInfo?.name ?? "Room"}, ${quote?.eur?.lines[0]?.quantity ?? ""} h`
+  const eurQuote = !inEur ? undefined : mode === "cowork-monthly" ? options?.eur?.coworkMonthly : mode === "cowork-me" ? (chosenCowork ? options?.eur?.cowork[chosenCowork.id] : undefined) : quote?.eur
+  const eurLabel = mode === "cowork-monthly" ? "Unlimited coworking, first month" : mode === "cowork-me" ? (chosenCowork?.label.replace(/^Contributor c/, "C") ?? "Coworking") : `${roomInfo?.name ?? "Room"}, ${quote?.eur?.lines[0]?.quantity ?? ""} h`
 
   if (view === "pay" && eurQuote && org) {
     const back = () => (setError(null), setView("form"))
@@ -296,7 +299,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
       {options && (
         <div className="space-y-4">
           {options.test && <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">Test mode: invoices go to the test Odoo, cards to Stripe&apos;s sandbox (card 4242 4242 4242 4242), and no room is really booked.</p>}
-          {euroPossible && !options.test && !options.eurOnly && (
+          {euroPossible && !options.test && !options.eurOnly && mode !== "cowork-monthly" && (
             <div className="grid grid-cols-2 rounded-full border border-border p-1 text-sm" role="radiogroup" aria-label="Pay with">
               {(["tokens", "eur"] as const).map((c) => (
                 <button
@@ -388,7 +391,13 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
             </div>
           )}
 
-          {mode !== "cowork-me" && (
+          {mode === "cowork-monthly" && (
+            <p className="text-sm text-muted-foreground">
+              Come and cowork whenever the hub is open, as often as you like, for {eur(options.eur?.coworkMonthly?.untaxed ?? 100)} a month + VAT. We invoice it every month; you pay the first month now, by card or by transfer. Cancel anytime: write to us.
+            </p>
+          )}
+
+          {mode !== "cowork-me" && mode !== "cowork-monthly" && (
             <div className="grid grid-cols-2 gap-3">
               <div className={`space-y-1.5 ${isRoom ? "col-span-2" : ""}`}>
                 <Label htmlFor="date">Date</Label>

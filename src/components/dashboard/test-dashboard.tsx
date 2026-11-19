@@ -1,6 +1,7 @@
-import { FlaskConical, Laptop, Presentation } from "lucide-react"
+import { FlaskConical, Presentation } from "lucide-react"
 
 import { ActionToggle } from "@/components/dashboard/action-toggle"
+import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MyBookings } from "@/components/dashboard/my-bookings"
 import { botIdentity } from "@/lib/token-bot"
@@ -29,11 +30,7 @@ export function TestDashboard({ user, paid }: { user: TestUser; paid?: string })
       <h1 className="mt-8 text-3xl font-extrabold text-foreground sm:text-4xl">Hi {name}</h1>
       {who && <MyBookings who={who} paid={paid} />}
       <div className="mt-6 grid items-start gap-4 sm:grid-cols-2">
-        <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="Coworking for today, paid in euros.">
-          <HubBookingButton mode="cowork-me" className={ACTION}>
-            For me, today
-          </HubBookingButton>
-        </ActionToggle>
+        {who && <CoworkBox who={who} guest={false} text="Coworking for today, or unlimited coworking every month, paid in euros." />}
         <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="A room, paid in euros, for you or a guest.">
           <HubBookingButton mode="room-me" className={ACTION}>
             For me

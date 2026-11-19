@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { ArrowRight, CalendarDays, Eye, Laptop, Presentation } from "lucide-react"
+import { ArrowRight, CalendarDays, Eye, Presentation } from "lucide-react"
 
 import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 
+import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { LinkDiscordCard } from "@/components/dashboard/link-discord"
 import { MyBookings } from "@/components/dashboard/my-bookings"
 import { OrganisationsCard, type Org } from "@/components/dashboard/my-organisations"
@@ -54,11 +55,9 @@ export async function EmailDashboard({ email, name, paid, linked, viewAs }: { em
             For a guest
           </HubBookingButton>
         </ActionToggle>
-        <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text="A half day or a day at the hub, paid in euros.">
-          <HubBookingButton mode="cowork-me" className={ACTION}>
-            Today
-          </HubBookingButton>
-        </ActionToggle>
+        <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-muted" />}>
+          <CoworkBox who={who} guest={false} text="A half day or a day at the hub, or unlimited coworking every month, paid in euros." />
+        </Suspense>
       </fieldset>
 
       <Suspense fallback={null}>
