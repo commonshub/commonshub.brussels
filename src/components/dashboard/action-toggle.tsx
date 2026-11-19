@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Children, useState } from "react"
 import { ChevronDown } from "lucide-react"
 
 /**
@@ -17,9 +17,9 @@ export function ActionToggle({ icon, title, text, children }: { icon: React.Reac
         <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="animate-in fade-in slide-in-from-top-1 px-4 pb-4">
-          <p className="text-sm text-muted-foreground">{text}</p>
-          <div className="mt-3 flex flex-wrap gap-2">{children}</div>
+        <div className="animate-in fade-in slide-in-from-top-1 px-4 pt-3 pb-5">
+          <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+          {Children.toArray(children).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{children}</div>}
         </div>
       )}
     </div>
