@@ -1,8 +1,8 @@
 import Link from "next/link"
 import { Building2, ChevronDown, Landmark, MapPinned } from "lucide-react"
 
-import { PASS_THROUGH, PENDING_TAXES, TAX_RULES, loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
-import { type PendingItem, type Settlement, type TaxLevel, type TaxPayment, explorerTxUrl, matchVatPayments, openPending, summarizeTaxes, vatRow, vatTotals } from "@/lib/taxes"
+import { PASS_THROUGH, PAYROLL, PENDING_TAXES, TAX_RULES, loadTaxPayments, loadVatReturns } from "@/lib/taxes-data"
+import { type PendingItem, type Settlement, type TaxLevel, type TaxPayment, explorerTxUrl, matchVatPayments, openPending, payrollTotals, summarizeTaxes, vatRow, vatTotals } from "@/lib/taxes"
 
 // Reads the dataset volume, so never prerender it.
 export const dynamic = "force-dynamic"
@@ -141,6 +141,8 @@ export default function TaxesPage() {
   const propertyShare = pt.cadastralIncome.ours / pt.cadastralIncome.building
   const officeShare = pt.cadastralIncome.ours / pt.cadastralIncome.officeTaxBase
   const passThroughTotal = pt.propertyTax.ours + pt.officeTax.ours + (pt.nonResidentialTax?.ours ?? 0)
+  const payroll = payrollTotals(PAYROLL)
+  const contribution = Math.round((summary.totalWithPending + payroll.total) * 100) / 100
 
   return (
     <main className="min-h-screen">
@@ -148,12 +150,20 @@ export default function TaxesPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground">Taxes</h1>
           <p className="mt-6 max-w-3xl text-xl text-muted-foreground">
-            A commons still pays its share. Here is everything the Commons Hub has paid, or still owes, in taxes to the City, the Region and the federal state.
+            A commons still pays its share. Here is everything the Commons Hub has paid, or still owes, in taxes to the City, the Region and the federal state, and in tax and social security on wages when we had someone on the payroll.
           </p>
           <div className="mt-10">
-            <div className="text-5xl sm:text-6xl font-bold tabular-nums text-foreground">{eur.format(summary.totalWithPending)}</div>
+            <div className="text-5xl sm:text-6xl font-bold tabular-nums text-foreground">{eur.format(contribution)}</div>
             <p className="mt-2 text-muted-foreground">
-              in taxes{summary.since ? ` since ${longDate(summary.since)}` : ""}, VAT refunds deducted
+              our contribution to society{summary.since ? ` since ${longDate(summary.since)}` : ""}:{" "}
+              <span className="tabular-nums">{eur.format(summary.totalWithPending)}</span> in taxes
+              {payroll.total > 0 && (
+                <>
+                  {" "}
+                  and <a href="#payroll" className="tabular-nums underline underline-offset-2">{eur.format(payroll.total)}</a> in tax and social security on wages
+                </>
+              )}
+              , VAT refunds deducted
               {summary.pendingTotal > 0 && (
                 <>
                   {" "}
@@ -187,6 +197,11 @@ export default function TaxesPage() {
                       <Signed amount={total} />
                     </div>
                     <div className="text-xs text-muted-foreground">paid so far</div>
+                    {level === "federal" && payroll.total > 0 && (
+                      <a href="#payroll" className="mt-2 text-sm font-medium text-foreground underline-offset-2 hover:underline">
+                        + {eur.format(payroll.total)} on wages
+                      </a>
+                    )}
                     {pendingTotal > 0 && (
                       <div className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-400">
                         + {eur.format(pendingTotal)} billed, not paid yet
@@ -208,6 +223,46 @@ export default function TaxesPage() {
               })}
             </div>
           </div>
+
+          {payroll.rows.length > 0 && PAYROLL && (
+            <div id="payroll" className="scroll-mt-24">
+              <h2 className="text-2xl font-bold text-foreground">When we had someone on the payroll</h2>
+              <p className="mt-2 max-w-3xl text-muted-foreground">
+                From {longDate(PAYROLL.from)} to {longDate(PAYROLL.to)} we employed one person. On top of the salary, wages carry two federal contributions: the withholding tax (précompte professionnel), which goes to FPS Finance, and social security (ONSS), paid by both the employee and the employer. As a first hire, the employer&apos;s contributions were largely reduced. Our social secretariat calculated them and paid them on our behalf.
+              </p>
+              <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-left text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Year</th>
+                      <th className="px-4 py-2 text-right font-medium">Withholding tax</th>
+                      <th className="px-4 py-2 text-right font-medium">Social security</th>
+                      <th className="px-4 py-2 text-right font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {payroll.rows.map((r) => (
+                      <tr key={r.year}>
+                        <td className="px-4 py-2 text-foreground">{r.year}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{eur.format(r.withholdingTax)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{eur.format(r.socialSecurity)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{eur.format(r.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="font-semibold">
+                      <td className="px-4 py-2 text-foreground">Total</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{eur.format(payroll.withholdingTax)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{eur.format(payroll.socialSecurity)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{eur.format(payroll.total)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
+                Source: {PAYROLL.source}. Social security is the employee&apos;s and the employer&apos;s contributions, less the reduction for a first hire. {PAYROLL.note}
+              </p>
+            </div>
+          )}
 
           <div>
             <h2 className="text-2xl font-bold text-foreground">VAT, quarter by quarter</h2>
