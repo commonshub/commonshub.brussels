@@ -37,11 +37,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
   const answer = await callTokenBot(action as BotEndpoint, who, pickFields(action, body))
 
   const invoice = (answer.body as { invoice?: BotInvoice }).invoice
-  if ((action === "paybook" || action === "paycowork") && answer.body.ok && body.pay === "card" && invoice) {
+  if ((action === "paybook" || action === "paycowork" || action === "subscribecowork") && answer.body.ok && body.pay === "card" && invoice) {
     const secretKey = test ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY
     if (!secretKey) return NextResponse.json({ ...answer.body, checkoutError: "Card payment isn't available right now: pay by bank transfer." }, { status: answer.status })
     const b = answer.body as { room?: { name: string }; item?: { label: string } }
-    const what = b.room?.name ?? b.item?.label ?? "Commons Hub booking"
+    const what = b.room?.name ?? b.item?.label ?? (action === "subscribecowork" ? "Unlimited coworking, first month" : "Commons Hub booking")
     try {
       const checkout = await new Stripe(secretKey).checkout.sessions.create(checkoutParams(invoice, what, publicOrigin(request)))
       return NextResponse.json({ ...answer.body, checkoutUrl: checkout.url }, { status: answer.status })
