@@ -23,6 +23,11 @@ describe("payment reminder", () => {
     expect(e.html).toContain("client_reference_id=application_abc123")
   })
 
+  it("says when they were accepted", () => {
+    expect(buildPaymentReminderEmail(a, [{ name: "Leen" }], new Date("2026-11-12T12:00:00Z")).text).toContain("A week ago, Leen vouched")
+    expect(buildPaymentReminderEmail(a, [{ name: "Leen" }], new Date("2026-11-30T12:00:00Z")).text).toContain("On 5 November, Leen vouched")
+  })
+
   it("reads well with one voucher or none", () => {
     expect(buildPaymentReminderEmail(a, [{ name: "Leen" }]).subject).toBe("Leen is waiting for you at the Commons Hub, Ada")
     const none = buildPaymentReminderEmail({ ...a, contribute: undefined }, [])
