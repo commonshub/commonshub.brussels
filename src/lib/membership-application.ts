@@ -343,7 +343,10 @@ export const PAYMENT_REMINDER_DAYS = 7
  * A week after being accepted without paying: one personal reminder. Who vouched for them (by name,
  * they'd love to see them in), what they told us they'd bring, and the payment link again.
  */
-export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name: string }>): { subject: string; html: string; text: string } {
+export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name: string }>, now = new Date()): { subject: string; html: string; text: string } {
+  const accepted = a.approvedAt ? new Date(a.approvedAt) : null
+  const days = accepted ? (now.getTime() - accepted.getTime()) / 86_400_000 : PAYMENT_REMINDER_DAYS
+  const when = !accepted || days < 11 ? "A week ago" : `On ${accepted.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/Brussels" })}`
   const names = vouchers.map((v) => v.name)
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]
   const people = names.length === 1 ? "is" : "are"
@@ -353,8 +356,8 @@ export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name
     { p: `Hi ${firstName(a)},` },
     {
       p: list
-        ? `A week ago, ${list} vouched for you to join the Commons Hub. ${names.length === 1 ? "They" : "They all"} would love to see you become part of the community, and so would we.`
-        : "A week ago, your membership application to the Commons Hub was accepted. We'd love to see you become part of the community.",
+        ? `${when}, ${list} vouched for you to join the Commons Hub. ${names.length === 1 ? "They" : "They all"} would love to see you become part of the community, and so would we.`
+        : `${when}, your membership application to the Commons Hub was accepted. We'd love to see you become part of the community.`,
     },
     ...(quote ? [{ p: `When you applied, you told us what you'd like to bring: "${quote}" That's exactly what makes the hub what it is.` }] : []),
     { p: "There's one step left: your membership fee. It's what pays the rent and keeps this common space open for everyone. Once it's done, you'll get the onboarding email: how to open the door, how to join the conversations on Discord, and how to start contributing." },
