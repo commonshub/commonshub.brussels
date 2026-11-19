@@ -11,6 +11,7 @@ import { isEmail } from "@/lib/membership-application"
 import { memberIdForEmail } from "@/lib/membership"
 import { planFor } from "@/lib/member-plan"
 import { chbPubkey, codeSecret, normalizeEmail, sendToChb } from "@/lib/partner-email"
+import { linkAccounts } from "@/lib/token-bot"
 
 export const dynamic = "force-dynamic"
 
@@ -74,6 +75,8 @@ export async function POST(request: Request) {
   }
 
   if (!verifyLinkCode(account, target, body.code, Date.now(), secret)) return NextResponse.json({ ok: false, error: "That code didn't match, or it has expired" }, { status: 400 })
+  // Proved: the bot uses it for their invoices and organisations, and their Odoo contact gets their Discord account.
+  await linkAccounts({ discordId, username: session.user.username ?? "", email }).catch((error) => console.error("[partner-email] could not link in the bot:", error))
   if (!member) {
     const result = await activateMembership({ discordId, accessToken: session.user.accessToken }, memberIdForEmail(email), "email")
     if (result.ok) return NextResponse.json({ ok: true, saved: true, member: true })

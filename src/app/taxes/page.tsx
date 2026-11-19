@@ -228,7 +228,7 @@ export default function TaxesPage() {
             <div id="payroll" className="scroll-mt-24">
               <h2 className="text-2xl font-bold text-foreground">When we had someone on the payroll</h2>
               <p className="mt-2 max-w-3xl text-muted-foreground">
-                From {longDate(PAYROLL.from)} to {longDate(PAYROLL.to)} we employed one person. On top of the salary, wages carry two federal contributions: the withholding tax (précompte professionnel), which goes to FPS Finance, and social security (ONSS), paid by both the employee and the employer. As a first hire, the employer&apos;s contributions were largely reduced. Our social secretariat calculated them and paid them on our behalf.
+                From {longDate(PAYROLL.from)} to {longDate(PAYROLL.to)}{" "}we employed one person. On top of the salary, wages carry two federal contributions: the withholding tax (précompte professionnel), which goes to FPS Finance, and social security (ONSS), paid by both the employee and the employer. As a first hire, the employer&apos;s contributions were largely reduced. Our social secretariat calculated them and paid them on our behalf.
               </p>
               <div className="mt-6 overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">

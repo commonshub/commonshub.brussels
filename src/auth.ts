@@ -131,6 +131,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
+      // Signed in with an email code, they asked to link their Discord account (lib/link-intent.ts):
+      // link the two (the bot, their Odoo contact). Without the member role on Discord, they stay
+      // signed in with their email (their dashboard as before), now with Discord linked.
+      if (account?.provider === "discord" && profile) {
+        const { takeLinkIntent } = await import("@/lib/link-intent")
+        const intent = await takeLinkIntent()
+        if (intent) {
+          const { linkAccounts } = await import("@/lib/token-bot")
+          const p = profile as { id: string; username: string; global_name?: string | null }
+          await linkAccounts({ discordId: p.id, username: p.username, displayName: p.global_name, email: intent.email }).catch((e) => console.error("[Auth] link failed:", e))
+          if (!((token.roles as string[]) ?? []).includes(settings.discord.roles.member)) {
+            return { sub: `odoo-partner-${intent.partnerId}`, name: intent.name, email: intent.email, authMethod: "email", odooPartnerId: intent.partnerId, testMode: false, username: intent.name, roles: [], roleDetails: [] } as unknown as typeof token
+          }
+        }
+      }
+
       // Roles change after sign-in (a new member gets the role after paying, a steward gives one):
       // use the roles they have now, not the ones copied at sign-in (lib/live-roles.ts).
       if (!account && token.discordId) {

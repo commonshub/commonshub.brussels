@@ -15,6 +15,7 @@ import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
 import { findPlan } from "@/lib/member-plan"
+import { callTokenBot } from "@/lib/token-bot"
 import { chbPubkey, needsEmail } from "@/lib/partner-email"
 import { isApplicationsConfigured, listApplications } from "@/lib/membership-applications-store"
 import settings from "@/settings/settings.json"
@@ -91,7 +92,11 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
         <MyBookings who={user.discordId} paid={paid} readOnly={readOnly} />
       </Suspense>
 
-      {!readOnly && chbPubkey() && needsEmail(user.discordId) && <AddEmailCard />}
+      {!readOnly && chbPubkey() && (
+        <Suspense fallback={null}>
+          <EmailPrompt discordId={user.discordId} />
+        </Suspense>
+      )}
 
       <Suspense fallback={null}>
         <VouchCard />
@@ -154,6 +159,17 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
 }
 
 const ACTION = "inline-flex rounded-full border-2 border-primary px-4 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
+
+/**
+ * Add an email, proved with a code: when chb has none for their Odoo contact, or the bot has none
+ * for them (it invoices and finds their organisations by it). Both get it, and their Odoo contact
+ * their Discord account.
+ */
+async function EmailPrompt({ discordId }: { discordId: string }) {
+  if (needsEmail(discordId)) return <AddEmailCard />
+  const a = await callTokenBot("account", discordId).catch(() => null)
+  return a?.body.ok && (a.body as { hasEmail?: boolean }).hasEmail === false ? <AddEmailCard /> : null
+}
 
 /** Shown only while someone is waiting for vouches. */
 async function VouchCard() {

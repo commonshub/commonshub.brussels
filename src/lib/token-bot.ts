@@ -17,7 +17,7 @@ export const isTokenBotConfigured = () => !!process.env.TOKEN_BOT_URL && !!proce
 export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error: string }
 
 /** POST to one of the bot's /api/website/* endpoints, on behalf of a member. */
-export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid" | "cancelbooking"
+export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid" | "cancelbooking" | "account"
 
 /** Who the bot acts for: a member's Discord id, or a test user (signed in with an email code). */
 /** A member's Discord id; a test user; or someone known to Odoo by email (read-only: orgs, mine). */
@@ -109,4 +109,22 @@ export function pickFields(endpoint: string, body: Record<string, unknown>): Rec
     if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 200)
   }
   return out
+}
+
+/**
+ * The website proved a Discord account and an email address are the same person's: the bot saves
+ * the email for that Discord user and sets the Discord account on their Odoo contact.
+ */
+export async function linkAccounts(p: { discordId: string; username: string; displayName?: string | null; email: string }): Promise<boolean> {
+  const base = process.env.TOKEN_BOT_URL
+  const token = process.env.TOKEN_BOT_API_TOKEN
+  if (!base || !token) return false
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/website/link`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ guildId: settings.discord.guildId, discordId: p.discordId, username: p.username, ...(p.displayName ? { displayName: p.displayName } : {}), email: p.email }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null)
+  return !!res?.ok
 }
