@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isGuildAdmin } from "@/lib/live-roles";
 import settings from "@/settings/settings.json";
 
 /**
@@ -36,6 +37,14 @@ export async function isAdmin(): Promise<boolean> {
 
   if (!session || !session.user) {
     return false;
+  }
+
+  // Through the bot first: the member's own OAuth token expires or gets revoked (a 401 here made
+  // admins lose admin pages until they signed in again).
+  const discordId = (session.user as { discordId?: string }).discordId;
+  if (discordId) {
+    const viaBot = await isGuildAdmin(discordId).catch(() => null);
+    if (viaBot !== null) return viaBot;
   }
 
   const accessToken = session.user.accessToken;
