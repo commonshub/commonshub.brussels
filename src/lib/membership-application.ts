@@ -86,6 +86,8 @@ export interface Application {
   vouchers?: Array<{ discordId: string; name: string }>
   approvedAt?: string
   paidAt?: string
+  /** When we sent the reminder to pay (once, a week after they were accepted). */
+  remindedAt?: string
 }
 
 /** What members see on /members/pending: everything but the email address and what they chose to pay. */
@@ -330,6 +332,41 @@ export function buildAcceptedEmail(a: Application, vouchers: Array<{ name: strin
       : [{ button: "Pay my membership", href: paymentUrl }]),
     { p: "As soon as you've paid, you'll receive the onboarding email: how to open the door, how to join the conversations on Discord, and your first steps in the community." },
     { p: "Questions? Just reply to this email. See you soon at the hub!" },
+    { p: "The Commons Hub Brussels community" },
+  ])
+}
+
+/** Days after the acceptance email before the one reminder to pay. */
+export const PAYMENT_REMINDER_DAYS = 7
+
+/**
+ * A week after being accepted without paying: one personal reminder. Who vouched for them (by name,
+ * they'd love to see them in), what they told us they'd bring, and the payment link again.
+ */
+export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name: string }>): { subject: string; html: string; text: string } {
+  const names = vouchers.map((v) => v.name)
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]
+  const people = names.length === 1 ? "is" : "are"
+  const contribute = a.contribute?.replace(/\s+/g, " ").trim()
+  const quote = contribute ? (contribute.length > 220 ? `${contribute.slice(0, 217).replace(/\s+\S*$/, "")}…` : contribute) : ""
+  return render(`${list ? `${list} ${people}` : "We're"} waiting for you at the Commons Hub, ${firstName(a)}`, [
+    { p: `Hi ${firstName(a)},` },
+    {
+      p: list
+        ? `A week ago, ${list} vouched for you to join the Commons Hub. ${names.length === 1 ? "They" : "They all"} would love to see you become part of the community, and so would we.`
+        : "A week ago, your membership application to the Commons Hub was accepted. We'd love to see you become part of the community.",
+    },
+    ...(quote ? [{ p: `When you applied, you told us what you'd like to bring: "${quote}" That's exactly what makes the hub what it is.` }] : []),
+    { p: "There's one step left: your membership fee. It's what pays the rent and keeps this common space open for everyone. Once it's done, you'll get the onboarding email: how to open the door, how to join the conversations on Discord, and how to start contributing." },
+    ...(a.type === "individual"
+      ? [
+          { button: `Pay €${a.monthly ?? 10} a month`, href: paymentUrlFor(a) },
+          { title: "Or pick another amount, by card", boxes: MONTHLY_PRICES.map((p) => ({ amount: `€${p.amount}`, label: p.label, href: paymentUrlFor({ ...a, monthly: p.amount }), selected: p.amount === (a.monthly ?? 10) })) },
+          { title: "Or the whole year, by bank transfer (two months free)", boxes: YEARLY_PRICES.map((p) => ({ amount: `€${p.amount}`, label: p.label, href: yearlyPayUrl(p.amount, a.id) })) },
+        ]
+      : [{ button: "Pay my membership", href: paymentUrlFor(a) }]),
+    { p: "If something is holding you back (the amount, the timing, a question about how it works), just reply to this email. We'll find a way." },
+    { p: list ? `Hope to see you soon at the hub. ${list} will be happy to show you around!` : "Hope to see you soon at the hub!" },
     { p: "The Commons Hub Brussels community" },
   ])
 }

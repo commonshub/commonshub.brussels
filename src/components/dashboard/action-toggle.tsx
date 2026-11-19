@@ -5,9 +5,10 @@ import { ChevronDown } from "lucide-react"
 
 /**
  * A compact dashboard tile (Cowork, Book a room): tap it to reveal who it's
- * for (me or a guest), tap it again to fold it back.
+ * for (me or a guest), tap it again to fold it back. `disabled` switches off the buttons inside,
+ * not the tile itself (don't wrap it in a disabled fieldset: that would stop it unfolding).
  */
-export function ActionToggle({ icon, title, text, children }: { icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
+export function ActionToggle({ icon, title, text, disabled, children }: { icon: React.ReactNode; title: string; text: string; disabled?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
     <div className={`rounded-2xl border bg-card transition ${open ? "border-primary" : "border-border"}`}>
@@ -19,7 +20,12 @@ export function ActionToggle({ icon, title, text, children }: { icon: React.Reac
       {open && (
         <div className="animate-in fade-in slide-in-from-top-1 px-4 pt-3 pb-5">
           <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
-          {Children.toArray(children).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{children}</div>}
+          {Children.toArray(children).length > 0 && (
+            // Only the buttons are switched off (an admin viewing someone else's page): the tile still unfolds.
+            <fieldset disabled={disabled} className="mt-4 flex min-w-0 flex-wrap gap-2">
+              {children}
+            </fieldset>
+          )}
         </div>
       )}
     </div>

@@ -15,7 +15,7 @@ type Sub = { name: string; since: string | null; nextInvoice: string | null; mon
  * members, paid in tokens). Otherwise: a pass for today, one for a guest, or unlimited coworking at
  * €100 a month + VAT.
  */
-export async function CoworkBox({ who, text, guest }: { who: BotIdentity; text: string; guest: boolean }) {
+export async function CoworkBox({ who, text, guest, disabled }: { who: BotIdentity; text: string; guest: boolean; disabled?: boolean }) {
   const a = await callTokenBot("account", who).catch(() => null)
   const sub = a?.body.ok ? ((a.body as { coworkSubscription?: Sub | null }).coworkSubscription ?? null) : null
   if (sub)
@@ -23,6 +23,7 @@ export async function CoworkBox({ who, text, guest }: { who: BotIdentity; text: 
       <ActionToggle
         icon={<Laptop className="h-6 w-6 text-primary" />}
         title="Cowork"
+        disabled={disabled}
         text={`You have unlimited coworking (${sub.name}${sub.nextInvoice ? `, next invoice on ${day(sub.nextInvoice)}` : ""}): just come in.${guest ? " Bring someone along with a guest pass." : ""}`}
       >
         {guest && (
@@ -33,7 +34,7 @@ export async function CoworkBox({ who, text, guest }: { who: BotIdentity; text: 
       </ActionToggle>
     )
   return (
-    <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text={text}>
+    <ActionToggle icon={<Laptop className="h-6 w-6 text-primary" />} title="Cowork" text={text} disabled={disabled}>
       <HubBookingButton mode="cowork-me" className={ACTION}>
         For me, today
       </HubBookingButton>

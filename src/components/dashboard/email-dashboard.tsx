@@ -7,6 +7,7 @@ import { HubBookingButton } from "@/components/dashboard/hub-booking"
 
 import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { LinkDiscordCard } from "@/components/dashboard/link-discord"
+import { MembershipStatus } from "@/components/dashboard/membership-status"
 import { MyBookings } from "@/components/dashboard/my-bookings"
 import { OrganisationsCard, type Org } from "@/components/dashboard/my-organisations"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
@@ -46,8 +47,12 @@ export async function EmailDashboard({ email, name, paid, linked, viewAs }: { em
       {linked && discordLinked && <p className="mt-4 rounded-xl bg-green-100 p-3 text-sm text-green-900 dark:bg-green-950 dark:text-green-200">Your Discord account is linked.</p>}
       {!viewAs && known && discordLinked === false && <LinkDiscordCard />}
 
-      <fieldset disabled={!!viewAs || !known} className="mt-6 grid min-w-0 items-start gap-4 sm:grid-cols-2">
-        <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="For a meeting, a workshop or an event: paid in euros, or with your organisation's room credits.">
+      <Suspense fallback={null}>
+        <MembershipStatus email={email} viewAs={!!viewAs} />
+      </Suspense>
+
+      <div className="mt-6 grid min-w-0 items-start gap-4 sm:grid-cols-2">
+        <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="For a meeting, a workshop or an event: paid in euros, or with your organisation's room credits." disabled={!!viewAs || !known}>
           <HubBookingButton mode="room-me" className={ACTION}>
             For me
           </HubBookingButton>
@@ -56,9 +61,9 @@ export async function EmailDashboard({ email, name, paid, linked, viewAs }: { em
           </HubBookingButton>
         </ActionToggle>
         <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-muted" />}>
-          <CoworkBox who={who} guest={false} text="A half day or a day at the hub, or unlimited coworking every month, paid in euros." />
+          <CoworkBox who={who} guest={false} disabled={!!viewAs || !known} text="A half day or a day at the hub, or unlimited coworking every month, paid in euros." />
         </Suspense>
-      </fieldset>
+      </div>
 
       <Suspense fallback={null}>
         <MyBookings who={who} paid={paid} readOnly={!!viewAs} />
