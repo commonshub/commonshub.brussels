@@ -32,7 +32,9 @@ import {
   buildVouch,
   applicationUri,
   buildAcceptedEmail,
+  buildPaymentReminderEmail,
   buildReceivedEmail,
+  PAYMENT_REMINDER_DAYS,
   paymentUrlFor,
   vouchersOf,
   withVouchLine,
@@ -218,6 +220,7 @@ async function sendEmail(to: string, name: string, email: { subject: string; htm
 
 export const sendReceived = (a: Application) => sendEmail(a.email, a.name, buildReceivedEmail(a))
 export const sendAccepted = (a: Application, vouchers: Array<{ name: string }>) => sendEmail(a.email, a.name, buildAcceptedEmail(a, vouchers, paymentUrlFor(a)))
+export const sendPaymentReminder = (a: Application, vouchers: Array<{ name: string }>) => sendEmail(a.email, a.name, buildPaymentReminderEmail(a, vouchers))
 export const sendOnboarding = (a: Pick<Application, "id" | "email" | "name" | "type">) =>
   sendEmail(a.email, a.name, buildWelcomeEmail({ name: a.type === "individual" ? a.name.split(" ")[0] : a.name, email: a.email, organisation: a.type === "organisation", claimUrl: claimUrl(a.id) }))
 
@@ -314,6 +317,50 @@ export async function onboardPaid(id: string): Promise<boolean> {
   await saveApplication({ ...a, status: "member", paidAt: new Date().toISOString() })
   if (isDiscordConfigured()) sendMessage(MEMBERSHIP, `🎉 **${a.name}** paid their membership and got the onboarding email. Welcome! ([pending applications](<${PENDING_URL}>))`).catch(() => {})
   return true
+}
+
+/**
+ * Accepted at least a week ago and still not paid: who gets the one reminder to pay. Not those who
+ * already have a running membership with that address (paid another way: bank transfer, the
+ * dashboard), nor anyone reminded before.
+ */
+export async function dueReminders(now = new Date()): Promise<Application[]> {
+  const { findPlan } = await import("./member-plan")
+  const cutoff = now.getTime() - PAYMENT_REMINDER_DAYS * 86_400_000
+  const due: Application[] = []
+  for (const a of await listApplications()) {
+    if (a.status !== "approved" || a.remindedAt || a.paidAt || !a.approvedAt || Date.parse(a.approvedAt) > cutoff) continue
+    const { plan } = await findPlan({ email: a.email }).catch(() => ({ plan: null }))
+    if (plan && ["active", "grace", "trialing", "past_due"].includes(plan.status)) continue
+    due.push(a)
+  }
+  return due
+}
+
+/** Send the reminders that are due (daytime in Brussels only), marking each so it goes once. */
+let reminding = false
+export async function remindUnpaid(now = new Date()): Promise<string[]> {
+  const hour = Number(now.toLocaleString("en-GB", { timeZone: "Europe/Brussels", hour: "2-digit", hour12: false }))
+  if (reminding || hour < 9 || hour >= 19) return []
+  reminding = true
+  const sent: string[] = []
+  try {
+    for (const a of await dueReminders(now)) {
+      // Marked first: a failed send is logged, never repeated in a loop.
+      await saveApplication({ ...a, remindedAt: now.toISOString() })
+      const vouchers = a.vouchers?.length ? a.vouchers : ((await loadVouchers([a.id])).get(a.id) ?? [])
+      try {
+        await sendPaymentReminder(a, vouchers)
+        sent.push(a.id)
+        if (isDiscordConfigured()) sendMessage(MEMBERSHIP, `📬 Sent **${a.name}** a reminder to pay their membership (accepted ${a.approvedAt!.slice(0, 10)}, vouched by ${vouchers.map((v) => v.name).join(", ") || "nobody on record"}).`).catch(() => {})
+      } catch (error) {
+        console.error(`[membership] payment reminder for ${a.id} failed:`, error)
+      }
+    }
+  } finally {
+    reminding = false
+  }
+  return sent
 }
 
 export { COMMUNITY }

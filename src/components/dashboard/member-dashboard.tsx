@@ -70,11 +70,11 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
         <TodayAtTheHub me={{ username: user.username, avatar }} />
       </Suspense>
 
-      <fieldset disabled={readOnly} className="mt-4 grid min-w-0 items-start gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid min-w-0 items-start gap-4 sm:grid-cols-2">
         <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-muted" />}>
-          <CoworkBox who={user.discordId} guest text="Contributor coworking with your tokens, a guest pass for half a day or a day, or unlimited coworking every month." />
+          <CoworkBox who={user.discordId} guest disabled={readOnly} text="Contributor coworking with your tokens, a guest pass for half a day or a day, or unlimited coworking every month." />
         </Suspense>
-        <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="With your tokens, for a meeting, a workshop or an event.">
+        <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="With your tokens, for a meeting, a workshop or an event." disabled={readOnly}>
           <HubBookingButton mode="room-me" className={ACTION}>
             For me
           </HubBookingButton>
@@ -82,7 +82,7 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
             For a guest
           </HubBookingButton>
         </ActionToggle>
-      </fieldset>
+      </div>
 
       <Suspense fallback={null}>
         <MyBookings who={user.discordId} paid={paid} readOnly={readOnly} />
