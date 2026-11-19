@@ -227,3 +227,17 @@ describe("which payment settled which VAT return", () => {
   })
 })
 
+
+describe("payroll", () => {
+  it("adds withholding tax and social security (less the first-hire reduction), per year and in all", () => {
+    const { payrollTotals } = jest.requireActual("@/lib/taxes") as typeof import("@/lib/taxes")
+    const settings = jest.requireActual("@/settings/settings.json") as { taxes: { payroll: import("@/lib/taxes").PayrollConfig } }
+    const t = payrollTotals(settings.taxes.payroll)
+    expect(t.rows).toEqual([
+      { year: 2024, withholdingTax: 583.13, socialSecurity: 1495.76, total: 2078.89 },
+      { year: 2025, withholdingTax: 7501.76, socialSecurity: 8551.17, total: 16052.93 },
+    ])
+    expect(t).toMatchObject({ withholdingTax: 8084.89, socialSecurity: 10046.93, total: 18131.82 })
+    expect(payrollTotals(undefined)).toEqual({ rows: [], withholdingTax: 0, socialSecurity: 0, total: 0 })
+  })
+})

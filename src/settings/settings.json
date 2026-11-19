@@ -587,6 +587,16 @@
         "amount": 2653.48
       }
     ],
+    "payroll": {
+      "from": "2024-10-15",
+      "to": "2025-10-14",
+      "source": "Payroll journals of our social secretariat (Partena), by pay period",
+      "years": [
+        { "year": 2024, "withholdingTax": 583.13, "socialSecurity": { "employee": 889.42, "employer": 2218.33, "reduction": 1611.99 } },
+        { "year": 2025, "withholdingTax": 7501.76, "socialSecurity": { "employee": 4866.2, "employer": 11279.49, "reduction": 7594.52 } }
+      ],
+      "note": "The reduction for a first hire for the last quarter of 2025 may still lower the employer's contributions for October 2025."
+    },
     "passThrough": {
       "year": 2026,
       "cadastralIncome": {

@@ -319,3 +319,39 @@ export function vatTotals(rows: ReturnType<typeof vatRow>[]) {
   const sum = (key: "sales" | "purchases" | "outputVat" | "inputVat" | "net") => round(rows.reduce((s, r) => s + r[key], 0))
   return { sales: sum("sales"), purchases: sum("purchases"), outputVat: sum("outputVat"), inputVat: sum("inputVat"), net: sum("net") }
 }
+
+// ── Payroll (withholding tax and social security on wages) ─────────────────
+
+/** One year of payroll, as our social secretariat's payroll journals give it (by pay period). */
+export interface PayrollYear {
+  year: number
+  /** Withholding tax on wages (précompte professionnel) paid to FPS Finance, after the structural exemption. */
+  withholdingTax: number
+  /** Social security (ONSS): the employee's and the employer's contributions, less the reduction for a first hire. */
+  socialSecurity: { employee: number; employer: number; reduction: number }
+}
+
+export interface PayrollConfig {
+  from: string
+  to: string
+  source: string
+  years: PayrollYear[]
+  note?: string
+}
+
+export interface PayrollRow {
+  year: number
+  withholdingTax: number
+  socialSecurity: number
+  total: number
+}
+
+/** Per year and in all: what went to the federal state on wages. */
+export function payrollTotals(config: PayrollConfig | undefined): { rows: PayrollRow[]; withholdingTax: number; socialSecurity: number; total: number } {
+  const rows = (config?.years ?? []).map((y) => {
+    const socialSecurity = round(y.socialSecurity.employee + y.socialSecurity.employer - y.socialSecurity.reduction)
+    return { year: y.year, withholdingTax: y.withholdingTax, socialSecurity, total: round(y.withholdingTax + socialSecurity) }
+  })
+  const sum = (k: keyof Omit<PayrollRow, "year">) => round(rows.reduce((s, r) => s + r[k], 0))
+  return { rows, withholdingTax: sum("withholdingTax"), socialSecurity: sum("socialSecurity"), total: sum("total") }
+}

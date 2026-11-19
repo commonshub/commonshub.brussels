@@ -7,7 +7,7 @@ import { DATA_DIR } from "./data-paths"
 import { listMonths, listYears } from "./dataset"
 import { readMonthlyTransactions } from "./transactions"
 import { txKey } from "./vat-position"
-import { type PendingTax, type TaxPayment, type TaxRule, type VatFile, classifyTaxPayment } from "./taxes"
+import { type PayrollConfig, type PendingTax, type TaxPayment, type TaxRule, type VatFile, classifyTaxPayment } from "./taxes"
 
 export interface PassThrough {
   year: number
@@ -17,10 +17,12 @@ export interface PassThrough {
   nonResidentialTax?: { building: number; ours: number }
 }
 
-const CONFIG = (settings as unknown as { taxes: { rules: TaxRule[]; pending?: PendingTax[]; passThrough: PassThrough } }).taxes
+const CONFIG = (settings as unknown as { taxes: { rules: TaxRule[]; pending?: PendingTax[]; passThrough: PassThrough; payroll?: PayrollConfig } }).taxes
 export const TAX_RULES = CONFIG.rules
 export const PENDING_TAXES = CONFIG.pending ?? []
 export const PASS_THROUGH = CONFIG.passThrough
+/** Withholding tax and social security on wages, while we had someone on the payroll. */
+export const PAYROLL = CONFIG.payroll
 
 /**
  * Every VAT return chb has imported from Intervat. Public and the same for
