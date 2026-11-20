@@ -7,7 +7,10 @@ import { HubBookingButton } from "@/components/dashboard/hub-booking"
 
 import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { LinkDiscordCard } from "@/components/dashboard/link-discord"
+import { HubAccess, lockedReason } from "@/components/dashboard/hub-access"
+import { LatestTransactions } from "@/components/dashboard/latest-transactions"
 import { MembershipStatus } from "@/components/dashboard/membership-status"
+import { membershipStanding } from "@/lib/membership-standing"
 import { MyBookings } from "@/components/dashboard/my-bookings"
 import { OrganisationsCard, type Org } from "@/components/dashboard/my-organisations"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
@@ -23,7 +26,7 @@ const ACTION = "inline-flex rounded-full border-2 border-primary px-4 py-1.5 tex
 
 export async function EmailDashboard({ email, name, paid, linked, viewAs }: { email: string; name?: string | null; paid?: string; linked?: boolean; viewAs?: { by: string } }) {
   const who = { emailUser: { email } }
-  const [answer, acct] = await Promise.all([callTokenBot("orgs", who).catch(() => null), callTokenBot("account", who).catch(() => null)])
+  const [answer, acct, standing] = await Promise.all([callTokenBot("orgs", who).catch(() => null), callTokenBot("account", who).catch(() => null), membershipStanding({ email })])
   const discordLinked = acct?.body.ok ? (acct.body as { discordLinked?: boolean }).discordLinked : undefined
   const known = !!answer?.body.ok
   const orgs = known ? ((answer!.body as { orgs?: Org[] }).orgs ?? []) : []
@@ -47,9 +50,8 @@ export async function EmailDashboard({ email, name, paid, linked, viewAs }: { em
       {linked && discordLinked && <p className="mt-4 rounded-xl bg-green-100 p-3 text-sm text-green-900 dark:bg-green-950 dark:text-green-200">Your Discord account is linked.</p>}
       {!viewAs && known && discordLinked === false && <LinkDiscordCard />}
 
-      <Suspense fallback={null}>
-        <MembershipStatus email={email} viewAs={!!viewAs} />
-      </Suspense>
+      <MembershipStatus standing={standing} viewAs={!!viewAs} />
+      <HubAccess name={shown} readOnly={!!viewAs} locked={lockedReason(standing.state, viewAs ? "they" : "you")} />
 
       <div className="mt-6 grid min-w-0 items-start gap-4 sm:grid-cols-2">
         <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="For a meeting, a workshop or an event: paid in euros, or with your organisation's room credits." disabled={!!viewAs || !known}>
@@ -79,6 +81,10 @@ export async function EmailDashboard({ email, name, paid, linked, viewAs }: { em
         </h2>
         <UpcomingEvents />
       </section>
+
+      <Suspense fallback={null}>
+        <LatestTransactions who={who} discordId={standing.application?.discordId ?? null} />
+      </Suspense>
 
       <Link href="/homepage" className="mt-10 flex items-center justify-between gap-4 rounded-2xl bg-muted p-5 transition hover:bg-muted/70">
         <span>

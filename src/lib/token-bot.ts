@@ -17,7 +17,7 @@ export const isTokenBotConfigured = () => !!process.env.TOKEN_BOT_URL && !!proce
 export type BotAnswer = { ok: true; [k: string]: unknown } | { ok: false; error: string }
 
 /** POST to one of the bot's /api/website/* endpoints, on behalf of a member. */
-export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid" | "cancelbooking" | "account" | "subscribecowork"
+export type BotEndpoint = "options" | "availability" | "cowork" | "guestpass" | "book" | "orgs" | "org" | "vat" | "paybook" | "paycowork" | "mine" | "paid" | "cancelbooking" | "account" | "subscribecowork" | "history"
 
 /** Who the bot acts for: a member's Discord id, or a test user (signed in with an email code). */
 /** A member's Discord id; a test user; or someone known to Odoo by email (read-only: orgs, mine). */
