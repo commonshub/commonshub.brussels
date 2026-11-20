@@ -7,6 +7,7 @@ import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { AddEmailCard } from "@/components/dashboard/add-email"
 import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { HubAccess, lockedReason } from "@/components/dashboard/hub-access"
+import { UnpaidInvoices } from "@/components/dashboard/unpaid-invoices"
 import { LatestTransactions } from "@/components/dashboard/latest-transactions"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MyBookings } from "@/components/dashboard/my-bookings"
@@ -57,6 +58,9 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
 
       {/* Their Discord member role lets them in; a membership that's clearly no longer paid locks it. */}
       <HubAccess name={user.username} readOnly={readOnly} locked={isUnpaid(plan) ? lockedReason("ended", viewAs ? "they" : "you") : null} />
+      <Suspense fallback={null}>
+        <UnpaidInvoices who={user.discordId} readOnly={readOnly} />
+      </Suspense>
 
       <Suspense fallback={<div className="mt-6 h-32 animate-pulse rounded-2xl bg-muted" />}>
         <TodayAtTheHub me={{ username: user.username, avatar }} />

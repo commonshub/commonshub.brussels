@@ -8,6 +8,7 @@ import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { CoworkBox } from "@/components/dashboard/cowork-box"
 import { LinkDiscordCard } from "@/components/dashboard/link-discord"
 import { HubAccess, lockedReason } from "@/components/dashboard/hub-access"
+import { UnpaidInvoices } from "@/components/dashboard/unpaid-invoices"
 import { LatestTransactions } from "@/components/dashboard/latest-transactions"
 import { MembershipStatus } from "@/components/dashboard/membership-status"
 import { membershipStanding } from "@/lib/membership-standing"
@@ -52,6 +53,9 @@ export async function EmailDashboard({ email, name, paid, linked, viewAs }: { em
 
       <MembershipStatus standing={standing} viewAs={!!viewAs} />
       <HubAccess name={shown} readOnly={!!viewAs} locked={lockedReason(standing.state, viewAs ? "they" : "you")} />
+      <Suspense fallback={null}>
+        <UnpaidInvoices who={who} readOnly={!!viewAs} />
+      </Suspense>
 
       <div className="mt-6 grid min-w-0 items-start gap-4 sm:grid-cols-2">
         <ActionToggle icon={<Presentation className="h-6 w-6 text-primary" />} title="Book a room" text="For a meeting, a workshop or an event: paid in euros, or with your organisation's room credits." disabled={!!viewAs || !known}>
