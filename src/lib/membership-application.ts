@@ -340,36 +340,18 @@ export function buildAcceptedEmail(a: Application, vouchers: Array<{ name: strin
 export const PAYMENT_REMINDER_DAYS = 7
 
 /**
- * A week after being accepted without paying: one personal reminder. Who vouched for them (by name,
- * they'd love to see them in), what they told us they'd bring, and the payment link again.
+ * A week after being accepted without paying: one short reminder. We couldn't find their payment;
+ * the link to pay; if it's a mistake, reply and we fix it.
  */
-export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name: string }>, now = new Date()): { subject: string; html: string; text: string } {
-  const accepted = a.approvedAt ? new Date(a.approvedAt) : null
-  const days = accepted ? (now.getTime() - accepted.getTime()) / 86_400_000 : PAYMENT_REMINDER_DAYS
-  const when = !accepted || days < 11 ? "A week ago" : `On ${accepted.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/Brussels" })}`
+export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name: string }>): { subject: string; html: string; text: string } {
   const names = vouchers.map((v) => v.name)
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]
-  const people = names.length === 1 ? "is" : "are"
-  const contribute = a.contribute?.replace(/\s+/g, " ").trim()
-  const quote = contribute ? (contribute.length > 220 ? `${contribute.slice(0, 217).replace(/\s+\S*$/, "")}…` : contribute) : ""
-  return render(`${list ? `${list} ${people}` : "We're"} waiting for you at the Commons Hub, ${firstName(a)}`, [
+  const accepted = a.approvedAt ? new Date(a.approvedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/Brussels" }) : null
+  return render("Your Commons Hub membership: we couldn't find your payment", [
     { p: `Hi ${firstName(a)},` },
-    {
-      p: list
-        ? `${when}, ${list} vouched for you to join the Commons Hub. ${names.length === 1 ? "They" : "They all"} would love to see you become part of the community, and so would we.`
-        : `${when}, your membership application to the Commons Hub was accepted. We'd love to see you become part of the community.`,
-    },
-    ...(quote ? [{ p: `When you applied, you told us what you'd like to bring: "${quote}" That's exactly what makes the hub what it is.` }] : []),
-    { p: "There's one step left: your membership fee. It's what pays the rent and keeps this common space open for everyone. Once it's done, you'll get the onboarding email: how to open the door, how to join the conversations on Discord, and how to start contributing." },
-    ...(a.type === "individual"
-      ? [
-          { button: `Pay €${a.monthly ?? 10} a month`, href: paymentUrlFor(a) },
-          { title: "Or pick another amount, by card", boxes: MONTHLY_PRICES.map((p) => ({ amount: `€${p.amount}`, label: p.label, href: paymentUrlFor({ ...a, monthly: p.amount }), selected: p.amount === (a.monthly ?? 10) })) },
-          { title: "Or the whole year, by bank transfer (two months free)", boxes: YEARLY_PRICES.map((p) => ({ amount: `€${p.amount}`, label: p.label, href: yearlyPayUrl(p.amount, a.id) })) },
-        ]
-      : [{ button: "Pay my membership", href: paymentUrlFor(a) }]),
-    { p: "If something is holding you back (the amount, the timing, a question about how it works), just reply to this email. We'll find a way." },
-    { p: list ? `Hope to see you soon at the hub. ${list} will be happy to show you around!` : "Hope to see you soon at the hub!" },
+    { p: `Your membership application was accepted${accepted ? ` on ${accepted}` : ""}${list ? ` (${list} vouched for you)` : ""}, but we couldn't find your membership payment.` },
+    { button: a.type === "individual" ? `Pay ${priceOf(a).replace(/ \(.*\)$/, "")}` : "Pay my membership", href: paymentUrlFor(a) },
+    { p: "If this is a mistake (you already paid, or with another email address), just reply to this email and we'll fix it." },
     { p: "The Commons Hub Brussels community" },
   ])
 }

@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { isMember } from "@/lib/admin-check"
 import { buildDoorLink } from "@/lib/door-link"
 import { loadDoorVisitors } from "@/lib/door-today"
+import { membershipStanding } from "@/lib/membership-standing"
 import { publicOrigin } from "@/lib/public-origin"
 
 export const dynamic = "force-dynamic"
@@ -21,11 +22,13 @@ export const dynamic = "force-dynamic"
 export async function POST(request: Request) {
   const json = request.headers.get("accept")?.includes("application/json")
   const session = await auth()
-  if (!session?.user || !(await isMember())) {
+  // Members on Discord; or someone signed in with an email code whose membership is paid.
+  const emailMember = !!session?.user && !session.user.discordId && !!session.user.email && !session.user.testMode && (await membershipStanding({ email: session.user.email })).state === "member"
+  if (!session?.user || !(emailMember || (await isMember()))) {
     return json ? NextResponse.json({ error: "Members only" }, { status: 403 }) : NextResponse.redirect(new URL("/", publicOrigin(request)), 303)
   }
   const now = new Date()
-  const username = session.user.username || "A member"
+  const username = session.user.username || session.user.name || "A member"
   const url = await buildDoorLink({ name: username, host: "Commons Hub", reason: "Member (website)", start: new Date(now.getTime() - 60_000), end: new Date(now.getTime() + 10 * 60_000) })
   if (!url) return NextResponse.json({ error: "The door can't be opened from here right now" }, { status: 503 })
   if (!json) return NextResponse.redirect(url, 303)

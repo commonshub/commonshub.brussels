@@ -1,12 +1,13 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { ArrowRight, CalendarDays, Eye, Hand, MapPin, MessageCircle, Presentation, UserRound } from "lucide-react"
+import { ArrowRight, CalendarDays, Eye, Hand, MapPin, Presentation, UserRound } from "lucide-react"
 
 import { Logo } from "@/components/logo"
 import { ActionToggle } from "@/components/dashboard/action-toggle"
 import { AddEmailCard } from "@/components/dashboard/add-email"
 import { CoworkBox } from "@/components/dashboard/cowork-box"
-import { DoorOpener } from "@/components/dashboard/door-opener"
+import { HubAccess, lockedReason } from "@/components/dashboard/hub-access"
+import { LatestTransactions } from "@/components/dashboard/latest-transactions"
 import { HubBookingButton } from "@/components/dashboard/hub-booking"
 import { MyBookings } from "@/components/dashboard/my-bookings"
 import { MyOrganisations } from "@/components/dashboard/my-organisations"
@@ -16,13 +17,12 @@ import { MembershipPlanCard } from "@/components/dashboard/membership-plan"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { getProxiedImageUrl } from "@/lib/image-proxy"
 import { findPlan } from "@/lib/member-plan"
+import { isUnpaid } from "@/lib/membership-standing"
 import { callTokenBot } from "@/lib/token-bot"
 import { chbPubkey, needsEmail } from "@/lib/partner-email"
 import { isApplicationsConfigured, listApplications } from "@/lib/membership-applications-store"
 import settings from "@/settings/settings.json"
 
-const discordChannel = (id: string) => `https://discord.com/channels/${settings.discord.guildId}/${id}`
-const ELINOR = discordChannel(settings.discord.channels.elinor)
 
 type User = { discordId: string; username: string; email?: string | null; avatar?: string | null }
 
@@ -55,16 +55,8 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
       <h1 className="text-3xl font-extrabold text-foreground sm:text-4xl">Hi {user.username}</h1>
       <p className="mt-1 text-muted-foreground">Welcome home.</p>
 
-      <fieldset disabled={readOnly} className="mt-8 grid min-w-0 gap-4 sm:grid-cols-2">
-        <DoorOpener name={user.username} refresh />
-        <a href={ELINOR} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border-2 border-primary p-5 text-foreground transition hover:bg-primary/5">
-          <MessageCircle className="h-8 w-8 shrink-0 text-primary" />
-          <span>
-            <span className="block text-lg font-bold">Ask Elinor</span>
-            <span className="block text-sm text-muted-foreground">Our community assistant, on Discord</span>
-          </span>
-        </a>
-      </fieldset>
+      {/* Their Discord member role lets them in; a membership that's clearly no longer paid locks it. */}
+      <HubAccess name={user.username} readOnly={readOnly} locked={isUnpaid(plan) ? lockedReason("ended", viewAs ? "they" : "you") : null} />
 
       <Suspense fallback={<div className="mt-6 h-32 animate-pulse rounded-2xl bg-muted" />}>
         <TodayAtTheHub me={{ username: user.username, avatar }} />
@@ -140,6 +132,10 @@ export async function MemberDashboard({ user, paid, viewAs }: { user: User; paid
           </Suspense>
         </div>
       </section>
+
+      <Suspense fallback={null}>
+        <LatestTransactions who={user.discordId} discordId={user.discordId} />
+      </Suspense>
 
       <Link href="/homepage" className="mt-10 flex items-center justify-between gap-4 rounded-2xl bg-muted p-5 transition hover:bg-muted/70">
         <span>
