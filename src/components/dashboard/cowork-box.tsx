@@ -7,7 +7,7 @@ import { type BotIdentity, callTokenBot } from "@/lib/token-bot"
 const ACTION = "inline-flex rounded-full border-2 border-primary px-4 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
 const day = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/Brussels" })
 
-type Sub = { name: string; since: string | null; nextInvoice: string | null; monthly: number }
+type Sub = { name: string; since: string | null; nextInvoice: string | null; monthly: number; period?: "month" | "year" }
 
 /**
  * The dashboard's coworking box. With unlimited coworking (a running subscription in Odoo, made
@@ -44,7 +44,7 @@ export async function CoworkBox({ who, text, guest, disabled }: { who: BotIdenti
         </HubBookingButton>
       )}
       <HubBookingButton mode="cowork-monthly" className={ACTION}>
-        Unlimited · €100/month + VAT
+        Unlimited coworking
       </HubBookingButton>
     </ActionToggle>
   )

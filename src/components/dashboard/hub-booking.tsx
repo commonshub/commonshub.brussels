@@ -33,7 +33,7 @@ interface Options {
   rooms: Array<{ slug: string; name: string; capacity?: number; tokenPricePerHour: number | null; bookableFromNote?: string }>
   terms: { cowork: string; room: string }
   disclaimer: string
-  eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote>; coworkMonthly?: EurQuote }
+  eur?: { available: boolean; memberDiscount: number; vatRate: number; cowork: Record<string, EurQuote>; coworkMonthly?: EurQuote; coworkYearly?: EurQuote }
   /** A test user: euros only (invoices in the test copy of Odoo, cards in Stripe's sandbox). */
   test?: boolean
   /** No Discord (signed in with an email address, or a test user): euros only. */
@@ -105,6 +105,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const [guestEmail, setGuestEmail] = useState("")
   const [quote, setQuote] = useState<{ price: number; eur?: EurQuote } | null>(null)
   const [coworkItem, setCoworkItem] = useState<string | null>(null)
+  // Unlimited coworking: monthly by card, or a year at once by bank transfer (two months free).
+  const [period, setPeriod] = useState<"month" | "year">("month")
 
   // Paying in euros
   const [currency, setCurrency] = useState<"tokens" | "eur">("tokens")
@@ -156,7 +158,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
       const target = org.self ? "self" : String(org.id)
       const r =
         mode === "cowork-monthly"
-          ? await post("subscribecowork", { org: target, pay: method })
+          ? await post("subscribecowork", { org: target, pay: method, period })
           : mode === "cowork-me"
           ? await post("paycowork", { requestId, item: coworkItem, org: target, pay: method })
           : await post("paybook", { requestId, room, start: brusselsIso(date, time), end: brusselsIso(date, endTime), title: title || (isGuest ? `${guestName}'s meeting` : "Meeting"), org: target, pay: method, ...(isGuest ? { guestName, guestEmail } : {}) })
@@ -164,7 +166,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
         window.location.href = r.checkoutUrl
         return
       }
-      const what = mode === "cowork-monthly" ? `Unlimited coworking (${r.subscription?.name ?? "monthly subscription"}): come whenever you like. We invoice it every month` : mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
+      const what = mode === "cowork-monthly" ? `Unlimited coworking (${r.subscription?.name ?? "subscription"}): come whenever you like. We invoice it every ${period}` : mode === "cowork-me" ? `${r.item?.label ?? "Coworking"}, today` : `${r.room.name}, ${whenText(r.start, r.end)}${isGuest ? ` for ${guestName}` : ""}`
       setEurDone({ what, invoice: r.invoice ?? null, credits: r.credits, note: r.checkoutError })
       router.refresh() // the dashboard lists it (pending payment) behind the dialog
     } catch (e) {
@@ -264,8 +266,8 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const price = mode === "cowork-me" ? chosenCowork?.price : mode === "cowork-guest" ? options?.guestPass[length].price : quote?.price
   const enough = options && price !== undefined ? options.balance >= price : true
   const maxDate = options ? todayInBrussels(options.guestPass.maxDaysAhead) : undefined
-  const eurQuote = !inEur ? undefined : mode === "cowork-monthly" ? options?.eur?.coworkMonthly : mode === "cowork-me" ? (chosenCowork ? options?.eur?.cowork[chosenCowork.id] : undefined) : quote?.eur
-  const eurLabel = mode === "cowork-monthly" ? "Unlimited coworking, first month" : mode === "cowork-me" ? (chosenCowork?.label.replace(/^Contributor c/, "C") ?? "Coworking") : `${roomInfo?.name ?? "Room"}, ${quote?.eur?.lines[0]?.quantity ?? ""} h`
+  const eurQuote = !inEur ? undefined : mode === "cowork-monthly" ? (period === "year" ? options?.eur?.coworkYearly : options?.eur?.coworkMonthly) : mode === "cowork-me" ? (chosenCowork ? options?.eur?.cowork[chosenCowork.id] : undefined) : quote?.eur
+  const eurLabel = mode === "cowork-monthly" ? (period === "year" ? "Unlimited coworking, one year" : "Unlimited coworking, first month") : mode === "cowork-me" ? (chosenCowork?.label.replace(/^Contributor c/, "C") ?? "Coworking") : `${roomInfo?.name ?? "Room"}, ${quote?.eur?.lines[0]?.quantity ?? ""} h`
 
   if (view === "pay" && eurQuote && org) {
     const back = () => (setError(null), setView("form"))
@@ -291,7 +293,7 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
     <>
       <DialogHeader>
         <DialogTitle>{TITLES[mode]}</DialogTitle>
-        <DialogDescription>{options ? (inEur ? `${options.eur?.memberDiscount ? `Members get ${options.eur.memberDiscount}% off. ` : ""}Every booking paid in euros gets an invoice, unless your organisation's room credits cover it.` : `You have ${tokens(options.balance)}.`) : "Loading…"}</DialogDescription>
+        <DialogDescription className={mode === "cowork-monthly" ? "sr-only" : undefined}>{mode === "cowork-monthly" ? "Unlimited coworking, monthly or yearly." : options ? (inEur ? `${options.eur?.memberDiscount ? `Members get ${options.eur.memberDiscount}% off. ` : ""}Every booking paid in euros gets an invoice, unless your organisation's room credits cover it.` : `You have ${tokens(options.balance)}.`) : "Loading…"}</DialogDescription>
       </DialogHeader>
 
       {!options && !error && <Loader2 className="mx-auto my-6 h-6 w-6 animate-spin text-muted-foreground" />}
@@ -392,9 +394,30 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
           )}
 
           {mode === "cowork-monthly" && (
-            <p className="text-sm text-muted-foreground">
-              Come and cowork whenever the hub is open, as often as you like, for {eur(options.eur?.coworkMonthly?.untaxed ?? 100)} a month + VAT. We invoice it every month; you pay the first month now, by card or by transfer. Cancel anytime: write to us.
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground">Come and cowork whenever the hub is open, as often as you like. Cancel anytime: write to us.</p>
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How you pay">
+                {(
+                  [
+                    { id: "month", title: "Monthly, by card", price: `${eur(options.eur?.coworkMonthly?.untaxed ?? 100)} a month + VAT`, note: "Charged every month" },
+                    { id: "year", title: "Yearly, by bank transfer", price: `${eur(options.eur?.coworkYearly?.untaxed ?? 1000)} a year + VAT`, note: "Two months free" },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={period === o.id}
+                    onClick={() => setPeriod(o.id)}
+                    className={`rounded-xl border-2 p-3 text-left transition ${period === o.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}
+                  >
+                    <span className="block text-sm font-semibold text-foreground">{o.title}</span>
+                    <span className="block text-sm text-foreground">{o.price}</span>
+                    <span className="block text-xs text-muted-foreground">{o.note}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           {mode !== "cowork-me" && mode !== "cowork-monthly" && (
@@ -463,9 +486,18 @@ function BookingFlow({ mode, onClose }: { mode: Mode; onClose: () => void }) {
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Check availability
               </Button>
             ) : inEur ? (
-              <Button onClick={() => (org ? setView("pay") : orgs && setView("orgs"))} disabled={!eurQuote || orgs === null || (isGuest && !guestName.trim())}>
-                {orgs === null && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {org ? `Pay ${eurQuote ? eur(eurQuote.total) : ""}` : "Choose who we invoice"}
+              <Button
+                onClick={() => (!org ? orgs && setView("orgs") : mode === "cowork-monthly" ? payEur(period === "year" ? "later" : "card") : setView("pay"))}
+                disabled={!eurQuote || orgs === null || payBusy !== null || (isGuest && !guestName.trim())}
+              >
+                {(orgs === null || payBusy !== null) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {!org
+                  ? "Choose who we invoice"
+                  : mode === "cowork-monthly" && period === "year"
+                    ? `Get the invoice (${eurQuote ? eur(eurQuote.total) : ""})`
+                    : mode === "cowork-monthly"
+                      ? `Pay ${eurQuote ? eur(eurQuote.total) : ""} by card`
+                      : `Pay ${eurQuote ? eur(eurQuote.total) : ""}`}
               </Button>
             ) : (
               <Button onClick={pay} disabled={busy || !enough || price === undefined}>
