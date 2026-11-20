@@ -97,7 +97,7 @@ export const ALLOWED_FIELDS: Record<string, string[]> = {
   vat: ["vat"],
   paybook: ["requestId", "room", "start", "end", "title", "guestName", "guestEmail", "org"],
   paycowork: ["requestId", "item", "org"],
-  subscribecowork: ["org", "pay"],
+  subscribecowork: ["org", "pay", "period"],
   // The dashboard's bookings: cancel one (refund by the terms), or pay what is left on its invoice by card.
   cancelbooking: ["invoiceId", "eventId"],
   payinvoice: ["invoiceId"],
