@@ -63,7 +63,14 @@ async function payInvoice(request: Request, who: BotIdentity, test: boolean, inv
   if (!secretKey) return NextResponse.json({ ok: false, error: "Card payment isn't available right now: pay by bank transfer." }, { status: 503 })
   type Listed = { kind: string; label: string; invoice: (BotInvoice & { due: number }) | null }
   const lists = await Promise.all([callTokenBot("mine", who), callTokenBot("mine", who, { past: true })])
-  const found = lists.flatMap((a) => (a.body.ok ? ((a.body as { bookings?: Listed[] }).bookings ?? []) : [])).find((b) => b.invoice?.id === invoiceId)
+  let found = lists.flatMap((a) => (a.body.ok ? ((a.body as { bookings?: Listed[] }).bookings ?? []) : [])).find((b) => b.invoice?.id === invoiceId)
+  if (!found) {
+    // Not a booking: one of their unpaid invoices in Odoo (a subscription, an invoice made by hand).
+    type Unpaid = { id: number; number: string; total: number; due: number; communication: string; label: string }
+    const u = await callTokenBot("unpaid", who)
+    const inv = u.body.ok ? ((u.body as { invoices?: Unpaid[] }).invoices ?? []).find((i) => i.id === invoiceId) : undefined
+    if (inv) found = { kind: "invoice", label: inv.label, invoice: { id: inv.id, number: inv.number, total: inv.total, due: inv.due, communication: inv.communication } as unknown as BotInvoice & { due: number } }
+  }
   if (!found?.invoice) return NextResponse.json({ ok: false, error: "That invoice isn't one of yours." }, { status: 404 })
   if (!(found.invoice.due > 0)) return NextResponse.json({ ok: false, error: "Nothing is left to pay on this invoice." }, { status: 409 })
   try {
