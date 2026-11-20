@@ -214,7 +214,7 @@ export default function FiscalSponsorshipPage() {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground leading-relaxed">
                 If we fiscally sponsor you, your collective becomes a project of our
-                non-profit (Citizen Spring ASBL/VZW). Governance is sociocratic: your
+                non-profit (Commons Hub Brussels ASBL/VZW). Governance is sociocratic: your
                 collective runs its own circle and makes its own decisions about how
                 to spend the money it receives.
               </AccordionContent>
@@ -226,7 +226,7 @@ export default function FiscalSponsorshipPage() {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground leading-relaxed">
                 Yes — that&apos;s one of the main reasons to have a fiscal host. We
-                issue a proper invoice from Citizen Spring ASBL, with VAT applied when
+                issue a proper invoice from Commons Hub Brussels ASBL/VZW, with VAT applied when
                 applicable.
               </AccordionContent>
             </AccordionItem>
@@ -277,7 +277,7 @@ export default function FiscalSponsorshipPage() {
                 </p>
                 <pre className="bg-muted/50 p-3 rounded-md text-xs overflow-x-auto whitespace-pre-wrap">
 {`[Collective Name]
-Citizen Spring ASBL
+Commons Hub Brussels ASBL/VZW
 Rue de Villers 12, 1000 Brussels
 VAT: BE0804505132`}
                 </pre>
