@@ -34,7 +34,10 @@ import {
   buildAcceptedEmail,
   buildPaymentReminderEmail,
   buildReceivedEmail,
+  buildVouchReminderEmail,
   PAYMENT_REMINDER_DAYS,
+  VOUCH_REMINDER_DAYS,
+  VOUCH_REMINDER_EVENTS_DAYS,
   paymentUrlFor,
   vouchersOf,
   withVouchLine,
@@ -359,6 +362,69 @@ export async function remindUnpaid(now = new Date()): Promise<string[]> {
     }
   } finally {
     reminding = false
+  }
+  return sent
+}
+
+// ── two weeks after applying, short of vouches: come and meet us ───────────
+
+/** The public events of the next two weeks, for the invitation (not the potluck: it has its own line). */
+export async function eventsForInvitation(now = new Date()): Promise<Array<{ name: string; startAt: string; url: string }>> {
+  const { loadUpcomingEvents } = await import("./upcoming-events")
+  const until = now.getTime() + VOUCH_REMINDER_EVENTS_DAYS * 86_400_000
+  return loadUpcomingEvents(now, VOUCH_REMINDER_EVENTS_DAYS + 1)
+    .filter((e) => e.url && !/potluck/i.test(e.name) && Date.parse(e.start_at) <= until)
+    .slice(0, 8)
+    .map((e) => ({ name: e.name, startAt: e.start_at, url: e.url }))
+}
+
+/**
+ * The invitation, with the members who already vouched in cc: the bot finds their addresses and
+ * sends it (lib/token-bot.ts mailWithMembersInCc), so the website never sees them. A test (`to`)
+ * goes to that address only: the email reads as if the members were in cc, nobody else gets it.
+ */
+export async function sendVouchReminder(a: Application, vouchers: Array<{ discordId: string; name: string }>, opts: { now?: Date; to?: { email: string; name: string } } = {}): Promise<{ id: string; cc: string[] }> {
+  const { mailWithMembersInCc, reachableMembers } = await import("./token-bot")
+  const now = opts.now ?? new Date()
+  const ids = vouchers.map((v) => v.discordId).filter((id) => /^\d{5,25}$/.test(id))
+  const reachable = new Set(opts.to ? [] : await reachableMembers(ids).catch(() => [] as string[]))
+  const email = buildVouchReminderEmail(a, vouchers.map((v) => ({ name: v.name, cc: opts.to ? true : reachable.has(v.discordId) })), await eventsForInvitation(now).catch(() => []), now)
+  const r = await mailWithMembersInCc({ to: opts.to ?? { email: a.email, name: a.name }, ccDiscordIds: [...reachable], ...email })
+  return { id: r.id ?? "", cc: r.cc ?? [] }
+}
+
+/** Applied at least two weeks ago, still pending (short of vouches), not invited yet. */
+export async function dueVouchReminders(now = new Date()): Promise<Application[]> {
+  const cutoff = now.getTime() - VOUCH_REMINDER_DAYS * 86_400_000
+  return (await listApplications()).filter((a) => a.status === "pending" && !a.vouchRemindedAt && !a.paidAt && Date.parse(a.submittedAt) <= cutoff)
+}
+
+/** Send the invitations that are due (daytime in Brussels only), marking each so it goes once. */
+let inviting = false
+export async function remindVouches(now = new Date()): Promise<string[]> {
+  const hour = Number(now.toLocaleString("en-GB", { timeZone: "Europe/Brussels", hour: "2-digit", hour12: false }))
+  if (inviting || hour < 9 || hour >= 19) return []
+  inviting = true
+  const sent: string[] = []
+  try {
+    const due = await dueVouchReminders(now)
+    const vouched = await loadVouchers(due.map((a) => a.id))
+    for (const a of due) {
+      const vouchers = vouched.get(a.id) ?? []
+      if (vouchers.length >= VOUCHES_NEEDED) continue
+      // Marked first: a failed send is logged, never repeated in a loop.
+      await saveApplication({ ...a, vouchRemindedAt: now.toISOString() })
+      try {
+        const { cc } = await sendVouchReminder(a, vouchers, { now })
+        sent.push(a.id)
+        const names = vouchers.map((v) => `${v.name}${cc.includes(v.discordId) ? " (cc)" : ""}`).join(", ")
+        if (isDiscordConfigured()) sendMessage(MEMBERSHIP, `📬 Invited **${a.name}** to come and meet us (applied ${a.submittedAt.slice(0, 10)}, ${vouchers.length}/${VOUCHES_NEEDED} vouches${names ? `: ${names}` : ""}).`).catch(() => {})
+      } catch (error) {
+        console.error(`[membership] vouch reminder for ${a.id} failed:`, error)
+      }
+    }
+  } finally {
+    inviting = false
   }
   return sent
 }

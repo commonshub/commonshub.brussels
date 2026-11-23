@@ -2,11 +2,12 @@
  * Runs once when the server starts. Vouches given on Discord (a ✅ reaction on
  * an application's post in #membership) are synced every two minutes, so an
  * application is approved without anyone opening /members/pending. Accepted applicants who
- * haven't paid a week later get one reminder.
+ * haven't paid a week later get one reminder; applicants still short of vouches two weeks after
+ * applying get one invitation to come and meet us.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production" || !process.env.DISCORD_BOT_TOKEN) return
-  const { remindUnpaid, syncReactionVouches } = await import("./lib/membership-applications-store")
+  const { remindUnpaid, remindVouches, syncReactionVouches } = await import("./lib/membership-applications-store")
   let running = false
   setInterval(() => {
     if (running) return
@@ -20,7 +21,14 @@ export async function register() {
     setInterval(() => {
       remindUnpaid().catch((error) => console.error("[membership] payment reminders failed:", error))
     }, 60 * 60_000)
+  // Applied two weeks ago, still short of vouches: one invitation to come and meet us.
+  if (VOUCH_REMINDERS)
+    setInterval(() => {
+      remindVouches().catch((error) => console.error("[membership] vouch reminders failed:", error))
+    }, 60 * 60_000)
 }
 
 /** Off until the list of who'd get it has been checked. */
 const PAYMENT_REMINDERS = false
+/** Off until the list of who'd get it has been checked. */
+const VOUCH_REMINDERS = false

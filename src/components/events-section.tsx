@@ -15,7 +15,7 @@ interface EventTag {
   color: string;
 }
 
-interface LumaEvent {
+export interface LumaEvent {
   id: string;
   name: string;
   description: string;
@@ -31,7 +31,7 @@ interface LumaEvent {
   isFeatured?: boolean;
 }
 
-function EventCard({
+export function EventCard({
   event,
   onTagClick,
 }: {

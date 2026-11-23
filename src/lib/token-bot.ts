@@ -131,3 +131,30 @@ export async function linkAccounts(p: { discordId: string; username: string; dis
   }).catch(() => null)
   return !!res?.ok
 }
+
+/**
+ * Emails with members in cc by Discord id (the bot's /api/website/reachable and /mail): the bot
+ * finds their addresses and sends, so the website never sees them. reachable: which of them we
+ * can cc. mail: send, with those in cc (and hello@); answers the ids it cc'd.
+ */
+async function callBotMail<T>(endpoint: "reachable" | "mail", body: Record<string, unknown>): Promise<T> {
+  const base = process.env.TOKEN_BOT_URL
+  const token = process.env.TOKEN_BOT_API_TOKEN
+  if (!base || !token) throw new Error("TOKEN_BOT_URL / TOKEN_BOT_API_TOKEN are not set")
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/website/${endpoint}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ guildId: settings.discord.guildId, ...body }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(30_000),
+  })
+  const answer = (await res.json().catch(() => null)) as (BotAnswer & T) | null
+  if (!res.ok || !answer?.ok) throw new Error(`bot ${endpoint} ${res.status}: ${answer && !answer.ok ? answer.error : "no answer"}`)
+  return answer
+}
+
+export const reachableMembers = async (discordIds: string[]): Promise<string[]> =>
+  discordIds.length ? ((await callBotMail<{ reachable?: string[] }>("reachable", { discordIds })).reachable ?? []) : []
+
+export const mailWithMembersInCc = (m: { to: { email: string; name: string }; ccDiscordIds: string[]; subject: string; html: string; text: string }) =>
+  callBotMail<{ id?: string; cc?: string[] }>("mail", { ...m, ccHello: true })
