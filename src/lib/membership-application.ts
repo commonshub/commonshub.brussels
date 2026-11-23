@@ -88,6 +88,8 @@ export interface Application {
   paidAt?: string
   /** When we sent the reminder to pay (once, a week after they were accepted). */
   remindedAt?: string
+  /** When we invited them to come and meet members (once, two weeks after applying, still short of vouches). */
+  vouchRemindedAt?: string
 }
 
 /** What members see on /members/pending: everything but the email address and what they chose to pay. */
@@ -229,7 +231,7 @@ const firstName = (a: Pick<Application, "name" | "type">) => (a.type === "indivi
 
 /** A block of the email: a paragraph, a heading, a list, or a button. */
 type Box = { amount: string; label: string; href: string; selected?: boolean }
-type Block = { p: string } | { h: string } | { ul: string[] } | { button: string; href: string } | { link: string; href: string; before?: string } | { boxes: Box[]; title: string }
+type Block = { p: string } | { h: string } | { ul: string[] } | { button: string; href: string } | { link: string; href: string; before?: string; after?: string } | { boxes: Box[]; title: string } | { events: Array<{ when: string; name: string; href: string }> }
 
 /** A row of amounts to pick from, like on the website: each box is a link, the chosen one highlighted. */
 const boxesHtml = (b: { boxes: Box[]; title: string }) =>
@@ -259,8 +261,10 @@ ${blocks
           ? `<p style="margin:20px 0"><a href="${esc(b.href)}" style="display:inline-block;background:#b83500;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">${esc(b.button)}</a></p>`
           : "boxes" in b
             ? boxesHtml(b)
+          : "events" in b
+            ? `<ul style="margin:0 0 12px;padding-left:20px">${b.events.map((e) => `<li style="margin:0 0 6px"><span style="color:#5d625e">${esc(e.when)}</span> · <a href="${esc(e.href)}" style="color:#b83500">${esc(e.name)}</a></li>`).join("")}</ul>`
           : "link" in b
-            ? `<p style="margin:0 0 12px">${b.before ? `${esc(b.before)} ` : ""}<a href="${esc(b.href)}" style="color:#b83500">${esc(b.link)}</a></p>`
+            ? `<p style="margin:0 0 12px">${b.before ? `${esc(b.before)} ` : ""}<a href="${esc(b.href)}" style="color:#b83500">${esc(b.link)}</a>${b.after ? ` ${esc(b.after)}` : ""}</p>`
             : `<p style="margin:0 0 12px">${esc(b.p).replace(/\n/g, "<br>")}</p>`,
   )
   .join("\n")}
@@ -270,7 +274,7 @@ ${blocks
 </body></html>`
   const text = [
     ...blocks.flatMap((b) =>
-      "h" in b ? ["", b.h.toUpperCase()] : "ul" in b ? b.ul.map((li) => `- ${li}`) : "button" in b ? [`${b.button}: ${b.href}`] : "boxes" in b ? ["", b.title, ...b.boxes.map((x) => `- ${x.amount} (${x.label})${x.selected ? ", your choice" : ""}: ${x.href}`), ""] : "link" in b ? [`${b.before ? `${b.before} ` : ""}${b.link}: ${b.href}`] : [b.p, ""],
+      "h" in b ? ["", b.h.toUpperCase()] : "ul" in b ? b.ul.map((li) => `- ${li}`) : "button" in b ? [`${b.button}: ${b.href}`] : "boxes" in b ? ["", b.title, ...b.boxes.map((x) => `- ${x.amount} (${x.label})${x.selected ? ", your choice" : ""}: ${x.href}`), ""] : "events" in b ? [...b.events.map((e) => `- ${e.when}: ${e.name} (${e.href})`), ""] : "link" in b ? (b.after ? [`${b.before ? `${b.before} ` : ""}${b.link}${b.href.startsWith("mailto:") ? "" : ` (${b.href})`} ${b.after}`, ""] : [`${b.before ? `${b.before} ` : ""}${b.link}: ${b.href}`]) : [b.p, ""],
     ),
     "",
     `Commons Hub Brussels · ${ADDRESS} · ${SITE}`,
@@ -353,6 +357,79 @@ export function buildPaymentReminderEmail(a: Application, vouchers: Array<{ name
     { button: a.type === "individual" ? `Pay ${priceOf(a).replace(/ \(.*\)$/, "")}` : "Pay my membership", href: paymentUrlFor(a) },
     { p: "If this is a mistake (you already paid, or with another email address), just reply to this email and we'll fix it." },
     { p: "The Commons Hub Brussels community" },
+  ])
+}
+
+/** Days after applying before the one invitation to come and meet members, if they're still short of vouches. */
+export const VOUCH_REMINDER_DAYS = 14
+/** How far ahead the events in that invitation go. */
+export const VOUCH_REMINDER_EVENTS_DAYS = 14
+export const EVENTS_URL = `${SITE}/events`
+
+const TZ = "Europe/Brussels"
+const NUMBERS = ["no", "one", "two", "three", "four", "five"]
+const count = (n: number, one: string, many: string) => `${NUMBERS[n] ?? n} ${n === 1 ? one : many}`
+const and = (list: string[]) => (list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list.at(-1)}` : (list[0] ?? ""))
+
+/** The next Friday at 12:30 in Brussels (today, if it's Friday before the potluck ends). */
+export function nextPotluck(now = new Date()): Date {
+  for (let i = 0; i < 8; i++) {
+    const d = new Date(now.getTime() + i * 86_400_000)
+    const day = d.toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long" })
+    const hour = Number(d.toLocaleString("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }))
+    if (day === "Friday" && (i > 0 || hour < 14)) return d
+  }
+  return now
+}
+
+/** Who vouched, each "(cced)" when they're in cc, with the verb that agrees: "Alex (cced) and Inge have". */
+export function vouchedLine(vouchers: Array<{ name: string; cc?: boolean }>): string {
+  const allCc = vouchers.length > 1 && vouchers.every((v) => v.cc)
+  const names = allCc ? `${and(vouchers.map((v) => v.name))} (both cced)` : and(vouchers.map((v) => (v.cc ? `${v.name} (cced)` : v.name)))
+  return `${names} ${vouchers.length === 1 ? "has" : "have"} already vouched for you.`
+}
+
+/**
+ * Two weeks after applying, still short of vouches: come and meet members. The Friday potluck, the
+ * events of the next two weeks, or write to hello@ to arrange a meeting. Those who already vouched
+ * are named (in cc when we can reach them): ask them to help get the last vouches.
+ */
+export function buildVouchReminderEmail(
+  a: Application,
+  vouchers: Array<{ name: string; cc?: boolean }>,
+  events: Array<{ name: string; startAt: string; url: string }>,
+  now = new Date(),
+): { subject: string; html: string; text: string } {
+  const missing = Math.max(1, VOUCHES_NEEDED - vouchers.length)
+  const applied = new Date(a.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: TZ })
+  const friday = nextPotluck(now).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TZ })
+  const when = (iso: string) =>
+    `${new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: TZ })}, ${new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ })}`
+  const href = (url: string) => (url.startsWith("/") ? `${SITE}${url}` : url)
+  const asked = vouchers.length
+    ? `Ask them to help you secure the ${missing === 1 ? "last vouch" : `last ${NUMBERS[missing]} vouches`} still needed.`
+    : ""
+  return render(`Come and meet us at the Commons Hub, ${firstName(a)}`, [
+    { p: `Hi ${firstName(a)},` },
+    {
+      p: vouchers.length
+        ? `Thank you for applying to become a member of the Commons Hub Brussels on ${applied}. To be accepted, ${count(VOUCHES_NEEDED, "member", "members")} need to vouch for you: you have ${count(vouchers.length, "vouch", "vouches")} so far, ${count(missing, "more is", "more are")} needed.`
+        : `Thank you for applying to become a member of the Commons Hub Brussels on ${applied}. To be accepted, ${count(VOUCHES_NEEDED, "member", "members")} need to vouch for you, and nobody has yet. Members vouch for people they've met, so the best next step is to come and meet us.`,
+    },
+    ...(vouchers.length ? [{ p: `${vouchedLine(vouchers)} ${asked}` }] : []),
+    { h: "Come and meet us" },
+    { p: `Every Friday, join our community potluck: come at 12:30 and bring something to share. The next one is on ${friday}, at ${ADDRESS}.` },
+    { link: "About the Friday potluck", href: POTLUCK_URL },
+    ...(events.length
+      ? [
+          { p: events.length === 1 ? "Or come to our upcoming event in the next two weeks:" : "Or come to one of our upcoming events in the next two weeks:" },
+          { events: events.map((e) => ({ when: when(e.startAt), name: e.name, href: href(e.url) })) },
+          { link: "See all upcoming events", href: EVENTS_URL },
+        ]
+      : [{ link: "See all upcoming events", href: EVENTS_URL, before: "Or come to one of our events:" }]),
+    { link: HELLO, href: `mailto:${HELLO}`, before: "Can't make it to any of those? Write to", after: "and we'll arrange a time to meet." },
+    { p: "We look forward to having you as part of the community." },
+    { p: "Warm regards,\nThe Commons Hub Brussels community" },
   ])
 }
 

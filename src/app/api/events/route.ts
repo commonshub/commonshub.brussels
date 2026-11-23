@@ -1,17 +1,7 @@
-import { tierDir } from "@/lib/data-paths";
-import {
-  mergeHostedEvents,
-  type EventTag,
-  type HomepageEvent,
-} from "@/lib/hosted-events";
-import { htmlToPlainText, redactContactDetails } from "@/lib/plain-text";
-import { coverUrlFor } from "@/lib/event-cover";
+import { type HomepageEvent } from "@/lib/hosted-events";
+import { loadUpcomingEvents } from "@/lib/upcoming-events";
 import { applyHandManagedEvents } from "@/lib/pinned-events";
-import { isPublicEvent, unwrapGoogleRedirect } from "@/lib/public-events";
 import { NextResponse } from "next/server";
-import * as fs from "fs";
-import * as path from "path";
-import { DATA_DIR } from "@/lib/data-paths";
 import {
   EMPTY_CACHE_SECONDS,
   FULL_CACHE_SECONDS,
@@ -35,94 +25,6 @@ const EMPTY_CACHE_DURATION = EMPTY_CACHE_SECONDS * 1000;
 
 function cacheDurationFor(events: HomepageEvent[]): number {
   return events.length > 0 ? CACHE_DURATION : EMPTY_CACHE_DURATION;
-}
-
-/**
- * Load upcoming events from the pre-generated latest events file.
- * This is populated by the chb CLI pipeline (runs hourly).
- */
-function loadUpcomingEvents(): HomepageEvent[] {
-  const now = new Date();
-  const eventsPath = path.join(tierDir("public"), "events.json");
-
-  if (!fs.existsSync(eventsPath)) {
-    console.log("[events] Events file not found:", eventsPath);
-    return [];
-  }
-
-  try {
-    const content = fs.readFileSync(eventsPath, "utf-8");
-    const data = JSON.parse(content);
-    const allEvents = data.events || [];
-    const events: HomepageEvent[] = [];
-
-    for (const event of allEvents) {
-      const startAt = event.startAt || event.start_at || "";
-
-      // Only include future events
-      if (startAt && new Date(startAt) < now) continue;
-
-      // A room-calendar entry with no event page is a private booking.
-      if (!isPublicEvent(event)) continue;
-
-      // Determine if external (non-Luma source without a lu.ma URL)
-      const eventUrl = unwrapGoogleRedirect(event.url || "");
-      const isLuma = eventUrl.includes("lu.ma") || eventUrl.includes("luma.com");
-      const isExternal = !isLuma && !!eventUrl;
-
-      // Detect external platform
-      let externalPlatform = "";
-      if (isExternal) {
-        if (eventUrl.includes("eventbrite")) externalPlatform = "Eventbrite";
-        else if (eventUrl.includes("meetup")) externalPlatform = "Meetup";
-        else if (eventUrl.includes("facebook")) externalPlatform = "Facebook";
-        else externalPlatform = "Event Page";
-      }
-
-      // Normalize location — hide "Commons Hub" since it's implied
-      let location = event.location || "";
-      if (location.toLowerCase().includes("commons hub")) {
-        location = "";
-      }
-
-      // Get tags from event or from nested lumaData
-      const tags: EventTag[] = event.tags || (event.lumaData?.tags
-        ? (event.lumaData.tags as any[]).map((t: any) =>
-            typeof t === "string" ? { name: t, color: "#6b7280" } : { name: t.name, color: t.color || "#6b7280" }
-          )
-        : []);
-
-      const isFeatured = tags.some(
-        (t) => t.name.toLowerCase() === "featured"
-      );
-
-      // chb's local copy when the proxy will serve it, else the platform's
-      // own cover, else nothing: never a URL that renders as a broken image.
-      const coverUrl = coverUrlFor(event);
-
-      events.push({
-        id: event.id || "",
-        name: event.name || "",
-        description: redactContactDetails(htmlToPlainText(event.description || "")),
-        start_at: startAt,
-        end_at: event.endAt || event.end_at || "",
-        cover_url: coverUrl,
-        url: eventUrl,
-        location,
-        isExternal,
-        externalPlatform: isExternal ? externalPlatform : undefined,
-        externalUrl: isExternal ? eventUrl : undefined,
-        tags,
-        isFeatured,
-      });
-    }
-
-    // Link hosted events to their own page, sorted by date
-    return mergeHostedEvents(events, now);
-  } catch (error) {
-    console.error(`[events] Error reading ${eventsPath}:`, error);
-    return [];
-  }
 }
 
 export async function GET() {

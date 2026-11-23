@@ -4,7 +4,8 @@ import { NextResponse } from "next/server"
 import { buildWelcomeEmail, sendWelcome } from "@/lib/membership-welcome"
 import { buildAcceptedEmail, buildReceivedEmail, paymentUrlFor, type Application } from "@/lib/membership-application"
 import { buildPaymentReminderEmail } from "@/lib/membership-application"
-import { dueReminders, sendAccepted, sendPaymentReminder, sendReceived } from "@/lib/membership-applications-store"
+import { buildVouchReminderEmail } from "@/lib/membership-application"
+import { dueReminders, dueVouchReminders, eventsForInvitation, loadVouchers, sendAccepted, sendPaymentReminder, sendReceived, sendVouchReminder } from "@/lib/membership-applications-store"
 import { bankCommunication, buildReminderEmail, GRACE_DAYS, sendReminder, signRenew, type ReminderReason } from "@/lib/membership-reminder"
 
 export const dynamic = "force-dynamic"
@@ -29,7 +30,25 @@ export async function POST(request: Request) {
     const due = await dueReminders()
     return NextResponse.json({ due: due.map((a) => ({ id: a.id, name: a.name, type: a.type, approvedAt: a.approvedAt, vouchers: (a.vouchers ?? []).map((v) => v.name) })) })
   }
+  // Who the invitation to come and meet us would go to now (names, dates and vouches only).
+  if ((body.reason as string) === "vouch-reminder-due") {
+    const due = await dueVouchReminders()
+    const vouched = await loadVouchers(due.map((a) => a.id))
+    return NextResponse.json({ due: due.map((a) => ({ id: a.id, name: a.name, type: a.type, submittedAt: a.submittedAt, vouchers: (vouched.get(a.id) ?? []).map((v) => v.name) })) })
+  }
   if (!body.to || !body.name) return NextResponse.json({ error: "to and name are required" }, { status: 400 })
+  // The invitation, for a sample applicant two weeks after applying with `vouches` (0-2) vouches so far.
+  if ((body.reason as string) === "vouch-reminder") {
+    const n = Math.min(2, Math.max(0, Number((body as { vouches?: number }).vouches ?? 2)))
+    const a: Application = { id: "test-preview", submittedAt: new Date(Date.now() - 14 * 86_400_000).toISOString(), type: "individual", name: body.name, email: body.to, needs: [], status: "pending" }
+    const vouchers = [{ discordId: "0", name: "Leen" }, { discordId: "0", name: "Miriam" }].slice(0, n)
+    if (!body.send) return NextResponse.json(buildVouchReminderEmail(a, vouchers.map((v) => ({ ...v, cc: true })), await eventsForInvitation()))
+    try {
+      return NextResponse.json({ sentTo: body.to, ...(await sendVouchReminder(a, vouchers, { to: { email: body.to, name: body.name } })) })
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Could not send" }, { status: 502 })
+    }
+  }
   if (body.reason === "application-received" || body.reason === "application-accepted" || (body.reason as string) === "payment-reminder") {
     // A sample application (not stored anywhere): what the applicant would get.
     const a: Application = {
