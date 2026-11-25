@@ -25,7 +25,7 @@ import {
 import Link from "next/link";
 import { WalletAddress } from "@/components/wallet-address";
 import settings from "@/settings/settings.json";
-import { getAccountFinancials, type FinanceRecentTransaction } from "@/lib/financials";
+import { getAccountFinancials, ZERO_ADDRESS, type FinanceRecentTransaction } from "@/lib/financials";
 
 // Data is read from local files at request time; never statically cached.
 export const dynamic = "force-dynamic";
@@ -33,8 +33,11 @@ export const dynamic = "force-dynamic";
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
 const formatCounterparty = (tx: FinanceRecentTransaction) => {
-  const address = tx.type === "in" ? tx.to : tx.from;
-  return address ? formatAddress(address) : "Unknown";
+  // The other side of the transfer: the sender for incoming, the recipient for outgoing.
+  const address = tx.type === "in" ? tx.from : tx.to;
+  if (!address) return "Unknown";
+  if (address === ZERO_ADDRESS) return tx.type === "in" ? "Mint" : "Burn";
+  return formatAddress(address);
 };
 
 const formatMonth = (month: string) => {
