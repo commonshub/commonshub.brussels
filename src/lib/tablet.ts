@@ -45,8 +45,12 @@ export interface TabletBooking {
   stewardNeeded?: boolean
 }
 
-/** "Steward needed" / "Stewards needed" in a description, any case. */
-export const asksForSteward = (text: string | null | undefined) => !!text && /\bstewards?\s+needed\b/i.test(text)
+/** "No steward needed", "Steward not needed", "no need for a steward"…: the booking says it needs nobody. */
+const NO_STEWARD = /\b(?:no|not\s+a|without(?:\s+a)?)\s+stewards?\s+(?:is\s+|are\s+)?(?:needed|required)\b|\bstewards?\s+(?:is\s+|are\s+)?not\s+(?:needed|required)\b|\bno\s+need\s+(?:for|of)\s+(?:a\s+)?stewards?\b/i
+export const declinesSteward = (text: string | null | undefined) => !!text && NO_STEWARD.test(text)
+
+/** "Steward needed" / "Stewards needed" in a description, any case; not when it says none is ("No steward needed"). */
+export const asksForSteward = (text: string | null | undefined) => !!text && /\bstewards?\s+needed\b/i.test(text) && !declinesSteward(text)
 
 /** A booking called off keeps its slot in the calendar with "cancelled" in its title: "(cancelled)", "[Cancelled]", "Cancelled: …". */
 export const isCancelledTitle = (title: string) => /\bcancell?ed\b/i.test(title)

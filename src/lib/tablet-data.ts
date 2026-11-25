@@ -22,7 +22,7 @@ import * as path from "path"
 import { tierDir, type Tier } from "./data-paths"
 import { readEventsForMonth, readLatestEvents, readTierJson } from "./dataset"
 import { discordGet, isDiscordConfigured } from "./discord"
-import { asksForSteward, buildDays, introOf, isCancelledTitle, weekRange, type TabletBooking, type TabletDay } from "./tablet"
+import { asksForSteward, buildDays, declinesSteward, introOf, isCancelledTitle, weekRange, type TabletBooking, type TabletDay } from "./tablet"
 import { isShiftsConfigured, listShifts, REWARD_PER_HOUR } from "./shifts-service"
 
 interface BookingsFile {
@@ -140,7 +140,8 @@ export function loadTabletBookings(fromMs: number, toMs: number, tier: Tier = "p
         startMs,
         endMs,
         ...(event?.description || b.description ? { description: plain((event?.description || b.description)!) } : {}),
-        ...(b.stewardNeeded || asksForSteward(event?.description) || asksForSteward(b.description) ? { stewardNeeded: true } : {}),
+        // chb's flag too, unless the description says no steward is needed (chb's own check missed "No steward needed").
+        ...((b.stewardNeeded || asksForSteward(event?.description) || asksForSteward(b.description)) && !declinesSteward(event?.description) && !declinesSteward(b.description) ? { stewardNeeded: true } : {}),
       })
     }
   }
