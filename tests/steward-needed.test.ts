@@ -17,3 +17,12 @@ test("a booking's own description (members tier) can ask for a steward too", asy
   const { asksForSteward } = await import("@/lib/tablet")
   expect(asksForSteward("Birthday party\nSteward needed for opening at 18:00")).toBe(true)
 })
+
+test('"No steward needed" and the like say the opposite: not flagged', async () => {
+  const { asksForSteward, declinesSteward } = await import("@/lib/tablet")
+  for (const text of ["Contact Olivia\nNo steward needed, self organised", "Steward not needed", "stewards are not required", "No need for a steward", "without a steward needed"]) {
+    expect(asksForSteward(text)).toBe(false)
+    expect(declinesSteward(text)).toBe(true)
+  }
+  expect(declinesSteward("Steward needed")).toBe(false)
+})
